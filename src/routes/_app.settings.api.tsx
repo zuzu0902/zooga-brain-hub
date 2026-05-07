@@ -25,6 +25,8 @@ function ApiSettingsPage() {
   const [token, setToken] = useState("");
   const [pageId, setPageId] = useState("");
   const [defaultSource, setDefaultSource] = useState("Tamar Bot");
+  const [tamarUrl, setTamarUrl] = useState("");
+  const [tamarToken, setTamarToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -42,6 +44,8 @@ function ApiSettingsPage() {
         setToken(data.webhook_token ?? "");
         setPageId(data.facebook_page_id ?? "");
         setDefaultSource(data.default_source ?? "Tamar Bot");
+        setTamarUrl((data as any).tamar_backend_url ?? "");
+        setTamarToken((data as any).tamar_backend_api_token ?? "");
       }
       setLoading(false);
     })();
@@ -56,6 +60,8 @@ function ApiSettingsPage() {
         webhook_token: token || null,
         facebook_page_id: pageId || null,
         default_source: defaultSource as any,
+        tamar_backend_url: tamarUrl || null,
+        tamar_backend_api_token: tamarToken || null,
       });
     setSaving(false);
     if (error) toast.error("שגיאה: " + error.message);
@@ -206,6 +212,41 @@ Body:
   "source": "Tamar Bot"
 }`}
         </pre>
+      </Card>
+
+      <Card className="p-6 space-y-4">
+        <h2 className="font-semibold">Tamar Backend (Railway)</h2>
+        <p className="text-xs text-muted-foreground">
+          כאן מוגדרת כתובת ה-backend של בוט תמר ב-Railway. Lovable שולחת לכאן את הלידים שנבחרו לקמפיין אינטייק. שליחת WhatsApp עצמה מתבצעת בצד תמר, לא ב-Lovable.
+        </p>
+        <div>
+          <Label>Tamar Backend URL</Label>
+          <Input
+            value={tamarUrl}
+            onChange={(e) => setTamarUrl(e.target.value)}
+            dir="ltr"
+            placeholder="https://tamar-bot.up.railway.app"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            הקריאה תבוצע ל-<code dir="ltr">{tamarUrl ? tamarUrl.replace(/\/$/, "") + "/campaigns/intake" : "<URL>/campaigns/intake"}</code>
+          </p>
+        </div>
+        <div>
+          <Label>Tamar API Token</Label>
+          <Input
+            value={tamarToken}
+            onChange={(e) => setTamarToken(e.target.value)}
+            dir="ltr"
+            placeholder="bearer token"
+            type="password"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            יישלח כ-<code dir="ltr">Authorization: Bearer ...</code>. תמר תוכל לאמת את אותו token כשהיא קוראת בחזרה ל-<code dir="ltr">/api/public/webhook/tamar-status</code> לעדכוני סטטוס.
+          </p>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={save} disabled={saving}>{saving ? "שומר..." : "שמור הגדרות"}</Button>
+        </div>
       </Card>
     </div>
   );
