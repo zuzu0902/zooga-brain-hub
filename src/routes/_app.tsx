@@ -1,5 +1,4 @@
-import { createFileRoute, Outlet, Link, useNavigate, useLocation } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Outlet, Link, useLocation } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard,
@@ -27,30 +26,7 @@ const NAV = [
 
 function AppLayout() {
   const { user, isAdmin, loading, signOut } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
-
-  useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login" });
-  }, [loading, user, navigate]);
-
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
-        טוען...
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-        <h2 className="text-xl font-semibold">אין לך הרשאת מנהל</h2>
-        <p className="text-muted-foreground">פנה למנהל המערכת לקבלת גישה.</p>
-        <Button onClick={signOut} variant="outline">התנתק</Button>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex" dir="rtl">
@@ -90,11 +66,19 @@ function AppLayout() {
           })}
         </nav>
         <div className="p-3 border-t border-sidebar-border">
-          <div className="text-xs text-muted-foreground mb-2 px-2 truncate">{user.email}</div>
-          <Button onClick={signOut} variant="ghost" className="w-full justify-start gap-2">
-            <LogOut className="h-4 w-4" />
-            התנתק
-          </Button>
+          {user ? (
+            <>
+              <div className="text-xs text-muted-foreground mb-2 px-2 truncate">{user.email}</div>
+              <Button onClick={signOut} variant="ghost" className="w-full justify-start gap-2">
+                <LogOut className="h-4 w-4" />
+                התנתק
+              </Button>
+            </>
+          ) : (
+            <div className="text-xs text-muted-foreground px-2 py-1 rounded bg-muted/50 text-center">
+              מצב פיתוח · ללא התחברות
+            </div>
+          )}
         </div>
       </aside>
       <main className="flex-1 overflow-auto">
