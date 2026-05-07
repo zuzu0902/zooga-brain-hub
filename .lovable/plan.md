@@ -1,16 +1,69 @@
-## עקיפת התחברות זמנית
+## מודול "ייבוא לידים" ל-Zooga CRM
 
-מטרה: לאפשר גישה מלאה לכל מסכי המערכת ללא צורך בהתחברות, תוך שמירה על תשתית האימות הקיימת כדי שנוכל להחזיר אותה בעתיד.
+### 1. סכימת DB (מיגרציה)
 
-### מה משתנה
+**טבלה חדשה: `imported_leads`**
+- `id` uuid PK
+- `full_name`, `first_name`, `last_name` text
+- `phone` text (normalized E.164)
+- `source_file_name`, `source_campaign` text
+- `import_status` enum: `imported, duplicate, ready_for_intake, sent_to_tamar, replied, converted_to_contact, failed, opted_out` (default `imported`)
+- `consent_status` enum: `unknown, approved, declined` (default `unknown`)
+- `whatsapp_template_status` enum: `not_sent, sent, delivered, read, replied, failed` (default `not_sent`)
+- `contact_id` uuid (קישור לאיש קשר אם דופליקט/הומר)
+- `raw_row_data` jsonb
+- `last_message_at` timestamptz
+- `notes` text
+- `created_at`, `updated_at` + טריגר touch_updated_at
+- אינדקסים על `phone`, `import_status`
 
-1. **`src/routes/_app.tsx`** — להסיר את הבדיקה `if (!user) navigate("/login")` ואת חסימת `!isAdmin`. ה-Layout יציג את כל המסכים ישירות.
-2. **כפתור "התנתק"** בסיידבר — להסתיר כשאין משתמש מחובר (או להחליף ב-badge "מצב פיתוח").
-3. **`src/routes/login.tsx`** — להישאר קיים, אך לא ננווט אליו אוטומטית. דף הבית `/` יהיה זמין ישירות.
-4. **שאילתות Supabase מהדפדפן** — כיוון ש-RLS דורש `is_admin()`, וללא התחברות `auth.uid()` הוא NULL, כל הקריאות יחזירו ריק. נטפל בזה דרך **השבתת RLS זמנית** על הטבלאות הרלוונטיות (`contacts`, `interactions`, `offers`, `messages`, `intake_inbox`, `webhook_logs`, `api_settings`) במיגרציה.
+**טבלה חדשה: `intake_campaigns`**
+- `id`, `campaign_name`, `template_name`, `tamar_response` jsonb, `status` text, `sent_count` int, `created_at`
 
-### אזהרת אבטחה
+**הרחבת `api_settings`:**
+- `tamar_backend_url` text
+- `tamar_backend_api_token` text
 
-השבתת RLS חושפת את כל הנתונים לכל מי שיש לו את ה-anon key (כלומר, כל מבקר באתר). זה מקובל רק לפיתוח/שימוש פרטי לא-מפורסם. **לא לפרסם** את האפליקציה במצב הזה.
+**RLS:** מדיניות ציבורית open (תואמת לשאר המערכת במצב dev הנוכחי).
 
-### הח
+### 2. מסך "ייבוא לידים" — `/_app/import-leads`
+
+- העלאת CSV (ניתוח client-side עם PapaParse)
+- ולידציה: עמודות חובה `full_name`, `phone`; אופציונלי `email`, `city`, `region`, `source_campaign`, `notes`
+- נורמליזציה של טלפון לפורמט `+972...`
+- בדיקת כפילויות: query ל-`contacts.phone` ול-`imported_leads.phone`. אם קיים contact → סטטוס `duplicate` + `contact_id`. אם קיים בייבוא → דילוג. אחרת → `imported`.
+- הצגת סיכום ייבוא + טבלת לידים מסוננת לפי סטטוס
+- בחירה מרובה + כפתור "סמן כמוכן לאינטייק" (`ready_for_intake`)
+
+### 3. מסך "קמפיין אינטייק" — `/_app/intake-campaign`
+
+- טבלת לידים עם `import_status = ready_for_intake`
+- בחירה מרובה
+- שדות: `campaign_name`, `template_name` (select מרשימה קבועה: `zooga_intro_intake` כברירת מחדל)
+- תצוגת preview של ההודעה
+- כפתור "שלח לתמר" → קורא ל-server function
+
+### 4. Server function — `src/lib/intake-campaign.functions.ts`
+
+- שולף `tamar_backend_url` ו-`tamar_backend_api_token` מ-`api_settings`
+- POST ל-`{tamar_backend_url}/campaigns/intake` עם payload כנדרש
+- מעדכן `imported_leads.import_status = sent_to_tamar`, `whatsapp_template_status = sent`
+- שומר רשומה ב-`intake_campaigns`
+
+### 5. Webhook נכנס לעדכון סטטוסים
+
+`/api/public/webhook/tamar-status` — POST עם `{lead_id, status}` (delivered/read/replied/failed). מעדכן `whatsapp_template_status` ו-`last_message_at`. מאובטח עם `tamar_backend_api_token`.
+
+### 6. הרחבת מסך הגדרות API
+
+הוספת שדות `tamar_backend_url` ו-`tamar_backend_api_token` ב-`/_app/settings/api`.
+
+### 7. ניווט בסיידבר
+
+הוספת קישורים ל-"ייבוא לידים" ו-"קמפיין אינטייק".
+
+### הערות
+- אין שליחת וואטסאפ ישירה מ-Lovable
+- אין AI בשלב זה
+- כל הטקסטים בעברית RTL
+- שימוש ב-PapaParse (`bun add papaparse`)

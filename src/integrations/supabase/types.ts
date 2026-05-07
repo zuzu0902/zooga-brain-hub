@@ -19,6 +19,8 @@ export type Database = {
           default_source: Database["public"]["Enums"]["contact_source"]
           facebook_page_id: string | null
           id: number
+          tamar_backend_api_token: string | null
+          tamar_backend_url: string | null
           updated_at: string
           webhook_token: string | null
         }
@@ -26,6 +28,8 @@ export type Database = {
           default_source?: Database["public"]["Enums"]["contact_source"]
           facebook_page_id?: string | null
           id?: number
+          tamar_backend_api_token?: string | null
+          tamar_backend_url?: string | null
           updated_at?: string
           webhook_token?: string | null
         }
@@ -33,6 +37,8 @@ export type Database = {
           default_source?: Database["public"]["Enums"]["contact_source"]
           facebook_page_id?: string | null
           id?: number
+          tamar_backend_api_token?: string | null
+          tamar_backend_url?: string | null
           updated_at?: string
           webhook_token?: string | null
         }
@@ -170,6 +176,93 @@ export type Database = {
           tags?: string[]
           updated_at?: string
           whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
+      imported_leads: {
+        Row: {
+          consent_status: Database["public"]["Enums"]["lead_consent_status"]
+          contact_id: string | null
+          created_at: string
+          first_name: string | null
+          full_name: string | null
+          id: string
+          import_status: Database["public"]["Enums"]["imported_lead_status"]
+          last_message_at: string | null
+          last_name: string | null
+          notes: string | null
+          phone: string | null
+          raw_row_data: Json | null
+          source_campaign: string | null
+          source_file_name: string | null
+          updated_at: string
+          whatsapp_template_status: Database["public"]["Enums"]["whatsapp_template_status"]
+        }
+        Insert: {
+          consent_status?: Database["public"]["Enums"]["lead_consent_status"]
+          contact_id?: string | null
+          created_at?: string
+          first_name?: string | null
+          full_name?: string | null
+          id?: string
+          import_status?: Database["public"]["Enums"]["imported_lead_status"]
+          last_message_at?: string | null
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          raw_row_data?: Json | null
+          source_campaign?: string | null
+          source_file_name?: string | null
+          updated_at?: string
+          whatsapp_template_status?: Database["public"]["Enums"]["whatsapp_template_status"]
+        }
+        Update: {
+          consent_status?: Database["public"]["Enums"]["lead_consent_status"]
+          contact_id?: string | null
+          created_at?: string
+          first_name?: string | null
+          full_name?: string | null
+          id?: string
+          import_status?: Database["public"]["Enums"]["imported_lead_status"]
+          last_message_at?: string | null
+          last_name?: string | null
+          notes?: string | null
+          phone?: string | null
+          raw_row_data?: Json | null
+          source_campaign?: string | null
+          source_file_name?: string | null
+          updated_at?: string
+          whatsapp_template_status?: Database["public"]["Enums"]["whatsapp_template_status"]
+        }
+        Relationships: []
+      }
+      intake_campaigns: {
+        Row: {
+          campaign_name: string
+          created_at: string
+          id: string
+          sent_count: number
+          status: string
+          tamar_response: Json | null
+          template_name: string
+        }
+        Insert: {
+          campaign_name: string
+          created_at?: string
+          id?: string
+          sent_count?: number
+          status?: string
+          tamar_response?: Json | null
+          template_name: string
+        }
+        Update: {
+          campaign_name?: string
+          created_at?: string
+          id?: string
+          sent_count?: number
+          status?: string
+          tamar_response?: Json | null
+          template_name?: string
         }
         Relationships: []
       }
@@ -457,6 +550,15 @@ export type Database = {
         | "VIP"
         | "inactive"
       gender: "male" | "female" | "other" | "prefer_not_to_say"
+      imported_lead_status:
+        | "imported"
+        | "duplicate"
+        | "ready_for_intake"
+        | "sent_to_tamar"
+        | "replied"
+        | "converted_to_contact"
+        | "failed"
+        | "opted_out"
       income_range: "low" | "medium" | "high" | "prefer_not_to_say"
       intake_status: "pending" | "approved" | "merged" | "rejected"
       interaction_type:
@@ -467,6 +569,7 @@ export type Database = {
         | "form_submit"
         | "purchase_interest"
         | "admin_note"
+      lead_consent_status: "unknown" | "approved" | "declined"
       message_channel: "Facebook" | "WhatsApp" | "SMS" | "Email"
       message_status: "draft" | "sent" | "failed" | "replied"
       offer_category:
@@ -480,6 +583,13 @@ export type Database = {
       offer_status: "draft" | "active" | "archived"
       price_sensitivity: "high" | "medium" | "low"
       spending_profile: "budget" | "standard" | "premium" | "luxury"
+      whatsapp_template_status:
+        | "not_sent"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "replied"
+        | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -625,6 +735,16 @@ export const Constants = {
         "inactive",
       ],
       gender: ["male", "female", "other", "prefer_not_to_say"],
+      imported_lead_status: [
+        "imported",
+        "duplicate",
+        "ready_for_intake",
+        "sent_to_tamar",
+        "replied",
+        "converted_to_contact",
+        "failed",
+        "opted_out",
+      ],
       income_range: ["low", "medium", "high", "prefer_not_to_say"],
       intake_status: ["pending", "approved", "merged", "rejected"],
       interaction_type: [
@@ -636,6 +756,7 @@ export const Constants = {
         "purchase_interest",
         "admin_note",
       ],
+      lead_consent_status: ["unknown", "approved", "declined"],
       message_channel: ["Facebook", "WhatsApp", "SMS", "Email"],
       message_status: ["draft", "sent", "failed", "replied"],
       offer_category: [
@@ -650,6 +771,14 @@ export const Constants = {
       offer_status: ["draft", "active", "archived"],
       price_sensitivity: ["high", "medium", "low"],
       spending_profile: ["budget", "standard", "premium", "luxury"],
+      whatsapp_template_status: [
+        "not_sent",
+        "sent",
+        "delivered",
+        "read",
+        "replied",
+        "failed",
+      ],
     },
   },
 } as const
