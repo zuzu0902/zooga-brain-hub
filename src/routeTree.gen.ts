@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
+import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-campaign'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
@@ -43,6 +44,11 @@ const AppSendOfferRoute = AppSendOfferRouteImport.update({
 const AppOffersRoute = AppOffersRouteImport.update({
   id: '/offers',
   path: '/offers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIntakeCampaignRoute = AppIntakeCampaignRouteImport.update({
+  id: '/intake-campaign',
+  path: '/intake-campaign',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInboxRoute = AppInboxRouteImport.update({
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/contacts': typeof AppContactsRouteWithChildren
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
+  '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRoute
   '/send-offer': typeof AppSendOfferRoute
   '/contacts/$id': typeof AppContactsIdRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/contacts': typeof AppContactsRouteWithChildren
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
+  '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRoute
   '/send-offer': typeof AppSendOfferRoute
   '/': typeof AppIndexRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/_app/contacts': typeof AppContactsRouteWithChildren
   '/_app/import-leads': typeof AppImportLeadsRoute
   '/_app/inbox': typeof AppInboxRoute
+  '/_app/intake-campaign': typeof AppIntakeCampaignRoute
   '/_app/offers': typeof AppOffersRoute
   '/_app/send-offer': typeof AppSendOfferRoute
   '/_app/': typeof AppIndexRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/import-leads'
     | '/inbox'
+    | '/intake-campaign'
     | '/offers'
     | '/send-offer'
     | '/contacts/$id'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/import-leads'
     | '/inbox'
+    | '/intake-campaign'
     | '/offers'
     | '/send-offer'
     | '/'
@@ -146,6 +157,7 @@ export interface FileRouteTypes {
     | '/_app/contacts'
     | '/_app/import-leads'
     | '/_app/inbox'
+    | '/_app/intake-campaign'
     | '/_app/offers'
     | '/_app/send-offer'
     | '/_app/'
@@ -195,6 +207,13 @@ declare module '@tanstack/react-router' {
       path: '/offers'
       fullPath: '/offers'
       preLoaderRoute: typeof AppOffersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/intake-campaign': {
+      id: '/_app/intake-campaign'
+      path: '/intake-campaign'
+      fullPath: '/intake-campaign'
+      preLoaderRoute: typeof AppIntakeCampaignRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/inbox': {
@@ -258,6 +277,7 @@ interface AppRouteChildren {
   AppContactsRoute: typeof AppContactsRouteWithChildren
   AppImportLeadsRoute: typeof AppImportLeadsRoute
   AppInboxRoute: typeof AppInboxRoute
+  AppIntakeCampaignRoute: typeof AppIntakeCampaignRoute
   AppOffersRoute: typeof AppOffersRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -268,6 +288,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppContactsRoute: AppContactsRouteWithChildren,
   AppImportLeadsRoute: AppImportLeadsRoute,
   AppInboxRoute: AppInboxRoute,
+  AppIntakeCampaignRoute: AppIntakeCampaignRoute,
   AppOffersRoute: AppOffersRoute,
   AppSendOfferRoute: AppSendOfferRoute,
   AppIndexRoute: AppIndexRoute,
@@ -284,3 +305,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
