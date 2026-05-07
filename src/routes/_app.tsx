@@ -8,6 +8,8 @@ import {
   Send,
   Settings,
   LogOut,
+  Upload,
+  Megaphone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +21,8 @@ const NAV = [
   { to: "/", label: "דשבורד", icon: LayoutDashboard, exact: true },
   { to: "/contacts", label: "אנשי קשר", icon: Users },
   { to: "/inbox", label: "תיבת קליטה", icon: Inbox },
+  { to: "/import-leads", label: "ייבוא לידים", icon: Upload },
+  { to: "/intake-campaign", label: "קמפיין אינטייק", icon: Megaphone },
   { to: "/offers", label: "הצעות", icon: Tag },
   { to: "/send-offer", label: "שליחת הצעה", icon: Send },
   { to: "/settings/api", label: "הגדרות API", icon: Settings },
