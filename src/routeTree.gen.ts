@@ -20,6 +20,7 @@ import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
+import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 
 const LoginRoute = LoginRouteImport.update({
@@ -76,6 +77,12 @@ const AppContactsIdRoute = AppContactsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppContactsRoute,
 } as any)
+const ApiPublicWebhookTamarStatusRoute =
+  ApiPublicWebhookTamarStatusRouteImport.update({
+    id: '/api/public/webhook/tamar-status',
+    path: '/api/public/webhook/tamar-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
   id: '/api/public/webhook/tamar',
   path: '/api/public/webhook/tamar',
@@ -94,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/contacts/$id': typeof AppContactsIdRoute
   '/settings/api': typeof AppSettingsApiRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
+  '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -107,6 +115,7 @@ export interface FileRoutesByTo {
   '/contacts/$id': typeof AppContactsIdRoute
   '/settings/api': typeof AppSettingsApiRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
+  '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,6 +131,7 @@ export interface FileRoutesById {
   '/_app/contacts/$id': typeof AppContactsIdRoute
   '/_app/settings/api': typeof AppSettingsApiRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
+  '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/settings/api'
     | '/api/public/webhook/tamar'
+    | '/api/public/webhook/tamar-status'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/settings/api'
     | '/api/public/webhook/tamar'
+    | '/api/public/webhook/tamar-status'
   id:
     | '__root__'
     | '/_app'
@@ -164,12 +176,14 @@ export interface FileRouteTypes {
     | '/_app/contacts/$id'
     | '/_app/settings/api'
     | '/api/public/webhook/tamar'
+    | '/api/public/webhook/tamar-status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
+  ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -251,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppContactsIdRouteImport
       parentRoute: typeof AppContactsRoute
     }
+    '/api/public/webhook/tamar-status': {
+      id: '/api/public/webhook/tamar-status'
+      path: '/api/public/webhook/tamar-status'
+      fullPath: '/api/public/webhook/tamar-status'
+      preLoaderRoute: typeof ApiPublicWebhookTamarStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhook/tamar': {
       id: '/api/public/webhook/tamar'
       path: '/api/public/webhook/tamar'
@@ -301,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
+  ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
