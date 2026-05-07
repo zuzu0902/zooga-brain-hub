@@ -27,6 +27,7 @@ function ApiSettingsPage() {
   const [defaultSource, setDefaultSource] = useState("Tamar Bot");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const webhookUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/api/public/webhook/tamar`;
 
@@ -64,6 +65,52 @@ function ApiSettingsPage() {
   function copy(text: string) {
     navigator.clipboard.writeText(text);
     toast.success("הועתק");
+  }
+
+  async function testWebhook() {
+    setTesting(true);
+    try {
+      const res = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "x-api-token": token } : {}),
+        },
+        body: JSON.stringify({
+          name: "בדיקת מערכת",
+          phone: "+972501111111",
+          facebook_id: "TEST_FACEBOOK_001",
+          message: "זוהי בדיקת חיבור",
+          source: "Tamar Bot",
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(`שגיאה (${res.status}): ${json?.error || "כשל בקריאה"}`);
+        return;
+      }
+      if (json?.matched) {
+        toast.success(`נמצא איש קשר קיים והאינטראקציה נרשמה (${json.contact_id})`);
+      } else if (json?.intake_id) {
+        // Confirm intake item exists
+        const { data } = await supabase
+          .from("intake_inbox")
+          .select("id, parsed_name, status")
+          .eq("id", json.intake_id)
+          .maybeSingle();
+        if (data) {
+          toast.success(`נוצר פריט בתיבת קליטה: ${data.parsed_name} (${data.status})`);
+        } else {
+          toast.warning("הוובהוק החזיר הצלחה אך לא נמצא פריט בתיבת הקליטה");
+        }
+      } else {
+        toast.success("הוובהוק התקבל");
+      }
+    } catch (e: any) {
+      toast.error("שגיאת רשת: " + (e?.message || String(e)));
+    } finally {
+      setTesting(false);
+    }
   }
 
   if (loading) {
@@ -133,9 +180,14 @@ function ApiSettingsPage() {
         </div>
 
         <div className="flex justify-end">
-          <Button onClick={save} disabled={saving}>
-            {saving ? "שומר..." : "שמור הגדרות"}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={testWebhook} disabled={testing}>
+              {testing ? "בודק..." : "בדיקת Webhook"}
+            </Button>
+            <Button onClick={save} disabled={saving}>
+              {saving ? "שומר..." : "שמור הגדרות"}
+            </Button>
+          </div>
         </div>
       </Card>
 
