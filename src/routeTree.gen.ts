@@ -15,6 +15,7 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
+import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
@@ -49,6 +50,11 @@ const AppInboxRoute = AppInboxRouteImport.update({
   path: '/inbox',
   getParentRoute: () => AppRoute,
 } as any)
+const AppImportLeadsRoute = AppImportLeadsRouteImport.update({
+  id: '/import-leads',
+  path: '/import-leads',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppContactsRoute = AppContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/contacts': typeof AppContactsRouteWithChildren
+  '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
   '/offers': typeof AppOffersRoute
   '/send-offer': typeof AppSendOfferRoute
@@ -84,6 +91,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/contacts': typeof AppContactsRouteWithChildren
+  '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
   '/offers': typeof AppOffersRoute
   '/send-offer': typeof AppSendOfferRoute
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/contacts': typeof AppContactsRouteWithChildren
+  '/_app/import-leads': typeof AppImportLeadsRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/offers': typeof AppOffersRoute
   '/_app/send-offer': typeof AppSendOfferRoute
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/contacts'
+    | '/import-leads'
     | '/inbox'
     | '/offers'
     | '/send-offer'
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/contacts'
+    | '/import-leads'
     | '/inbox'
     | '/offers'
     | '/send-offer'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/contacts'
+    | '/_app/import-leads'
     | '/_app/inbox'
     | '/_app/offers'
     | '/_app/send-offer'
@@ -192,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInboxRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/import-leads': {
+      id: '/_app/import-leads'
+      path: '/import-leads'
+      fullPath: '/import-leads'
+      preLoaderRoute: typeof AppImportLeadsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/contacts': {
       id: '/_app/contacts'
       path: '/contacts'
@@ -237,6 +256,7 @@ const AppContactsRouteWithChildren = AppContactsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppContactsRoute: typeof AppContactsRouteWithChildren
+  AppImportLeadsRoute: typeof AppImportLeadsRoute
   AppInboxRoute: typeof AppInboxRoute
   AppOffersRoute: typeof AppOffersRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
@@ -246,6 +266,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppContactsRoute: AppContactsRouteWithChildren,
+  AppImportLeadsRoute: AppImportLeadsRoute,
   AppInboxRoute: AppInboxRoute,
   AppOffersRoute: AppOffersRoute,
   AppSendOfferRoute: AppSendOfferRoute,
@@ -263,3 +284,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
