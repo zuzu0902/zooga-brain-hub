@@ -81,6 +81,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "מערכת ה-CRM של קהילת זוגה" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Zooga CRM" },
+      { name: "twitter:description", content: "מערכת ה-CRM של קהילת זוגה" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4bb088d5-da90-476f-8d2d-63c1628ac22e/id-preview-77ca7d9e--63da89d1-c593-41f4-9c3f-89806f28874d.lovable.app-1778164620398.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4bb088d5-da90-476f-8d2d-63c1628ac22e/id-preview-77ca7d9e--63da89d1-c593-41f4-9c3f-89806f28874d.lovable.app-1778164620398.png" },
     ],
     links: [
       {
