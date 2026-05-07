@@ -9,50 +9,235 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
+import { Route as AppOffersRouteImport } from './routes/_app.offers'
+import { Route as AppInboxRouteImport } from './routes/_app.inbox'
+import { Route as AppContactsRouteImport } from './routes/_app.contacts'
+import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
+import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 
-const IndexRoute = IndexRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSendOfferRoute = AppSendOfferRouteImport.update({
+  id: '/send-offer',
+  path: '/send-offer',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOffersRoute = AppOffersRouteImport.update({
+  id: '/offers',
+  path: '/offers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInboxRoute = AppInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContactsRoute = AppContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContactsIdRoute = AppContactsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppContactsRoute,
+} as any)
+const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
+  id: '/api/public/webhook/tamar',
+  path: '/api/public/webhook/tamar',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/login': typeof LoginRoute
+  '/contacts': typeof AppContactsRouteWithChildren
+  '/inbox': typeof AppInboxRoute
+  '/offers': typeof AppOffersRoute
+  '/send-offer': typeof AppSendOfferRoute
+  '/contacts/$id': typeof AppContactsIdRoute
+  '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/contacts': typeof AppContactsRouteWithChildren
+  '/inbox': typeof AppInboxRoute
+  '/offers': typeof AppOffersRoute
+  '/send-offer': typeof AppSendOfferRoute
+  '/': typeof AppIndexRoute
+  '/contacts/$id': typeof AppContactsIdRoute
+  '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_app/contacts': typeof AppContactsRouteWithChildren
+  '/_app/inbox': typeof AppInboxRoute
+  '/_app/offers': typeof AppOffersRoute
+  '/_app/send-offer': typeof AppSendOfferRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/contacts/$id': typeof AppContactsIdRoute
+  '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/contacts'
+    | '/inbox'
+    | '/offers'
+    | '/send-offer'
+    | '/contacts/$id'
+    | '/api/public/webhook/tamar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/login'
+    | '/contacts'
+    | '/inbox'
+    | '/offers'
+    | '/send-offer'
+    | '/'
+    | '/contacts/$id'
+    | '/api/public/webhook/tamar'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/login'
+    | '/_app/contacts'
+    | '/_app/inbox'
+    | '/_app/offers'
+    | '/_app/send-offer'
+    | '/_app/'
+    | '/_app/contacts/$id'
+    | '/api/public/webhook/tamar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/send-offer': {
+      id: '/_app/send-offer'
+      path: '/send-offer'
+      fullPath: '/send-offer'
+      preLoaderRoute: typeof AppSendOfferRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/offers': {
+      id: '/_app/offers'
+      path: '/offers'
+      fullPath: '/offers'
+      preLoaderRoute: typeof AppOffersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inbox': {
+      id: '/_app/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof AppInboxRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/contacts': {
+      id: '/_app/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof AppContactsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/contacts/$id': {
+      id: '/_app/contacts/$id'
+      path: '/$id'
+      fullPath: '/contacts/$id'
+      preLoaderRoute: typeof AppContactsIdRouteImport
+      parentRoute: typeof AppContactsRoute
+    }
+    '/api/public/webhook/tamar': {
+      id: '/api/public/webhook/tamar'
+      path: '/api/public/webhook/tamar'
+      fullPath: '/api/public/webhook/tamar'
+      preLoaderRoute: typeof ApiPublicWebhookTamarRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
+interface AppContactsRouteChildren {
+  AppContactsIdRoute: typeof AppContactsIdRoute
+}
+
+const AppContactsRouteChildren: AppContactsRouteChildren = {
+  AppContactsIdRoute: AppContactsIdRoute,
+}
+
+const AppContactsRouteWithChildren = AppContactsRoute._addFileChildren(
+  AppContactsRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppContactsRoute: typeof AppContactsRouteWithChildren
+  AppInboxRoute: typeof AppInboxRoute
+  AppOffersRoute: typeof AppOffersRoute
+  AppSendOfferRoute: typeof AppSendOfferRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppContactsRoute: AppContactsRouteWithChildren,
+  AppInboxRoute: AppInboxRoute,
+  AppOffersRoute: AppOffersRoute,
+  AppSendOfferRoute: AppSendOfferRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
+  ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
