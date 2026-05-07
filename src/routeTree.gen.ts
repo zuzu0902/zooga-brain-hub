@@ -16,6 +16,7 @@ import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
+import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 
@@ -53,6 +54,11 @@ const AppContactsRoute = AppContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
+  id: '/settings/api',
+  path: '/settings/api',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppContactsIdRoute = AppContactsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/offers': typeof AppOffersRoute
   '/send-offer': typeof AppSendOfferRoute
   '/contacts/$id': typeof AppContactsIdRoute
+  '/settings/api': typeof AppSettingsApiRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
 }
 export interface FileRoutesByTo {
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/send-offer': typeof AppSendOfferRoute
   '/': typeof AppIndexRoute
   '/contacts/$id': typeof AppContactsIdRoute
+  '/settings/api': typeof AppSettingsApiRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
 }
 export interface FileRoutesById {
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/_app/send-offer': typeof AppSendOfferRoute
   '/_app/': typeof AppIndexRoute
   '/_app/contacts/$id': typeof AppContactsIdRoute
+  '/_app/settings/api': typeof AppSettingsApiRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
 }
 export interface FileRouteTypes {
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/offers'
     | '/send-offer'
     | '/contacts/$id'
+    | '/settings/api'
     | '/api/public/webhook/tamar'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/send-offer'
     | '/'
     | '/contacts/$id'
+    | '/settings/api'
     | '/api/public/webhook/tamar'
   id:
     | '__root__'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/_app/send-offer'
     | '/_app/'
     | '/_app/contacts/$id'
+    | '/_app/settings/api'
     | '/api/public/webhook/tamar'
   fileRoutesById: FileRoutesById
 }
@@ -187,6 +199,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppContactsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/api': {
+      id: '/_app/settings/api'
+      path: '/settings/api'
+      fullPath: '/settings/api'
+      preLoaderRoute: typeof AppSettingsApiRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/contacts/$id': {
       id: '/_app/contacts/$id'
       path: '/$id'
@@ -222,6 +241,7 @@ interface AppRouteChildren {
   AppOffersRoute: typeof AppOffersRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppSettingsApiRoute: typeof AppSettingsApiRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -230,6 +250,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOffersRoute: AppOffersRoute,
   AppSendOfferRoute: AppSendOfferRoute,
   AppIndexRoute: AppIndexRoute,
+  AppSettingsApiRoute: AppSettingsApiRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
