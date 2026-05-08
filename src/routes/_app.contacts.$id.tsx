@@ -100,6 +100,7 @@ function ContactProfile() {
 
   const [interactionOpen, setInteractionOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<"memory" | "actions" | "timeline" | "edit">("memory");
 
   async function update(patch: any) {
     const { error } = await supabase.from("contacts").update(patch).eq("id", id);
