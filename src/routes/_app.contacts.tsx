@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ function ContactsPage() {
 
   const { data: contacts, isLoading, refetch } = useQuery({
     queryKey: ["contacts", search, status, source],
+    refetchInterval: 15000,
     queryFn: async () => {
       let q = supabase
         .from("contacts")
@@ -43,6 +44,20 @@ function ContactsPage() {
       return data ?? [];
     },
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("contacts-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contacts" },
+        () => refetch(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   return (
     <div className="p-6 space-y-5">
