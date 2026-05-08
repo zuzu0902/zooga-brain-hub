@@ -18,7 +18,7 @@ import {
 import {
   ArrowRight, Plus, Save, X, MessageSquare, StickyNote,
   CheckSquare, Flag, Phone, Mail, MapPin, Calendar, ShieldCheck,
-  Sparkles, AlertCircle, Trash2,
+  Sparkles, AlertCircle, Trash2, FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,6 +29,7 @@ import {
   formatDate, formatRelative,
 } from "@/lib/i18n";
 import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
+import { exportContactToPdf } from "@/lib/contact-pdf";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
   head: () => ({ meta: [{ title: "פרופיל איש קשר — Zooga CRM" }] }),
@@ -98,6 +99,19 @@ function ContactProfile() {
 
   const [interactionOpen, setInteractionOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportPdf() {
+    if (!contact) return;
+    setExporting(true);
+    try {
+      await exportContactToPdf(contact, interactions || []);
+      toast.success("ה-PDF הופק והורד");
+    } catch (e: any) {
+      toast.error("שגיאה בהפקת PDF: " + (e?.message || e));
+    }
+    setExporting(false);
+  }
 
   async function update(patch: any) {
     const { error } = await supabase.from("contacts").update(patch).eq("id", id);
@@ -161,6 +175,16 @@ function ContactProfile() {
           </div>
 
           <div className="flex flex-col items-stretch gap-2 min-w-[240px]">
+            <Button
+              size="sm"
+              variant="default"
+              className="gap-1.5"
+              onClick={handleExportPdf}
+              disabled={exporting}
+            >
+              <FileDown className="h-4 w-4" />
+              {exporting ? "מפיק PDF..." : "ייצוא לכרטיס PDF"}
+            </Button>
             <Select value={contact.status} onValueChange={(v) => update({ status: v })}>
               <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
               <SelectContent>
