@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { INTAKE_FLOWS, buildSuggestedOpening, type IntakeFlowType } from "@/lib/intake-flows";
 
 export const Route = createFileRoute("/api/public/webhook/tamar")({
   server: {
@@ -153,6 +154,26 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           const enrichment = buildEnrichment();
           const dynamicExtras = buildDynamic();
 
+          // === Campaign detection ===
+          // Match by explicit id, name, or the WhatsApp number the message came in on.
+          let campaign: any = null;
+          const campaignIdHint = payload?.campaign_id || payload?.campaignId || null;
+          const campaignNameHint = payload?.campaign_name || payload?.campaignName || null;
+          const inboundWa = payload?.to || payload?.recipient || payload?.business_phone || null;
+
+          if (campaignIdHint) {
+            const { data } = await supabaseAdmin.from("campaigns").select("*").eq("id", campaignIdHint).maybeSingle();
+            if (data) campaign = data;
+          }
+          if (!campaign && campaignNameHint) {
+            const { data } = await supabaseAdmin.from("campaigns").select("*").ilike("name", `%${campaignNameHint}%`).limit(1);
+            if (data && data[0]) campaign = data[0];
+          }
+          if (!campaign && inboundWa) {
+            const { data } = await supabaseAdmin.from("campaigns").select("*").eq("whatsapp_number", String(inboundWa)).limit(1);
+            if (data && data[0]) campaign = data[0];
+          }
+
           // Phone is the master key. Try to match existing contact by phone first.
           let matched: any = null;
           if (phone) {
@@ -213,6 +234,14 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             const nextRaw = [...prevRaw, { at: nowIso, payload }].slice(-50);
             patch.raw_payloads = nextRaw;
 
+            // Campaign linkage on existing contact
+            if (campaign) {
+              if (!matched.first_touch_campaign_id) patch.first_touch_campaign_id = campaign.id;
+              patch.last_touch_campaign_id = campaign.id;
+              patch.campaign_source = campaign.name;
+              if (!matched.acquisition_source) patch.acquisition_source = campaign.source_platform || campaign.name;
+            }
+
             await supabaseAdmin.from("contacts").update(patch).eq("id", matched.id);
 
             if (message) {
@@ -221,14 +250,29 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 type: isWhatsApp ? "whatsapp_message" : "facebook_message",
                 source: String(source),
                 content: message,
+                campaign_id: campaign?.id || null,
               });
             }
+
+            if (campaign) {
+              await supabaseAdmin.from("campaign_contacts").upsert({
+                campaign_id: campaign.id,
+                contact_id: matched.id,
+                first_touch: !matched.first_touch_campaign_id,
+                last_touch: true,
+                last_activity_at: nowIso,
+              }, { onConflict: "campaign_id,contact_id" });
+            }
+
+            const ctx = campaign ? buildCampaignContext(campaign, matched) : null;
 
             return Response.json({
               ok: true,
               matched: true,
               contact_id: matched.id,
               updated_fields: Object.keys(patch),
+              campaign: campaign ? { id: campaign.id, name: campaign.name } : null,
+              ...(ctx || {}),
             });
           }
 
@@ -253,6 +297,12 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           if (payload?.preferred_language_style)
             insertRow.preferred_language_style = payload.preferred_language_style;
           if (payload?.gender) insertRow.gender = payload.gender;
+          if (campaign) {
+            insertRow.first_touch_campaign_id = campaign.id;
+            insertRow.last_touch_campaign_id = campaign.id;
+            insertRow.campaign_source = campaign.name;
+            insertRow.acquisition_source = campaign.source_platform || campaign.name;
+          }
 
           const { data: created, error: createErr } = await supabaseAdmin
             .from("contacts")
@@ -268,7 +318,18 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               type: isWhatsApp ? "whatsapp_message" : "facebook_message",
               source: String(source),
               content: message,
+              campaign_id: campaign?.id || null,
             });
+          }
+
+          if (campaign && created?.id) {
+            await supabaseAdmin.from("campaign_contacts").upsert({
+              campaign_id: campaign.id,
+              contact_id: created.id,
+              first_touch: true,
+              last_touch: true,
+              last_activity_at: nowIso,
+            }, { onConflict: "campaign_id,contact_id" });
           }
 
           // Also log to intake_inbox for visibility, marked as processed.
@@ -285,7 +346,13 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             processed_at: nowIso,
           });
 
-          return Response.json({ ok: true, matched: false, created: true, contact_id: created?.id });
+          const ctx = campaign ? buildCampaignContext(campaign, { first_name: insertRow.first_name }) : null;
+
+          return Response.json({
+            ok: true, matched: false, created: true, contact_id: created?.id,
+            campaign: campaign ? { id: campaign.id, name: campaign.name } : null,
+            ...(ctx || {}),
+          });
         } catch (e: any) {
           await supabaseAdmin.from("webhook_logs").insert({
             source: "tamar_bot",
