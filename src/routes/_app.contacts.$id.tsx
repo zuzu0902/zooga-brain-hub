@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -192,46 +191,33 @@ function ContactProfile() {
         </div>
       </Card>
 
-      <Tabs defaultValue="overview">
-        <TabsList className="flex-wrap h-auto bg-muted/40 p-1">
-          <TabsTrigger value="overview">סקירה כללית</TabsTrigger>
-          <TabsTrigger value="conversations">שיחות</TabsTrigger>
-          <TabsTrigger value="ai">תובנות AI</TabsTrigger>
-          <TabsTrigger value="profile">פרופיל אישי</TabsTrigger>
-          <TabsTrigger value="sales">פעילות ומכירות</TabsTrigger>
-          <TabsTrigger value="notes">הערות ומשימות</TabsTrigger>
-          <TabsTrigger value="raw">נתונים גולמיים</TabsTrigger>
-        </TabsList>
+      <SectionHeading>סקירה כללית</SectionHeading>
+      <OverviewTab contact={contact} update={update} />
 
-        <TabsContent value="overview" className="mt-4">
-          <OverviewTab contact={contact} update={update} />
-        </TabsContent>
-        <TabsContent value="conversations" className="mt-4">
-          <ConversationsTab interactions={interactions ?? []} onAdd={() => setInteractionOpen(true)} />
-        </TabsContent>
-        <TabsContent value="ai" className="mt-4">
-          <AITab contact={contact} update={update} />
-        </TabsContent>
-        <TabsContent value="profile" className="mt-4">
-          <PersonalTab contact={contact} update={update} />
-        </TabsContent>
-        <TabsContent value="sales" className="mt-4">
-          <SalesTab contact={contact} update={update} />
-        </TabsContent>
-        <TabsContent value="notes" className="mt-4">
-          <NotesTasksTab
-            contact={contact}
-            update={update}
-            tasks={tasks ?? []}
-            onTaskChange={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
-            contactId={id}
-            openTask={() => setTaskOpen(true)}
-          />
-        </TabsContent>
-        <TabsContent value="raw" className="mt-4">
-          <RawTab contact={contact} webhookLogs={webhookLogs ?? []} />
-        </TabsContent>
-      </Tabs>
+      <SectionHeading>תובנות AI</SectionHeading>
+      <AITab contact={contact} update={update} />
+
+      <SectionHeading>פרופיל אישי</SectionHeading>
+      <PersonalTab contact={contact} update={update} />
+
+      <SectionHeading>שיחות ואינטראקציות</SectionHeading>
+      <ConversationsTab interactions={interactions ?? []} onAdd={() => setInteractionOpen(true)} />
+
+      <SectionHeading>פעילות ומכירות</SectionHeading>
+      <SalesTab contact={contact} update={update} />
+
+      <SectionHeading>הערות ומשימות</SectionHeading>
+      <NotesTasksTab
+        contact={contact}
+        update={update}
+        tasks={tasks ?? []}
+        onTaskChange={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
+        contactId={id}
+        openTask={() => setTaskOpen(true)}
+      />
+
+      <SectionHeading>נתונים גולמיים</SectionHeading>
+      <RawTab contact={contact} webhookLogs={webhookLogs ?? []} />
 
       <AddInteractionDialog
         open={interactionOpen}
@@ -250,6 +236,14 @@ function ContactProfile() {
 }
 
 /* ---------- shared building blocks ---------- */
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="pt-4 pb-1 border-b border-border/60">
+      <h2 className="text-lg font-bold tracking-tight">{children}</h2>
+    </div>
+  );
+}
 
 function StatCard({ label, value, hint, tone }: { label: string; value: any; hint?: string; tone?: string }) {
   return (
