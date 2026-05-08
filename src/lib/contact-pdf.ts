@@ -6,6 +6,28 @@ import {
   formatDate,
 } from "@/lib/i18n";
 
+type ContactPdfExport = {
+  blob: Blob;
+  filename: string;
+  download: () => void;
+};
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.target = "_self";
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 60000);
+}
+
 function row(label: string, value: any): string {
   if (value === null || value === undefined || value === "" ||
       (Array.isArray(value) && value.length === 0)) return "";
@@ -22,7 +44,7 @@ function section(title: string, body: string): string {
   return `<section><h2>${title}</h2><table>${body}</table></section>`;
 }
 
-export async function exportContactToPdf(contact: any, interactions: any[] = []) {
+export async function exportContactToPdf(contact: any, interactions: any[] = []): Promise<ContactPdfExport> {
   const name = contact.full_name || [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "ללא שם";
   const generatedAt = new Date().toLocaleString("he-IL");
 
@@ -206,20 +228,8 @@ export async function exportContactToPdf(contact: any, interactions: any[] = [])
 
     const safeName = name.replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 60) || "contact";
     const filename = `zooga_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
-    // Force download via Blob + anchor click — pdf.save() can silently fail
-    // in some browsers (popup blockers, sandboxed contexts).
     const blob = pdf.output("blob");
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 1000);
+    return { blob, filename, download: () => triggerBlobDownload(blob, filename) };
   } finally {
     document.body.removeChild(iframe);
   }
