@@ -149,7 +149,6 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           const fallbackName = name || "משתמש WhatsApp";
           const newNameParts = String(fallbackName).trim().split(/\s+/);
           const insertRow: any = {
-            full_name: fallbackName,
             first_name: newNameParts[0] || fallbackName,
             last_name: newNameParts.length > 1 ? newNameParts.slice(1).join(" ") : null,
             phone: phone,
