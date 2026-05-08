@@ -105,12 +105,20 @@ function ContactProfile() {
     if (!contact) return;
     setExporting(true);
     try {
-      await exportContactToPdf(contact, interactions || []);
-      toast.success("ה-PDF הופק והורד");
+      const file = await exportContactToPdf(contact, interactions || []);
+      file.download();
+      toast.success("ה-PDF מוכן", {
+        description: "אם ההורדה לא התחילה, לחץ כאן להורדה ידנית.",
+        action: {
+          label: "הורד",
+          onClick: file.download,
+        },
+      });
     } catch (e: any) {
       toast.error("שגיאה בהפקת PDF: " + (e?.message || e));
+    } finally {
+      setExporting(false);
     }
-    setExporting(false);
   }
 
   async function update(patch: any) {
