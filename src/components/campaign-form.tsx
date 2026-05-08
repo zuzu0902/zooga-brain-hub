@@ -21,7 +21,7 @@ function arrToCsv(a: any) { return Array.isArray(a) ? a.join(", ") : ""; }
 export function CampaignForm({ initial, onSaved }: { initial?: any; onSaved?: (id: string) => void }) {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
-  const [f, setF] = useState<any>(initial || {
+  const defaults = {
     name: "", status: "draft", category: "", objective: "", description: "",
     campaign_type: "", source_platform: "Facebook", ad_copy: "", landing_text: "",
     whatsapp_number: "", target_audience: "", emotional_angle: "", tone_style: "",
@@ -29,7 +29,8 @@ export function CampaignForm({ initial, onSaved }: { initial?: any; onSaved?: (i
     target_age_ranges: [], target_regions: [], target_personality_types: [],
     objections: [], prohibited_promises: [], ai_behavior_rules: [], faq: [],
     active_from: null, active_until: null, manager_owner_id: "", offer_id: null,
-  });
+  };
+  const [f, setF] = useState<any>(initial?.id ? initial : { ...defaults, ...(initial || {}) });
 
   function set(k: string, v: any) { setF((p: any) => ({ ...p, [k]: v })); }
 
