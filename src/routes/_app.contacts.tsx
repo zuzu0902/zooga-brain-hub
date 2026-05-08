@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +18,7 @@ import { ContactCreateDialog } from "@/components/contact-create-dialog";
 
 export const Route = createFileRoute("/_app/contacts")({
   head: () => ({ meta: [{ title: "אנשי קשר — Zooga CRM" }] }),
-  component: ContactsPage,
+  component: ContactsRoute,
 });
 
 const STATUS_TONE: Record<string, string> = {
@@ -29,6 +29,13 @@ const STATUS_TONE: Record<string, string> = {
   VIP: "bg-gradient-to-l from-amber-400/20 to-amber-200/20 text-amber-800 border-amber-400/40",
   inactive: "bg-muted text-muted-foreground border-border",
 };
+
+function ContactsRoute() {
+  const location = useLocation();
+  const isContactProfile = location.pathname.startsWith("/contacts/");
+
+  return isContactProfile ? <Outlet /> : <ContactsPage />;
+}
 
 function ContactsPage() {
   const navigate = useNavigate();
