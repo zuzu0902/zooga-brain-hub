@@ -9,6 +9,7 @@ import { INTAKE_FLOW_LABELS } from "@/lib/intake-flows";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
+import { OfferPicker } from "@/components/offer-picker";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return <h3 className="text-sm font-semibold text-foreground/80 pt-3 pb-1 border-b border-border/60 mb-3">{children}</h3>;
@@ -27,7 +28,7 @@ export function CampaignForm({ initial, onSaved }: { initial?: any; onSaved?: (i
     intake_flow_type: "generic", desired_conversion_action: "", ai_goal: "",
     target_age_ranges: [], target_regions: [], target_personality_types: [],
     objections: [], prohibited_promises: [], ai_behavior_rules: [], faq: [],
-    active_from: null, active_until: null, manager_owner_id: "",
+    active_from: null, active_until: null, manager_owner_id: "", offer_id: null,
   });
 
   function set(k: string, v: any) { setF((p: any) => ({ ...p, [k]: v })); }
@@ -75,6 +76,12 @@ export function CampaignForm({ initial, onSaved }: { initial?: any; onSaved?: (i
         <div><Label>סוג קמפיין</Label><Input value={f.campaign_type || ""} onChange={(e) => set("campaign_type", e.target.value)} placeholder="awareness / lead-gen / conversion" /></div>
         <div className="sm:col-span-2"><Label>אובייקטיב</Label><Input value={f.objective || ""} onChange={(e) => set("objective", e.target.value)} /></div>
         <div className="sm:col-span-2"><Label>תיאור</Label><Textarea rows={3} value={f.description || ""} onChange={(e) => set("description", e.target.value)} /></div>
+      </div>
+
+      <SectionHeading>הצעה מקושרת</SectionHeading>
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">בחר את ההצעה (המוצר/שירות) שהקמפיין מקדם. תמר תדע להציע אותה בשיחה.</p>
+        <OfferPicker value={f.offer_id} onChange={(id) => set("offer_id", id)} />
       </div>
 
       <SectionHeading>פלטפורמה ותוכן</SectionHeading>
