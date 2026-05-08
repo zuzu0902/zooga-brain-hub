@@ -2,6 +2,35 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { INTAKE_FLOWS, buildSuggestedOpening, type IntakeFlowType } from "@/lib/intake-flows";
 
+function buildCampaignContext(campaign: any, contact: any) {
+  const flow = (campaign.intake_flow_type || "generic") as IntakeFlowType;
+  const flowDef = INTAKE_FLOWS[flow];
+  const firstName = contact?.first_name || (contact?.full_name ? String(contact.full_name).split(" ")[0] : null);
+  const suggested_opening = buildSuggestedOpening({
+    contactName: firstName, campaignName: campaign.name, flow, emotionalAngle: campaign.emotional_angle,
+  });
+  const campaign_context = [
+    `# הקשר קמפיין: ${campaign.name}`,
+    campaign.objective ? `מטרה: ${campaign.objective}` : "",
+    campaign.ai_goal ? `יעד AI: ${campaign.ai_goal}` : "",
+    campaign.tone_style ? `טון: ${campaign.tone_style}` : "",
+    campaign.emotional_angle ? `זווית רגשית: ${campaign.emotional_angle}` : "",
+    campaign.target_audience ? `קהל יעד: ${campaign.target_audience}` : "",
+    campaign.objections?.length ? `התנגדויות: ${campaign.objections.join(", ")}` : "",
+    campaign.prohibited_promises?.length ? `אסור להבטיח: ${campaign.prohibited_promises.join(", ")}` : "",
+    `שאלות אינטייק:\n- ${flowDef.questions.join("\n- ")}`,
+    `הוראת התנהגות: ${flowDef.system_addendum}`,
+    `כלל בטיחות: אם יש ספק עובדתי — להעביר למנהל אנושי, לא להמציא.`,
+  ].filter(Boolean).join("\n");
+  return {
+    intake_flow_type: flow,
+    suggested_opening,
+    campaign_context,
+    questions: flowDef.questions,
+    should_escalate: false,
+  };
+}
+
 export const Route = createFileRoute("/api/public/webhook/tamar")({
   server: {
     handlers: {
