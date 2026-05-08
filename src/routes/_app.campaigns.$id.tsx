@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Megaphone, Users, Activity, Flame, Trophy, AlertTriangle, ChevronRight,
-  Pencil, Trash2, MessageCircle, Sparkles, Target,
+  Pencil, Trash2, MessageCircle, Sparkles, Target, Tag,
 } from "lucide-react";
 import { CampaignForm } from "@/components/campaign-form";
 import { INTAKE_FLOW_LABELS, INTAKE_FLOWS } from "@/lib/intake-flows";
@@ -75,6 +75,15 @@ function CampaignDetailPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("campaigns").select("*").eq("id", id).maybeSingle();
       if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: offer } = useQuery({
+    queryKey: ["campaign-offer", campaign?.offer_id],
+    enabled: !!campaign?.offer_id,
+    queryFn: async () => {
+      const { data } = await supabase.from("offers").select("id,title,price,category,status,description").eq("id", campaign!.offer_id!).maybeSingle();
       return data;
     },
   });
@@ -188,6 +197,40 @@ function CampaignDetailPage() {
         <StatCard icon={AlertTriangle} label="הסלמות" value={stats.escalations} tone="bg-orange-500/10 text-orange-700" />
         <StatCard icon={Target} label="ציון התאמה ממוצע" value={stats.fitAvg} tone="bg-blue-500/10 text-blue-700" />
       </div>
+
+      <SectionHeading icon={Tag}>הצעה מקושרת</SectionHeading>
+      <Card className="p-5">
+        {offer ? (
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="h-12 w-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Tag className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Link to="/offers/$id" params={{ id: offer.id }} className="font-semibold text-base hover:text-primary">
+                    {offer.title}
+                  </Link>
+                  {offer.price && <Badge>₪{offer.price}</Badge>}
+                  <Badge variant="outline">{offer.status}</Badge>
+                </div>
+                {offer.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{offer.description}</p>}
+              </div>
+            </div>
+            <Link to="/offers/$id" params={{ id: offer.id }}>
+              <Button variant="outline" size="sm">פתח הצעה</Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 text-sm">
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">לא משויך להצעה</Badge>
+              <span className="text-muted-foreground">קמפיין ללא הצעה לא יוכל להציע מוצר ספציפי בשיחה.</span>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>שייך עכשיו</Button>
+          </div>
+        )}
+      </Card>
 
       <SectionHeading icon={Megaphone}>סקירה כללית</SectionHeading>
       <Card className="p-5 grid sm:grid-cols-2 gap-4">
