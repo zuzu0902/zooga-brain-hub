@@ -14,7 +14,7 @@ import { CATEGORY_LABELS, INTEREST_LABELS, ALL_INTERESTS, SPENDING_LABELS, forma
 import { ContextBanner } from "@/components/context-banner";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/offers/")({
+export const Route = createFileRoute("/_app/offers/$id")({
   head: () => ({ meta: [{ title: "פרופיל הצעה — Zooga CRM" }] }),
   component: OfferDetailPage,
 });
