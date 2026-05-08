@@ -118,7 +118,6 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             if (whatsapp_number && !matched.whatsapp_number) patch.whatsapp_number = whatsapp_number;
             if (facebook_id && !matched.facebook_id) patch.facebook_id = facebook_id;
             if (email && !matched.email) patch.email = email;
-            if (name && !matched.full_name) patch.full_name = name;
             if (nameParts[0] && !matched.first_name) patch.first_name = nameParts[0];
             if (nameParts.length > 1 && !matched.last_name) patch.last_name = nameParts.slice(1).join(" ");
             if (intake_status && !matched.intake_status) patch.intake_status = intake_status;
