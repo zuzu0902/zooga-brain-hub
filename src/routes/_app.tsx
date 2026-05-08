@@ -27,13 +27,13 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
     ],
   },
   {
-    label: "קמפיינים",
+    label: "שיווק ומכירות",
     items: [
+      { to: "/offers", label: "הצעות", icon: Tag },
       { to: "/campaigns", label: "ניהול קמפיינים", icon: Megaphone },
+      { to: "/send-offer", label: "שליחת הצעה", icon: Send },
       { to: "/import-leads", label: "ייבוא לידים", icon: Upload },
       { to: "/intake-campaign", label: "קמפיין אינטייק", icon: Megaphone },
-      { to: "/offers", label: "הצעות", icon: Tag },
-      { to: "/send-offer", label: "שליחת הצעה", icon: Send },
     ],
   },
   {
