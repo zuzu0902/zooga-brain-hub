@@ -26,6 +26,7 @@ import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new
 import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
 import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
+import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -112,6 +113,12 @@ const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
   path: '/api/public/webhook/tamar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicIntelligenceExtractRoute =
+  ApiPublicIntelligenceExtractRouteImport.update({
+    id: '/api/public/intelligence/extract',
+    path: '/api/public/intelligence/extract',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -146,6 +154,7 @@ export interface FileRoutesByTo {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -166,6 +175,7 @@ export interface FileRoutesById {
   '/_app/contacts/$id': typeof AppContactsIdRoute
   '/_app/offers/$id': typeof AppOffersIdRoute
   '/_app/settings/api': typeof AppSettingsApiRoute
+  '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   fileRoutesByTo: FileRoutesByTo
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   id:
@@ -223,6 +235,7 @@ export interface FileRouteTypes {
     | '/_app/contacts/$id'
     | '/_app/offers/$id'
     | '/_app/settings/api'
+    | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   fileRoutesById: FileRoutesById
@@ -230,6 +243,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -355,6 +369,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhookTamarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/intelligence/extract': {
+      id: '/api/public/intelligence/extract'
+      path: '/api/public/intelligence/extract'
+      fullPath: '/api/public/intelligence/extract'
+      preLoaderRoute: typeof ApiPublicIntelligenceExtractRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -425,6 +446,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
 }

@@ -2,6 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { INTAKE_FLOWS, buildSuggestedOpening, type IntakeFlowType } from "@/lib/intake-flows";
 
+function triggerExtraction(request: Request, contactId: string) {
+  try {
+    const url = new URL("/api/public/intelligence/extract", request.url);
+    // Fire-and-forget; do not await body
+    void fetch(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contact_id: contactId }),
+    }).catch(() => {});
+  } catch {}
+}
+
 function buildCampaignContext(campaign: any, contact: any) {
   const flow = (campaign.intake_flow_type || "generic") as IntakeFlowType;
   const flowDef = INTAKE_FLOWS[flow];
@@ -295,6 +307,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
 
             const ctx = campaign ? buildCampaignContext(campaign, matched) : null;
 
+            if (message) triggerExtraction(request, matched.id);
+
             return Response.json({
               ok: true,
               matched: true,
@@ -376,6 +390,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           });
 
           const ctx = campaign ? buildCampaignContext(campaign, { first_name: insertRow.first_name }) : null;
+
+          if (created?.id && message) triggerExtraction(request, created.id);
 
           return Response.json({
             ok: true, matched: false, created: true, contact_id: created?.id,

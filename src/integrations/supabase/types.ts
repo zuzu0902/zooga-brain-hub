@@ -217,6 +217,81 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_memories: {
+        Row: {
+          confidence_score: number | null
+          contact_id: string
+          created_at: string
+          extracted_from: string | null
+          id: string
+          memory_key: string
+          memory_type: string
+          memory_value: string | null
+          source_message: string | null
+          updated_at: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          contact_id: string
+          created_at?: string
+          extracted_from?: string | null
+          id?: string
+          memory_key: string
+          memory_type: string
+          memory_value?: string | null
+          source_message?: string | null
+          updated_at?: string
+        }
+        Update: {
+          confidence_score?: number | null
+          contact_id?: string
+          created_at?: string
+          extracted_from?: string | null
+          id?: string
+          memory_key?: string
+          memory_type?: string
+          memory_value?: string | null
+          source_message?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contact_profile_history: {
+        Row: {
+          changed_by: string
+          confidence_score: number | null
+          contact_id: string
+          created_at: string
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          source: string | null
+        }
+        Insert: {
+          changed_by?: string
+          confidence_score?: number | null
+          contact_id: string
+          created_at?: string
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          source?: string | null
+        }
+        Update: {
+          changed_by?: string
+          confidence_score?: number | null
+          contact_id?: string
+          created_at?: string
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          source?: string | null
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
           acquisition_source: string | null
@@ -800,6 +875,51 @@ export type Database = {
             | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      pending_ai_insights: {
+        Row: {
+          category: string
+          confidence_score: number | null
+          contact_id: string
+          created_at: string
+          field_name: string | null
+          id: string
+          proposed_value: Json | null
+          reasoning: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_message: string | null
+          status: string
+        }
+        Insert: {
+          category: string
+          confidence_score?: number | null
+          contact_id: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          proposed_value?: Json | null
+          reasoning?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_message?: string | null
+          status?: string
+        }
+        Update: {
+          category?: string
+          confidence_score?: number | null
+          contact_id?: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          proposed_value?: Json | null
+          reasoning?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_message?: string | null
+          status?: string
         }
         Relationships: []
       }

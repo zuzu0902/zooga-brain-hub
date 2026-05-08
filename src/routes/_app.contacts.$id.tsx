@@ -28,6 +28,7 @@ import {
   TASK_STATUS_LABELS, TASK_PRIORITY_LABELS,
   formatDate, formatRelative,
 } from "@/lib/i18n";
+import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
   head: () => ({ meta: [{ title: "פרופיל איש קשר — Zooga CRM" }] }),
@@ -196,6 +197,9 @@ function ContactProfile() {
 
       <SectionHeading>תובנות AI</SectionHeading>
       <AITab contact={contact} update={update} />
+
+      <SectionHeading>מנוע מודיעין שיחה</SectionHeading>
+      <AIIntelligencePanel contactId={id} />
 
       <SectionHeading>פרופיל אישי</SectionHeading>
       <PersonalTab contact={contact} update={update} />
