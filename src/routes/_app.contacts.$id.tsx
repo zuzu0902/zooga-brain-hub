@@ -102,12 +102,6 @@ function ContactProfile() {
   const [exporting, setExporting] = useState(false);
   const [pdfDownload, setPdfDownload] = useState<{ url: string; filename: string } | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
-    };
-  }, [pdfDownload]);
-
   async function handleExportPdf() {
     if (!contact) return;
     setExporting(true);
