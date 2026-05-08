@@ -119,7 +119,9 @@ function ContactProfile() {
         return { url: manualUrl, filename: file.filename };
       });
       if (downloadWindow && !downloadWindow.closed) {
-        downloadWindow.location.href = manualUrl;
+        downloadWindow.document.open();
+        downloadWindow.document.write(`<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>הורדת PDF</title><style>body{font-family:Arial,sans-serif;margin:40px;line-height:1.6;color:#0f172a}.btn{display:inline-block;margin-top:16px;padding:10px 16px;border-radius:8px;background:#0f172a;color:#fff;text-decoration:none;font-weight:700}</style></head><body><h1>ה-PDF מוכן</h1><p>אם ההורדה לא התחילה אוטומטית, לחץ על הכפתור.</p><a id="download" class="btn" href=${JSON.stringify(manualUrl)} download=${JSON.stringify(file.filename)}>הורד PDF</a><script>setTimeout(function(){document.getElementById('download').click()},100)</script></body></html>`);
+        downloadWindow.document.close();
       }
       file.download();
       toast.success("ה-PDF מוכן", {
