@@ -69,12 +69,14 @@ export type Database = {
           gender: Database["public"]["Enums"]["gender"] | null
           id: string
           income_range: Database["public"]["Enums"]["income_range"] | null
+          intake_status: string | null
           interests: string[]
           last_interaction_at: string | null
           last_name: string | null
           lifestyle_tags: string[]
           notes: string | null
           phone: string | null
+          preferred_language_style: string | null
           price_sensitivity:
             | Database["public"]["Enums"]["price_sensitivity"]
             | null
@@ -113,12 +115,14 @@ export type Database = {
           gender?: Database["public"]["Enums"]["gender"] | null
           id?: string
           income_range?: Database["public"]["Enums"]["income_range"] | null
+          intake_status?: string | null
           interests?: string[]
           last_interaction_at?: string | null
           last_name?: string | null
           lifestyle_tags?: string[]
           notes?: string | null
           phone?: string | null
+          preferred_language_style?: string | null
           price_sensitivity?:
             | Database["public"]["Enums"]["price_sensitivity"]
             | null
@@ -157,12 +161,14 @@ export type Database = {
           gender?: Database["public"]["Enums"]["gender"] | null
           id?: string
           income_range?: Database["public"]["Enums"]["income_range"] | null
+          intake_status?: string | null
           interests?: string[]
           last_interaction_at?: string | null
           last_name?: string | null
           lifestyle_tags?: string[]
           notes?: string | null
           phone?: string | null
+          preferred_language_style?: string | null
           price_sensitivity?:
             | Database["public"]["Enums"]["price_sensitivity"]
             | null
@@ -542,6 +548,7 @@ export type Database = {
         | "Event"
         | "Tamar Bot"
         | "Manual"
+        | "Tamar WhatsApp"
       contact_status:
         | "new_lead"
         | "active_member"
@@ -725,6 +732,7 @@ export const Constants = {
         "Event",
         "Tamar Bot",
         "Manual",
+        "Tamar WhatsApp",
       ],
       contact_status: [
         "new_lead",
