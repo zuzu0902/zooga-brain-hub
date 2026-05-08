@@ -29,7 +29,7 @@ import {
   formatDate, formatRelative,
 } from "@/lib/i18n";
 import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
-import { exportContactToPdf } from "@/lib/contact-pdf";
+import { exportContactToPdf, getContactPdfFilename } from "@/lib/contact-pdf";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
   head: () => ({ meta: [{ title: "פרופיל איש קשר — Zooga CRM" }] }),
@@ -104,6 +104,12 @@ function ContactProfile() {
 
   async function handleExportPdf() {
     if (!contact) return;
+    const downloadWindow = window.open("", "_blank");
+    if (downloadWindow) {
+      const filename = getContactPdfFilename(contact);
+      downloadWindow.document.write(`<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>מכין PDF</title><style>body{font-family:Arial,sans-serif;margin:40px;line-height:1.6;color:#0f172a}</style></head><body><h1>מכין PDF...</h1><p>הקובץ ${filename} יורד בעוד רגע.</p></body></html>`);
+      downloadWindow.document.close();
+    }
     setExporting(true);
     try {
       const file = await exportContactToPdf(contact, interactions || []);
@@ -112,15 +118,21 @@ function ContactProfile() {
         if (prev) URL.revokeObjectURL(prev.url);
         return { url: manualUrl, filename: file.filename };
       });
+      if (downloadWindow && !downloadWindow.closed) {
+        downloadWindow.document.open();
+        downloadWindow.document.write(`<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>הורדת PDF</title><style>body{font-family:Arial,sans-serif;margin:40px;line-height:1.6;color:#0f172a}.btn{display:inline-block;margin-top:16px;padding:10px 16px;border-radius:8px;background:#0f172a;color:#fff;text-decoration:none;font-weight:700}</style></head><body><h1>ה-PDF מוכן</h1><p>אם ההורדה לא התחילה אוטומטית, לחץ על הכפתור.</p><a id="download" class="btn" href=${JSON.stringify(manualUrl)} download=${JSON.stringify(file.filename)}>הורד PDF</a><script>setTimeout(function(){document.getElementById('download').click()},100)</script></body></html>`);
+        downloadWindow.document.close();
+      }
       file.download();
       toast.success("ה-PDF מוכן", {
-        description: "אם ההורדה לא התחילה, לחץ על כפתור ההורדה הידנית שמופיע מתחת.",
+        description: "נפתח טאב הורדה. אם עדיין לא ירד, לחץ על כפתור ההורדה הידנית שמופיע מתחת.",
         action: {
           label: "הורד",
           onClick: file.download,
         },
       });
     } catch (e: any) {
+      if (downloadWindow && !downloadWindow.closed) downloadWindow.close();
       toast.error("שגיאה בהפקת PDF: " + (e?.message || e));
     } finally {
       setExporting(false);

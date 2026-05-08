@@ -12,6 +12,15 @@ type ContactPdfExport = {
   download: () => void;
 };
 
+function getContactName(contact: any) {
+  return contact.full_name || [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "ללא שם";
+}
+
+export function getContactPdfFilename(contact: any) {
+  const safeName = getContactName(contact).replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 60) || "contact";
+  return `zooga_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+}
+
 function triggerBlobDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -45,7 +54,7 @@ function section(title: string, body: string): string {
 }
 
 export async function exportContactToPdf(contact: any, interactions: any[] = []): Promise<ContactPdfExport> {
-  const name = contact.full_name || [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "ללא שם";
+  const name = getContactName(contact);
   const generatedAt = new Date().toLocaleString("he-IL");
 
   const interestsLabels = (contact.interests || []).map((i: string) => INTEREST_LABELS[i] || i);
@@ -226,8 +235,7 @@ export async function exportContactToPdf(contact: any, interactions: any[] = [])
       }
     }
 
-    const safeName = name.replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 60) || "contact";
-    const filename = `zooga_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const filename = getContactPdfFilename(contact);
     const blob = pdf.output("blob");
     return { blob, filename, download: () => triggerBlobDownload(blob, filename) };
   } finally {
