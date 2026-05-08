@@ -30,6 +30,7 @@ function ApiSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [testingWa, setTestingWa] = useState(false);
 
   const webhookUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/api/public/webhook/tamar`;
 
@@ -119,6 +120,65 @@ function ApiSettingsPage() {
     }
   }
 
+  async function testTamarWhatsApp() {
+    setTestingWa(true);
+    try {
+      const phone = "+972547702620";
+      const res = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "x-api-token": token } : {}),
+        },
+        body: JSON.stringify({
+          phone,
+          whatsapp_number: phone,
+          name: "Alex Z",
+          message: "היי",
+          source: "Tamar WhatsApp",
+          intake_status: "started",
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(`שגיאה (${res.status}): ${json?.error || "כשל"}`);
+        return;
+      }
+      if (json?.matched) {
+        // Verify interaction was logged
+        const { data: inter } = await supabase
+          .from("interactions")
+          .select("id, content, type")
+          .eq("contact_id", json.contact_id)
+          .order("timestamp", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        toast.success(
+          `איש קשר עודכן (${json.contact_id.slice(0, 8)}). אינטראקציה: ${inter?.id ? "נשמרה" : "לא נמצאה"}`,
+        );
+      } else if (json?.intake_id) {
+        const { data } = await supabase
+          .from("intake_inbox")
+          .select("id, parsed_phone, parsed_message, status")
+          .eq("id", json.intake_id)
+          .maybeSingle();
+        if (data) {
+          toast.success(
+            `${json.updated ? "עודכן" : "נוצר"} פריט אינטייק: ${data.parsed_phone} — "${data.parsed_message}"`,
+          );
+        } else {
+          toast.warning("הצלחה אך לא נמצא פריט אינטייק");
+        }
+      } else {
+        toast.success("הוובהוק התקבל");
+      }
+    } catch (e: any) {
+      toast.error("שגיאת רשת: " + (e?.message || String(e)));
+    } finally {
+      setTestingWa(false);
+    }
+  }
+
   if (loading) {
     return <div className="p-8 text-muted-foreground">טוען...</div>;
   }
@@ -189,6 +249,9 @@ function ApiSettingsPage() {
           <div className="flex gap-2">
             <Button variant="outline" onClick={testWebhook} disabled={testing}>
               {testing ? "בודק..." : "בדיקת Webhook"}
+            </Button>
+            <Button variant="outline" onClick={testTamarWhatsApp} disabled={testingWa}>
+              {testingWa ? "בודק..." : "בדיקת תמר וואטסאפ"}
             </Button>
             <Button onClick={save} disabled={saving}>
               {saving ? "שומר..." : "שמור הגדרות"}
