@@ -72,23 +72,17 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             .eq("id", 1)
             .maybeSingle();
 
-          if (settings?.webhook_token && settings.webhook_token !== providedToken) {
-            await supabaseAdmin.from("webhook_logs").insert({
-              source: "tamar_bot",
-              payload,
-              status: "rejected",
-              error: "Invalid token",
-            });
-            return new Response(JSON.stringify({ error: "invalid token" }), {
-              status: 401,
-              headers: { "Content-Type": "application/json" },
-            });
-          }
+          // Token mismatch is logged as a warning but NEVER blocks processing.
+          // Losing a real conversation is worse than accepting an unauth payload —
+          // we'd rather flag the contact for manager attention than drop the message.
+          const tokenInvalid =
+            !!settings?.webhook_token && settings.webhook_token !== providedToken;
 
           await supabaseAdmin.from("webhook_logs").insert({
             source: "tamar_bot",
             payload,
-            status: "received",
+            status: tokenInvalid ? "received_unauth" : "received",
+            error: tokenInvalid ? "Invalid token (processed anyway)" : null,
           });
 
           // Normalize fields. Accept multiple shapes.

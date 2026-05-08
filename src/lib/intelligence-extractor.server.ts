@@ -13,6 +13,8 @@ const FIELD_DEFS = {
     "purchase_intent", "sales_temperature", "age_range", "conversation_intent",
   ],
   number_overwrite_if_empty: ["age", "openness_score", "community_fit_score"],
+  // boolean fields — only applied when AI is highly confident (e.g. explicit "yes")
+  boolean_fields: ["consent_marketing", "manager_attention_required"],
   // arrays — always merge (union)
   array_merge: [
     "interests", "lifestyle_tags", "tags", "hobbies", "preferred_events",
@@ -25,6 +27,7 @@ const FIELD_DEFS = {
 const ALL_FIELDS = [
   ...FIELD_DEFS.text_overwrite_if_empty,
   ...FIELD_DEFS.number_overwrite_if_empty,
+  ...FIELD_DEFS.boolean_fields,
   ...FIELD_DEFS.array_merge,
 ];
 
@@ -37,7 +40,13 @@ const SYSTEM_PROMPT = `אתה מנוע מודיעין שיחה לCRM ישראל�
 - העדף שמירת ההיסטוריה: הוסף לרשימות, אל תחליף.
 - ציון בטחון 0-100. רק >= 75 ייושם אוטומטית.
 - כל ערך טקסט בעברית.
-- אל תכלול שדות שלא ניתן לחלץ.`;
+- אל תכלול שדות שלא ניתן לחלץ.
+
+כללים מיוחדים להסכמה לשיווק (consent_marketing):
+- consent_marketing=true רק כשהמשתמש ענה במפורש "כן" / "מסכים" / "אני מאשר" לשאלה על קבלת הודעות/שיווק/עדכונים מתמר.
+- אם נאמר "כן" כתשובה ישירה לשאלה כמו "האם אתה מסכים שאשלח לך הודעות?" — confidence 95.
+- אם המשתמש סירב במפורש — consent_marketing=false עם confidence גבוה.
+- אחרת — אל תחזיר את השדה הזה כלל.`;
 
 const TOOL_SCHEMA = {
   type: "function",
@@ -214,6 +223,22 @@ export async function runExtraction(contactId: string) {
           contact_id: contactId, field_name: field,
           old_value: existing == null ? null : String(existing),
           new_value: String(value),
+          changed_by: "ai_extraction",
+          confidence_score: conf,
+          source: "conversation_intelligence",
+        });
+      }
+    } else if (FIELD_DEFS.boolean_fields.includes(field)) {
+      const boolVal = value === true || value === "true" || value === 1;
+      if (existing !== boolVal) {
+        patch[field] = boolVal;
+        if (field === "consent_marketing" && boolVal) {
+          patch.consent_date = new Date().toISOString();
+        }
+        historyRows.push({
+          contact_id: contactId, field_name: field,
+          old_value: existing == null ? null : String(existing),
+          new_value: String(boolVal),
           changed_by: "ai_extraction",
           confidence_score: conf,
           source: "conversation_intelligence",
