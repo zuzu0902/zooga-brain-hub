@@ -86,10 +86,46 @@ export const MESSAGE_STATUS_LABELS: Record<string, string> = {
 export const ALL_INTERESTS = Object.keys(INTEREST_LABELS);
 export const ALL_LIFESTYLE = Object.keys(LIFESTYLE_LABELS);
 
+export const SALES_TEMP_LABELS: Record<string, string> = {
+  cold: "קר",
+  warm: "חמים",
+  hot: "חם",
+};
+
+export const SALES_TEMP_TONE: Record<string, string> = {
+  cold: "bg-blue-500/10 text-blue-700 border-blue-500/30",
+  warm: "bg-amber-500/10 text-amber-700 border-amber-500/30",
+  hot: "bg-red-500/10 text-red-700 border-red-500/30",
+};
+
+export const TASK_STATUS_LABELS: Record<string, string> = {
+  open: "פתוחה",
+  in_progress: "בטיפול",
+  done: "הושלמה",
+};
+
+export const TASK_PRIORITY_LABELS: Record<string, string> = {
+  low: "נמוכה",
+  normal: "רגילה",
+  high: "גבוהה",
+  urgent: "דחוף",
+};
+
 export function formatDate(d: string | Date | null | undefined): string {
   if (!d) return "—";
   return new Intl.DateTimeFormat("he-IL", {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(d));
+}
+
+export function formatRelative(d: string | Date | null | undefined): string {
+  if (!d) return "—";
+  const date = new Date(d);
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return "כעת";
+  if (diff < 3600) return `לפני ${Math.floor(diff / 60)} דק׳`;
+  if (diff < 86400) return `לפני ${Math.floor(diff / 3600)} שעות`;
+  if (diff < 604800) return `לפני ${Math.floor(diff / 86400)} ימים`;
+  return formatDate(d);
 }

@@ -46,141 +46,270 @@ export type Database = {
       }
       contacts: {
         Row: {
+          activity_score: number
+          age: number | null
+          age_range: string | null
           ai_confidence_score: number | null
           ai_offer_fit: string | null
           ai_profile_notes: string | null
           ai_recommended_next_action: string | null
           ai_risk_flags: string | null
           ai_summary: string | null
+          availability_preferences: string[]
           birth_date: string | null
           birthday_day: number | null
           birthday_month: number | null
           birthday_year: number | null
+          budget_sensitivity: string | null
+          campaigns_received: string[]
           city: string | null
+          communication_style: string | null
+          community_fit_score: number | null
           consent_date: string | null
           consent_marketing: boolean
           created_at: string
+          decision_triggers: string[]
+          dynamic_profile_fields: Json
           economic_score: number
           email: string | null
+          emotional_needs: string[]
+          emotional_profile: string | null
           engagement_score: number
+          events_interested: string[]
+          events_joined: string[]
           facebook_id: string | null
+          favorite_activity_types: string[]
           first_name: string | null
           full_name: string | null
           gender: Database["public"]["Enums"]["gender"] | null
+          hobbies: string[]
           id: string
           income_range: Database["public"]["Enums"]["income_range"] | null
           intake_status: string | null
+          interaction_count: number
           interests: string[]
+          last_campaign: string | null
+          last_clicked_offer: string | null
           last_interaction_at: string | null
           last_name: string | null
           lifestyle_tags: string[]
+          likely_needs: string[]
+          loneliness_signal: string | null
+          manager_attention_required: boolean
+          next_best_offer: string | null
           notes: string | null
+          objections: string[]
+          offers_sent: string[]
+          openness_score: number | null
+          personality_tags: string[]
           phone: string | null
+          preferred_events: string[]
           preferred_language_style: string | null
+          preferred_social_style: string | null
+          preferred_trip_style: string | null
           price_sensitivity:
             | Database["public"]["Enums"]["price_sensitivity"]
             | null
+          purchase_intent: string | null
+          raw_payloads: Json
+          recommended_campaign: string | null
           region: string | null
+          relationship_goals: string[]
+          relationship_readiness: string | null
           relationship_status: string | null
+          sales_profile: string | null
+          sales_temperature: string | null
+          social_goals: string[]
+          social_profile: string | null
           source: Database["public"]["Enums"]["contact_source"] | null
           spending_profile:
             | Database["public"]["Enums"]["spending_profile"]
             | null
           status: Database["public"]["Enums"]["contact_status"]
           tags: string[]
+          total_revenue: number
+          travel_preferences: string[]
+          trips_interested: string[]
           updated_at: string
+          vip_potential: string | null
           whatsapp_number: string | null
         }
         Insert: {
+          activity_score?: number
+          age?: number | null
+          age_range?: string | null
           ai_confidence_score?: number | null
           ai_offer_fit?: string | null
           ai_profile_notes?: string | null
           ai_recommended_next_action?: string | null
           ai_risk_flags?: string | null
           ai_summary?: string | null
+          availability_preferences?: string[]
           birth_date?: string | null
           birthday_day?: number | null
           birthday_month?: number | null
           birthday_year?: number | null
+          budget_sensitivity?: string | null
+          campaigns_received?: string[]
           city?: string | null
+          communication_style?: string | null
+          community_fit_score?: number | null
           consent_date?: string | null
           consent_marketing?: boolean
           created_at?: string
+          decision_triggers?: string[]
+          dynamic_profile_fields?: Json
           economic_score?: number
           email?: string | null
+          emotional_needs?: string[]
+          emotional_profile?: string | null
           engagement_score?: number
+          events_interested?: string[]
+          events_joined?: string[]
           facebook_id?: string | null
+          favorite_activity_types?: string[]
           first_name?: string | null
           full_name?: string | null
           gender?: Database["public"]["Enums"]["gender"] | null
+          hobbies?: string[]
           id?: string
           income_range?: Database["public"]["Enums"]["income_range"] | null
           intake_status?: string | null
+          interaction_count?: number
           interests?: string[]
+          last_campaign?: string | null
+          last_clicked_offer?: string | null
           last_interaction_at?: string | null
           last_name?: string | null
           lifestyle_tags?: string[]
+          likely_needs?: string[]
+          loneliness_signal?: string | null
+          manager_attention_required?: boolean
+          next_best_offer?: string | null
           notes?: string | null
+          objections?: string[]
+          offers_sent?: string[]
+          openness_score?: number | null
+          personality_tags?: string[]
           phone?: string | null
+          preferred_events?: string[]
           preferred_language_style?: string | null
+          preferred_social_style?: string | null
+          preferred_trip_style?: string | null
           price_sensitivity?:
             | Database["public"]["Enums"]["price_sensitivity"]
             | null
+          purchase_intent?: string | null
+          raw_payloads?: Json
+          recommended_campaign?: string | null
           region?: string | null
+          relationship_goals?: string[]
+          relationship_readiness?: string | null
           relationship_status?: string | null
+          sales_profile?: string | null
+          sales_temperature?: string | null
+          social_goals?: string[]
+          social_profile?: string | null
           source?: Database["public"]["Enums"]["contact_source"] | null
           spending_profile?:
             | Database["public"]["Enums"]["spending_profile"]
             | null
           status?: Database["public"]["Enums"]["contact_status"]
           tags?: string[]
+          total_revenue?: number
+          travel_preferences?: string[]
+          trips_interested?: string[]
           updated_at?: string
+          vip_potential?: string | null
           whatsapp_number?: string | null
         }
         Update: {
+          activity_score?: number
+          age?: number | null
+          age_range?: string | null
           ai_confidence_score?: number | null
           ai_offer_fit?: string | null
           ai_profile_notes?: string | null
           ai_recommended_next_action?: string | null
           ai_risk_flags?: string | null
           ai_summary?: string | null
+          availability_preferences?: string[]
           birth_date?: string | null
           birthday_day?: number | null
           birthday_month?: number | null
           birthday_year?: number | null
+          budget_sensitivity?: string | null
+          campaigns_received?: string[]
           city?: string | null
+          communication_style?: string | null
+          community_fit_score?: number | null
           consent_date?: string | null
           consent_marketing?: boolean
           created_at?: string
+          decision_triggers?: string[]
+          dynamic_profile_fields?: Json
           economic_score?: number
           email?: string | null
+          emotional_needs?: string[]
+          emotional_profile?: string | null
           engagement_score?: number
+          events_interested?: string[]
+          events_joined?: string[]
           facebook_id?: string | null
+          favorite_activity_types?: string[]
           first_name?: string | null
           full_name?: string | null
           gender?: Database["public"]["Enums"]["gender"] | null
+          hobbies?: string[]
           id?: string
           income_range?: Database["public"]["Enums"]["income_range"] | null
           intake_status?: string | null
+          interaction_count?: number
           interests?: string[]
+          last_campaign?: string | null
+          last_clicked_offer?: string | null
           last_interaction_at?: string | null
           last_name?: string | null
           lifestyle_tags?: string[]
+          likely_needs?: string[]
+          loneliness_signal?: string | null
+          manager_attention_required?: boolean
+          next_best_offer?: string | null
           notes?: string | null
+          objections?: string[]
+          offers_sent?: string[]
+          openness_score?: number | null
+          personality_tags?: string[]
           phone?: string | null
+          preferred_events?: string[]
           preferred_language_style?: string | null
+          preferred_social_style?: string | null
+          preferred_trip_style?: string | null
           price_sensitivity?:
             | Database["public"]["Enums"]["price_sensitivity"]
             | null
+          purchase_intent?: string | null
+          raw_payloads?: Json
+          recommended_campaign?: string | null
           region?: string | null
+          relationship_goals?: string[]
+          relationship_readiness?: string | null
           relationship_status?: string | null
+          sales_profile?: string | null
+          sales_temperature?: string | null
+          social_goals?: string[]
+          social_profile?: string | null
           source?: Database["public"]["Enums"]["contact_source"] | null
           spending_profile?:
             | Database["public"]["Enums"]["spending_profile"]
             | null
           status?: Database["public"]["Enums"]["contact_status"]
           tags?: string[]
+          total_revenue?: number
+          travel_preferences?: string[]
+          trips_interested?: string[]
           updated_at?: string
+          vip_potential?: string | null
           whatsapp_number?: string | null
         }
         Relationships: []
@@ -476,6 +605,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_to: string | null
+          contact_id: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

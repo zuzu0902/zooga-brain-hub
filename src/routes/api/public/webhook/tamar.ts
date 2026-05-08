@@ -81,6 +81,78 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           const intake_status = payload?.intake_status || null;
           const isWhatsApp = /whatsapp/i.test(source);
 
+          // Whitelist of known structured fields Tamar may send (besides routing/identity).
+          const KNOWN_KEYS = new Set([
+            "phone","whatsapp_number","facebook_id","fb_id","email","name","full_name","first_name","last_name",
+            "message","text","content","source","intake_status","preferred_language_style","gender",
+            "from","sender","token",
+            "ai_summary","ai_profile_notes","ai_recommended_next_action","ai_offer_fit","ai_risk_flags","ai_confidence_score",
+            "emotional_profile","communication_style","social_profile","sales_profile","price_sensitivity",
+            "likely_needs","decision_triggers","objections","loneliness_signal","openness_score",
+            "relationship_readiness","community_fit_score","vip_potential","manager_attention_required",
+            "sales_temperature","purchase_intent","activity_score","age","age_range","city","region",
+            "birth_date","relationship_status","interests","tags","lifestyle_tags","preferred_events",
+            "hobbies","travel_preferences","favorite_activity_types","availability_preferences",
+            "personality_tags","emotional_needs","relationship_goals","social_goals",
+            "preferred_trip_style","preferred_social_style","budget_sensitivity",
+            "last_clicked_offer","last_campaign","campaigns_received","offers_sent",
+            "events_interested","events_joined","trips_interested","total_revenue",
+            "next_best_offer","recommended_campaign","dynamic_profile_fields",
+          ]);
+
+          // Build patch of structured AI / profile fields if Tamar sent them.
+          const STRUCTURED_TEXT = [
+            "ai_summary","ai_profile_notes","ai_recommended_next_action","ai_offer_fit","ai_risk_flags",
+            "emotional_profile","communication_style","social_profile","sales_profile","price_sensitivity",
+            "loneliness_signal","relationship_readiness","vip_potential","sales_temperature","purchase_intent",
+            "age_range","city","region","relationship_status","preferred_trip_style","preferred_social_style",
+            "budget_sensitivity","last_clicked_offer","last_campaign","next_best_offer","recommended_campaign",
+          ];
+          const STRUCTURED_NUM = [
+            "ai_confidence_score","openness_score","community_fit_score","activity_score","age","total_revenue",
+          ];
+          const STRUCTURED_BOOL = ["manager_attention_required"];
+          const STRUCTURED_ARR = [
+            "interests","tags","lifestyle_tags","preferred_events","hobbies","travel_preferences",
+            "favorite_activity_types","availability_preferences","personality_tags","emotional_needs",
+            "relationship_goals","social_goals","likely_needs","decision_triggers","objections",
+            "campaigns_received","offers_sent","events_interested","events_joined","trips_interested",
+          ];
+          const STRUCTURED_DATE = ["birth_date"];
+
+          function buildEnrichment(): Record<string, any> {
+            const out: Record<string, any> = {};
+            for (const k of STRUCTURED_TEXT)
+              if (payload?.[k] !== undefined && payload?.[k] !== null) out[k] = String(payload[k]);
+            for (const k of STRUCTURED_NUM)
+              if (payload?.[k] !== undefined && payload?.[k] !== null && payload?.[k] !== "")
+                out[k] = Number(payload[k]);
+            for (const k of STRUCTURED_BOOL)
+              if (typeof payload?.[k] === "boolean") out[k] = payload[k];
+            for (const k of STRUCTURED_ARR)
+              if (Array.isArray(payload?.[k])) out[k] = payload[k];
+            for (const k of STRUCTURED_DATE)
+              if (payload?.[k]) out[k] = payload[k];
+            return out;
+          }
+
+          // Collect any unknown keys to merge into dynamic_profile_fields
+          function buildDynamic(): Record<string, any> {
+            const out: Record<string, any> = {};
+            if (payload && typeof payload === "object") {
+              for (const k of Object.keys(payload)) {
+                if (!KNOWN_KEYS.has(k)) out[k] = payload[k];
+              }
+            }
+            if (payload?.dynamic_profile_fields && typeof payload.dynamic_profile_fields === "object") {
+              Object.assign(out, payload.dynamic_profile_fields);
+            }
+            return out;
+          }
+
+          const enrichment = buildEnrichment();
+          const dynamicExtras = buildDynamic();
+
           // Phone is the master key. Try to match existing contact by phone first.
           let matched: any = null;
           if (phone) {
@@ -125,6 +197,22 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               patch.preferred_language_style = payload.preferred_language_style;
             if (payload?.gender && !matched.gender) patch.gender = payload.gender;
 
+            // Apply enrichment fields (overwrite when sent — Tamar AI is authoritative)
+            for (const [k, v] of Object.entries(enrichment)) patch[k] = v;
+
+            // Merge dynamic profile fields
+            if (Object.keys(dynamicExtras).length > 0) {
+              patch.dynamic_profile_fields = {
+                ...(matched.dynamic_profile_fields || {}),
+                ...dynamicExtras,
+              };
+            }
+
+            // Append to raw_payloads (cap last 50)
+            const prevRaw = Array.isArray(matched.raw_payloads) ? matched.raw_payloads : [];
+            const nextRaw = [...prevRaw, { at: nowIso, payload }].slice(-50);
+            patch.raw_payloads = nextRaw;
+
             await supabaseAdmin.from("contacts").update(patch).eq("id", matched.id);
 
             if (message) {
@@ -158,6 +246,9 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             intake_status: intake_status || "new",
             last_interaction_at: nowIso,
             consent_marketing: false,
+            dynamic_profile_fields: dynamicExtras,
+            raw_payloads: [{ at: nowIso, payload }],
+            ...enrichment,
           };
           if (payload?.preferred_language_style)
             insertRow.preferred_language_style = payload.preferred_language_style;
