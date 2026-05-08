@@ -109,7 +109,7 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
       <CreateOfferDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={(id) => { qc.invalidateQueries({ queryKey: ["offers-picker"] }); qc.invalidateQueries({ queryKey: ["offers"] }); onChange(id); }}
+        onCreated={(id: string) => { qc.invalidateQueries({ queryKey: ["offers-picker"] }); qc.invalidateQueries({ queryKey: ["offers"] }); onChange(id); }}
       />
     </div>
   );
