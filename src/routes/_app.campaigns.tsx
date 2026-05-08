@@ -59,9 +59,21 @@ function CampaignsListPage() {
     queryKey: ["campaigns"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("campaigns").select("*, offer:offer_id(id,title,price)").order("created_at", { ascending: false });
+        .from("campaigns").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
+    },
+  });
+
+  const offerIds = Array.from(new Set((campaigns || []).map((c: any) => c.offer_id).filter(Boolean)));
+  const { data: offerMap } = useQuery({
+    queryKey: ["offers-map", offerIds.join(",")],
+    enabled: offerIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase.from("offers").select("id,title,price").in("id", offerIds);
+      const m: Record<string, any> = {};
+      (data || []).forEach((o: any) => { m[o.id] = o; });
+      return m;
     },
   });
 
@@ -157,15 +169,17 @@ function CampaignsListPage() {
                     <Badge variant="outline" className={STATUS_TONE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
                   </td>
                   <td className="p-3">
-                    {c.offer ? (
-                      <Link to="/offers/$id" params={{ id: c.offer.id }} className="inline-flex items-center gap-1.5 text-xs hover:text-primary">
-                        <Tag className="h-3 w-3 text-primary" />
-                        <span className="truncate max-w-[140px]">{c.offer.title}</span>
-                        {c.offer.price && <span className="text-muted-foreground">· ₪{c.offer.price}</span>}
-                      </Link>
-                    ) : (
-                      <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30 text-xs">לא משויך</Badge>
-                    )}
+                    {(() => {
+                      const o = c.offer_id ? offerMap?.[c.offer_id] : null;
+                      if (o) return (
+                        <Link to="/offers/$id" params={{ id: o.id }} className="inline-flex items-center gap-1.5 text-xs hover:text-primary">
+                          <Tag className="h-3 w-3 text-primary" />
+                          <span className="truncate max-w-[140px]">{o.title}</span>
+                          {o.price && <span className="text-muted-foreground">· ₪{o.price}</span>}
+                        </Link>
+                      );
+                      return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30 text-xs">לא משויך</Badge>;
+                    })()}
                   </td>
                   <td className="p-3 text-muted-foreground">{c.source_platform || "—"}</td>
                   <td className="p-3"><Badge variant="secondary">{INTAKE_FLOW_LABELS[c.intake_flow_type as keyof typeof INTAKE_FLOW_LABELS] || c.intake_flow_type}</Badge></td>
