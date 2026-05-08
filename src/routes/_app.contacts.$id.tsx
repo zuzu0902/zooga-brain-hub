@@ -114,138 +114,94 @@ function ContactProfile() {
   const initials = (contact.full_name || contact.first_name || "?").trim().slice(0, 1);
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      <Link to="/contacts" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-        <ArrowRight className="h-4 w-4" /> חזרה לרשימה
-      </Link>
+    <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
+      <div className="p-6 space-y-6 max-w-[1500px] mx-auto">
+        <Link to="/contacts" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
+          <ArrowRight className="h-4 w-4" /> חזרה לרשימה
+        </Link>
 
-      {/* Header card */}
-      <Card className="p-6 shadow-[var(--shadow-elevated)]">
-        <div className="flex items-start justify-between gap-6 flex-wrap">
-          <div className="flex items-start gap-4 flex-1 min-w-[280px]">
-            <div
-              className="h-16 w-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-primary-foreground shrink-0 shadow-[var(--shadow-warm)]"
-              style={{ background: "var(--gradient-warm)" }}
-            >
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold tracking-tight">{contact.full_name || "ללא שם"}</h1>
-                {contact.manager_attention_required && (
-                  <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" /> דורש טיפול מנהל</Badge>
-                )}
+        {/* === IDENTITY HEADER === */}
+        <IdentityHeader
+          contact={contact}
+          initials={initials}
+          id={id}
+          update={update}
+          onMessage={() => setInteractionOpen(true)}
+          onTask={() => setTaskOpen(true)}
+        />
+
+        {/* === AI RELATIONSHIP SUMMARY === */}
+        <AIRelationshipSummary contact={contact} />
+
+        {/* === MAIN GRID: left content + right insights rail === */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6 items-start">
+          <div className="space-y-6 min-w-0">
+            <ProfileNav active={activeSection} onChange={setActiveSection} />
+
+            {activeSection === "memory" && (
+              <RelationshipMemorySection contactId={id} />
+            )}
+            {activeSection === "actions" && (
+              <SuggestedActionsSection
+                contact={contact}
+                contactId={id}
+                tasks={tasks ?? []}
+                openTask={() => setTaskOpen(true)}
+                onTaskChange={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
+                update={update}
+              />
+            )}
+            {activeSection === "timeline" && (
+              <UnifiedTimeline
+                contactId={id}
+                interactions={interactions ?? []}
+                onAdd={() => setInteractionOpen(true)}
+              />
+            )}
+            {activeSection === "edit" && (
+              <div className="space-y-6">
+                <SectionHeading>סקירה כללית</SectionHeading>
+                <OverviewTab contact={contact} update={update} />
+                <SectionHeading>תובנות AI</SectionHeading>
+                <AITab contact={contact} update={update} />
+                <SectionHeading>פרופיל אישי</SectionHeading>
+                <PersonalTab contact={contact} update={update} />
+                <SectionHeading>שיחות ואינטראקציות</SectionHeading>
+                <ConversationsTab interactions={interactions ?? []} onAdd={() => setInteractionOpen(true)} />
+                <SectionHeading>פעילות ומכירות</SectionHeading>
+                <SalesTab contact={contact} update={update} />
+                <SectionHeading>הערות ומשימות</SectionHeading>
+                <NotesTasksTab
+                  contact={contact}
+                  update={update}
+                  tasks={tasks ?? []}
+                  onTaskChange={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
+                  contactId={id}
+                  openTask={() => setTaskOpen(true)}
+                />
+                <SectionHeading>נתונים גולמיים</SectionHeading>
+                <RawTab contact={contact} webhookLogs={webhookLogs ?? []} />
               </div>
-              <div className="flex items-center gap-3 mt-2 flex-wrap text-sm text-muted-foreground">
-                {contact.phone && <span className="inline-flex items-center gap-1.5" dir="ltr"><Phone className="h-3.5 w-3.5" />{contact.phone}</span>}
-                {contact.email && <span className="inline-flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" />{contact.email}</span>}
-                {(contact.city || contact.region) && (
-                  <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{[contact.region, contact.city].filter(Boolean).join(" · ")}</span>
-                )}
-                <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{contact.last_interaction_at ? `אחרון: ${formatRelative(contact.last_interaction_at)}` : "ללא אינטראקציות"}</span>
-              </div>
-              <div className="flex items-center gap-1.5 mt-3 flex-wrap">
-                <Badge variant="outline">{SOURCE_LABELS[contact.source] || contact.source}</Badge>
-                <Badge variant="secondary">{STATUS_LABELS[contact.status] || contact.status}</Badge>
-                {contact.sales_temperature && (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${SALES_TEMP_TONE[contact.sales_temperature] || "border-border"}`}>
-                    טמפ׳: {SALES_TEMP_LABELS[contact.sales_temperature]}
-                  </span>
-                )}
-                {contact.consent_marketing
-                  ? <Badge className="gap-1 bg-success text-success-foreground hover:bg-success"><ShieldCheck className="h-3 w-3" /> הסכמה</Badge>
-                  : <Badge variant="outline" className="text-muted-foreground">ללא הסכמה</Badge>}
-                {(contact.tags || []).slice(0, 4).map((t: string) => (
-                  <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className="flex flex-col items-stretch gap-2 min-w-[240px]">
-            <Button
-              size="sm"
-              variant="default"
-              className="gap-1.5"
-              onClick={() => window.open(`/contacts/${id}`, "_blank", "noopener,noreferrer")}
-            >
-              <ExternalLink className="h-4 w-4" />
-              פתח בחלון חדש (להדפסה / PDF)
-            </Button>
-            <Select value={contact.status} onValueChange={(v) => update({ status: v })}>
-              <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Object.entries(STATUS_LABELS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setInteractionOpen(true)}>
-                <MessageSquare className="h-3.5 w-3.5" /> שלח הודעה
-              </Button>
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setInteractionOpen(true)}>
-                <StickyNote className="h-3.5 w-3.5" /> הוסף הערה
-              </Button>
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setTaskOpen(true)}>
-                <CheckSquare className="h-3.5 w-3.5" /> פתח משימה
-              </Button>
-              <Button
-                size="sm"
-                variant={contact.manager_attention_required ? "default" : "outline"}
-                className="gap-1.5"
-                onClick={() => update({ manager_attention_required: !contact.manager_attention_required })}
-              >
-                <Flag className="h-3.5 w-3.5" /> {contact.manager_attention_required ? "בטל סימון" : "סמן לטיפול"}
-              </Button>
-            </div>
-          </div>
+          {/* === RIGHT RAIL: AI INSIGHTS PANEL === */}
+          <AIInsightsRail contact={contact} contactId={id} />
         </div>
-      </Card>
 
-      <SectionHeading>סקירה כללית</SectionHeading>
-      <OverviewTab contact={contact} update={update} />
-
-      <SectionHeading>תובנות AI</SectionHeading>
-      <AITab contact={contact} update={update} />
-
-      <SectionHeading>מנוע מודיעין שיחה</SectionHeading>
-      <AIIntelligencePanel contactId={id} />
-
-      <SectionHeading>פרופיל אישי</SectionHeading>
-      <PersonalTab contact={contact} update={update} />
-
-      <SectionHeading>שיחות ואינטראקציות</SectionHeading>
-      <ConversationsTab interactions={interactions ?? []} onAdd={() => setInteractionOpen(true)} />
-
-      <SectionHeading>פעילות ומכירות</SectionHeading>
-      <SalesTab contact={contact} update={update} />
-
-      <SectionHeading>הערות ומשימות</SectionHeading>
-      <NotesTasksTab
-        contact={contact}
-        update={update}
-        tasks={tasks ?? []}
-        onTaskChange={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
-        contactId={id}
-        openTask={() => setTaskOpen(true)}
-      />
-
-      <SectionHeading>נתונים גולמיים</SectionHeading>
-      <RawTab contact={contact} webhookLogs={webhookLogs ?? []} />
-
-      <AddInteractionDialog
+        <AddInteractionDialog
         open={interactionOpen}
         onOpenChange={setInteractionOpen}
         contactId={id}
         onAdded={() => qc.invalidateQueries({ queryKey: ["interactions", id] })}
-      />
-      <AddTaskDialog
-        open={taskOpen}
-        onOpenChange={setTaskOpen}
-        contactId={id}
-        onAdded={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
-      />
+        />
+        <AddTaskDialog
+          open={taskOpen}
+          onOpenChange={setTaskOpen}
+          contactId={id}
+          onAdded={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
+        />
+      </div>
     </div>
   );
 }
