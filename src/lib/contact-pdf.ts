@@ -205,7 +205,21 @@ export async function exportContactToPdf(contact: any, interactions: any[] = [])
     }
 
     const safeName = name.replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 60) || "contact";
-    pdf.save(`zooga_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    const filename = `zooga_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    // Force download via Blob + anchor click — pdf.save() can silently fail
+    // in some browsers (popup blockers, sandboxed contexts).
+    const blob = pdf.output("blob");
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 1000);
   } finally {
     document.body.removeChild(iframe);
   }
