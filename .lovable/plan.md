@@ -1,69 +1,87 @@
-## מודול "ייבוא לידים" ל-Zooga CRM
+# Zooga CRM — Premium Upgrade Plan
 
-### 1. סכימת DB (מיגרציה)
+A large, multi-part upgrade. Webhook & phone-as-master-key behavior stays untouched. Hebrew RTL preserved.
 
-**טבלה חדשה: `imported_leads`**
-- `id` uuid PK
-- `full_name`, `first_name`, `last_name` text
-- `phone` text (normalized E.164)
-- `source_file_name`, `source_campaign` text
-- `import_status` enum: `imported, duplicate, ready_for_intake, sent_to_tamar, replied, converted_to_contact, failed, opted_out` (default `imported`)
-- `consent_status` enum: `unknown, approved, declined` (default `unknown`)
-- `whatsapp_template_status` enum: `not_sent, sent, delivered, read, replied, failed` (default `not_sent`)
-- `contact_id` uuid (קישור לאיש קשר אם דופליקט/הומר)
-- `raw_row_data` jsonb
-- `last_message_at` timestamptz
-- `notes` text
-- `created_at`, `updated_at` + טריגר touch_updated_at
-- אינדקסים על `phone`, `import_status`
+## 1. Database migration (additive only)
 
-**טבלה חדשה: `intake_campaigns`**
-- `id`, `campaign_name`, `template_name`, `tamar_response` jsonb, `status` text, `sent_count` int, `created_at`
+Add to `public.contacts` (all nullable, safe defaults):
+- `age int`, `age_range text`
+- `interaction_count int default 0`
+- `sales_temperature text` (cold/warm/hot)
+- `purchase_intent text`, `activity_score int default 0`
+- `preferred_events text[]`, `hobbies text[]`, `travel_preferences text[]`
+- `favorite_activity_types text[]`, `availability_preferences text[]`
+- `personality_tags text[]`, `emotional_needs text[]`
+- `relationship_goals text[]`, `social_goals text[]`
+- `preferred_trip_style text`, `preferred_social_style text`, `budget_sensitivity text`
+- `emotional_profile text`, `communication_style text`, `social_profile text`, `sales_profile text`
+- `likely_needs text[]`, `decision_triggers text[]`, `objections text[]`
+- `loneliness_signal text`, `openness_score int`, `relationship_readiness text`
+- `community_fit_score int`, `vip_potential text`
+- `manager_attention_required boolean default false`
+- `last_clicked_offer text`, `last_campaign text`
+- `campaigns_received text[]`, `offers_sent text[]`
+- `events_interested text[]`, `events_joined text[]`, `trips_interested text[]`
+- `total_revenue numeric default 0`
+- `next_best_offer text`, `recommended_campaign text`
+- `dynamic_profile_fields jsonb default '{}'::jsonb`
+- `raw_payloads jsonb default '[]'::jsonb`
 
-**הרחבת `api_settings`:**
-- `tamar_backend_url` text
-- `tamar_backend_api_token` text
+Trigger: increment `interaction_count` on `interactions` insert (extend existing `on_interaction_inserted`).
 
-**RLS:** מדיניות ציבורית open (תואמת לשאר המערכת במצב dev הנוכחי).
+New table `tasks`:
+- id, contact_id, title, description, assigned_to, status (open/in_progress/done), due_date, priority, created_at, updated_at — public RLS like other tables.
 
-### 2. מסך "ייבוא לידים" — `/_app/import-leads`
+## 2. Webhook update (`/api/public/webhook/tamar`)
 
-- העלאת CSV (ניתוח client-side עם PapaParse)
-- ולידציה: עמודות חובה `full_name`, `phone`; אופציונלי `email`, `city`, `region`, `source_campaign`, `notes`
-- נורמליזציה של טלפון לפורמט `+972...`
-- בדיקת כפילויות: query ל-`contacts.phone` ול-`imported_leads.phone`. אם קיים contact → סטטוס `duplicate` + `contact_id`. אם קיים בייבוא → דילוג. אחרת → `imported`.
-- הצגת סיכום ייבוא + טבלת לידים מסוננת לפי סטטוס
-- בחירה מרובה + כפתור "סמן כמוכן לאינטייק" (`ready_for_intake`)
+Keep existing logic. Add:
+- Append payload to `contacts.raw_payloads` (cap last ~50).
+- Merge unknown payload keys into `dynamic_profile_fields`.
+- Apply known AI fields when present (ai_summary, ai_recommended_next_action, sales_temperature, etc.).
+- Continue creating contact-by-phone, inserting interaction.
 
-### 3. מסך "קמפיין אינטייק" — `/_app/intake-campaign`
+## 3. Design system
 
-- טבלת לידים עם `import_status = ready_for_intake`
-- בחירה מרובה
-- שדות: `campaign_name`, `template_name` (select מרשימה קבועה: `zooga_intro_intake` כברירת מחדל)
-- תצוגת preview של ההודעה
-- כפתור "שלח לתמר" → קורא ל-server function
+Update `src/styles.css` tokens for premium SaaS look: refined neutrals, accent, success/warn/danger, subtle elevation shadows, rounded radii. Keep RTL.
 
-### 4. Server function — `src/lib/intake-campaign.functions.ts`
+## 4. Contacts list (`_app.contacts.tsx`)
 
-- שולף `tamar_backend_url` ו-`tamar_backend_api_token` מ-`api_settings`
-- POST ל-`{tamar_backend_url}/campaigns/intake` עם payload כנדרש
-- מעדכן `imported_leads.import_status = sent_to_tamar`, `whatsapp_template_status = sent`
-- שומר רשומה ב-`intake_campaigns`
+Replace with professional table:
+- Columns listed in spec, with badges for status / temperature / consent.
+- Filter chips: status, source, region, interest (chip-multi), sales_temperature, activity score range, consent.
+- Search across name/phone/city/interest.
+- Row click → `/contacts/$id`.
 
-### 5. Webhook נכנס לעדכון סטטוסים
+## 5. Contact profile (`_app.contacts.$id.tsx`)
 
-`/api/public/webhook/tamar-status` — POST עם `{lead_id, status}` (delivered/read/replied/failed). מעדכן `whatsapp_template_status` ו-`last_message_at`. מאובטח עם `tamar_backend_api_token`.
+Header card: avatar initials, full_name, phone, source, status, last_interaction, consent badge, tag chips. Quick action buttons (שלח הודעה / הוסף הערה / עדכן סטטוס / פתח משימה / סמן לטיפול אישי) — actions wired to inline mutations or dialogs (note + task functional; others toggle status / flag).
 
-### 6. הרחבת מסך הגדרות API
+Tabs (shadcn `Tabs`):
+1. **סקירה כללית** — KPI cards + basic-info grid (editable inline where useful).
+2. **שיחות** — interactions timeline grouped by day, role-tinted bubbles.
+3. **תובנות AI** — editable cards for each AI/profile field; admin-only.
+4. **פרופיל אישי** — chip editors for arrays + dynamic fields key/value list (add/remove).
+5. **פעילות ומכירות** — score meters, temperature pill, lists of campaigns/offers/events, revenue.
+6. **הערות ומשימות** — notes textarea + tasks CRUD.
+7. **נתונים גולמיים** — collapsible JSON viewers for `raw_payloads`, latest webhook_logs by phone, dynamic_profile_fields.
 
-הוספת שדות `tamar_backend_url` ו-`tamar_backend_api_token` ב-`/_app/settings/api`.
+## 6. Dashboard (`_app.index.tsx`)
 
-### 7. ניווט בסיידבר
+KPI cards: total, new today, active conversations (interactions in 24h), hot leads, manager_attention_required, top interests (aggregated), recent Tamar conversations list, campaign readiness count, sales opportunities (warm+hot).
 
-הוספת קישורים ל-"ייבוא לידים" ו-"קמפיין אינטייק".
+## 7. Sidebar / shell
 
-### הערות
-- אין שליחת וואטסאפ ישירה מ-Lovable
-- אין AI בשלב זה
-- כל הטקסטים בעברית RTL
-- שימוש ב-PapaParse (`bun add papaparse`)
+Refine `_app.tsx` shell: cleaner sidebar header, section labels, active state, subtle dividers, RTL-correct icons.
+
+## Out of scope
+Campaign engine, payments, matching, AI generation. No webhook behavior changes beyond additive enrichment.
+
+## Files to create/edit
+- new migration
+- `src/routes/api/public/webhook/tamar.ts` (extend)
+- `src/routes/_app.contacts.tsx`, `_app.contacts.$id.tsx` (rewrite)
+- `src/routes/_app.index.tsx` (rewrite)
+- `src/routes/_app.tsx` (sidebar polish)
+- `src/styles.css` (token refinement)
+- `src/components/contact-profile/*` (tab components)
+- `src/lib/i18n.ts` (extend labels)
