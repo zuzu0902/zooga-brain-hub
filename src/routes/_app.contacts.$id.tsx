@@ -877,7 +877,7 @@ function AIInsightsRail({ contact, contactId }: any) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
-              <Brain className="h-4.5 w-4.5" />
+              <Brain className="h-5 w-5" />
             </div>
             <div>
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">AI Insights</div>
