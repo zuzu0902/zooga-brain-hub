@@ -19,6 +19,8 @@ import {
   ArrowRight, Plus, Save, X, MessageSquare, StickyNote,
   CheckSquare, Flag, Phone, Mail, MapPin, Calendar, ShieldCheck,
   Sparkles, AlertCircle, Trash2, ExternalLink,
+  Brain, Heart, Zap, Clock, User, Activity, TrendingUp, Target,
+  Lightbulb, History as HistoryIcon, ChevronRight, Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
