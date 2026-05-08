@@ -236,7 +236,7 @@ export async function runExtraction(contactId: string) {
   }
 
   if (Object.keys(patch).length > 0) {
-    await supabaseAdmin.from("contacts").update(patch).eq("id", contactId);
+    await supabaseAdmin.from("contacts").update(patch as any).eq("id", contactId);
   }
   if (historyRows.length > 0) {
     await supabaseAdmin.from("contact_profile_history").insert(historyRows);
