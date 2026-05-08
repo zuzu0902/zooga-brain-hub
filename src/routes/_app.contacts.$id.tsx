@@ -600,7 +600,7 @@ function PersonalTab({ contact, update }: any) {
   );
 }
 
-function FreeField({ label, value, onChange }: any) {
+function FreeField({ label, value, onChange }: { label: string; value: any; onChange: (v: string[]) => void }) {
   return (
     <div>
       <Label className="text-xs text-muted-foreground mb-1.5 block">{label}</Label>
