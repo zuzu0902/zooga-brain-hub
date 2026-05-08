@@ -108,7 +108,10 @@ function ContactProfile() {
     try {
       const file = await exportContactToPdf(contact, interactions || []);
       const manualUrl = URL.createObjectURL(file.blob);
-      setPdfDownload({ url: manualUrl, filename: file.filename });
+      setPdfDownload((prev) => {
+        if (prev) URL.revokeObjectURL(prev.url);
+        return { url: manualUrl, filename: file.filename };
+      });
       file.download();
       toast.success("ה-PDF מוכן", {
         description: "אם ההורדה לא התחילה, לחץ על כפתור ההורדה הידנית שמופיע מתחת.",
