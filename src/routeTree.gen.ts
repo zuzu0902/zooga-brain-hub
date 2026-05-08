@@ -18,6 +18,7 @@ import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-camp
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
+import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
 import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
@@ -67,6 +68,11 @@ const AppContactsRoute = AppContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCampaignsRoute = AppCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
   id: '/settings/api',
   path: '/settings/api',
@@ -92,6 +98,7 @@ const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/campaigns': typeof AppCampaignsRoute
   '/contacts': typeof AppContactsRouteWithChildren
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/campaigns': typeof AppCampaignsRoute
   '/contacts': typeof AppContactsRouteWithChildren
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/campaigns': typeof AppCampaignsRoute
   '/_app/contacts': typeof AppContactsRouteWithChildren
   '/_app/import-leads': typeof AppImportLeadsRoute
   '/_app/inbox': typeof AppInboxRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/campaigns'
     | '/contacts'
     | '/import-leads'
     | '/inbox'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/campaigns'
     | '/contacts'
     | '/import-leads'
     | '/inbox'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
+    | '/_app/campaigns'
     | '/_app/contacts'
     | '/_app/import-leads'
     | '/_app/inbox'
@@ -251,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppContactsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/campaigns': {
+      id: '/_app/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof AppCampaignsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/api': {
       id: '/_app/settings/api'
       path: '/settings/api'
@@ -295,6 +314,7 @@ const AppContactsRouteWithChildren = AppContactsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppCampaignsRoute: typeof AppCampaignsRoute
   AppContactsRoute: typeof AppContactsRouteWithChildren
   AppImportLeadsRoute: typeof AppImportLeadsRoute
   AppInboxRoute: typeof AppInboxRoute
@@ -306,6 +326,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppCampaignsRoute: AppCampaignsRoute,
   AppContactsRoute: AppContactsRouteWithChildren,
   AppImportLeadsRoute: AppImportLeadsRoute,
   AppInboxRoute: AppInboxRoute,
@@ -327,3 +348,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
