@@ -100,15 +100,24 @@ function ContactProfile() {
   const [interactionOpen, setInteractionOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [pdfDownload, setPdfDownload] = useState<{ url: string; filename: string } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pdfDownload) URL.revokeObjectURL(pdfDownload.url);
+    };
+  }, [pdfDownload]);
 
   async function handleExportPdf() {
     if (!contact) return;
     setExporting(true);
     try {
       const file = await exportContactToPdf(contact, interactions || []);
+      const manualUrl = URL.createObjectURL(file.blob);
+      setPdfDownload({ url: manualUrl, filename: file.filename });
       file.download();
       toast.success("ה-PDF מוכן", {
-        description: "אם ההורדה לא התחילה, לחץ כאן להורדה ידנית.",
+        description: "אם ההורדה לא התחילה, לחץ על כפתור ההורדה הידנית שמופיע מתחת.",
         action: {
           label: "הורד",
           onClick: file.download,
@@ -193,6 +202,14 @@ function ContactProfile() {
               <FileDown className="h-4 w-4" />
               {exporting ? "מפיק PDF..." : "ייצוא לכרטיס PDF"}
             </Button>
+            {pdfDownload && (
+              <Button size="sm" variant="outline" asChild className="gap-1.5">
+                <a href={pdfDownload.url} download={pdfDownload.filename}>
+                  <FileDown className="h-4 w-4" />
+                  הורדה ידנית של ה-PDF
+                </a>
+              </Button>
+            )}
             <Select value={contact.status} onValueChange={(v) => update({ status: v })}>
               <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
               <SelectContent>
