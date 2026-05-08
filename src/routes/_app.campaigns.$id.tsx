@@ -73,8 +73,17 @@ function CampaignDetailPage() {
   const { data: campaign, isLoading, refetch } = useQuery({
     queryKey: ["campaign", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("campaigns").select("*, offer:offer_id(id,title,price,category,status,description)").eq("id", id).maybeSingle();
+      const { data, error } = await supabase.from("campaigns").select("*").eq("id", id).maybeSingle();
       if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: offer } = useQuery({
+    queryKey: ["campaign-offer", campaign?.offer_id],
+    enabled: !!campaign?.offer_id,
+    queryFn: async () => {
+      const { data } = await supabase.from("offers").select("id,title,price,category,status,description").eq("id", campaign!.offer_id!).maybeSingle();
       return data;
     },
   });
@@ -191,7 +200,7 @@ function CampaignDetailPage() {
 
       <SectionHeading icon={Tag}>הצעה מקושרת</SectionHeading>
       <Card className="p-5">
-        {campaign.offer ? (
+        {offer ? (
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-3 min-w-0">
               <div className="h-12 w-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -199,16 +208,16 @@ function CampaignDetailPage() {
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Link to="/offers/$id" params={{ id: campaign.offer.id }} className="font-semibold text-base hover:text-primary">
-                    {campaign.offer.title}
+                  <Link to="/offers/$id" params={{ id: offer.id }} className="font-semibold text-base hover:text-primary">
+                    {offer.title}
                   </Link>
-                  {campaign.offer.price && <Badge>₪{campaign.offer.price}</Badge>}
-                  <Badge variant="outline">{campaign.offer.status}</Badge>
+                  {offer.price && <Badge>₪{offer.price}</Badge>}
+                  <Badge variant="outline">{offer.status}</Badge>
                 </div>
-                {campaign.offer.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{campaign.offer.description}</p>}
+                {offer.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{offer.description}</p>}
               </div>
             </div>
-            <Link to="/offers/$id" params={{ id: campaign.offer.id }}>
+            <Link to="/offers/$id" params={{ id: offer.id }}>
               <Button variant="outline" size="sm">פתח הצעה</Button>
             </Link>
           </div>
