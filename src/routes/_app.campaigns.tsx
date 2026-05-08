@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Megaphone, Plus, Search, Activity, Users, Flame, AlertTriangle } from "lucide-react";
 import { INTAKE_FLOW_LABELS } from "@/lib/intake-flows";
 import { formatRelative } from "@/lib/i18n";
+import { ContextBanner } from "@/components/context-banner";
+import { Tag } from "lucide-react";
 
 export const Route = createFileRoute("/_app/campaigns")({
   head: () => ({ meta: [{ title: "קמפיינים — Zooga CRM" }] }),
@@ -57,7 +59,7 @@ function CampaignsListPage() {
     queryKey: ["campaigns"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("campaigns").select("*").order("created_at", { ascending: false });
+        .from("campaigns").select("*, offer:offer_id(id,title,price)").order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -97,6 +99,10 @@ function CampaignsListPage() {
         </Link>
       </header>
 
+      <ContextBanner id="campaigns-list">
+        <strong>קמפיינים</strong> = ערוץ השיווק שמביא אנשים אל <strong>הצעה</strong> מסוימת. כל קמפיין צריך להיות מקושר להצעה אחת.
+      </ContextBanner>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard icon={Megaphone} label="קמפיינים פעילים" value={activeCount} />
         <KpiCard icon={Users} label="אנשי קשר שנרכשו" value={stats?.acquired ?? 0} tone="bg-blue-500/10 text-blue-700" />
@@ -125,6 +131,7 @@ function CampaignsListPage() {
               <tr className="text-right">
                 <th className="p-3 font-medium">שם</th>
                 <th className="p-3 font-medium">סטטוס</th>
+                <th className="p-3 font-medium">הצעה</th>
                 <th className="p-3 font-medium">פלטפורמה</th>
                 <th className="p-3 font-medium">זרימת אינטייק</th>
                 <th className="p-3 font-medium">זווית רגשית</th>
@@ -132,9 +139,9 @@ function CampaignsListPage() {
               </tr>
             </thead>
             <tbody>
-              {isLoading && (<tr><td colSpan={6} className="p-6 text-center text-muted-foreground">טוען...</td></tr>)}
+              {isLoading && (<tr><td colSpan={7} className="p-6 text-center text-muted-foreground">טוען...</td></tr>)}
               {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={6} className="p-10 text-center text-muted-foreground">
+                <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">
                   אין קמפיינים. <Link to="/campaigns/new" className="text-primary hover:underline">צור את הראשון</Link>
                 </td></tr>
               )}
@@ -148,6 +155,17 @@ function CampaignsListPage() {
                   </td>
                   <td className="p-3">
                     <Badge variant="outline" className={STATUS_TONE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
+                  </td>
+                  <td className="p-3">
+                    {c.offer ? (
+                      <Link to="/offers/$id" params={{ id: c.offer.id }} className="inline-flex items-center gap-1.5 text-xs hover:text-primary">
+                        <Tag className="h-3 w-3 text-primary" />
+                        <span className="truncate max-w-[140px]">{c.offer.title}</span>
+                        {c.offer.price && <span className="text-muted-foreground">· ₪{c.offer.price}</span>}
+                      </Link>
+                    ) : (
+                      <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30 text-xs">לא משויך</Badge>
+                    )}
                   </td>
                   <td className="p-3 text-muted-foreground">{c.source_platform || "—"}</td>
                   <td className="p-3"><Badge variant="secondary">{INTAKE_FLOW_LABELS[c.intake_flow_type as keyof typeof INTAKE_FLOW_LABELS] || c.intake_flow_type}</Badge></td>
