@@ -29,6 +29,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
   {
     label: "קמפיינים",
     items: [
+      { to: "/campaigns", label: "ניהול קמפיינים", icon: Megaphone },
       { to: "/import-leads", label: "ייבוא לידים", icon: Upload },
       { to: "/intake-campaign", label: "קמפיין אינטייק", icon: Megaphone },
       { to: "/offers", label: "הצעות", icon: Tag },
