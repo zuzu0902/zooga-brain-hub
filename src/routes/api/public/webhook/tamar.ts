@@ -145,57 +145,58 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             });
           }
 
-          // No matching contact — find or create an intake item keyed by phone.
-          let existingIntake: any = null;
-          if (phone) {
-            const { data } = await supabaseAdmin
-              .from("intake_inbox")
-              .select("*")
-              .eq("parsed_phone", phone)
-              .eq("status", "pending")
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            if (data) existingIntake = data;
-          }
+          // No matching contact — create a new one keyed by phone.
+          const fallbackName = name || "משתמש WhatsApp";
+          const newNameParts = String(fallbackName).trim().split(/\s+/);
+          const insertRow: any = {
+            full_name: fallbackName,
+            first_name: newNameParts[0] || fallbackName,
+            last_name: newNameParts.length > 1 ? newNameParts.slice(1).join(" ") : null,
+            phone: phone,
+            whatsapp_number: whatsapp_number,
+            facebook_id: facebook_id,
+            email: email,
+            source: source as any,
+            intake_status: intake_status || "new",
+            last_interaction_at: nowIso,
+            consent_marketing: false,
+          };
+          if (payload?.preferred_language_style)
+            insertRow.preferred_language_style = payload.preferred_language_style;
+          if (payload?.gender) insertRow.gender = payload.gender;
 
-          if (existingIntake) {
-            const patch: any = {};
-            if (name && !existingIntake.parsed_name) patch.parsed_name = name;
-            if (email && !existingIntake.parsed_email) patch.parsed_email = email;
-            if (facebook_id && !existingIntake.parsed_facebook_id)
-              patch.parsed_facebook_id = facebook_id;
-            if (message) {
-              patch.parsed_message = existingIntake.parsed_message
-                ? `${existingIntake.parsed_message}\n---\n${message}`
-                : message;
-            }
-            patch.raw_payload = {
-              ...(existingIntake.raw_payload || {}),
-              last: payload ?? {},
-              last_received_at: nowIso,
-            };
-            await supabaseAdmin.from("intake_inbox").update(patch).eq("id", existingIntake.id);
-            return Response.json({ ok: true, matched: false, intake_id: existingIntake.id, updated: true });
-          }
-
-          const { data: intake, error: intakeErr } = await supabaseAdmin
-            .from("intake_inbox")
-            .insert({
-              raw_payload: payload ?? {},
-              parsed_name: name,
-              parsed_phone: phone,
-              parsed_email: email,
-              parsed_facebook_id: facebook_id,
-              parsed_message: message,
-              source: source as any,
-            })
+          const { data: created, error: createErr } = await supabaseAdmin
+            .from("contacts")
+            .insert(insertRow)
             .select("id")
             .single();
 
-          if (intakeErr) throw intakeErr;
+          if (createErr) throw createErr;
 
-          return Response.json({ ok: true, matched: false, intake_id: intake?.id });
+          if (message && created?.id) {
+            await supabaseAdmin.from("interactions").insert({
+              contact_id: created.id,
+              type: isWhatsApp ? "whatsapp_message" : "facebook_message",
+              source: String(source),
+              content: message,
+            });
+          }
+
+          // Also log to intake_inbox for visibility, marked as processed.
+          await supabaseAdmin.from("intake_inbox").insert({
+            raw_payload: payload ?? {},
+            parsed_name: fallbackName,
+            parsed_phone: phone,
+            parsed_email: email,
+            parsed_facebook_id: facebook_id,
+            parsed_message: message,
+            source: source as any,
+            status: "processed" as any,
+            matched_contact_id: created?.id ?? null,
+            processed_at: nowIso,
+          });
+
+          return Response.json({ ok: true, matched: false, created: true, contact_id: created?.id });
         } catch (e: any) {
           await supabaseAdmin.from("webhook_logs").insert({
             source: "tamar_bot",
