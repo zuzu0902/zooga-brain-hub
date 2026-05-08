@@ -44,8 +44,182 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_contacts: {
+        Row: {
+          ai_reasoning: string | null
+          campaign_id: string
+          contact_id: string
+          conversation_intent: string | null
+          conversion_probability: number | null
+          conversion_stage: string | null
+          created_at: string
+          emotional_engagement: number | null
+          first_touch: boolean
+          fit_score: number | null
+          id: string
+          intent_level: string | null
+          joined_at: string
+          last_activity_at: string
+          last_touch: boolean
+          updated_at: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          campaign_id: string
+          contact_id: string
+          conversation_intent?: string | null
+          conversion_probability?: number | null
+          conversion_stage?: string | null
+          created_at?: string
+          emotional_engagement?: number | null
+          first_touch?: boolean
+          fit_score?: number | null
+          id?: string
+          intent_level?: string | null
+          joined_at?: string
+          last_activity_at?: string
+          last_touch?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          campaign_id?: string
+          contact_id?: string
+          conversation_intent?: string | null
+          conversion_probability?: number | null
+          conversion_stage?: string | null
+          created_at?: string
+          emotional_engagement?: number | null
+          first_touch?: boolean
+          fit_score?: number | null
+          id?: string
+          intent_level?: string | null
+          joined_at?: string
+          last_activity_at?: string
+          last_touch?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          active_from: string | null
+          active_until: string | null
+          ad_copy: string | null
+          ai_behavior_rules: Json
+          ai_goal: string | null
+          campaign_type: string | null
+          category: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          desired_conversion_action: string | null
+          emotional_angle: string | null
+          faq: Json
+          id: string
+          images: string[]
+          intake_flow_type: Database["public"]["Enums"]["intake_flow_type"]
+          landing_text: string | null
+          manager_owner_id: string | null
+          name: string
+          objections: string[]
+          objective: string | null
+          offer_id: string | null
+          prohibited_promises: string[]
+          source_platform: string | null
+          status: Database["public"]["Enums"]["campaign_status"]
+          target_age_ranges: string[]
+          target_audience: string | null
+          target_personality_types: string[]
+          target_regions: string[]
+          tone_style: string | null
+          updated_at: string
+          videos: string[]
+          whatsapp_number: string | null
+        }
+        Insert: {
+          active_from?: string | null
+          active_until?: string | null
+          ad_copy?: string | null
+          ai_behavior_rules?: Json
+          ai_goal?: string | null
+          campaign_type?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          desired_conversion_action?: string | null
+          emotional_angle?: string | null
+          faq?: Json
+          id?: string
+          images?: string[]
+          intake_flow_type?: Database["public"]["Enums"]["intake_flow_type"]
+          landing_text?: string | null
+          manager_owner_id?: string | null
+          name: string
+          objections?: string[]
+          objective?: string | null
+          offer_id?: string | null
+          prohibited_promises?: string[]
+          source_platform?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_age_ranges?: string[]
+          target_audience?: string | null
+          target_personality_types?: string[]
+          target_regions?: string[]
+          tone_style?: string | null
+          updated_at?: string
+          videos?: string[]
+          whatsapp_number?: string | null
+        }
+        Update: {
+          active_from?: string | null
+          active_until?: string | null
+          ad_copy?: string | null
+          ai_behavior_rules?: Json
+          ai_goal?: string | null
+          campaign_type?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          desired_conversion_action?: string | null
+          emotional_angle?: string | null
+          faq?: Json
+          id?: string
+          images?: string[]
+          intake_flow_type?: Database["public"]["Enums"]["intake_flow_type"]
+          landing_text?: string | null
+          manager_owner_id?: string | null
+          name?: string
+          objections?: string[]
+          objective?: string | null
+          offer_id?: string | null
+          prohibited_promises?: string[]
+          source_platform?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_age_ranges?: string[]
+          target_audience?: string | null
+          target_personality_types?: string[]
+          target_regions?: string[]
+          tone_style?: string | null
+          updated_at?: string
+          videos?: string[]
+          whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
       contacts: {
         Row: {
+          acquisition_source: string | null
           activity_score: number
           age: number | null
           age_range: string | null
@@ -61,12 +235,15 @@ export type Database = {
           birthday_month: number | null
           birthday_year: number | null
           budget_sensitivity: string | null
+          campaign_source: string | null
           campaigns_received: string[]
           city: string | null
           communication_style: string | null
           community_fit_score: number | null
           consent_date: string | null
           consent_marketing: boolean
+          conversation_intent: string | null
+          conversion_stage: string | null
           created_at: string
           decision_triggers: string[]
           dynamic_profile_fields: Json
@@ -75,11 +252,13 @@ export type Database = {
           emotional_needs: string[]
           emotional_profile: string | null
           engagement_score: number
+          entry_offer_id: string | null
           events_interested: string[]
           events_joined: string[]
           facebook_id: string | null
           favorite_activity_types: string[]
           first_name: string | null
+          first_touch_campaign_id: string | null
           full_name: string | null
           gender: Database["public"]["Enums"]["gender"] | null
           hobbies: string[]
@@ -92,6 +271,7 @@ export type Database = {
           last_clicked_offer: string | null
           last_interaction_at: string | null
           last_name: string | null
+          last_touch_campaign_id: string | null
           lifestyle_tags: string[]
           likely_needs: string[]
           loneliness_signal: string | null
@@ -135,6 +315,7 @@ export type Database = {
           whatsapp_number: string | null
         }
         Insert: {
+          acquisition_source?: string | null
           activity_score?: number
           age?: number | null
           age_range?: string | null
@@ -150,12 +331,15 @@ export type Database = {
           birthday_month?: number | null
           birthday_year?: number | null
           budget_sensitivity?: string | null
+          campaign_source?: string | null
           campaigns_received?: string[]
           city?: string | null
           communication_style?: string | null
           community_fit_score?: number | null
           consent_date?: string | null
           consent_marketing?: boolean
+          conversation_intent?: string | null
+          conversion_stage?: string | null
           created_at?: string
           decision_triggers?: string[]
           dynamic_profile_fields?: Json
@@ -164,11 +348,13 @@ export type Database = {
           emotional_needs?: string[]
           emotional_profile?: string | null
           engagement_score?: number
+          entry_offer_id?: string | null
           events_interested?: string[]
           events_joined?: string[]
           facebook_id?: string | null
           favorite_activity_types?: string[]
           first_name?: string | null
+          first_touch_campaign_id?: string | null
           full_name?: string | null
           gender?: Database["public"]["Enums"]["gender"] | null
           hobbies?: string[]
@@ -181,6 +367,7 @@ export type Database = {
           last_clicked_offer?: string | null
           last_interaction_at?: string | null
           last_name?: string | null
+          last_touch_campaign_id?: string | null
           lifestyle_tags?: string[]
           likely_needs?: string[]
           loneliness_signal?: string | null
@@ -224,6 +411,7 @@ export type Database = {
           whatsapp_number?: string | null
         }
         Update: {
+          acquisition_source?: string | null
           activity_score?: number
           age?: number | null
           age_range?: string | null
@@ -239,12 +427,15 @@ export type Database = {
           birthday_month?: number | null
           birthday_year?: number | null
           budget_sensitivity?: string | null
+          campaign_source?: string | null
           campaigns_received?: string[]
           city?: string | null
           communication_style?: string | null
           community_fit_score?: number | null
           consent_date?: string | null
           consent_marketing?: boolean
+          conversation_intent?: string | null
+          conversion_stage?: string | null
           created_at?: string
           decision_triggers?: string[]
           dynamic_profile_fields?: Json
@@ -253,11 +444,13 @@ export type Database = {
           emotional_needs?: string[]
           emotional_profile?: string | null
           engagement_score?: number
+          entry_offer_id?: string | null
           events_interested?: string[]
           events_joined?: string[]
           facebook_id?: string | null
           favorite_activity_types?: string[]
           first_name?: string | null
+          first_touch_campaign_id?: string | null
           full_name?: string | null
           gender?: Database["public"]["Enums"]["gender"] | null
           hobbies?: string[]
@@ -270,6 +463,7 @@ export type Database = {
           last_clicked_offer?: string | null
           last_interaction_at?: string | null
           last_name?: string | null
+          last_touch_campaign_id?: string | null
           lifestyle_tags?: string[]
           likely_needs?: string[]
           loneliness_signal?: string | null
@@ -456,6 +650,7 @@ export type Database = {
       }
       interactions: {
         Row: {
+          campaign_id: string | null
           contact_id: string
           content: string | null
           created_at: string
@@ -467,6 +662,7 @@ export type Database = {
           type: Database["public"]["Enums"]["interaction_type"]
         }
         Insert: {
+          campaign_id?: string | null
           contact_id: string
           content?: string | null
           created_at?: string
@@ -478,6 +674,7 @@ export type Database = {
           type: Database["public"]["Enums"]["interaction_type"]
         }
         Update: {
+          campaign_id?: string | null
           contact_id?: string
           content?: string | null
           created_at?: string
@@ -717,6 +914,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      campaign_status: "draft" | "active" | "paused" | "completed" | "archived"
       contact_source:
         | "Facebook"
         | "WhatsApp"
@@ -743,6 +941,16 @@ export type Database = {
         | "failed"
         | "opted_out"
       income_range: "low" | "medium" | "high" | "prefer_not_to_say"
+      intake_flow_type:
+        | "trip"
+        | "event"
+        | "party"
+        | "dating"
+        | "workshop"
+        | "vip"
+        | "community"
+        | "sales_inquiry"
+        | "generic"
       intake_status: "pending" | "approved" | "merged" | "rejected"
       interaction_type:
         | "facebook_message"
@@ -901,6 +1109,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      campaign_status: ["draft", "active", "paused", "completed", "archived"],
       contact_source: [
         "Facebook",
         "WhatsApp",
@@ -930,6 +1139,17 @@ export const Constants = {
         "opted_out",
       ],
       income_range: ["low", "medium", "high", "prefer_not_to_say"],
+      intake_flow_type: [
+        "trip",
+        "event",
+        "party",
+        "dating",
+        "workshop",
+        "vip",
+        "community",
+        "sales_inquiry",
+        "generic",
+      ],
       intake_status: ["pending", "approved", "merged", "rejected"],
       interaction_type: [
         "facebook_message",
