@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -184,7 +184,13 @@ function ContactsPage() {
                     className="border-b last:border-b-0 hover:bg-muted/40 cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
+                      <Link
+                        to="/contacts/$id"
+                        params={{ id: c.id }}
+                        preload="intent"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-2.5 hover:text-primary"
+                      >
                         <div className="h-8 w-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-xs font-semibold shrink-0">
                           {initials}
                         </div>
@@ -197,7 +203,7 @@ function ContactsPage() {
                           </div>
                           {c.email && <div className="text-[11px] text-muted-foreground truncate">{c.email}</div>}
                         </div>
-                      </div>
+                      </Link>
                     </td>
                     <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap" dir="ltr">{c.phone || "—"}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">{SOURCE_LABELS[c.source] || c.source || "—"}</td>
