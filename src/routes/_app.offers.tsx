@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,11 +13,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORY_LABELS, INTEREST_LABELS, ALL_INTERESTS, SPENDING_LABELS } from "@/lib/i18n";
+import { ContextBanner } from "@/components/context-banner";
 
 export const Route = createFileRoute("/_app/offers")({
   head: () => ({ meta: [{ title: "הצעות — Zooga CRM" }] }),
-  component: OffersPage,
+  component: OffersRoute,
 });
+
+function OffersRoute() {
+  const location = useLocation();
+  if (location.pathname.startsWith("/offers/")) return <Outlet />;
+  return <OffersPage />;
+}
 
 function OffersPage() {
   const qc = useQueryClient();
@@ -39,13 +46,18 @@ function OffersPage() {
         </div>
         <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="h-4 w-4" />הצעה חדשה</Button>
       </header>
+      <ContextBanner id="offers-list">
+        <strong>הצעות</strong> = מה שאת מוכרת (טיול, סדנה, מסיבה). כל הצעה תוכל להיות מקודמת ב<strong>קמפיין</strong> אחד או יותר.
+      </ContextBanner>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {offers?.map((o: any) => (
-          <Card key={o.id} className="p-5">
+          <Card key={o.id} className="p-5 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <Badge variant="outline">{CATEGORY_LABELS[o.category]}</Badge>
-                <h3 className="font-semibold mt-2">{o.title}</h3>
+                <Link to="/offers/$id" params={{ id: o.id }}>
+                  <h3 className="font-semibold mt-2 hover:text-primary cursor-pointer">{o.title}</h3>
+                </Link>
               </div>
               <Badge>{o.status}</Badge>
             </div>
@@ -55,11 +67,16 @@ function OffersPage() {
                 <Badge key={i} variant="secondary">{INTEREST_LABELS[i] || i}</Badge>
               ))}
             </div>
-            <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center justify-between mt-4 gap-2">
               <div className="text-sm text-muted-foreground">{o.price ? `₪${o.price}` : ""}</div>
-              <Button asChild size="sm" variant="outline">
-                <Link to="/send-offer" search={{ offerId: o.id } as any}>שלח</Link>
-              </Button>
+              <div className="flex gap-1">
+                <Button asChild size="sm" variant="ghost">
+                  <Link to="/offers/$id" params={{ id: o.id }}>פתח</Link>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/send-offer" search={{ offerId: o.id } as any}>שלח</Link>
+                </Button>
+              </div>
             </div>
           </Card>
         ))}
