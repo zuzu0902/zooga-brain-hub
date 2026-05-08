@@ -17,9 +17,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  ArrowRight, Plus, Save, X, MessageSquare, StickyNote, RefreshCw,
+  ArrowRight, Plus, Save, X, MessageSquare, StickyNote,
   CheckSquare, Flag, Phone, Mail, MapPin, Calendar, ShieldCheck,
-  Activity, Sparkles, AlertCircle, Trash2, Send,
+  Sparkles, AlertCircle, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
