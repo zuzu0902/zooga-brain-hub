@@ -146,16 +146,29 @@ export async function exportContactToPdf(contact: any, interactions: any[] = [])
     </div>
   `;
 
-  // Render off-screen
-  const wrap = document.createElement("div");
-  wrap.style.cssText = "position:fixed;left:-10000px;top:0;background:#fff;";
-  wrap.innerHTML = html;
-  document.body.appendChild(wrap);
-  const node = wrap.firstElementChild as HTMLElement;
+  // Render inside an isolated iframe so the host page's CSS (oklch tokens,
+  // Tailwind resets, etc.) cannot leak in — html2canvas 1.x cannot parse
+  // oklch() and crashes on inherited values.
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:900px;height:100px;border:0;background:#fff;";
+  document.body.appendChild(iframe);
+  await new Promise<void>((res) => {
+    iframe.onload = () => res();
+    iframe.srcdoc = `<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8"><style>
+      html,body{margin:0;padding:0;background:#fff;color:#0f172a;
+        font-family:'Heebo','Assistant','Segoe UI',Arial,sans-serif;}
+    </style></head><body>${html}</body></html>`;
+  });
+
+  const idoc = iframe.contentDocument!;
+  const node = idoc.getElementById("zooga-pdf-root") as HTMLElement;
+  // Resize iframe to content so html2canvas captures the full height
+  iframe.style.height = node.scrollHeight + 40 + "px";
 
   try {
     const canvas = await html2canvas(node, {
       scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false,
+      windowWidth: node.scrollWidth, windowHeight: node.scrollHeight,
     });
 
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
@@ -194,6 +207,6 @@ export async function exportContactToPdf(contact: any, interactions: any[] = [])
     const safeName = name.replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 60) || "contact";
     pdf.save(`zooga_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`);
   } finally {
-    document.body.removeChild(wrap);
+    document.body.removeChild(iframe);
   }
 }
