@@ -19,7 +19,6 @@ import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
-import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
 import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 
@@ -72,11 +71,6 @@ const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
   path: '/settings/api',
   getParentRoute: () => AppRoute,
 } as any)
-const AppContactsIdRoute = AppContactsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppContactsRoute,
-} as any)
 const ApiPublicWebhookTamarStatusRoute =
   ApiPublicWebhookTamarStatusRouteImport.update({
     id: '/api/public/webhook/tamar-status',
@@ -92,27 +86,25 @@ const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
-  '/contacts': typeof AppContactsRouteWithChildren
+  '/contacts': typeof AppContactsRoute
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRoute
   '/send-offer': typeof AppSendOfferRoute
-  '/contacts/$id': typeof AppContactsIdRoute
   '/settings/api': typeof AppSettingsApiRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
-  '/contacts': typeof AppContactsRouteWithChildren
+  '/contacts': typeof AppContactsRoute
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRoute
   '/send-offer': typeof AppSendOfferRoute
   '/': typeof AppIndexRoute
-  '/contacts/$id': typeof AppContactsIdRoute
   '/settings/api': typeof AppSettingsApiRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -121,14 +113,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/_app/contacts': typeof AppContactsRouteWithChildren
+  '/_app/contacts': typeof AppContactsRoute
   '/_app/import-leads': typeof AppImportLeadsRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/intake-campaign': typeof AppIntakeCampaignRoute
   '/_app/offers': typeof AppOffersRoute
   '/_app/send-offer': typeof AppSendOfferRoute
   '/_app/': typeof AppIndexRoute
-  '/_app/contacts/$id': typeof AppContactsIdRoute
   '/_app/settings/api': typeof AppSettingsApiRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -144,7 +135,6 @@ export interface FileRouteTypes {
     | '/intake-campaign'
     | '/offers'
     | '/send-offer'
-    | '/contacts/$id'
     | '/settings/api'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -158,7 +148,6 @@ export interface FileRouteTypes {
     | '/offers'
     | '/send-offer'
     | '/'
-    | '/contacts/$id'
     | '/settings/api'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -173,7 +162,6 @@ export interface FileRouteTypes {
     | '/_app/offers'
     | '/_app/send-offer'
     | '/_app/'
-    | '/_app/contacts/$id'
     | '/_app/settings/api'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -258,13 +246,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsApiRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/contacts/$id': {
-      id: '/_app/contacts/$id'
-      path: '/$id'
-      fullPath: '/contacts/$id'
-      preLoaderRoute: typeof AppContactsIdRouteImport
-      parentRoute: typeof AppContactsRoute
-    }
     '/api/public/webhook/tamar-status': {
       id: '/api/public/webhook/tamar-status'
       path: '/api/public/webhook/tamar-status'
@@ -282,20 +263,8 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AppContactsRouteChildren {
-  AppContactsIdRoute: typeof AppContactsIdRoute
-}
-
-const AppContactsRouteChildren: AppContactsRouteChildren = {
-  AppContactsIdRoute: AppContactsIdRoute,
-}
-
-const AppContactsRouteWithChildren = AppContactsRoute._addFileChildren(
-  AppContactsRouteChildren,
-)
-
 interface AppRouteChildren {
-  AppContactsRoute: typeof AppContactsRouteWithChildren
+  AppContactsRoute: typeof AppContactsRoute
   AppImportLeadsRoute: typeof AppImportLeadsRoute
   AppInboxRoute: typeof AppInboxRoute
   AppIntakeCampaignRoute: typeof AppIntakeCampaignRoute
@@ -306,7 +275,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppContactsRoute: AppContactsRouteWithChildren,
+  AppContactsRoute: AppContactsRoute,
   AppImportLeadsRoute: AppImportLeadsRoute,
   AppInboxRoute: AppInboxRoute,
   AppIntakeCampaignRoute: AppIntakeCampaignRoute,
@@ -327,3 +296,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
