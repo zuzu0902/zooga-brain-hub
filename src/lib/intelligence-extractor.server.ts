@@ -20,7 +20,7 @@ const FIELD_DEFS = {
     "interests", "lifestyle_tags", "tags", "hobbies", "preferred_events",
     "travel_preferences", "favorite_activity_types", "personality_tags",
     "emotional_needs", "relationship_goals", "social_goals", "likely_needs",
-    "decision_triggers", "objections",
+    "decision_triggers", "objections", "availability_preferences",
   ],
 };
 
@@ -179,6 +179,8 @@ export async function runExtraction(contactId: string) {
   const patch: Record<string, any> = {};
   const historyRows: any[] = [];
   const pendingRows: any[] = [];
+  const attributeRows: any[] = [];
+  const supersedeAttrs: string[] = [];
 
   for (const ins of insights) {
     const field = String(ins.field || "");
@@ -186,6 +188,21 @@ export async function runExtraction(contactId: string) {
     const conf = Number(ins.confidence ?? 0);
 
     if (!ALL_FIELDS.includes(field)) continue;
+
+    // Record EVERY extraction in extracted_attributes (full audit trail).
+    const baseAttr = {
+      contact_id: contactId,
+      attribute_name: field,
+      attribute_value: { value },
+      value_text: Array.isArray(value) ? value.join(", ") : (value == null ? null : String(value)),
+      confidence_score: conf,
+      reasoning: ins.reasoning || null,
+      source: "conversation_intelligence",
+      source_message: lastMessage,
+      extracted_by: "ai_extraction",
+      model: MODEL,
+      is_current: true,
+    };
 
     if (conf < HIGH_CONFIDENCE) {
       pendingRows.push({
@@ -197,6 +214,8 @@ export async function runExtraction(contactId: string) {
         reasoning: ins.reasoning || null,
         source_message: lastMessage,
       });
+      attributeRows.push({ ...baseAttr, applied: false });
+      supersedeAttrs.push(field);
       continue;
     }
 
@@ -215,6 +234,11 @@ export async function runExtraction(contactId: string) {
           confidence_score: conf,
           source: "conversation_intelligence",
         });
+        attributeRows.push({ ...baseAttr, applied: true, applied_at: new Date().toISOString() });
+        supersedeAttrs.push(field);
+      } else {
+        attributeRows.push({ ...baseAttr, applied: false });
+        supersedeAttrs.push(field);
       }
     } else if (FIELD_DEFS.number_overwrite_if_empty.includes(field)) {
       if ((existing === null || existing === undefined) && value !== null) {
@@ -227,6 +251,11 @@ export async function runExtraction(contactId: string) {
           confidence_score: conf,
           source: "conversation_intelligence",
         });
+        attributeRows.push({ ...baseAttr, applied: true, applied_at: new Date().toISOString() });
+        supersedeAttrs.push(field);
+      } else {
+        attributeRows.push({ ...baseAttr, applied: false });
+        supersedeAttrs.push(field);
       }
     } else if (FIELD_DEFS.boolean_fields.includes(field)) {
       const boolVal = value === true || value === "true" || value === 1;
@@ -243,6 +272,11 @@ export async function runExtraction(contactId: string) {
           confidence_score: conf,
           source: "conversation_intelligence",
         });
+        attributeRows.push({ ...baseAttr, applied: true, applied_at: new Date().toISOString() });
+        supersedeAttrs.push(field);
+      } else {
+        attributeRows.push({ ...baseAttr, applied: false });
+        supersedeAttrs.push(field);
       }
     } else {
       // text_overwrite_if_empty
@@ -256,6 +290,11 @@ export async function runExtraction(contactId: string) {
           confidence_score: conf,
           source: "conversation_intelligence",
         });
+        attributeRows.push({ ...baseAttr, applied: true, applied_at: new Date().toISOString() });
+        supersedeAttrs.push(field);
+      } else {
+        attributeRows.push({ ...baseAttr, applied: false });
+        supersedeAttrs.push(field);
       }
     }
   }
@@ -268,6 +307,20 @@ export async function runExtraction(contactId: string) {
   }
   if (pendingRows.length > 0) {
     await supabaseAdmin.from("pending_ai_insights").insert(pendingRows);
+  }
+
+  // Mark previous "current" attribute rows as superseded, then insert new ones.
+  if (supersedeAttrs.length > 0) {
+    const uniq = Array.from(new Set(supersedeAttrs));
+    await supabaseAdmin
+      .from("extracted_attributes")
+      .update({ is_current: false, superseded_at: new Date().toISOString() } as any)
+      .eq("contact_id", contactId)
+      .in("attribute_name", uniq)
+      .eq("is_current", true);
+  }
+  if (attributeRows.length > 0) {
+    await supabaseAdmin.from("extracted_attributes").insert(attributeRows);
   }
 
   if (memories.length > 0) {
@@ -290,5 +343,6 @@ export async function runExtraction(contactId: string) {
     applied: Object.keys(patch),
     pending: pendingRows.length,
     memories: memories.length,
+    attributes_recorded: attributeRows.length,
   };
 }
