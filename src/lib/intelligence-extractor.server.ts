@@ -20,7 +20,7 @@ const FIELD_DEFS = {
     "interests", "lifestyle_tags", "tags", "hobbies", "preferred_events",
     "travel_preferences", "favorite_activity_types", "personality_tags",
     "emotional_needs", "relationship_goals", "social_goals", "likely_needs",
-    "decision_triggers", "objections",
+    "decision_triggers", "objections", "availability_preferences",
   ],
 };
 
