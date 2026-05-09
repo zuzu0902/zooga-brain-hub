@@ -321,7 +321,90 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask }: an
         <ScorePill icon={TrendingUp} label="ביטחון AI" value={contact.ai_confidence_score ?? 0} />
         <ScorePill icon={Target} label="הכנסות" value={Number(contact.total_revenue) || 0} suffix="" raw />
       </div>
+
+      <QuickFacts contact={contact} />
     </Card>
+  );
+}
+
+function QuickFacts({ contact }: any) {
+  const genderLabel: Record<string, string> = { male: "גבר", female: "אישה", other: "אחר", unknown: "לא ידוע" };
+  const demographics: Array<[string, string | null | undefined]> = [
+    ["מגדר", contact.gender ? genderLabel[contact.gender] || contact.gender : null],
+    ["גיל", contact.age ? String(contact.age) : contact.age_range || null],
+    ["סטטוס", contact.relationship_status],
+    ["אזור", contact.region],
+    ["עיר", contact.city],
+    ["יום הולדת", contact.birthday_day && contact.birthday_month ? `${contact.birthday_day}/${contact.birthday_month}` : null],
+  ].filter(([, v]) => v) as Array<[string, string]>;
+
+  const interestGroups: Array<{ label: string; items: string[]; tone: string }> = [
+    { label: "תחומי עניין", items: contact.interests || [], tone: "bg-primary/10 text-primary border-primary/20" },
+    { label: "תחביבים", items: contact.hobbies || [], tone: "bg-accent/10 text-accent-foreground border-accent/20" },
+    { label: "אופי", items: contact.personality_tags || [], tone: "bg-secondary/60 text-secondary-foreground border-border" },
+    { label: "סגנון חיים", items: contact.lifestyle_tags || [], tone: "bg-muted text-foreground border-border" },
+  ].filter((g) => g.items && g.items.length > 0);
+
+  const profile: Array<[string, string | null | undefined]> = [
+    ["תקשורת", contact.communication_style],
+    ["רגשי", contact.emotional_profile],
+    ["חברתי", contact.preferred_social_style],
+    ["טיולים", contact.preferred_trip_style],
+    ["רגישות מחיר", contact.budget_sensitivity || contact.price_sensitivity],
+    ["כוונת רכישה", contact.purchase_intent],
+    ["שפה", contact.preferred_language_style],
+  ].filter(([, v]) => v) as Array<[string, string]>;
+
+  const hasAny = demographics.length || interestGroups.length || profile.length;
+  if (!hasAny) return null;
+
+  return (
+    <div className="relative mt-5 pt-5 border-t border-border/60 space-y-4">
+      {demographics.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">דמוגרפיה</div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+            {demographics.map(([k, v]) => (
+              <div key={k} className="inline-flex items-center gap-1.5">
+                <span className="text-muted-foreground text-xs">{k}:</span>
+                <span className="font-medium">{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {interestGroups.map((g) => (
+        <div key={g.label}>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">{g.label}</div>
+          <div className="flex flex-wrap gap-1.5">
+            {g.items.slice(0, 12).map((item: string) => (
+              <span key={item} className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${g.tone}`}>
+                {item}
+              </span>
+            ))}
+            {g.items.length > 12 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] text-muted-foreground border border-border" title={g.items.slice(12).join(", ")}>
+                +{g.items.length - 12}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {profile.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">פרופיל מכירות ותקשורת</div>
+          <div className="flex flex-wrap gap-1.5">
+            {profile.map(([k, v]) => (
+              <Badge key={k} variant="outline" className="text-[11px] font-normal">
+                <span className="text-muted-foreground ms-1">{k}:</span> <span className="font-medium">{v}</span>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
