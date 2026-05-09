@@ -583,6 +583,69 @@ export type Database = {
         }
         Relationships: []
       }
+      extracted_attributes: {
+        Row: {
+          applied: boolean
+          applied_at: string | null
+          attribute_name: string
+          attribute_value: Json
+          confidence_score: number
+          contact_id: string
+          created_at: string
+          extracted_by: string
+          id: string
+          is_current: boolean
+          model: string | null
+          reasoning: string | null
+          source: string
+          source_interaction_id: string | null
+          source_message: string | null
+          superseded_at: string | null
+          superseded_by: string | null
+          value_text: string | null
+        }
+        Insert: {
+          applied?: boolean
+          applied_at?: string | null
+          attribute_name: string
+          attribute_value: Json
+          confidence_score?: number
+          contact_id: string
+          created_at?: string
+          extracted_by?: string
+          id?: string
+          is_current?: boolean
+          model?: string | null
+          reasoning?: string | null
+          source?: string
+          source_interaction_id?: string | null
+          source_message?: string | null
+          superseded_at?: string | null
+          superseded_by?: string | null
+          value_text?: string | null
+        }
+        Update: {
+          applied?: boolean
+          applied_at?: string | null
+          attribute_name?: string
+          attribute_value?: Json
+          confidence_score?: number
+          contact_id?: string
+          created_at?: string
+          extracted_by?: string
+          id?: string
+          is_current?: boolean
+          model?: string | null
+          reasoning?: string | null
+          source?: string
+          source_interaction_id?: string | null
+          source_message?: string | null
+          superseded_at?: string | null
+          superseded_by?: string | null
+          value_text?: string | null
+        }
+        Relationships: []
+      }
       imported_leads: {
         Row: {
           consent_status: Database["public"]["Enums"]["lead_consent_status"]
