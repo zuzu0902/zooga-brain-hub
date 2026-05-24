@@ -31,6 +31,8 @@ import {
   formatDate, formatRelative,
 } from "@/lib/i18n";
 import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
+import { TamarDecisionStrip } from "@/components/tamar-decision-strip";
+import { ContactConversation } from "@/components/contact-conversation";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
   head: () => ({ meta: [{ title: "פרופיל איש קשר — Zooga CRM" }] }),
@@ -133,6 +135,12 @@ function ContactProfile() {
 
         {/* === AI RELATIONSHIP SUMMARY === */}
         <AIRelationshipSummary contact={contact} />
+
+        {/* === TAMAR DECISION STRIP === */}
+        <TamarDecisionStrip contactId={id} contact={contact} />
+
+        {/* === LIVE CONVERSATION === */}
+        <ContactConversation contactId={id} />
 
         {/* === MAIN GRID: left content + right insights rail === */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6 items-start">
