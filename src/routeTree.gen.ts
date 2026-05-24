@@ -19,6 +19,7 @@ import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as ApiIntrospectUiGapsRouteImport } from './routes/api/introspect/ui-gaps'
 import { Route as ApiIntrospectTamarRoutingRouteImport } from './routes/api/introspect/tamar-routing'
 import { Route as ApiIntrospectTamarConfigRouteImport } from './routes/api/introspect/tamar-config'
 import { Route as ApiIntrospectSystemOverviewRouteImport } from './routes/api/introspect/system-overview'
@@ -96,6 +97,11 @@ const AppCampaignsRoute = AppCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiIntrospectUiGapsRoute = ApiIntrospectUiGapsRouteImport.update({
+  id: '/api/introspect/ui-gaps',
+  path: '/api/introspect/ui-gaps',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiIntrospectTamarRoutingRoute =
   ApiIntrospectTamarRoutingRouteImport.update({
@@ -287,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
+  '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -326,6 +333,7 @@ export interface FileRoutesByTo {
   '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
+  '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -367,6 +375,7 @@ export interface FileRoutesById {
   '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
+  '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -408,6 +417,7 @@ export interface FileRouteTypes {
     | '/api/introspect/system-overview'
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
+    | '/api/introspect/ui-gaps'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/api/introspect/system-overview'
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
+    | '/api/introspect/ui-gaps'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -487,6 +498,7 @@ export interface FileRouteTypes {
     | '/api/introspect/system-overview'
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
+    | '/api/introspect/ui-gaps'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -515,6 +527,7 @@ export interface RootRouteChildren {
   ApiIntrospectSystemOverviewRoute: typeof ApiIntrospectSystemOverviewRoute
   ApiIntrospectTamarConfigRoute: typeof ApiIntrospectTamarConfigRoute
   ApiIntrospectTamarRoutingRoute: typeof ApiIntrospectTamarRoutingRoute
+  ApiIntrospectUiGapsRoute: typeof ApiIntrospectUiGapsRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
@@ -591,6 +604,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/campaigns'
       preLoaderRoute: typeof AppCampaignsRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/introspect/ui-gaps': {
+      id: '/api/introspect/ui-gaps'
+      path: '/api/introspect/ui-gaps'
+      fullPath: '/api/introspect/ui-gaps'
+      preLoaderRoute: typeof ApiIntrospectUiGapsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/introspect/tamar-routing': {
       id: '/api/introspect/tamar-routing'
@@ -878,6 +898,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntrospectSystemOverviewRoute: ApiIntrospectSystemOverviewRoute,
   ApiIntrospectTamarConfigRoute: ApiIntrospectTamarConfigRoute,
   ApiIntrospectTamarRoutingRoute: ApiIntrospectTamarRoutingRoute,
+  ApiIntrospectUiGapsRoute: ApiIntrospectUiGapsRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
