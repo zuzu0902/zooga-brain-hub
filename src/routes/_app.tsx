@@ -10,6 +10,9 @@ import {
   LogOut,
   Upload,
   Megaphone,
+  CheckSquare,
+  Flag,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -24,6 +27,8 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
       { to: "/", label: "דשבורד", icon: LayoutDashboard, exact: true },
       { to: "/contacts", label: "אנשי קשר", icon: Users },
       { to: "/inbox", label: "תיבת קליטה", icon: Inbox },
+      { to: "/tasks", label: "משימות", icon: CheckSquare },
+      { to: "/handoff", label: "Handoff Console", icon: Flag },
     ],
   },
   {
@@ -38,7 +43,10 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
   },
   {
     label: "מערכת",
-    items: [{ to: "/settings/api", label: "הגדרות API", icon: Settings }],
+    items: [
+      { to: "/ai-assistant", label: "AI Assistant", icon: Sparkles },
+      { to: "/settings/api", label: "הגדרות API", icon: Settings },
+    ],
   },
 ];
 

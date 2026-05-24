@@ -18,8 +18,10 @@ import { Route as AppOffersRouteImport } from './routes/_app.offers'
 import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-campaign'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
+import { Route as AppHandoffRouteImport } from './routes/_app.handoff'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
 import { Route as ApiIntrospectUiGapsRouteImport } from './routes/api/introspect/ui-gaps'
 import { Route as ApiIntrospectTamarRoutingRouteImport } from './routes/api/introspect/tamar-routing'
 import { Route as ApiIntrospectTamarConfigRouteImport } from './routes/api/introspect/tamar-config'
@@ -50,6 +52,7 @@ import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
 import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
+import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -95,6 +98,11 @@ const AppImportLeadsRoute = AppImportLeadsRouteImport.update({
   path: '/import-leads',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHandoffRoute = AppHandoffRouteImport.update({
+  id: '/handoff',
+  path: '/handoff',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppContactsRoute = AppContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
@@ -103,6 +111,11 @@ const AppContactsRoute = AppContactsRouteImport.update({
 const AppCampaignsRoute = AppCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAiAssistantRoute = AppAiAssistantRouteImport.update({
+  id: '/ai-assistant',
+  path: '/ai-assistant',
   getParentRoute: () => AppRoute,
 } as any)
 const ApiIntrospectUiGapsRoute = ApiIntrospectUiGapsRouteImport.update({
@@ -270,12 +283,19 @@ const ApiPublicIntelligenceExtractRoute =
     path: '/api/public/intelligence/extract',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicAiAssistantRunRoute = ApiPublicAiAssistantRunRouteImport.update({
+  id: '/api/public/ai-assistant/run',
+  path: '/api/public/ai-assistant/run',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/ai-assistant': typeof AppAiAssistantRoute
   '/campaigns': typeof AppCampaignsRouteWithChildren
   '/contacts': typeof AppContactsRouteWithChildren
+  '/handoff': typeof AppHandoffRoute
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
@@ -309,14 +329,17 @@ export interface FileRoutesByFullPath {
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
+  '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/ai-assistant': typeof AppAiAssistantRoute
   '/campaigns': typeof AppCampaignsRouteWithChildren
   '/contacts': typeof AppContactsRouteWithChildren
+  '/handoff': typeof AppHandoffRoute
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
@@ -351,6 +374,7 @@ export interface FileRoutesByTo {
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
+  '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -359,8 +383,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/ai-assistant': typeof AppAiAssistantRoute
   '/_app/campaigns': typeof AppCampaignsRouteWithChildren
   '/_app/contacts': typeof AppContactsRouteWithChildren
+  '/_app/handoff': typeof AppHandoffRoute
   '/_app/import-leads': typeof AppImportLeadsRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/intake-campaign': typeof AppIntakeCampaignRoute
@@ -395,6 +421,7 @@ export interface FileRoutesById {
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
+  '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -404,8 +431,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/ai-assistant'
     | '/campaigns'
     | '/contacts'
+    | '/handoff'
     | '/import-leads'
     | '/inbox'
     | '/intake-campaign'
@@ -439,14 +468,17 @@ export interface FileRouteTypes {
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
     | '/api/introspect/ui-gaps'
+    | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/ai-assistant'
     | '/campaigns'
     | '/contacts'
+    | '/handoff'
     | '/import-leads'
     | '/inbox'
     | '/intake-campaign'
@@ -481,6 +513,7 @@ export interface FileRouteTypes {
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
     | '/api/introspect/ui-gaps'
+    | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -488,8 +521,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
+    | '/_app/ai-assistant'
     | '/_app/campaigns'
     | '/_app/contacts'
+    | '/_app/handoff'
     | '/_app/import-leads'
     | '/_app/inbox'
     | '/_app/intake-campaign'
@@ -524,6 +559,7 @@ export interface FileRouteTypes {
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
     | '/api/introspect/ui-gaps'
+    | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -554,6 +590,7 @@ export interface RootRouteChildren {
   ApiIntrospectTamarConfigRoute: typeof ApiIntrospectTamarConfigRoute
   ApiIntrospectTamarRoutingRoute: typeof ApiIntrospectTamarRoutingRoute
   ApiIntrospectUiGapsRoute: typeof ApiIntrospectUiGapsRoute
+  ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
@@ -624,6 +661,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppImportLeadsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/handoff': {
+      id: '/_app/handoff'
+      path: '/handoff'
+      fullPath: '/handoff'
+      preLoaderRoute: typeof AppHandoffRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/contacts': {
       id: '/_app/contacts'
       path: '/contacts'
@@ -636,6 +680,13 @@ declare module '@tanstack/react-router' {
       path: '/campaigns'
       fullPath: '/campaigns'
       preLoaderRoute: typeof AppCampaignsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ai-assistant': {
+      id: '/_app/ai-assistant'
+      path: '/ai-assistant'
+      fullPath: '/ai-assistant'
+      preLoaderRoute: typeof AppAiAssistantRouteImport
       parentRoute: typeof AppRoute
     }
     '/api/introspect/ui-gaps': {
@@ -848,6 +899,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicIntelligenceExtractRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ai-assistant/run': {
+      id: '/api/public/ai-assistant/run'
+      path: '/api/public/ai-assistant/run'
+      fullPath: '/api/public/ai-assistant/run'
+      preLoaderRoute: typeof ApiPublicAiAssistantRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -890,8 +948,10 @@ const AppOffersRouteWithChildren = AppOffersRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAiAssistantRoute: typeof AppAiAssistantRoute
   AppCampaignsRoute: typeof AppCampaignsRouteWithChildren
   AppContactsRoute: typeof AppContactsRouteWithChildren
+  AppHandoffRoute: typeof AppHandoffRoute
   AppImportLeadsRoute: typeof AppImportLeadsRoute
   AppInboxRoute: typeof AppInboxRoute
   AppIntakeCampaignRoute: typeof AppIntakeCampaignRoute
@@ -903,8 +963,10 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAiAssistantRoute: AppAiAssistantRoute,
   AppCampaignsRoute: AppCampaignsRouteWithChildren,
   AppContactsRoute: AppContactsRouteWithChildren,
+  AppHandoffRoute: AppHandoffRoute,
   AppImportLeadsRoute: AppImportLeadsRoute,
   AppInboxRoute: AppInboxRoute,
   AppIntakeCampaignRoute: AppIntakeCampaignRoute,
@@ -942,6 +1004,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntrospectTamarConfigRoute: ApiIntrospectTamarConfigRoute,
   ApiIntrospectTamarRoutingRoute: ApiIntrospectTamarRoutingRoute,
   ApiIntrospectUiGapsRoute: ApiIntrospectUiGapsRoute,
+  ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
