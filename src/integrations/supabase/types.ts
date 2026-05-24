@@ -949,8 +949,10 @@ export type Database = {
           created_at: string
           field_name: string | null
           id: string
+          linked_task_id: string | null
           proposed_value: Json | null
           reasoning: string | null
+          resolution_state: string
           reviewed_at: string | null
           reviewed_by: string | null
           source_message: string | null
@@ -963,8 +965,10 @@ export type Database = {
           created_at?: string
           field_name?: string | null
           id?: string
+          linked_task_id?: string | null
           proposed_value?: Json | null
           reasoning?: string | null
+          resolution_state?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           source_message?: string | null
@@ -977,8 +981,10 @@ export type Database = {
           created_at?: string
           field_name?: string | null
           id?: string
+          linked_task_id?: string | null
           proposed_value?: Json | null
           reasoning?: string | null
+          resolution_state?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           source_message?: string | null
@@ -995,6 +1001,9 @@ export type Database = {
           due_date: string | null
           id: string
           priority: string
+          resolution_state: string
+          source_kind: string | null
+          source_ref_id: string | null
           status: string
           title: string
           updated_at: string
@@ -1007,6 +1016,9 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: string
+          resolution_state?: string
+          source_kind?: string | null
+          source_ref_id?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -1019,6 +1031,9 @@ export type Database = {
           due_date?: string | null
           id?: string
           priority?: string
+          resolution_state?: string
+          source_kind?: string | null
+          source_ref_id?: string | null
           status?: string
           title?: string
           updated_at?: string
