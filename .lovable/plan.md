@@ -1,85 +1,99 @@
-# Phase 1 — Tamar Operational Intelligence (first slice)
 
-Goal: make Zooga the operational cockpit for Tamar. Server-backed only, proposal-first AI, no autonomous writes.
+# Phase 2 — Zooga as Source of Truth for Tamar
 
-## 1. Per-contact conversation + memory viewer (contact profile)
+Architectural rule baked into this slice: Zooga owns all durable CRM/intelligence/operational state. Tamar backend = WhatsApp runtime + webhook bridge + delivery layer only. No new long-term state ownership added to Tamar.
 
-Extend `/contacts/$id` with three new tabs alongside the existing AI Intelligence panel:
+## 1. Server-backed conversation truth
 
-- **Timeline tab** — unified chronological feed from `interactions` (Tamar/WhatsApp messages), `messages` (outbound offers), `contact_profile_history` (AI/manager edits), `pending_ai_insights` (proposals), `tasks` (created/closed). Server-backed via a new `getContactTimeline` server fn that joins+sorts these tables, returns plain DTO.
-- **Conversation tab** — focused live thread of `interactions` filtered to message-type rows, newest at bottom, auto-refresh every 15s + realtime channel. Shows direction (inbound/outbound), source channel, content.
-- **Memory panel (existing AIIntelligencePanel)** — keep, already server-backed via `contact_memories` + `contact_profile_history` + `pending_ai_insights`. Add a small "insights count" badge to the tab.
+- Replace direct-from-client Supabase reads in `contact-conversation.tsx` with a server fn `getContactConversation({ contactId, limit })` in `src/lib/contact-conversation.functions.ts` that returns a normalized DTO: `{ id, direction: 'inbound'|'outbound', channel, source, content, timestamp, campaign_id, related_offer_id }`.
+- Single canonical query joining `interactions` (+ `messages` where channel/status applies), ordered by timestamp, scoped strictly by `contact_id`.
+- Keep the realtime channel subscription for invalidation only; data comes from server fn via React Query. No client-side stitching of inbound/outbound logic — direction computed server-side.
+- Result: conversation viewer reads exclusively from Zooga DB, tied to canonical contact id.
 
-Tabs implemented with shadcn `Tabs`. No new tables.
+## 2. Canonical per-contact memory layer
 
-## 2. Decision visibility strip (top of contact profile)
+- Normalize `contact_memories.memory_type` to a fixed taxonomy of 6: `fact`, `preference`, `warning`, `observation`, `relationship_signal`, `offer_signal`. Soft normalization in a server helper (map unknown → `observation`).
+- New server fn `getContactMemories({ contactId })` returning grouped-by-category with `confidence_score`, `extracted_from`, `source_message` preserved.
+- New `<ContactMemoryPanel>` (replacing/augmenting current AI panel usage on profile) with 6 category sections, confidence badges, source chip ("AI extracted" / "manual" / source message tooltip).
+- Display rule: only server-backed memories from `contact_memories`. No client-only memory state.
 
-New `<TamarDecisionStrip contactId>` card rendered above tabs. Shows:
+## 3. Tamar decision context — real decision layer
 
-- Active mode/flow: derived from latest `interactions.campaign_id` → `campaigns.intake_flow_type` + `campaigns.name`. Falls back to "qualification".
-- Routing reason: derived rules — manager_attention_required → "escalated"; pending insights >0 → "low-confidence review"; recent interaction <24h → "active conversation"; else "idle".
-- `manager_attention_required` badge (warning tone when true).
-- Suggested next action: `contacts.ai_recommended_next_action` (or computed fallback: "Review N pending insights" / "Reply in conversation" / "Create follow-up task").
+Expand `TamarDecisionStrip` (+ new server fn `getTamarDecisionContext({ contactId })`) to surface:
 
-Single server fn `getTamarDecision({ contactId })` returns this DTO.
+- active mode/flow (from last interaction's campaign + `intake_flow_type`)
+- routing reason (escalated / low-confidence-review / active-conversation / idle)
+- `manager_attention_required` badge
+- pending insight count + link to handoff filtered by contact
+- suggested next action (`ai_recommended_next_action` fallback to computed)
+- confidence band: derived from `contacts.ai_confidence_score` → `high (≥75) | medium (50–74) | low (<50)`
+- linkage: count of open tasks for contact + open handoff entries, each clickable
 
-## 3. Tasks UI + handoff console
+## 4. Contact unified timeline
 
-Activate the existing `tasks` table.
+- New `<ContactTimeline>` component + server fn `getContactTimeline({ contactId, limit })` unifying events from:
+  - `interactions` (messages, system events)
+  - `messages` (outbound offers, channel sends)
+  - `extracted_attributes` (insights extracted)
+  - `contact_memories` (memory writes)
+  - `pending_ai_insights` (pending review created/resolved)
+  - `tasks` (created/status changes)
+  - `contact_profile_history` (profile field changes)
+  - `campaign_contacts` (campaign touches)
+  - `contacts.offers_sent` derived (offer touches)
+  - escalation events (derived from `manager_attention_required` transitions logged via `contact_profile_history`)
+- DTO shape: `{ id, kind, timestamp, title, summary, meta, refs }` — server fn returns merged, sorted desc, limited.
+- New tab `Timeline` on `/contacts/$id` becomes the default. Existing `Conversation` and `Memory` tabs remain.
 
-- New route `/tasks` (sidebar nav): list open/in-progress/done tasks with filters (status, priority, contact). Quick "complete" + "reopen" actions.
-- Server fns: `listTasks(filters)`, `createTask({title, description, contactId?, priority, dueDate?, sourceInsightId?})`, `updateTaskStatus({id, status})`.
-- On contact profile: small "Tasks" mini-panel with create-task button + list of that contact's tasks.
-- Handoff console: new route `/handoff` (sidebar nav). Two sections:
-  - Contacts with `manager_attention_required = true` (link to profile, quick "create task" + "clear flag" actions).
-  - Pending insights across all contacts (already exist on contact page; this is the global queue). "Approve / Reject / Create task" actions per row.
-- "Create task" buttons on pending insight rows + manager-attention rows pre-fill title/description/contactId.
+## 5. Internal AI assistant grounded in system truth
 
-## 4. Internal AI assistant (proposal-first)
+- Extend `/api/public/ai-assistant/run` to accept a structured `request_type`: `summarize_contact`, `summarize_hot_leads_week`, `suggest_segment`, `draft_campaign`, `suggest_triage`, plus existing `free_form`.
+- For each typed request the server gathers a scoped context bundle from Zooga (contact + memories + recent interactions; or aggregated hot-leads slice; or pending-insights snapshot) and injects it into the prompt as `SYSTEM_CONTEXT`.
+- Response payload now includes `context_used`: `{ sources: [...], counts: {...}, contact_id?: ... }` rendered in the UI under each turn as a collapsible "Grounded in" panel.
+- Still proposal-first: same `PROPOSAL / RATIONALE / SUGGESTED_NEXT_STEPS` envelope; no DB writes from this surface.
+- Add `contact_id` optional input so contact-page can trigger `summarize_contact` directly.
 
-New route `/ai-assistant` (sidebar nav).
+## 6. Handoff ↔ task tightening
 
-- Single chat-style box with preset request types: Summary / Segmentation suggestion / Campaign draft / Triage suggestion / Free-form.
-- Server fn `runInternalAIRequest({ kind, prompt, contextRefs? })` → calls Lovable AI Gateway (`google/gemini-2.5-flash` default) with a system prompt that enforces: "You produce proposals only. Never claim a write was performed. Always output: PROPOSAL, RATIONALE, SUGGESTED_NEXT_STEPS." Returns markdown response.
-- Render with `react-markdown`. Each response shows a "Save as task" button (creates a task with the proposal text).
-- No automatic DB writes from this surface.
+- Schema add (migration):
+  - `pending_ai_insights.resolution_state` text default `pending` (`pending|resolved|under_human|returned_to_ai`)
+  - `pending_ai_insights.linked_task_id` uuid nullable
+  - `tasks.source_kind` text nullable (`pending_insight|manager_attention|ai_assistant|manual`)
+  - `tasks.source_ref_id` uuid nullable
+  - `tasks.resolution_state` text default `open` (mirrors status, extra: `under_human|returned_to_ai`)
+- Handoff console: every row gets actions Approve / Reject / Create task (linked) / Mark under human / Return to AI. Creating a task auto-fills `source_kind=pending_insight` + `source_ref_id` + sets `linked_task_id` on the insight.
+- Contact profile: shows linked open tasks + handoff entries inline in the decision strip and timeline.
+- Resolution legend visible so managers know whether AI may resume.
 
-## 5. Introspection updates
+## 7. Parallel-truth reduction
 
-Update the existing `/api/introspect/*` files to reflect new live state:
+- All new server fns read from Zooga tables only. No fetches to Tamar backend for display data.
+- Document this in `tamar-config` introspection: `memory_authority: "zooga"`, `conversation_authority: "zooga"`, `tamar_backend_role: "channel_runtime_only"`.
 
-- `frontend-map.ts`: add routes `/tasks`, `/handoff`, `/ai-assistant`; new screens; updated `implemented_modules` (handoff_console=true, internal_ai_assistant=true, tasks_ui=true); remove those from `planned_modules`.
-- `ui-gaps.ts`: drop the now-shipped gaps; keep autonomous_campaign_agent + natural_language_targeting + analytics_dashboard.
-- `agents-summary.ts`: add `internal_ai_assistant` (live, proposal-first), `handoff_console_ui` → live, `tasks_engine` → live.
-- `crm-summary.ts`: add `tasks: {total, open, in_progress, done}` counters.
-- `health-report.ts`: add module entries for tasks, handoff, ai_assistant.
+## 8. Introspection updates
 
-## Files
+Update the 7 endpoints requested:
 
-New:
-- `src/lib/contact-timeline.functions.ts`
-- `src/lib/tamar-decision.functions.ts`
-- `src/lib/tasks.functions.ts`
-- `src/lib/internal-ai.functions.ts` (uses `LOVABLE_API_KEY`)
-- `src/components/tamar-decision-strip.tsx`
-- `src/components/contact-timeline.tsx`
-- `src/components/contact-conversation.tsx`
-- `src/components/contact-tasks-panel.tsx`
-- `src/routes/_app.tasks.tsx`
-- `src/routes/_app.handoff.tsx`
-- `src/routes/_app.ai-assistant.tsx`
+- `frontend-map` — add timeline tab default, memory panel categories, decision strip v2, handoff resolution actions, AI-assistant typed requests.
+- `ui-gaps` — drop: conversation-truth, memory-categories, decision-context-v2, unified-timeline, grounded-ai, handoff-task-linkage. Keep remaining (autonomous campaign agent, NL targeting, analytics dashboard).
+- `agents-summary` — add `timeline_aggregator` (live), `memory_taxonomy_normalizer` (live), `grounded_ai_assistant` (live, replaces prior entry), `handoff_resolution_router` (live).
+- `crm-summary` — add counters: memories by category, open tasks by source_kind, pending insights by resolution_state.
+- `health-report` — add module entries: conversation-truth, memory-canonical, decision-context-v2, unified-timeline, grounded-ai, handoff-resolution.
+- `tamar-config` — declare authority split (`memory_authority`, `conversation_authority`, `tamar_backend_role`); list memory taxonomy of 6.
+- `tamar-routing` — add confidence bands + resolution states, document that routing reads from Zooga only.
 
-Modified:
-- `src/routes/_app.contacts.$id.tsx` — add tabs + decision strip + tasks panel
-- `src/routes/_app.tsx` — add nav entries (Tasks, Handoff, AI Assistant)
-- 5 introspect endpoints listed above
+After implementation I'll provide updated JSON outputs and explicitly confirm that no conversation/history/memory display path still reads from Tamar backend (only `interactions`/`messages`/`contact_memories`/`extracted_attributes` in Zooga).
 
-## Non-goals (deferred)
+## Technical notes
 
-- No schema changes (all tables already exist).
+- New files: `src/lib/contact-conversation.functions.ts`, `src/lib/contact-memories.functions.ts`, `src/lib/contact-timeline.functions.ts`, `src/lib/tamar-decision.functions.ts`, `src/components/contact-memory-panel.tsx`, `src/components/contact-timeline.tsx`. Edits to: `contact-conversation.tsx`, `tamar-decision-strip.tsx`, `_app.contacts.$id.tsx`, `_app.handoff.tsx`, `_app.ai-assistant.tsx`, `api/public/ai-assistant/run.ts`, and the 7 introspect routes.
+- One migration adds columns to `pending_ai_insights` and `tasks` (no destructive changes; defaults preserve existing rows).
+- No schema changes to `contacts`, `interactions`, `messages`, `contact_memories`, `extracted_attributes`, `contact_profile_history`, `campaigns`.
+
+## Non-goals
+
 - No autonomous AI writes.
-- No editing/deleting messages, no resend, no campaign auto-create.
+- No natural-language audience targeting (still planned).
+- No autonomous campaign agent (still planned).
+- No new state stored in Tamar backend.
 - No analytics dashboard.
-- Natural-language targeting + autonomous campaign agent stay planned.
-
-After implementation I'll print the updated JSON from the 5 introspect endpoints.

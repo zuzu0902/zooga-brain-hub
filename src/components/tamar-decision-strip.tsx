@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Compass, Route as RouteIcon, Sparkles } from "lucide-react";
+import { AlertCircle, Compass, Route as RouteIcon, Sparkles, Gauge, CheckSquare } from "lucide-react";
 
 export function TamarDecisionStrip({ contactId, contact }: { contactId: string; contact: any }) {
   const { data: lastInteraction } = useQuery({
@@ -46,6 +47,19 @@ export function TamarDecisionStrip({ contactId, contact }: { contactId: string; 
     },
   });
 
+  const { data: openTasksCount } = useQuery({
+    queryKey: ["open-tasks-count", contactId],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("tasks")
+        .select("*", { count: "exact", head: true })
+        .eq("contact_id", contactId)
+        .neq("status", "done");
+      return count ?? 0;
+    },
+  });
+
   const flowLabel = activeCampaign?.intake_flow_type ?? "qualification";
   const recent = lastInteraction?.timestamp
     ? Date.now() - new Date(lastInteraction.timestamp).getTime() < 24 * 60 * 60 * 1000
@@ -66,6 +80,15 @@ export function TamarDecisionStrip({ contactId, contact }: { contactId: string; 
       ? "Continue conversation"
       : "Create follow-up task or send offer");
 
+  const conf = Number(contact?.ai_confidence_score ?? 0);
+  const confBand = conf >= 75 ? "high" : conf >= 50 ? "medium" : "low";
+  const confTone =
+    confBand === "high"
+      ? "bg-success/15 text-success border-success/30"
+      : confBand === "medium"
+      ? "bg-warning/15 text-warning-foreground border-warning/30"
+      : "bg-muted text-muted-foreground border-border";
+
   return (
     <Card className="p-4 border-primary/30 bg-gradient-to-l from-primary/5 to-transparent">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -81,24 +104,57 @@ export function TamarDecisionStrip({ contactId, contact }: { contactId: string; 
           </Badge>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-3">
         <Cell label="Active mode / flow" value={flowLabel} sub={activeCampaign?.name ?? "no active campaign"} />
         <Cell label="Routing reason" value={routingReason} icon={<RouteIcon className="h-3.5 w-3.5" />} />
-        <Cell label="Pending insights" value={String(pendingCount ?? 0)} />
+        <Cell
+          label="Confidence band"
+          value={`${confBand} · ${conf}%`}
+          icon={<Gauge className="h-3.5 w-3.5" />}
+          toneClass={confTone}
+        />
+        <PendingCell contactId={contactId} count={pendingCount ?? 0} />
+        <TasksCell contactId={contactId} count={openTasksCount ?? 0} />
         <Cell label="Suggested next action" value={nextAction} icon={<Sparkles className="h-3.5 w-3.5" />} />
       </div>
     </Card>
   );
 }
 
-function Cell({ label, value, sub, icon }: { label: string; value: string; sub?: string; icon?: React.ReactNode }) {
+function Cell({ label, value, sub, icon, toneClass }: { label: string; value: string; sub?: string; icon?: React.ReactNode; toneClass?: string }) {
   return (
-    <div className="p-3 rounded-lg bg-background/60 border">
+    <div className={`p-3 rounded-lg border ${toneClass ?? "bg-background/60"}`}>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1">
         {icon} {label}
       </div>
       <div className="text-sm font-medium break-words">{value}</div>
       {sub && <div className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</div>}
     </div>
+  );
+}
+
+function PendingCell({ contactId, count }: { contactId: string; count: number }) {
+  const tone = count > 0 ? "bg-warning/10 border-warning/30" : "bg-background/60";
+  return (
+    <Link to="/handoff" className={`p-3 rounded-lg border block hover:bg-muted/50 transition-colors ${tone}`}>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1">
+        <AlertCircle className="h-3.5 w-3.5" /> Pending insights
+      </div>
+      <div className="text-sm font-medium">{count}</div>
+      <div className="text-xs text-muted-foreground mt-0.5">handoff console →</div>
+    </Link>
+  );
+}
+
+function TasksCell({ contactId, count }: { contactId: string; count: number }) {
+  const tone = count > 0 ? "bg-primary/5 border-primary/30" : "bg-background/60";
+  return (
+    <Link to="/tasks" className={`p-3 rounded-lg border block hover:bg-muted/50 transition-colors ${tone}`}>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1 flex items-center gap-1">
+        <CheckSquare className="h-3.5 w-3.5" /> Open tasks
+      </div>
+      <div className="text-sm font-medium">{count}</div>
+      <div className="text-xs text-muted-foreground mt-0.5">tasks console →</div>
+    </Link>
   );
 }

@@ -30,6 +30,12 @@ export const Route = createFileRoute("/api/introspect/health-report")({
       internal_ai_assistant: presence(process.env.LOVABLE_API_KEY).present ? "healthy" : "degraded",
       tamar_decision_visibility: "healthy",
       contact_live_conversation: "healthy",
+      conversation_truth_zooga: "healthy",
+      memory_canonical_taxonomy: "healthy",
+      decision_context_v2: "healthy",
+      unified_timeline: "healthy",
+      grounded_ai_assistant: presence(process.env.LOVABLE_API_KEY).present ? "healthy" : "degraded",
+      handoff_resolution_router: "healthy",
     };
 
     return jsonResponse({

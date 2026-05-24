@@ -18,33 +18,36 @@ export const Route = createFileRoute("/_app/ai-assistant")({
 });
 
 const KIND_OPTIONS = [
-  { value: "summary", label: "סיכום נתונים" },
-  { value: "segmentation", label: "הצעת סגמנטציה" },
-  { value: "campaign_draft", label: "טיוטת קמפיין" },
-  { value: "triage", label: "סיוע ב-Triage" },
+  { value: "summarize_contact", label: "סיכום איש קשר" },
+  { value: "summarize_hot_leads_week", label: "סיכום לידים חמים השבוע" },
+  { value: "suggest_segment", label: "הצעת סגמנט" },
+  { value: "draft_campaign", label: "טיוטת קמפיין" },
+  { value: "suggest_triage", label: "הצעת Triage" },
   { value: "free_form", label: "חופשי" },
 ];
 
-type Turn = { kind: string; prompt: string; response: string; ts: string };
+type Turn = { kind: string; prompt: string; response: string; ts: string; context_used?: any };
 
 function AIAssistantPage() {
-  const [kind, setKind] = useState("summary");
+  const [kind, setKind] = useState("summarize_hot_leads_week");
   const [prompt, setPrompt] = useState("");
+  const [contactId, setContactId] = useState("");
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<Turn[]>([]);
 
   async function run() {
     if (!prompt.trim()) return toast.error("נדרשת בקשה");
+    if (kind === "summarize_contact" && !contactId.trim()) return toast.error("נדרש מזהה איש קשר");
     setBusy(true);
     try {
       const resp = await fetch("/api/public/ai-assistant/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, prompt }),
+        body: JSON.stringify({ kind, prompt, contact_id: contactId.trim() || undefined }),
       });
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || `HTTP ${resp.status}`);
-      setHistory((h) => [{ kind, prompt, response: j.response || "", ts: new Date().toISOString() }, ...h]);
+      setHistory((h) => [{ kind, prompt, response: j.response || "", ts: new Date().toISOString(), context_used: j.context_used }, ...h]);
       setPrompt("");
     } catch (e: any) {
       toast.error(String(e?.message || e));
@@ -58,7 +61,8 @@ function AIAssistantPage() {
       description: `BAKASHA:\n${turn.prompt}\n\nHATSAA:\n${turn.response}`,
       priority: "normal",
       status: "open",
-    });
+      source_kind: "ai_assistant",
+    } as any);
     if (error) return toast.error(error.message);
     toast.success("נשמר כמשימה");
   }
@@ -77,13 +81,21 @@ function AIAssistantPage() {
       <Card className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Select value={kind} onValueChange={setKind}>
-            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
             <SelectContent>
               {KIND_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Badge variant="outline" className="text-[10px]">proposal-first · no auto-writes</Badge>
+          <Badge variant="outline" className="text-[10px]">proposal-first · grounded in Zooga</Badge>
         </div>
+        {kind === "summarize_contact" && (
+          <input
+            className="w-full px-3 py-2 text-sm rounded-md border bg-background"
+            placeholder="מזהה איש קשר (contact_id, UUID)"
+            value={contactId}
+            onChange={(e) => setContactId(e.target.value)}
+          />
+        )}
         <Textarea
           rows={5}
           placeholder="תאר את הבקשה (לדוגמה: סכם את כל הלידים החמים מהשבוע, או הצע סגמנטים לטיול בוגרי 60+)"
@@ -116,6 +128,12 @@ function AIAssistantPage() {
             <div className="prose prose-sm dark:prose-invert max-w-none">
               <ReactMarkdown>{t.response}</ReactMarkdown>
             </div>
+            {t.context_used && (
+              <details className="mt-3 text-xs text-muted-foreground border-t pt-2">
+                <summary className="cursor-pointer font-semibold">Grounded in (Zooga source-of-truth)</summary>
+                <pre className="mt-2 p-2 bg-muted/50 rounded overflow-x-auto" dir="ltr">{JSON.stringify(t.context_used, null, 2)}</pre>
+              </details>
+            )}
           </Card>
         ))}
       </div>
