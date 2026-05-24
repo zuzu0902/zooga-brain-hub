@@ -19,6 +19,13 @@ import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as ApiDebugTamarConfigRouteImport } from './routes/api/debug/tamar-config'
+import { Route as ApiDebugSystemSummaryRouteImport } from './routes/api/debug/system-summary'
+import { Route as ApiDebugSchemaSummaryRouteImport } from './routes/api/debug/schema-summary'
+import { Route as ApiDebugRecentEventsRouteImport } from './routes/api/debug/recent-events'
+import { Route as ApiDebugIntegrationsStatusRouteImport } from './routes/api/debug/integrations-status'
+import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
+import { Route as ApiDebugAgentsSummaryRouteImport } from './routes/api/debug/agents-summary'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
 import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
@@ -76,6 +83,42 @@ const AppCampaignsRoute = AppCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiDebugTamarConfigRoute = ApiDebugTamarConfigRouteImport.update({
+  id: '/api/debug/tamar-config',
+  path: '/api/debug/tamar-config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugSystemSummaryRoute = ApiDebugSystemSummaryRouteImport.update({
+  id: '/api/debug/system-summary',
+  path: '/api/debug/system-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugSchemaSummaryRoute = ApiDebugSchemaSummaryRouteImport.update({
+  id: '/api/debug/schema-summary',
+  path: '/api/debug/schema-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugRecentEventsRoute = ApiDebugRecentEventsRouteImport.update({
+  id: '/api/debug/recent-events',
+  path: '/api/debug/recent-events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugIntegrationsStatusRoute =
+  ApiDebugIntegrationsStatusRouteImport.update({
+    id: '/api/debug/integrations-status',
+    path: '/api/debug/integrations-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDebugFrontendMapRoute = ApiDebugFrontendMapRouteImport.update({
+  id: '/api/debug/frontend-map',
+  path: '/api/debug/frontend-map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugAgentsSummaryRoute = ApiDebugAgentsSummaryRouteImport.update({
+  id: '/api/debug/agents-summary',
+  path: '/api/debug/agents-summary',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
   id: '/settings/api',
@@ -135,6 +178,13 @@ export interface FileRoutesByFullPath {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
+  '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
+  '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
+  '/api/debug/recent-events': typeof ApiDebugRecentEventsRoute
+  '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
+  '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
+  '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -154,6 +204,13 @@ export interface FileRoutesByTo {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
+  '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
+  '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
+  '/api/debug/recent-events': typeof ApiDebugRecentEventsRoute
+  '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
+  '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
+  '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -175,6 +232,13 @@ export interface FileRoutesById {
   '/_app/contacts/$id': typeof AppContactsIdRoute
   '/_app/offers/$id': typeof AppOffersIdRoute
   '/_app/settings/api': typeof AppSettingsApiRoute
+  '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
+  '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
+  '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
+  '/api/debug/recent-events': typeof ApiDebugRecentEventsRoute
+  '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
+  '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
+  '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -196,6 +260,13 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/api/debug/agents-summary'
+    | '/api/debug/frontend-map'
+    | '/api/debug/integrations-status'
+    | '/api/debug/recent-events'
+    | '/api/debug/schema-summary'
+    | '/api/debug/system-summary'
+    | '/api/debug/tamar-config'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -215,6 +286,13 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/api/debug/agents-summary'
+    | '/api/debug/frontend-map'
+    | '/api/debug/integrations-status'
+    | '/api/debug/recent-events'
+    | '/api/debug/schema-summary'
+    | '/api/debug/system-summary'
+    | '/api/debug/tamar-config'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -235,6 +313,13 @@ export interface FileRouteTypes {
     | '/_app/contacts/$id'
     | '/_app/offers/$id'
     | '/_app/settings/api'
+    | '/api/debug/agents-summary'
+    | '/api/debug/frontend-map'
+    | '/api/debug/integrations-status'
+    | '/api/debug/recent-events'
+    | '/api/debug/schema-summary'
+    | '/api/debug/system-summary'
+    | '/api/debug/tamar-config'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -243,6 +328,13 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiDebugAgentsSummaryRoute: typeof ApiDebugAgentsSummaryRoute
+  ApiDebugFrontendMapRoute: typeof ApiDebugFrontendMapRoute
+  ApiDebugIntegrationsStatusRoute: typeof ApiDebugIntegrationsStatusRoute
+  ApiDebugRecentEventsRoute: typeof ApiDebugRecentEventsRoute
+  ApiDebugSchemaSummaryRoute: typeof ApiDebugSchemaSummaryRoute
+  ApiDebugSystemSummaryRoute: typeof ApiDebugSystemSummaryRoute
+  ApiDebugTamarConfigRoute: typeof ApiDebugTamarConfigRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
@@ -319,6 +411,55 @@ declare module '@tanstack/react-router' {
       fullPath: '/campaigns'
       preLoaderRoute: typeof AppCampaignsRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/debug/tamar-config': {
+      id: '/api/debug/tamar-config'
+      path: '/api/debug/tamar-config'
+      fullPath: '/api/debug/tamar-config'
+      preLoaderRoute: typeof ApiDebugTamarConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/system-summary': {
+      id: '/api/debug/system-summary'
+      path: '/api/debug/system-summary'
+      fullPath: '/api/debug/system-summary'
+      preLoaderRoute: typeof ApiDebugSystemSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/schema-summary': {
+      id: '/api/debug/schema-summary'
+      path: '/api/debug/schema-summary'
+      fullPath: '/api/debug/schema-summary'
+      preLoaderRoute: typeof ApiDebugSchemaSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/recent-events': {
+      id: '/api/debug/recent-events'
+      path: '/api/debug/recent-events'
+      fullPath: '/api/debug/recent-events'
+      preLoaderRoute: typeof ApiDebugRecentEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/integrations-status': {
+      id: '/api/debug/integrations-status'
+      path: '/api/debug/integrations-status'
+      fullPath: '/api/debug/integrations-status'
+      preLoaderRoute: typeof ApiDebugIntegrationsStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/frontend-map': {
+      id: '/api/debug/frontend-map'
+      path: '/api/debug/frontend-map'
+      fullPath: '/api/debug/frontend-map'
+      preLoaderRoute: typeof ApiDebugFrontendMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/agents-summary': {
+      id: '/api/debug/agents-summary'
+      path: '/api/debug/agents-summary'
+      fullPath: '/api/debug/agents-summary'
+      preLoaderRoute: typeof ApiDebugAgentsSummaryRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/settings/api': {
       id: '/_app/settings/api'
@@ -446,6 +587,13 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiDebugAgentsSummaryRoute: ApiDebugAgentsSummaryRoute,
+  ApiDebugFrontendMapRoute: ApiDebugFrontendMapRoute,
+  ApiDebugIntegrationsStatusRoute: ApiDebugIntegrationsStatusRoute,
+  ApiDebugRecentEventsRoute: ApiDebugRecentEventsRoute,
+  ApiDebugSchemaSummaryRoute: ApiDebugSchemaSummaryRoute,
+  ApiDebugSystemSummaryRoute: ApiDebugSystemSummaryRoute,
+  ApiDebugTamarConfigRoute: ApiDebugTamarConfigRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
@@ -453,13 +601,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
