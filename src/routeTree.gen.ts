@@ -23,6 +23,7 @@ import { Route as ApiIntrospectTamarRoutingRouteImport } from './routes/api/intr
 import { Route as ApiIntrospectTamarConfigRouteImport } from './routes/api/introspect/tamar-config'
 import { Route as ApiIntrospectSystemOverviewRouteImport } from './routes/api/introspect/system-overview'
 import { Route as ApiIntrospectSchemaSummaryRouteImport } from './routes/api/introspect/schema-summary'
+import { Route as ApiIntrospectRecentEventsRouteImport } from './routes/api/introspect/recent-events'
 import { Route as ApiIntrospectIntegrationsStatusRouteImport } from './routes/api/introspect/integrations-status'
 import { Route as ApiIntrospectFrontendMapRouteImport } from './routes/api/introspect/frontend-map'
 import { Route as ApiIntrospectCrmSummaryRouteImport } from './routes/api/introspect/crm-summary'
@@ -116,6 +117,12 @@ const ApiIntrospectSchemaSummaryRoute =
   ApiIntrospectSchemaSummaryRouteImport.update({
     id: '/api/introspect/schema-summary',
     path: '/api/introspect/schema-summary',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectRecentEventsRoute =
+  ApiIntrospectRecentEventsRouteImport.update({
+    id: '/api/introspect/recent-events',
+    path: '/api/introspect/recent-events',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiIntrospectIntegrationsStatusRoute =
@@ -259,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
   '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
   '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
+  '/api/introspect/recent-events': typeof ApiIntrospectRecentEventsRoute
   '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
   '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
@@ -295,6 +303,7 @@ export interface FileRoutesByTo {
   '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
   '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
   '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
+  '/api/introspect/recent-events': typeof ApiIntrospectRecentEventsRoute
   '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
   '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
@@ -333,6 +342,7 @@ export interface FileRoutesById {
   '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
   '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
   '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
+  '/api/introspect/recent-events': typeof ApiIntrospectRecentEventsRoute
   '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
   '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/api/introspect/crm-summary'
     | '/api/introspect/frontend-map'
     | '/api/introspect/integrations-status'
+    | '/api/introspect/recent-events'
     | '/api/introspect/schema-summary'
     | '/api/introspect/system-overview'
     | '/api/introspect/tamar-config'
@@ -407,6 +418,7 @@ export interface FileRouteTypes {
     | '/api/introspect/crm-summary'
     | '/api/introspect/frontend-map'
     | '/api/introspect/integrations-status'
+    | '/api/introspect/recent-events'
     | '/api/introspect/schema-summary'
     | '/api/introspect/system-overview'
     | '/api/introspect/tamar-config'
@@ -444,6 +456,7 @@ export interface FileRouteTypes {
     | '/api/introspect/crm-summary'
     | '/api/introspect/frontend-map'
     | '/api/introspect/integrations-status'
+    | '/api/introspect/recent-events'
     | '/api/introspect/schema-summary'
     | '/api/introspect/system-overview'
     | '/api/introspect/tamar-config'
@@ -469,6 +482,7 @@ export interface RootRouteChildren {
   ApiIntrospectCrmSummaryRoute: typeof ApiIntrospectCrmSummaryRoute
   ApiIntrospectFrontendMapRoute: typeof ApiIntrospectFrontendMapRoute
   ApiIntrospectIntegrationsStatusRoute: typeof ApiIntrospectIntegrationsStatusRoute
+  ApiIntrospectRecentEventsRoute: typeof ApiIntrospectRecentEventsRoute
   ApiIntrospectSchemaSummaryRoute: typeof ApiIntrospectSchemaSummaryRoute
   ApiIntrospectSystemOverviewRoute: typeof ApiIntrospectSystemOverviewRoute
   ApiIntrospectTamarConfigRoute: typeof ApiIntrospectTamarConfigRoute
@@ -576,6 +590,13 @@ declare module '@tanstack/react-router' {
       path: '/api/introspect/schema-summary'
       fullPath: '/api/introspect/schema-summary'
       preLoaderRoute: typeof ApiIntrospectSchemaSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/recent-events': {
+      id: '/api/introspect/recent-events'
+      path: '/api/introspect/recent-events'
+      fullPath: '/api/introspect/recent-events'
+      preLoaderRoute: typeof ApiIntrospectRecentEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/introspect/integrations-status': {
@@ -808,6 +829,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntrospectCrmSummaryRoute: ApiIntrospectCrmSummaryRoute,
   ApiIntrospectFrontendMapRoute: ApiIntrospectFrontendMapRoute,
   ApiIntrospectIntegrationsStatusRoute: ApiIntrospectIntegrationsStatusRoute,
+  ApiIntrospectRecentEventsRoute: ApiIntrospectRecentEventsRoute,
   ApiIntrospectSchemaSummaryRoute: ApiIntrospectSchemaSummaryRoute,
   ApiIntrospectSystemOverviewRoute: ApiIntrospectSystemOverviewRoute,
   ApiIntrospectTamarConfigRoute: ApiIntrospectTamarConfigRoute,
