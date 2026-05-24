@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
 import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-campaign'
@@ -62,6 +63,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTasksRoute = AppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSendOfferRoute = AppSendOfferRouteImport.update({
@@ -275,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRouteWithChildren
   '/send-offer': typeof AppSendOfferRoute
+  '/tasks': typeof AppTasksRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/contacts/$id': typeof AppContactsIdRoute
@@ -315,6 +322,7 @@ export interface FileRoutesByTo {
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRouteWithChildren
   '/send-offer': typeof AppSendOfferRoute
+  '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
@@ -358,6 +366,7 @@ export interface FileRoutesById {
   '/_app/intake-campaign': typeof AppIntakeCampaignRoute
   '/_app/offers': typeof AppOffersRouteWithChildren
   '/_app/send-offer': typeof AppSendOfferRoute
+  '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
   '/_app/campaigns/$id': typeof AppCampaignsIdRoute
   '/_app/campaigns/new': typeof AppCampaignsNewRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
     | '/intake-campaign'
     | '/offers'
     | '/send-offer'
+    | '/tasks'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/contacts/$id'
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
     | '/intake-campaign'
     | '/offers'
     | '/send-offer'
+    | '/tasks'
     | '/'
     | '/campaigns/$id'
     | '/campaigns/new'
@@ -484,6 +495,7 @@ export interface FileRouteTypes {
     | '/_app/intake-campaign'
     | '/_app/offers'
     | '/_app/send-offer'
+    | '/_app/tasks'
     | '/_app/'
     | '/_app/campaigns/$id'
     | '/_app/campaigns/new'
@@ -568,6 +580,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tasks': {
+      id: '/_app/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof AppTasksRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/send-offer': {
@@ -878,6 +897,7 @@ interface AppRouteChildren {
   AppIntakeCampaignRoute: typeof AppIntakeCampaignRoute
   AppOffersRoute: typeof AppOffersRouteWithChildren
   AppSendOfferRoute: typeof AppSendOfferRoute
+  AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppSettingsApiRoute: typeof AppSettingsApiRoute
 }
@@ -890,6 +910,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppIntakeCampaignRoute: AppIntakeCampaignRoute,
   AppOffersRoute: AppOffersRouteWithChildren,
   AppSendOfferRoute: AppSendOfferRoute,
+  AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppSettingsApiRoute: AppSettingsApiRoute,
 }
@@ -928,13 +949,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
