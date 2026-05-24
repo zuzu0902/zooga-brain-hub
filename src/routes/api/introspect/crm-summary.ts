@@ -38,11 +38,28 @@ export const Route = createFileRoute("/api/introspect/crm-summary")({
     const insightsByResolution: Record<string, number | null> = {};
     for (const r of INSIGHT_RES) insightsByResolution[r] = await countWhere("pending_ai_insights", "resolution_state", r);
 
+    // AI assistant runs (persisted history)
+    const aiRunsTotal = await countRows("ai_assistant_runs");
+    const RUN_STATUSES = ["pending","completed","error"];
+    const aiRunsByStatus: Record<string, number | null> = {};
+    for (const st of RUN_STATUSES) aiRunsByStatus[st] = await countWhere("ai_assistant_runs", "status", st);
+    const AI_RUN_KINDS = ["summarize_contact","summarize_hot_leads_week","suggest_segment","draft_campaign","suggest_triage","free_form"];
+    const aiRunsByKind: Record<string, number | null> = {};
+    for (const k of AI_RUN_KINDS) aiRunsByKind[k] = await countWhere("ai_assistant_runs", "request_type", k);
+
+    // Backfill provenance
+    const backfillCount = await countWhere("contact_memories", "extracted_from", "backfill_v2_heuristic");
+
     return jsonResponse({
       generated_at: new Date().toISOString(),
       contacts: { total: contacts, manager_attention_required: manager },
       interactions: { total: interactions },
-      memory_layer: { total_memories: memories, by_category: memoriesByCategory, taxonomy: MEM_TYPES },
+      memory_layer: {
+        total_memories: memories,
+        by_category: memoriesByCategory,
+        taxonomy: MEM_TYPES,
+        backfilled_v2_count: backfillCount,
+      },
       extraction: {
         total_attribute_records: attrs,
         applied: applied,
@@ -57,11 +74,19 @@ export const Route = createFileRoute("/api/introspect/crm-summary")({
         done: tasksDone,
         by_source_kind: tasksBySource,
       },
+      ai_assistant: {
+        total_runs: aiRunsTotal,
+        by_status: aiRunsByStatus,
+        by_kind: aiRunsByKind,
+        persisted: true,
+        proposal_first: true,
+      },
       source_of_truth: {
         conversation: "zooga",
         memory: "zooga",
         tasks: "zooga",
         handoff: "zooga",
+        ai_assistant_history: "zooga",
         tamar_backend_role: "channel_runtime_only",
       },
       note: "Counts only. No contact identities, phone numbers, names, or message content are exposed.",
