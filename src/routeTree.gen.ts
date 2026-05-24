@@ -22,6 +22,7 @@ import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
 import { Route as ApiDebugTamarConfigRouteImport } from './routes/api/debug/tamar-config'
 import { Route as ApiDebugSystemSummaryRouteImport } from './routes/api/debug/system-summary'
 import { Route as ApiDebugSchemaSummaryRouteImport } from './routes/api/debug/schema-summary'
+import { Route as ApiDebugIntegrationsStatusRouteImport } from './routes/api/debug/integrations-status'
 import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
 import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
@@ -96,6 +97,12 @@ const ApiDebugSchemaSummaryRoute = ApiDebugSchemaSummaryRouteImport.update({
   path: '/api/debug/schema-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDebugIntegrationsStatusRoute =
+  ApiDebugIntegrationsStatusRouteImport.update({
+    id: '/api/debug/integrations-status',
+    path: '/api/debug/integrations-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDebugFrontendMapRoute = ApiDebugFrontendMapRouteImport.update({
   id: '/api/debug/frontend-map',
   path: '/api/debug/frontend-map',
@@ -160,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
+  '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
   '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
@@ -183,6 +191,7 @@ export interface FileRoutesByTo {
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
+  '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
   '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
@@ -208,6 +217,7 @@ export interface FileRoutesById {
   '/_app/offers/$id': typeof AppOffersIdRoute
   '/_app/settings/api': typeof AppSettingsApiRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
+  '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
   '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/offers/$id'
     | '/settings/api'
     | '/api/debug/frontend-map'
+    | '/api/debug/integrations-status'
     | '/api/debug/schema-summary'
     | '/api/debug/system-summary'
     | '/api/debug/tamar-config'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/offers/$id'
     | '/settings/api'
     | '/api/debug/frontend-map'
+    | '/api/debug/integrations-status'
     | '/api/debug/schema-summary'
     | '/api/debug/system-summary'
     | '/api/debug/tamar-config'
@@ -280,6 +292,7 @@ export interface FileRouteTypes {
     | '/_app/offers/$id'
     | '/_app/settings/api'
     | '/api/debug/frontend-map'
+    | '/api/debug/integrations-status'
     | '/api/debug/schema-summary'
     | '/api/debug/system-summary'
     | '/api/debug/tamar-config'
@@ -292,6 +305,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiDebugFrontendMapRoute: typeof ApiDebugFrontendMapRoute
+  ApiDebugIntegrationsStatusRoute: typeof ApiDebugIntegrationsStatusRoute
   ApiDebugSchemaSummaryRoute: typeof ApiDebugSchemaSummaryRoute
   ApiDebugSystemSummaryRoute: typeof ApiDebugSystemSummaryRoute
   ApiDebugTamarConfigRoute: typeof ApiDebugTamarConfigRoute
@@ -391,6 +405,13 @@ declare module '@tanstack/react-router' {
       path: '/api/debug/schema-summary'
       fullPath: '/api/debug/schema-summary'
       preLoaderRoute: typeof ApiDebugSchemaSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/integrations-status': {
+      id: '/api/debug/integrations-status'
+      path: '/api/debug/integrations-status'
+      fullPath: '/api/debug/integrations-status'
+      preLoaderRoute: typeof ApiDebugIntegrationsStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/debug/frontend-map': {
@@ -527,6 +548,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiDebugFrontendMapRoute: ApiDebugFrontendMapRoute,
+  ApiDebugIntegrationsStatusRoute: ApiDebugIntegrationsStatusRoute,
   ApiDebugSchemaSummaryRoute: ApiDebugSchemaSummaryRoute,
   ApiDebugSystemSummaryRoute: ApiDebugSystemSummaryRoute,
   ApiDebugTamarConfigRoute: ApiDebugTamarConfigRoute,
