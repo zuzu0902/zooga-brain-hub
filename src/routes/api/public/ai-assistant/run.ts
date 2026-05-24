@@ -74,6 +74,14 @@ export const Route = createFileRoute("/api/public/ai-assistant/run")({
             });
           }
 
+          // Persist run as pending immediately (server-side history of internal proposals).
+          const { data: runRow } = await supabaseAdmin
+            .from("ai_assistant_runs" as any)
+            .insert({ request_type: kind, prompt, status: "pending", model: MODEL })
+            .select("id")
+            .maybeSingle();
+          const runId = (runRow as any)?.id ?? null;
+
           // Build grounded SYSTEM_CONTEXT bundle from Zooga (source of truth).
           const [contacts, pending, flagged, openTasks] = await Promise.all([
             supabaseAdmin.from("contacts").select("*", { count: "exact", head: true }),
@@ -162,6 +170,10 @@ export const Route = createFileRoute("/api/public/ai-assistant/run")({
 
           if (!aiResp.ok) {
             const t = await aiResp.text();
+            await supabaseAdmin
+              .from("ai_assistant_runs" as any)
+              .update({ status: "error", error: `gateway_${aiResp.status}: ${t.slice(0,200)}`, completed_at: new Date().toISOString() })
+              .eq("id", runId);
             if (aiResp.status === 429) {
               return new Response(JSON.stringify({ error: "AI rate limit — try again shortly" }), { status: 429, headers: { "Content-Type": "application/json" } });
             }
@@ -180,11 +192,24 @@ export const Route = createFileRoute("/api/public/ai-assistant/run")({
           if (Array.isArray((contextBlocks as any).pending_insights_sample)) counts.pending_insights = (contextBlocks as any).pending_insights_sample.length;
           if (Array.isArray((contextBlocks as any).flagged_contacts_sample)) counts.flagged_contacts = (contextBlocks as any).flagged_contacts_sample.length;
           if (Array.isArray((contextBlocks as any).contacts_sample)) counts.contacts_sample = (contextBlocks as any).contacts_sample.length;
+          const contextUsed = { sources, counts, contact_id: contactId, kind };
+
+          await supabaseAdmin
+            .from("ai_assistant_runs" as any)
+            .update({
+              status: "completed",
+              response: text,
+              context_used: contextUsed,
+              completed_at: new Date().toISOString(),
+            })
+            .eq("id", runId);
+
           return Response.json({
+            run_id: runId,
             response: text,
             stats,
             model: MODEL,
-            context_used: { sources, counts, contact_id: contactId, kind },
+            context_used: contextUsed,
           });
         } catch (e: any) {
           return new Response(JSON.stringify({ error: String(e?.message || e) }), {
