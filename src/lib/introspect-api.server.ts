@@ -43,12 +43,46 @@ export async function getApiSettings() {
   return data ?? null;
 }
 
+/**
+ * Resolved Tamar outbound config.
+ * Prefers TAMAR_API_URL / TAMAR_API_TOKEN environment variables (operational truth).
+ * Falls back to api_settings table values for backwards compatibility.
+ */
+export function getTamarOutboundConfig(settings: { tamar_backend_url?: string | null; tamar_backend_api_token?: string | null } | null) {
+  const envUrl = process.env.TAMAR_API_URL?.trim();
+  const envToken = process.env.TAMAR_API_TOKEN?.trim();
+  const url = envUrl || settings?.tamar_backend_url || null;
+  const tokenPresent = !!envToken || !!settings?.tamar_backend_api_token;
+  const source = envUrl
+    ? "env"
+    : settings?.tamar_backend_url
+      ? "db"
+      : "unconfigured";
+  let host: string | null = null;
+  try { if (url) host = new URL(url).host; } catch { host = null; }
+  return { url, host, token_present: tokenPresent, source, env_url_present: !!envUrl, env_token_present: !!envToken };
+}
+
+export async function getBehaviorSettings() {
+  const { data } = await supabaseAdmin
+    .from("tamar_behavior_settings" as any)
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+  return (data as any) ?? null;
+}
+
 export const REQUIRED_ENV_VARS = [
   "SUPABASE_URL",
   "SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "LOVABLE_API_KEY",
   "DEBUG_READ_ONLY_TOKEN",
+] as const;
+
+export const OPTIONAL_ENV_VARS = [
+  "TAMAR_API_URL",
+  "TAMAR_API_TOKEN",
 ] as const;
 
 export function envPresenceMap() {
