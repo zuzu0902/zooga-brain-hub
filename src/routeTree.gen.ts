@@ -27,6 +27,7 @@ import { Route as ApiIntrospectRecentEventsRouteImport } from './routes/api/intr
 import { Route as ApiIntrospectIntegrationsStatusRouteImport } from './routes/api/introspect/integrations-status'
 import { Route as ApiIntrospectHealthReportRouteImport } from './routes/api/introspect/health-report'
 import { Route as ApiIntrospectFrontendMapRouteImport } from './routes/api/introspect/frontend-map'
+import { Route as ApiIntrospectFeatureFlagsRouteImport } from './routes/api/introspect/feature-flags'
 import { Route as ApiIntrospectCrmSummaryRouteImport } from './routes/api/introspect/crm-summary'
 import { Route as ApiIntrospectCampaignsSummaryRouteImport } from './routes/api/introspect/campaigns-summary'
 import { Route as ApiIntrospectBackendMapRouteImport } from './routes/api/introspect/backend-map'
@@ -142,6 +143,12 @@ const ApiIntrospectFrontendMapRoute =
   ApiIntrospectFrontendMapRouteImport.update({
     id: '/api/introspect/frontend-map',
     path: '/api/introspect/frontend-map',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectFeatureFlagsRoute =
+  ApiIntrospectFeatureFlagsRouteImport.update({
+    id: '/api/introspect/feature-flags',
+    path: '/api/introspect/feature-flags',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiIntrospectCrmSummaryRoute = ApiIntrospectCrmSummaryRouteImport.update({
@@ -271,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
   '/api/introspect/campaigns-summary': typeof ApiIntrospectCampaignsSummaryRoute
   '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
+  '/api/introspect/feature-flags': typeof ApiIntrospectFeatureFlagsRoute
   '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
   '/api/introspect/health-report': typeof ApiIntrospectHealthReportRoute
   '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
@@ -309,6 +317,7 @@ export interface FileRoutesByTo {
   '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
   '/api/introspect/campaigns-summary': typeof ApiIntrospectCampaignsSummaryRoute
   '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
+  '/api/introspect/feature-flags': typeof ApiIntrospectFeatureFlagsRoute
   '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
   '/api/introspect/health-report': typeof ApiIntrospectHealthReportRoute
   '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
@@ -349,6 +358,7 @@ export interface FileRoutesById {
   '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
   '/api/introspect/campaigns-summary': typeof ApiIntrospectCampaignsSummaryRoute
   '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
+  '/api/introspect/feature-flags': typeof ApiIntrospectFeatureFlagsRoute
   '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
   '/api/introspect/health-report': typeof ApiIntrospectHealthReportRoute
   '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
@@ -389,6 +399,7 @@ export interface FileRouteTypes {
     | '/api/introspect/backend-map'
     | '/api/introspect/campaigns-summary'
     | '/api/introspect/crm-summary'
+    | '/api/introspect/feature-flags'
     | '/api/introspect/frontend-map'
     | '/api/introspect/health-report'
     | '/api/introspect/integrations-status'
@@ -427,6 +438,7 @@ export interface FileRouteTypes {
     | '/api/introspect/backend-map'
     | '/api/introspect/campaigns-summary'
     | '/api/introspect/crm-summary'
+    | '/api/introspect/feature-flags'
     | '/api/introspect/frontend-map'
     | '/api/introspect/health-report'
     | '/api/introspect/integrations-status'
@@ -466,6 +478,7 @@ export interface FileRouteTypes {
     | '/api/introspect/backend-map'
     | '/api/introspect/campaigns-summary'
     | '/api/introspect/crm-summary'
+    | '/api/introspect/feature-flags'
     | '/api/introspect/frontend-map'
     | '/api/introspect/health-report'
     | '/api/introspect/integrations-status'
@@ -493,6 +506,7 @@ export interface RootRouteChildren {
   ApiIntrospectBackendMapRoute: typeof ApiIntrospectBackendMapRoute
   ApiIntrospectCampaignsSummaryRoute: typeof ApiIntrospectCampaignsSummaryRoute
   ApiIntrospectCrmSummaryRoute: typeof ApiIntrospectCrmSummaryRoute
+  ApiIntrospectFeatureFlagsRoute: typeof ApiIntrospectFeatureFlagsRoute
   ApiIntrospectFrontendMapRoute: typeof ApiIntrospectFrontendMapRoute
   ApiIntrospectHealthReportRoute: typeof ApiIntrospectHealthReportRoute
   ApiIntrospectIntegrationsStatusRoute: typeof ApiIntrospectIntegrationsStatusRoute
@@ -632,6 +646,13 @@ declare module '@tanstack/react-router' {
       path: '/api/introspect/frontend-map'
       fullPath: '/api/introspect/frontend-map'
       preLoaderRoute: typeof ApiIntrospectFrontendMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/feature-flags': {
+      id: '/api/introspect/feature-flags'
+      path: '/api/introspect/feature-flags'
+      fullPath: '/api/introspect/feature-flags'
+      preLoaderRoute: typeof ApiIntrospectFeatureFlagsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/introspect/crm-summary': {
@@ -848,6 +869,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntrospectBackendMapRoute: ApiIntrospectBackendMapRoute,
   ApiIntrospectCampaignsSummaryRoute: ApiIntrospectCampaignsSummaryRoute,
   ApiIntrospectCrmSummaryRoute: ApiIntrospectCrmSummaryRoute,
+  ApiIntrospectFeatureFlagsRoute: ApiIntrospectFeatureFlagsRoute,
   ApiIntrospectFrontendMapRoute: ApiIntrospectFrontendMapRoute,
   ApiIntrospectHealthReportRoute: ApiIntrospectHealthReportRoute,
   ApiIntrospectIntegrationsStatusRoute: ApiIntrospectIntegrationsStatusRoute,
