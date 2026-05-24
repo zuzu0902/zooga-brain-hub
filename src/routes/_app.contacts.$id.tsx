@@ -509,17 +509,51 @@ function ProfileNav({ active, onChange }: { active: string; onChange: (v: any) =
 /* ---------- Relationship Memory ---------- */
 
 const MEM_TYPE_LABEL: Record<string, string> = {
-  fact: "עובדה", preference: "העדפה", emotion: "רגש",
-  event: "אירוע", relationship: "מערכת יחסים", goal: "מטרה",
+  fact: "עובדה",
+  preference: "העדפה",
+  warning: "אזהרה",
+  observation: "תצפית",
+  relationship_signal: "סיגנל יחסים",
+  offer_signal: "סיגנל הצעה",
+  // legacy fallbacks
+  emotion: "רגש",
+  event: "אירוע",
+  relationship: "מערכת יחסים",
+  goal: "מטרה",
 };
 const MEM_TYPE_TONE: Record<string, string> = {
   fact: "bg-info/10 text-info border-info/30",
   preference: "bg-primary/10 text-primary border-primary/30",
+  warning: "bg-destructive/10 text-destructive border-destructive/30",
+  observation: "bg-accent/40 text-foreground border-border",
+  relationship_signal: "bg-success/10 text-success border-success/30",
+  offer_signal: "bg-secondary text-secondary-foreground border-border",
+  // legacy fallbacks
   emotion: "bg-warning/10 text-warning-foreground border-warning/30",
   event: "bg-accent/40 text-foreground border-border",
   relationship: "bg-success/10 text-success border-success/30",
   goal: "bg-secondary text-secondary-foreground border-border",
 };
+
+const CANONICAL_MEM_TYPES = [
+  "fact",
+  "preference",
+  "warning",
+  "observation",
+  "relationship_signal",
+  "offer_signal",
+] as const;
+
+function normalizeMemType(t: string | null | undefined): string {
+  const k = String(t || "").toLowerCase();
+  if ((CANONICAL_MEM_TYPES as readonly string[]).includes(k)) return k;
+  // legacy mapping
+  if (k === "emotion") return "warning";
+  if (k === "event") return "observation";
+  if (k === "relationship") return "relationship_signal";
+  if (k === "goal") return "offer_signal";
+  return "observation";
+}
 
 function RelationshipMemorySection({ contactId }: { contactId: string }) {
   const qc = useQueryClient();
@@ -567,7 +601,8 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
   const grouped = useMemo(() => {
     const g: Record<string, any[]> = {};
     (memories || []).forEach((m: any) => {
-      (g[m.memory_type] = g[m.memory_type] || []).push(m);
+      const k = normalizeMemType(m.memory_type);
+      (g[k] = g[k] || []).push(m);
     });
     return g;
   }, [memories]);
