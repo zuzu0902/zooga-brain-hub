@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { AlertCircle, Check, X, CheckSquare, Flag, ExternalLink } from "lucide-react";
+import { AlertCircle, Check, X, CheckSquare, Flag, ExternalLink, UserCheck, RotateCcw } from "lucide-react";
 import { formatRelative } from "@/lib/i18n";
 import { CreateTaskDialog } from "./_app.tasks";
 
@@ -57,9 +57,38 @@ function HandoffPage() {
   async function reject(id: string) {
     const { error } = await supabase
       .from("pending_ai_insights")
-      .update({ status: "rejected", reviewed_at: new Date().toISOString() })
+      .update({ status: "rejected", resolution_state: "resolved", reviewed_at: new Date().toISOString() })
       .eq("id", id);
     if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["handoff-pending"] });
+  }
+
+  async function setInsightResolution(id: string, resolution_state: string) {
+    const { error } = await supabase
+      .from("pending_ai_insights")
+      .update({ resolution_state, reviewed_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("עודכן");
+    qc.invalidateQueries({ queryKey: ["handoff-pending"] });
+  }
+
+  async function createLinkedTaskForInsight(row: any) {
+    const { data: task, error } = await supabase.from("tasks").insert({
+      title: `Review insight: ${row.field_name}`,
+      description: `${row.reasoning || ""}\nProposed: ${JSON.stringify(row.proposed_value?.value)}`,
+      contact_id: row.contact_id,
+      priority: "normal",
+      status: "open",
+      source_kind: "pending_insight",
+      source_ref_id: row.id,
+      resolution_state: "open",
+    } as any).select("id").maybeSingle();
+    if (error || !task) return toast.error(error?.message || "שגיאה");
+    await supabase.from("pending_ai_insights")
+      .update({ linked_task_id: task.id, resolution_state: "under_human" })
+      .eq("id", row.id);
+    toast.success("נוצרה משימה משויכת");
     qc.invalidateQueries({ queryKey: ["handoff-pending"] });
   }
 
@@ -82,7 +111,7 @@ function HandoffPage() {
       source: "handoff_console",
     });
     await supabase.from("pending_ai_insights")
-      .update({ status: "approved", reviewed_at: new Date().toISOString() })
+      .update({ status: "approved", resolution_state: "resolved", reviewed_at: new Date().toISOString() })
       .eq("id", row.id);
     toast.success("אושר");
     qc.invalidateQueries({ queryKey: ["handoff-pending"] });
@@ -153,6 +182,12 @@ function HandoffPage() {
           <h3 className="font-semibold">תובנות AI ממתינות (גלובלי)</h3>
           <Badge variant="outline">{pending?.length ?? 0}</Badge>
         </div>
+        <div className="text-[11px] text-muted-foreground mb-3 flex flex-wrap gap-2">
+          <Badge variant="outline" className="text-[10px]">pending</Badge>
+          <Badge variant="outline" className="text-[10px]">under_human</Badge>
+          <Badge variant="outline" className="text-[10px]">returned_to_ai</Badge>
+          <Badge variant="outline" className="text-[10px]">resolved</Badge>
+        </div>
         {(pending?.length ?? 0) === 0 ? (
           <div className="text-sm text-muted-foreground py-6 text-center">אין תובנות ממתינות</div>
         ) : (
@@ -164,6 +199,10 @@ function HandoffPage() {
                     <Badge variant="outline" className="text-[10px]">{p.category}</Badge>
                     <span className="font-medium">{p.field_name}</span>
                     <span className="text-muted-foreground">{p.confidence_score}%</span>
+                    <Badge variant="secondary" className="text-[10px]">{p.resolution_state ?? "pending"}</Badge>
+                    {p.linked_task_id && (
+                      <Link to="/tasks" className="text-[10px] text-primary hover:underline">משימה משויכת →</Link>
+                    )}
                     <Link to="/contacts/$id" params={{ id: p.contact_id }} className="text-xs text-primary hover:underline">
                       איש קשר →
                     </Link>
@@ -173,7 +212,7 @@ function HandoffPage() {
                   </div>
                   {p.reasoning && <div className="text-xs text-muted-foreground mt-1">{p.reasoning}</div>}
                 </div>
-                <div className="flex gap-1 shrink-0">
+                <div className="flex gap-1 shrink-0 flex-wrap">
                   <Button size="icon" variant="outline" onClick={() => approve(p)} title="אישור">
                     <Check className="h-4 w-4 text-success" />
                   </Button>
@@ -181,12 +220,15 @@ function HandoffPage() {
                     <X className="h-4 w-4 text-destructive" />
                   </Button>
                   <Button size="sm" variant="outline" className="gap-1"
-                    onClick={() => setTaskCtx({
-                      title: `Review insight: ${p.field_name}`,
-                      description: `${p.reasoning || ""}\nProposed: ${JSON.stringify(p.proposed_value?.value)}`,
-                      contactId: p.contact_id,
-                    })}>
-                    <CheckSquare className="h-3.5 w-3.5" /> משימה
+                    onClick={() => createLinkedTaskForInsight(p)}
+                    title="צור משימה מקושרת + העבר לטיפול מנהל">
+                    <CheckSquare className="h-3.5 w-3.5" /> משימה מקושרת
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={() => setInsightResolution(p.id, "under_human")} title="סמן בטיפול מנהל">
+                    <UserCheck className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" onClick={() => setInsightResolution(p.id, "returned_to_ai")} title="החזר ל-AI">
+                    <RotateCcw className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
