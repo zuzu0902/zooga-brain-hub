@@ -44,6 +44,7 @@ import { Route as ApiDebugRecentEventsRouteImport } from './routes/api/debug/rec
 import { Route as ApiDebugIntegrationsStatusRouteImport } from './routes/api/debug/integrations-status'
 import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
 import { Route as ApiDebugAgentsSummaryRouteImport } from './routes/api/debug/agents-summary'
+import { Route as AppSettingsTamarRouteImport } from './routes/_app.settings.tamar'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
 import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
@@ -53,6 +54,7 @@ import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/pu
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
+import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -241,6 +243,11 @@ const ApiDebugAgentsSummaryRoute = ApiDebugAgentsSummaryRouteImport.update({
   path: '/api/debug/agents-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSettingsTamarRoute = AppSettingsTamarRouteImport.update({
+  id: '/settings/tamar',
+  path: '/settings/tamar',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
   id: '/settings/api',
   path: '/settings/api',
@@ -288,6 +295,12 @@ const ApiPublicAiAssistantRunRoute = ApiPublicAiAssistantRunRouteImport.update({
   path: '/api/public/ai-assistant/run',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAdminBackfillMemoriesRoute =
+  ApiPublicAdminBackfillMemoriesRouteImport.update({
+    id: '/api/public/admin/backfill-memories',
+    path: '/api/public/admin/backfill-memories',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -307,6 +320,7 @@ export interface FileRoutesByFullPath {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/settings/tamar': typeof AppSettingsTamarRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -329,6 +343,7 @@ export interface FileRoutesByFullPath {
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
+  '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
@@ -352,6 +367,7 @@ export interface FileRoutesByTo {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/settings/tamar': typeof AppSettingsTamarRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -374,6 +390,7 @@ export interface FileRoutesByTo {
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
+  '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
@@ -399,6 +416,7 @@ export interface FileRoutesById {
   '/_app/contacts/$id': typeof AppContactsIdRoute
   '/_app/offers/$id': typeof AppOffersIdRoute
   '/_app/settings/api': typeof AppSettingsApiRoute
+  '/_app/settings/tamar': typeof AppSettingsTamarRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -421,6 +439,7 @@ export interface FileRoutesById {
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
+  '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
@@ -446,6 +465,7 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/settings/tamar'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -468,6 +488,7 @@ export interface FileRouteTypes {
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
     | '/api/introspect/ui-gaps'
+    | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
@@ -491,6 +512,7 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/settings/tamar'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -513,6 +535,7 @@ export interface FileRouteTypes {
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
     | '/api/introspect/ui-gaps'
+    | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
@@ -537,6 +560,7 @@ export interface FileRouteTypes {
     | '/_app/contacts/$id'
     | '/_app/offers/$id'
     | '/_app/settings/api'
+    | '/_app/settings/tamar'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -559,6 +583,7 @@ export interface FileRouteTypes {
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
     | '/api/introspect/ui-gaps'
+    | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
@@ -590,6 +615,7 @@ export interface RootRouteChildren {
   ApiIntrospectTamarConfigRoute: typeof ApiIntrospectTamarConfigRoute
   ApiIntrospectTamarRoutingRoute: typeof ApiIntrospectTamarRoutingRoute
   ApiIntrospectUiGapsRoute: typeof ApiIntrospectUiGapsRoute
+  ApiPublicAdminBackfillMemoriesRoute: typeof ApiPublicAdminBackfillMemoriesRoute
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
@@ -843,6 +869,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDebugAgentsSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/settings/tamar': {
+      id: '/_app/settings/tamar'
+      path: '/settings/tamar'
+      fullPath: '/settings/tamar'
+      preLoaderRoute: typeof AppSettingsTamarRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/api': {
       id: '/_app/settings/api'
       path: '/settings/api'
@@ -906,6 +939,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAiAssistantRunRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/admin/backfill-memories': {
+      id: '/api/public/admin/backfill-memories'
+      path: '/api/public/admin/backfill-memories'
+      fullPath: '/api/public/admin/backfill-memories'
+      preLoaderRoute: typeof ApiPublicAdminBackfillMemoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -960,6 +1000,7 @@ interface AppRouteChildren {
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
   AppSettingsApiRoute: typeof AppSettingsApiRoute
+  AppSettingsTamarRoute: typeof AppSettingsTamarRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -975,6 +1016,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
   AppSettingsApiRoute: AppSettingsApiRoute,
+  AppSettingsTamarRoute: AppSettingsTamarRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -1004,6 +1046,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntrospectTamarConfigRoute: ApiIntrospectTamarConfigRoute,
   ApiIntrospectTamarRoutingRoute: ApiIntrospectTamarRoutingRoute,
   ApiIntrospectUiGapsRoute: ApiIntrospectUiGapsRoute,
+  ApiPublicAdminBackfillMemoriesRoute: ApiPublicAdminBackfillMemoriesRoute,
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,

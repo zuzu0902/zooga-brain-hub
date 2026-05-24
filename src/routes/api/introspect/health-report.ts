@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { checkDebugAuth, jsonResponse, methodGuards, envPresenceMap, getApiSettings, presence } from "@/lib/introspect-api.server";
+import { checkDebugAuth, jsonResponse, methodGuards, envPresenceMap, getApiSettings, getTamarOutboundConfig, presence } from "@/lib/introspect-api.server";
 
 export const Route = createFileRoute("/api/introspect/health-report")({
   server: { handlers: methodGuards(async ({ request }) => {
     const gate = checkDebugAuth(request); if (gate) return gate;
     const env = envPresenceMap();
     const settings = await getApiSettings();
+    const outbound = getTamarOutboundConfig(settings);
 
     let dbOk = false; let dbError: string | null = null;
     try {
@@ -16,14 +17,15 @@ export const Route = createFileRoute("/api/introspect/health-report")({
 
     const warnings: string[] = [];
     if (env.missing.length) warnings.push(`Missing env vars: ${env.missing.join(", ")}`);
-    if (!settings?.tamar_backend_url) warnings.push("Tamar backend URL not configured");
+    if (!outbound.url) warnings.push("Tamar backend URL not configured");
+    if (!outbound.token_present) warnings.push("Tamar backend API token not configured");
     if (!presence(settings?.webhook_token ?? null).present) warnings.push("Tamar webhook token not configured");
     if (!presence(process.env.LOVABLE_API_KEY).present) warnings.push("LOVABLE_API_KEY missing — AI extraction disabled");
 
     const modules = {
       database: dbOk ? "healthy" : "degraded",
       ai_gateway: presence(process.env.LOVABLE_API_KEY).present ? "healthy" : "degraded",
-      tamar_backend: settings?.tamar_backend_url ? "healthy" : "degraded",
+      tamar_backend: outbound.url && outbound.token_present ? "healthy" : "degraded",
       tamar_webhook: presence(settings?.webhook_token ?? null).present ? "healthy" : "degraded",
       handoff_console_ui: "healthy",
       tasks_console_ui: "healthy",
@@ -36,6 +38,9 @@ export const Route = createFileRoute("/api/introspect/health-report")({
       unified_timeline: "healthy",
       grounded_ai_assistant: presence(process.env.LOVABLE_API_KEY).present ? "healthy" : "degraded",
       handoff_resolution_router: "healthy",
+      tamar_behavior_settings: "healthy",
+      ai_assistant_persistence: "healthy",
+      memory_backfill_v2: "healthy",
     };
 
     return jsonResponse({
@@ -43,9 +48,17 @@ export const Route = createFileRoute("/api/introspect/health-report")({
       overall: warnings.length === 0 ? "healthy" : "degraded",
       modules,
       dependencies: { supabase: { ok: dbOk, error: dbError } },
+      tamar_backend_link: {
+        url_configured: !!outbound.url,
+        token_configured: outbound.token_present,
+        url_source: outbound.source,
+        env_url_present: outbound.env_url_present,
+        env_token_present: outbound.env_token_present,
+      },
       warnings,
       missing_env_vars: env.missing,
       present_env_vars: env.present,
+      optional_env_vars_present: ["TAMAR_API_URL","TAMAR_API_TOKEN"].filter((k) => !!process.env[k]),
     });
   })},
 });

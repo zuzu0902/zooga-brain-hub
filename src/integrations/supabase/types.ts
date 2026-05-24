@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_assistant_runs: {
+        Row: {
+          completed_at: string | null
+          context_used: Json | null
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          model: string | null
+          prompt: string
+          request_type: string
+          response: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          context_used?: Json | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          model?: string | null
+          prompt: string
+          request_type?: string
+          response?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          context_used?: Json | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          model?: string | null
+          prompt?: string
+          request_type?: string
+          response?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       api_settings: {
         Row: {
           default_source: Database["public"]["Enums"]["contact_source"]
@@ -989,6 +1031,66 @@ export type Database = {
           reviewed_by?: string | null
           source_message?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      tamar_behavior_settings: {
+        Row: {
+          confidence_auto_apply_min: number
+          confidence_high_min: number
+          confidence_medium_min: number
+          confidence_pending_max: number
+          handoff_confidence_threshold: number
+          handoff_keywords: string[]
+          handoff_on_factual_doubt: boolean
+          id: number
+          memory_kinds_enabled: string[]
+          memory_write_policy: string
+          routing_allow_autonomous_campaigns: boolean
+          routing_allow_autonomous_offers: boolean
+          routing_mode: string
+          sales_aggressiveness: string
+          sales_max_followups_per_week: number
+          tone_preset: string
+          updated_at: string
+        }
+        Insert: {
+          confidence_auto_apply_min?: number
+          confidence_high_min?: number
+          confidence_medium_min?: number
+          confidence_pending_max?: number
+          handoff_confidence_threshold?: number
+          handoff_keywords?: string[]
+          handoff_on_factual_doubt?: boolean
+          id?: number
+          memory_kinds_enabled?: string[]
+          memory_write_policy?: string
+          routing_allow_autonomous_campaigns?: boolean
+          routing_allow_autonomous_offers?: boolean
+          routing_mode?: string
+          sales_aggressiveness?: string
+          sales_max_followups_per_week?: number
+          tone_preset?: string
+          updated_at?: string
+        }
+        Update: {
+          confidence_auto_apply_min?: number
+          confidence_high_min?: number
+          confidence_medium_min?: number
+          confidence_pending_max?: number
+          handoff_confidence_threshold?: number
+          handoff_keywords?: string[]
+          handoff_on_factual_doubt?: boolean
+          id?: number
+          memory_kinds_enabled?: string[]
+          memory_write_policy?: string
+          routing_allow_autonomous_campaigns?: boolean
+          routing_allow_autonomous_offers?: boolean
+          routing_mode?: string
+          sales_aggressiveness?: string
+          sales_max_followups_per_week?: number
+          tone_preset?: string
+          updated_at?: string
         }
         Relationships: []
       }

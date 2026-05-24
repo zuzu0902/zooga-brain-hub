@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Sparkles, Send, CheckSquare, Loader2 } from "lucide-react";
+import { Sparkles, Send, CheckSquare, Loader2, History, Repeat2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -26,7 +26,7 @@ const KIND_OPTIONS = [
   { value: "free_form", label: "חופשי" },
 ];
 
-type Turn = { kind: string; prompt: string; response: string; ts: string; context_used?: any };
+type Turn = { id?: string; kind: string; prompt: string; response: string; ts: string; context_used?: any; status?: string };
 
 function AIAssistantPage() {
   const [kind, setKind] = useState("summarize_hot_leads_week");
@@ -34,6 +34,29 @@ function AIAssistantPage() {
   const [contactId, setContactId] = useState("");
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<Turn[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  async function loadHistory() {
+    setLoadingHistory(true);
+    const { data, error } = await supabase
+      .from("ai_assistant_runs" as any)
+      .select("id, request_type, prompt, response, context_used, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) { toast.error(error.message); setLoadingHistory(false); return; }
+    setHistory(((data as any[]) ?? []).map((r) => ({
+      id: r.id,
+      kind: r.request_type,
+      prompt: r.prompt,
+      response: r.response ?? "",
+      ts: r.created_at,
+      context_used: r.context_used,
+      status: r.status,
+    })));
+    setLoadingHistory(false);
+  }
+
+  useEffect(() => { loadHistory(); }, []);
 
   async function run() {
     if (!prompt.trim()) return toast.error("נדרשת בקשה");
@@ -47,7 +70,7 @@ function AIAssistantPage() {
       });
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || `HTTP ${resp.status}`);
-      setHistory((h) => [{ kind, prompt, response: j.response || "", ts: new Date().toISOString(), context_used: j.context_used }, ...h]);
+      setHistory((h) => [{ id: j.run_id, kind, prompt, response: j.response || "", ts: new Date().toISOString(), context_used: j.context_used, status: "completed" }, ...h]);
       setPrompt("");
     } catch (e: any) {
       toast.error(String(e?.message || e));
@@ -62,9 +85,16 @@ function AIAssistantPage() {
       priority: "normal",
       status: "open",
       source_kind: "ai_assistant",
+      source_ref_id: turn.id ?? null,
     } as any);
     if (error) return toast.error(error.message);
     toast.success("נשמר כמשימה");
+  }
+
+  function reuse(turn: Turn) {
+    setKind(turn.kind);
+    setPrompt(turn.prompt);
+    toast.info("הבקשה נטענה לעריכה");
   }
 
   return (
@@ -74,7 +104,7 @@ function AIAssistantPage() {
           <Sparkles className="h-6 w-6 text-primary" /> AI Assistant
         </h1>
         <p className="text-sm text-muted-foreground">
-          עוזר פנימי בגישת proposal-first. אינו מבצע פעולות אוטומטיות; כל פלט הוא הצעה לאישור מנהל.
+          עוזר פנימי בגישת proposal-first. אינו מבצע פעולות אוטומטיות; כל פלט הוא הצעה לאישור מנהל. ההיסטוריה נשמרת בצד שרת.
         </p>
       </div>
 
@@ -111,18 +141,30 @@ function AIAssistantPage() {
       </Card>
 
       <div className="space-y-4">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <History className="h-3.5 w-3.5" />
+          היסטוריה (נשמרת בשרת) {loadingHistory ? "· טוען…" : `· ${history.length} פריטים`}
+        </div>
         {history.map((t, i) => (
-          <Card key={i} className="p-4">
+          <Card key={t.id ?? i} className="p-4">
             <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-[10px]">
                   {KIND_OPTIONS.find((o) => o.value === t.kind)?.label ?? t.kind}
                 </Badge>
+                {t.status && t.status !== "completed" && (
+                  <Badge variant="outline" className="text-[10px]">{t.status}</Badge>
+                )}
                 <span className="text-xs text-muted-foreground">{new Date(t.ts).toLocaleString("he-IL")}</span>
               </div>
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => saveAsTask(t)}>
-                <CheckSquare className="h-3.5 w-3.5" /> שמור כמשימה
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => reuse(t)}>
+                  <Repeat2 className="h-3.5 w-3.5" /> השתמש שוב
+                </Button>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => saveAsTask(t)}>
+                  <CheckSquare className="h-3.5 w-3.5" /> שמור כמשימה
+                </Button>
+              </div>
             </div>
             <div className="text-xs text-muted-foreground mb-2 whitespace-pre-wrap border-r-2 border-primary/40 pr-3">{t.prompt}</div>
             <div className="prose prose-sm dark:prose-invert max-w-none">
