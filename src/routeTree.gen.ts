@@ -19,6 +19,8 @@ import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as ApiDebugSystemSummaryRouteImport } from './routes/api/debug/system-summary'
+import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
 import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
@@ -76,6 +78,16 @@ const AppCampaignsRoute = AppCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiDebugSystemSummaryRoute = ApiDebugSystemSummaryRouteImport.update({
+  id: '/api/debug/system-summary',
+  path: '/api/debug/system-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugFrontendMapRoute = ApiDebugFrontendMapRouteImport.update({
+  id: '/api/debug/frontend-map',
+  path: '/api/debug/frontend-map',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
   id: '/settings/api',
@@ -135,6 +147,8 @@ export interface FileRoutesByFullPath {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
+  '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -154,6 +168,8 @@ export interface FileRoutesByTo {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
+  '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -175,6 +191,8 @@ export interface FileRoutesById {
   '/_app/contacts/$id': typeof AppContactsIdRoute
   '/_app/offers/$id': typeof AppOffersIdRoute
   '/_app/settings/api': typeof AppSettingsApiRoute
+  '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
+  '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -196,6 +214,8 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/api/debug/frontend-map'
+    | '/api/debug/system-summary'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -215,6 +235,8 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/api/debug/frontend-map'
+    | '/api/debug/system-summary'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -235,6 +257,8 @@ export interface FileRouteTypes {
     | '/_app/contacts/$id'
     | '/_app/offers/$id'
     | '/_app/settings/api'
+    | '/api/debug/frontend-map'
+    | '/api/debug/system-summary'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -243,6 +267,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiDebugFrontendMapRoute: typeof ApiDebugFrontendMapRoute
+  ApiDebugSystemSummaryRoute: typeof ApiDebugSystemSummaryRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
@@ -319,6 +345,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/campaigns'
       preLoaderRoute: typeof AppCampaignsRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/debug/system-summary': {
+      id: '/api/debug/system-summary'
+      path: '/api/debug/system-summary'
+      fullPath: '/api/debug/system-summary'
+      preLoaderRoute: typeof ApiDebugSystemSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/frontend-map': {
+      id: '/api/debug/frontend-map'
+      path: '/api/debug/frontend-map'
+      fullPath: '/api/debug/frontend-map'
+      preLoaderRoute: typeof ApiDebugFrontendMapRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/settings/api': {
       id: '/_app/settings/api'
@@ -446,6 +486,8 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiDebugFrontendMapRoute: ApiDebugFrontendMapRoute,
+  ApiDebugSystemSummaryRoute: ApiDebugSystemSummaryRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
@@ -453,3 +495,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
