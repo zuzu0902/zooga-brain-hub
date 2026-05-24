@@ -25,7 +25,11 @@ export const Route = createFileRoute("/api/introspect/health-report")({
       ai_gateway: presence(process.env.LOVABLE_API_KEY).present ? "healthy" : "degraded",
       tamar_backend: settings?.tamar_backend_url ? "healthy" : "degraded",
       tamar_webhook: presence(settings?.webhook_token ?? null).present ? "healthy" : "degraded",
-      handoff_console_ui: "missing",
+      handoff_console_ui: "healthy",
+      tasks_console_ui: "healthy",
+      internal_ai_assistant: presence(process.env.LOVABLE_API_KEY).present ? "healthy" : "degraded",
+      tamar_decision_visibility: "healthy",
+      contact_live_conversation: "healthy",
     };
 
     return jsonResponse({
