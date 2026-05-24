@@ -18,6 +18,7 @@ const ROUTES = [
   { path: "/tasks", screen: "tasks_console", auth: true, nav: true, features: ["list","filter","create","complete","reopen","delete","source_kind","resolution_state"] },
   { path: "/handoff", screen: "handoff_console", auth: true, nav: true, features: ["flagged_contacts","global_pending_insights","approve","reject","linked_task_create","mark_under_human","return_to_ai","clear_flag","resolution_legend"] },
   { path: "/ai-assistant", screen: "internal_ai_assistant", auth: true, nav: true, features: ["proposal_first","summarize_contact","summarize_hot_leads_week","suggest_segment","draft_campaign","suggest_triage","free_form","grounded_in_zooga","context_used_panel","save_as_task"] },
+  { path: "/settings/tamar", screen: "tamar_behavior_settings", auth: true, nav: true, features: ["tone_preset","confidence_thresholds","memory_write_policy","memory_kinds","handoff_threshold","handoff_keywords","routing_mode","autonomous_offers_toggle","autonomous_campaigns_toggle","sales_aggressiveness","sales_max_followups","backfill_memories_action"] },
   { path: "/settings/api", screen: "tamar_api_settings", auth: true, nav: true },
 ];
 
@@ -44,6 +45,10 @@ export const Route = createFileRoute("/api/introspect/frontend-map")({
         grounded_ai_assistant: true,
         handoff_resolution_actions: true,
         handoff_task_linkage: true,
+        tamar_behavior_settings: true,
+        ai_assistant_persistence: true,
+        memory_v2_backfill: true,
+        tamar_outbound_env_config: true,
       },
       planned_modules: {
         autonomous_campaign_agent: false,
