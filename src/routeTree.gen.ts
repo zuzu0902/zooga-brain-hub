@@ -19,6 +19,21 @@ import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as ApiIntrospectUiGapsRouteImport } from './routes/api/introspect/ui-gaps'
+import { Route as ApiIntrospectTamarRoutingRouteImport } from './routes/api/introspect/tamar-routing'
+import { Route as ApiIntrospectTamarConfigRouteImport } from './routes/api/introspect/tamar-config'
+import { Route as ApiIntrospectSystemOverviewRouteImport } from './routes/api/introspect/system-overview'
+import { Route as ApiIntrospectSchemaSummaryRouteImport } from './routes/api/introspect/schema-summary'
+import { Route as ApiIntrospectRecentEventsRouteImport } from './routes/api/introspect/recent-events'
+import { Route as ApiIntrospectIntegrationsStatusRouteImport } from './routes/api/introspect/integrations-status'
+import { Route as ApiIntrospectHealthReportRouteImport } from './routes/api/introspect/health-report'
+import { Route as ApiIntrospectFrontendMapRouteImport } from './routes/api/introspect/frontend-map'
+import { Route as ApiIntrospectFeatureFlagsRouteImport } from './routes/api/introspect/feature-flags'
+import { Route as ApiIntrospectDeploymentSummaryRouteImport } from './routes/api/introspect/deployment-summary'
+import { Route as ApiIntrospectCrmSummaryRouteImport } from './routes/api/introspect/crm-summary'
+import { Route as ApiIntrospectCampaignsSummaryRouteImport } from './routes/api/introspect/campaigns-summary'
+import { Route as ApiIntrospectBackendMapRouteImport } from './routes/api/introspect/backend-map'
+import { Route as ApiIntrospectAgentsSummaryRouteImport } from './routes/api/introspect/agents-summary'
 import { Route as ApiDebugTamarConfigRouteImport } from './routes/api/debug/tamar-config'
 import { Route as ApiDebugSystemSummaryRouteImport } from './routes/api/debug/system-summary'
 import { Route as ApiDebugSchemaSummaryRouteImport } from './routes/api/debug/schema-summary'
@@ -84,6 +99,93 @@ const AppCampaignsRoute = AppCampaignsRouteImport.update({
   path: '/campaigns',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiIntrospectUiGapsRoute = ApiIntrospectUiGapsRouteImport.update({
+  id: '/api/introspect/ui-gaps',
+  path: '/api/introspect/ui-gaps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIntrospectTamarRoutingRoute =
+  ApiIntrospectTamarRoutingRouteImport.update({
+    id: '/api/introspect/tamar-routing',
+    path: '/api/introspect/tamar-routing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectTamarConfigRoute =
+  ApiIntrospectTamarConfigRouteImport.update({
+    id: '/api/introspect/tamar-config',
+    path: '/api/introspect/tamar-config',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectSystemOverviewRoute =
+  ApiIntrospectSystemOverviewRouteImport.update({
+    id: '/api/introspect/system-overview',
+    path: '/api/introspect/system-overview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectSchemaSummaryRoute =
+  ApiIntrospectSchemaSummaryRouteImport.update({
+    id: '/api/introspect/schema-summary',
+    path: '/api/introspect/schema-summary',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectRecentEventsRoute =
+  ApiIntrospectRecentEventsRouteImport.update({
+    id: '/api/introspect/recent-events',
+    path: '/api/introspect/recent-events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectIntegrationsStatusRoute =
+  ApiIntrospectIntegrationsStatusRouteImport.update({
+    id: '/api/introspect/integrations-status',
+    path: '/api/introspect/integrations-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectHealthReportRoute =
+  ApiIntrospectHealthReportRouteImport.update({
+    id: '/api/introspect/health-report',
+    path: '/api/introspect/health-report',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectFrontendMapRoute =
+  ApiIntrospectFrontendMapRouteImport.update({
+    id: '/api/introspect/frontend-map',
+    path: '/api/introspect/frontend-map',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectFeatureFlagsRoute =
+  ApiIntrospectFeatureFlagsRouteImport.update({
+    id: '/api/introspect/feature-flags',
+    path: '/api/introspect/feature-flags',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectDeploymentSummaryRoute =
+  ApiIntrospectDeploymentSummaryRouteImport.update({
+    id: '/api/introspect/deployment-summary',
+    path: '/api/introspect/deployment-summary',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectCrmSummaryRoute = ApiIntrospectCrmSummaryRouteImport.update({
+  id: '/api/introspect/crm-summary',
+  path: '/api/introspect/crm-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIntrospectCampaignsSummaryRoute =
+  ApiIntrospectCampaignsSummaryRouteImport.update({
+    id: '/api/introspect/campaigns-summary',
+    path: '/api/introspect/campaigns-summary',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectBackendMapRoute = ApiIntrospectBackendMapRouteImport.update({
+  id: '/api/introspect/backend-map',
+  path: '/api/introspect/backend-map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIntrospectAgentsSummaryRoute =
+  ApiIntrospectAgentsSummaryRouteImport.update({
+    id: '/api/introspect/agents-summary',
+    path: '/api/introspect/agents-summary',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDebugTamarConfigRoute = ApiDebugTamarConfigRouteImport.update({
   id: '/api/debug/tamar-config',
   path: '/api/debug/tamar-config',
@@ -185,6 +287,21 @@ export interface FileRoutesByFullPath {
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
   '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
+  '/api/introspect/agents-summary': typeof ApiIntrospectAgentsSummaryRoute
+  '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
+  '/api/introspect/campaigns-summary': typeof ApiIntrospectCampaignsSummaryRoute
+  '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
+  '/api/introspect/deployment-summary': typeof ApiIntrospectDeploymentSummaryRoute
+  '/api/introspect/feature-flags': typeof ApiIntrospectFeatureFlagsRoute
+  '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
+  '/api/introspect/health-report': typeof ApiIntrospectHealthReportRoute
+  '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
+  '/api/introspect/recent-events': typeof ApiIntrospectRecentEventsRoute
+  '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
+  '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
+  '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
+  '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
+  '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -211,6 +328,21 @@ export interface FileRoutesByTo {
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
   '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
+  '/api/introspect/agents-summary': typeof ApiIntrospectAgentsSummaryRoute
+  '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
+  '/api/introspect/campaigns-summary': typeof ApiIntrospectCampaignsSummaryRoute
+  '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
+  '/api/introspect/deployment-summary': typeof ApiIntrospectDeploymentSummaryRoute
+  '/api/introspect/feature-flags': typeof ApiIntrospectFeatureFlagsRoute
+  '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
+  '/api/introspect/health-report': typeof ApiIntrospectHealthReportRoute
+  '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
+  '/api/introspect/recent-events': typeof ApiIntrospectRecentEventsRoute
+  '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
+  '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
+  '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
+  '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
+  '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -239,6 +371,21 @@ export interface FileRoutesById {
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
   '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
+  '/api/introspect/agents-summary': typeof ApiIntrospectAgentsSummaryRoute
+  '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
+  '/api/introspect/campaigns-summary': typeof ApiIntrospectCampaignsSummaryRoute
+  '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
+  '/api/introspect/deployment-summary': typeof ApiIntrospectDeploymentSummaryRoute
+  '/api/introspect/feature-flags': typeof ApiIntrospectFeatureFlagsRoute
+  '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
+  '/api/introspect/health-report': typeof ApiIntrospectHealthReportRoute
+  '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
+  '/api/introspect/recent-events': typeof ApiIntrospectRecentEventsRoute
+  '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
+  '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
+  '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
+  '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
+  '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -267,6 +414,21 @@ export interface FileRouteTypes {
     | '/api/debug/schema-summary'
     | '/api/debug/system-summary'
     | '/api/debug/tamar-config'
+    | '/api/introspect/agents-summary'
+    | '/api/introspect/backend-map'
+    | '/api/introspect/campaigns-summary'
+    | '/api/introspect/crm-summary'
+    | '/api/introspect/deployment-summary'
+    | '/api/introspect/feature-flags'
+    | '/api/introspect/frontend-map'
+    | '/api/introspect/health-report'
+    | '/api/introspect/integrations-status'
+    | '/api/introspect/recent-events'
+    | '/api/introspect/schema-summary'
+    | '/api/introspect/system-overview'
+    | '/api/introspect/tamar-config'
+    | '/api/introspect/tamar-routing'
+    | '/api/introspect/ui-gaps'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -293,6 +455,21 @@ export interface FileRouteTypes {
     | '/api/debug/schema-summary'
     | '/api/debug/system-summary'
     | '/api/debug/tamar-config'
+    | '/api/introspect/agents-summary'
+    | '/api/introspect/backend-map'
+    | '/api/introspect/campaigns-summary'
+    | '/api/introspect/crm-summary'
+    | '/api/introspect/deployment-summary'
+    | '/api/introspect/feature-flags'
+    | '/api/introspect/frontend-map'
+    | '/api/introspect/health-report'
+    | '/api/introspect/integrations-status'
+    | '/api/introspect/recent-events'
+    | '/api/introspect/schema-summary'
+    | '/api/introspect/system-overview'
+    | '/api/introspect/tamar-config'
+    | '/api/introspect/tamar-routing'
+    | '/api/introspect/ui-gaps'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -320,6 +497,21 @@ export interface FileRouteTypes {
     | '/api/debug/schema-summary'
     | '/api/debug/system-summary'
     | '/api/debug/tamar-config'
+    | '/api/introspect/agents-summary'
+    | '/api/introspect/backend-map'
+    | '/api/introspect/campaigns-summary'
+    | '/api/introspect/crm-summary'
+    | '/api/introspect/deployment-summary'
+    | '/api/introspect/feature-flags'
+    | '/api/introspect/frontend-map'
+    | '/api/introspect/health-report'
+    | '/api/introspect/integrations-status'
+    | '/api/introspect/recent-events'
+    | '/api/introspect/schema-summary'
+    | '/api/introspect/system-overview'
+    | '/api/introspect/tamar-config'
+    | '/api/introspect/tamar-routing'
+    | '/api/introspect/ui-gaps'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -335,6 +527,21 @@ export interface RootRouteChildren {
   ApiDebugSchemaSummaryRoute: typeof ApiDebugSchemaSummaryRoute
   ApiDebugSystemSummaryRoute: typeof ApiDebugSystemSummaryRoute
   ApiDebugTamarConfigRoute: typeof ApiDebugTamarConfigRoute
+  ApiIntrospectAgentsSummaryRoute: typeof ApiIntrospectAgentsSummaryRoute
+  ApiIntrospectBackendMapRoute: typeof ApiIntrospectBackendMapRoute
+  ApiIntrospectCampaignsSummaryRoute: typeof ApiIntrospectCampaignsSummaryRoute
+  ApiIntrospectCrmSummaryRoute: typeof ApiIntrospectCrmSummaryRoute
+  ApiIntrospectDeploymentSummaryRoute: typeof ApiIntrospectDeploymentSummaryRoute
+  ApiIntrospectFeatureFlagsRoute: typeof ApiIntrospectFeatureFlagsRoute
+  ApiIntrospectFrontendMapRoute: typeof ApiIntrospectFrontendMapRoute
+  ApiIntrospectHealthReportRoute: typeof ApiIntrospectHealthReportRoute
+  ApiIntrospectIntegrationsStatusRoute: typeof ApiIntrospectIntegrationsStatusRoute
+  ApiIntrospectRecentEventsRoute: typeof ApiIntrospectRecentEventsRoute
+  ApiIntrospectSchemaSummaryRoute: typeof ApiIntrospectSchemaSummaryRoute
+  ApiIntrospectSystemOverviewRoute: typeof ApiIntrospectSystemOverviewRoute
+  ApiIntrospectTamarConfigRoute: typeof ApiIntrospectTamarConfigRoute
+  ApiIntrospectTamarRoutingRoute: typeof ApiIntrospectTamarRoutingRoute
+  ApiIntrospectUiGapsRoute: typeof ApiIntrospectUiGapsRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
@@ -411,6 +618,111 @@ declare module '@tanstack/react-router' {
       fullPath: '/campaigns'
       preLoaderRoute: typeof AppCampaignsRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/introspect/ui-gaps': {
+      id: '/api/introspect/ui-gaps'
+      path: '/api/introspect/ui-gaps'
+      fullPath: '/api/introspect/ui-gaps'
+      preLoaderRoute: typeof ApiIntrospectUiGapsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/tamar-routing': {
+      id: '/api/introspect/tamar-routing'
+      path: '/api/introspect/tamar-routing'
+      fullPath: '/api/introspect/tamar-routing'
+      preLoaderRoute: typeof ApiIntrospectTamarRoutingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/tamar-config': {
+      id: '/api/introspect/tamar-config'
+      path: '/api/introspect/tamar-config'
+      fullPath: '/api/introspect/tamar-config'
+      preLoaderRoute: typeof ApiIntrospectTamarConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/system-overview': {
+      id: '/api/introspect/system-overview'
+      path: '/api/introspect/system-overview'
+      fullPath: '/api/introspect/system-overview'
+      preLoaderRoute: typeof ApiIntrospectSystemOverviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/schema-summary': {
+      id: '/api/introspect/schema-summary'
+      path: '/api/introspect/schema-summary'
+      fullPath: '/api/introspect/schema-summary'
+      preLoaderRoute: typeof ApiIntrospectSchemaSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/recent-events': {
+      id: '/api/introspect/recent-events'
+      path: '/api/introspect/recent-events'
+      fullPath: '/api/introspect/recent-events'
+      preLoaderRoute: typeof ApiIntrospectRecentEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/integrations-status': {
+      id: '/api/introspect/integrations-status'
+      path: '/api/introspect/integrations-status'
+      fullPath: '/api/introspect/integrations-status'
+      preLoaderRoute: typeof ApiIntrospectIntegrationsStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/health-report': {
+      id: '/api/introspect/health-report'
+      path: '/api/introspect/health-report'
+      fullPath: '/api/introspect/health-report'
+      preLoaderRoute: typeof ApiIntrospectHealthReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/frontend-map': {
+      id: '/api/introspect/frontend-map'
+      path: '/api/introspect/frontend-map'
+      fullPath: '/api/introspect/frontend-map'
+      preLoaderRoute: typeof ApiIntrospectFrontendMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/feature-flags': {
+      id: '/api/introspect/feature-flags'
+      path: '/api/introspect/feature-flags'
+      fullPath: '/api/introspect/feature-flags'
+      preLoaderRoute: typeof ApiIntrospectFeatureFlagsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/deployment-summary': {
+      id: '/api/introspect/deployment-summary'
+      path: '/api/introspect/deployment-summary'
+      fullPath: '/api/introspect/deployment-summary'
+      preLoaderRoute: typeof ApiIntrospectDeploymentSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/crm-summary': {
+      id: '/api/introspect/crm-summary'
+      path: '/api/introspect/crm-summary'
+      fullPath: '/api/introspect/crm-summary'
+      preLoaderRoute: typeof ApiIntrospectCrmSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/campaigns-summary': {
+      id: '/api/introspect/campaigns-summary'
+      path: '/api/introspect/campaigns-summary'
+      fullPath: '/api/introspect/campaigns-summary'
+      preLoaderRoute: typeof ApiIntrospectCampaignsSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/backend-map': {
+      id: '/api/introspect/backend-map'
+      path: '/api/introspect/backend-map'
+      fullPath: '/api/introspect/backend-map'
+      preLoaderRoute: typeof ApiIntrospectBackendMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/agents-summary': {
+      id: '/api/introspect/agents-summary'
+      path: '/api/introspect/agents-summary'
+      fullPath: '/api/introspect/agents-summary'
+      preLoaderRoute: typeof ApiIntrospectAgentsSummaryRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/debug/tamar-config': {
       id: '/api/debug/tamar-config'
@@ -594,6 +906,21 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDebugSchemaSummaryRoute: ApiDebugSchemaSummaryRoute,
   ApiDebugSystemSummaryRoute: ApiDebugSystemSummaryRoute,
   ApiDebugTamarConfigRoute: ApiDebugTamarConfigRoute,
+  ApiIntrospectAgentsSummaryRoute: ApiIntrospectAgentsSummaryRoute,
+  ApiIntrospectBackendMapRoute: ApiIntrospectBackendMapRoute,
+  ApiIntrospectCampaignsSummaryRoute: ApiIntrospectCampaignsSummaryRoute,
+  ApiIntrospectCrmSummaryRoute: ApiIntrospectCrmSummaryRoute,
+  ApiIntrospectDeploymentSummaryRoute: ApiIntrospectDeploymentSummaryRoute,
+  ApiIntrospectFeatureFlagsRoute: ApiIntrospectFeatureFlagsRoute,
+  ApiIntrospectFrontendMapRoute: ApiIntrospectFrontendMapRoute,
+  ApiIntrospectHealthReportRoute: ApiIntrospectHealthReportRoute,
+  ApiIntrospectIntegrationsStatusRoute: ApiIntrospectIntegrationsStatusRoute,
+  ApiIntrospectRecentEventsRoute: ApiIntrospectRecentEventsRoute,
+  ApiIntrospectSchemaSummaryRoute: ApiIntrospectSchemaSummaryRoute,
+  ApiIntrospectSystemOverviewRoute: ApiIntrospectSystemOverviewRoute,
+  ApiIntrospectTamarConfigRoute: ApiIntrospectTamarConfigRoute,
+  ApiIntrospectTamarRoutingRoute: ApiIntrospectTamarRoutingRoute,
+  ApiIntrospectUiGapsRoute: ApiIntrospectUiGapsRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
