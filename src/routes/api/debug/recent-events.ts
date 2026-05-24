@@ -26,17 +26,17 @@ const handler = async ({ request }: { request: Request }) => {
         .limit(limit),
       supabaseAdmin
         .from("interactions")
-        .select("id, type, direction, timestamp")
+        .select("id, type, source, timestamp")
         .order("timestamp", { ascending: false })
         .limit(limit),
       supabaseAdmin
         .from("extracted_attributes")
-        .select("id, field, confidence, source, created_at")
+        .select("id, attribute_name, confidence_score, source, applied, created_at")
         .order("created_at", { ascending: false })
         .limit(limit),
       supabaseAdmin
         .from("pending_ai_insights")
-        .select("id, field, confidence, status, created_at")
+        .select("id, field_name, category, confidence_score, status, created_at")
         .order("created_at", { ascending: false })
         .limit(limit),
     ]);
@@ -49,26 +49,26 @@ const handler = async ({ request }: { request: Request }) => {
       error_present: !!w.error,
       timestamp: w.created_at,
     })),
-    ...(interactions ?? []).map((i) => ({
+    ...(interactions ?? []).map((i: any) => ({
       event_type: "interaction",
-      source: i.direction ?? "unknown",
+      source: i.source ?? "unknown",
       status: i.type,
       error_present: false,
       timestamp: i.timestamp,
     })),
-    ...(extractions ?? []).map((e) => ({
+    ...(extractions ?? []).map((e: any) => ({
       event_type: "ai_extraction",
       source: e.source,
-      status: `confidence:${e.confidence ?? "?"}`,
-      field: e.field,
+      status: `${e.applied ? "applied" : "pending"}:conf${e.confidence_score ?? "?"}`,
+      field: e.attribute_name,
       error_present: false,
       timestamp: e.created_at,
     })),
-    ...(pending ?? []).map((p) => ({
+    ...(pending ?? []).map((p: any) => ({
       event_type: "pending_insight",
       source: "intelligence_extractor",
       status: p.status,
-      field: p.field,
+      field: p.field_name ?? p.category,
       error_present: false,
       timestamp: p.created_at,
     })),
