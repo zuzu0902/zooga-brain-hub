@@ -19,6 +19,7 @@ import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as ApiIntrospectTamarRoutingRouteImport } from './routes/api/introspect/tamar-routing'
 import { Route as ApiIntrospectTamarConfigRouteImport } from './routes/api/introspect/tamar-config'
 import { Route as ApiIntrospectSystemOverviewRouteImport } from './routes/api/introspect/system-overview'
 import { Route as ApiIntrospectSchemaSummaryRouteImport } from './routes/api/introspect/schema-summary'
@@ -89,6 +90,12 @@ const AppCampaignsRoute = AppCampaignsRouteImport.update({
   path: '/campaigns',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiIntrospectTamarRoutingRoute =
+  ApiIntrospectTamarRoutingRouteImport.update({
+    id: '/api/introspect/tamar-routing',
+    path: '/api/introspect/tamar-routing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiIntrospectTamarConfigRoute =
   ApiIntrospectTamarConfigRouteImport.update({
     id: '/api/introspect/tamar-config',
@@ -224,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
   '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
+  '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -255,6 +263,7 @@ export interface FileRoutesByTo {
   '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
   '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
+  '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -288,6 +297,7 @@ export interface FileRoutesById {
   '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
   '/api/introspect/system-overview': typeof ApiIntrospectSystemOverviewRoute
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
+  '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/api/introspect/schema-summary'
     | '/api/introspect/system-overview'
     | '/api/introspect/tamar-config'
+    | '/api/introspect/tamar-routing'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/api/introspect/schema-summary'
     | '/api/introspect/system-overview'
     | '/api/introspect/tamar-config'
+    | '/api/introspect/tamar-routing'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -384,6 +396,7 @@ export interface FileRouteTypes {
     | '/api/introspect/schema-summary'
     | '/api/introspect/system-overview'
     | '/api/introspect/tamar-config'
+    | '/api/introspect/tamar-routing'
     | '/api/public/intelligence/extract'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -404,6 +417,7 @@ export interface RootRouteChildren {
   ApiIntrospectSchemaSummaryRoute: typeof ApiIntrospectSchemaSummaryRoute
   ApiIntrospectSystemOverviewRoute: typeof ApiIntrospectSystemOverviewRoute
   ApiIntrospectTamarConfigRoute: typeof ApiIntrospectTamarConfigRoute
+  ApiIntrospectTamarRoutingRoute: typeof ApiIntrospectTamarRoutingRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
@@ -480,6 +494,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/campaigns'
       preLoaderRoute: typeof AppCampaignsRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/introspect/tamar-routing': {
+      id: '/api/introspect/tamar-routing'
+      path: '/api/introspect/tamar-routing'
+      fullPath: '/api/introspect/tamar-routing'
+      preLoaderRoute: typeof ApiIntrospectTamarRoutingRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/introspect/tamar-config': {
       id: '/api/introspect/tamar-config'
@@ -703,6 +724,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntrospectSchemaSummaryRoute: ApiIntrospectSchemaSummaryRoute,
   ApiIntrospectSystemOverviewRoute: ApiIntrospectSystemOverviewRoute,
   ApiIntrospectTamarConfigRoute: ApiIntrospectTamarConfigRoute,
+  ApiIntrospectTamarRoutingRoute: ApiIntrospectTamarRoutingRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
