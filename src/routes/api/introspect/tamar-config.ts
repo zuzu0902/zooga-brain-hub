@@ -10,27 +10,40 @@ export const Route = createFileRoute("/api/introspect/tamar-config")({
       question_count: def.questions.length, has_system_addendum: !!def.system_addendum,
     }));
     return jsonResponse({
+      source_of_truth: {
+        memory_authority: "zooga",
+        conversation_authority: "zooga",
+        tasks_authority: "zooga",
+        handoff_authority: "zooga",
+        tamar_backend_role: "channel_runtime_only",
+      },
       tone_preset: "warm-professional-hebrew",
       language: "he-IL",
       enabled_agents: {
         intake_bot: true, intelligence_extractor: true, memory_writer: true,
         pending_insight_router: true, autonomous_campaign_agent: false,
+        grounded_ai_assistant: true, handoff_resolution_router: true,
       },
       thresholds: {
         auto_apply_confidence_min: 75,
         pending_review_confidence_max: 74,
         handoff_on_factual_doubt: true,
+        confidence_bands: { high_min: 75, medium_min: 50, low_max: 49 },
       },
       memory_policy: {
         table: "contact_memories",
-        kinds_supported: ["preference","fact","warning","observation"],
+        kinds_supported: ["fact","preference","warning","observation","relationship_signal","offer_signal"],
+        taxonomy_version: 2,
         retention: "indefinite",
         write_rule: "high-confidence extractor or explicit user statement",
+        authority: "zooga",
       },
       handoff_policy: {
         table: "pending_ai_insights",
         trigger: "confidence < 75 OR factual_doubt",
-        dedicated_console_screen: false,
+        dedicated_console_screen: true,
+        resolution_states: ["pending","under_human","returned_to_ai","resolved"],
+        task_linkage_column: "linked_task_id",
       },
       sales: {
         tracks_fit_score: true, tracks_sales_temperature: true,
