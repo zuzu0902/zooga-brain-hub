@@ -25,6 +25,7 @@ import { Route as ApiIntrospectSystemOverviewRouteImport } from './routes/api/in
 import { Route as ApiIntrospectSchemaSummaryRouteImport } from './routes/api/introspect/schema-summary'
 import { Route as ApiIntrospectIntegrationsStatusRouteImport } from './routes/api/introspect/integrations-status'
 import { Route as ApiIntrospectFrontendMapRouteImport } from './routes/api/introspect/frontend-map'
+import { Route as ApiIntrospectCrmSummaryRouteImport } from './routes/api/introspect/crm-summary'
 import { Route as ApiIntrospectBackendMapRouteImport } from './routes/api/introspect/backend-map'
 import { Route as ApiIntrospectAgentsSummaryRouteImport } from './routes/api/introspect/agents-summary'
 import { Route as ApiDebugTamarConfigRouteImport } from './routes/api/debug/tamar-config'
@@ -128,6 +129,11 @@ const ApiIntrospectFrontendMapRoute =
     path: '/api/introspect/frontend-map',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiIntrospectCrmSummaryRoute = ApiIntrospectCrmSummaryRouteImport.update({
+  id: '/api/introspect/crm-summary',
+  path: '/api/introspect/crm-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiIntrospectBackendMapRoute = ApiIntrospectBackendMapRouteImport.update({
   id: '/api/introspect/backend-map',
   path: '/api/introspect/backend-map',
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
   '/api/introspect/agents-summary': typeof ApiIntrospectAgentsSummaryRoute
   '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
+  '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
   '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
   '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
   '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
@@ -276,6 +283,7 @@ export interface FileRoutesByTo {
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
   '/api/introspect/agents-summary': typeof ApiIntrospectAgentsSummaryRoute
   '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
+  '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
   '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
   '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
   '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
@@ -312,6 +320,7 @@ export interface FileRoutesById {
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
   '/api/introspect/agents-summary': typeof ApiIntrospectAgentsSummaryRoute
   '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
+  '/api/introspect/crm-summary': typeof ApiIntrospectCrmSummaryRoute
   '/api/introspect/frontend-map': typeof ApiIntrospectFrontendMapRoute
   '/api/introspect/integrations-status': typeof ApiIntrospectIntegrationsStatusRoute
   '/api/introspect/schema-summary': typeof ApiIntrospectSchemaSummaryRoute
@@ -348,6 +357,7 @@ export interface FileRouteTypes {
     | '/api/debug/tamar-config'
     | '/api/introspect/agents-summary'
     | '/api/introspect/backend-map'
+    | '/api/introspect/crm-summary'
     | '/api/introspect/frontend-map'
     | '/api/introspect/integrations-status'
     | '/api/introspect/schema-summary'
@@ -382,6 +392,7 @@ export interface FileRouteTypes {
     | '/api/debug/tamar-config'
     | '/api/introspect/agents-summary'
     | '/api/introspect/backend-map'
+    | '/api/introspect/crm-summary'
     | '/api/introspect/frontend-map'
     | '/api/introspect/integrations-status'
     | '/api/introspect/schema-summary'
@@ -417,6 +428,7 @@ export interface FileRouteTypes {
     | '/api/debug/tamar-config'
     | '/api/introspect/agents-summary'
     | '/api/introspect/backend-map'
+    | '/api/introspect/crm-summary'
     | '/api/introspect/frontend-map'
     | '/api/introspect/integrations-status'
     | '/api/introspect/schema-summary'
@@ -440,6 +452,7 @@ export interface RootRouteChildren {
   ApiDebugTamarConfigRoute: typeof ApiDebugTamarConfigRoute
   ApiIntrospectAgentsSummaryRoute: typeof ApiIntrospectAgentsSummaryRoute
   ApiIntrospectBackendMapRoute: typeof ApiIntrospectBackendMapRoute
+  ApiIntrospectCrmSummaryRoute: typeof ApiIntrospectCrmSummaryRoute
   ApiIntrospectFrontendMapRoute: typeof ApiIntrospectFrontendMapRoute
   ApiIntrospectIntegrationsStatusRoute: typeof ApiIntrospectIntegrationsStatusRoute
   ApiIntrospectSchemaSummaryRoute: typeof ApiIntrospectSchemaSummaryRoute
@@ -563,6 +576,13 @@ declare module '@tanstack/react-router' {
       path: '/api/introspect/frontend-map'
       fullPath: '/api/introspect/frontend-map'
       preLoaderRoute: typeof ApiIntrospectFrontendMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/introspect/crm-summary': {
+      id: '/api/introspect/crm-summary'
+      path: '/api/introspect/crm-summary'
+      fullPath: '/api/introspect/crm-summary'
+      preLoaderRoute: typeof ApiIntrospectCrmSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/introspect/backend-map': {
@@ -763,6 +783,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDebugTamarConfigRoute: ApiDebugTamarConfigRoute,
   ApiIntrospectAgentsSummaryRoute: ApiIntrospectAgentsSummaryRoute,
   ApiIntrospectBackendMapRoute: ApiIntrospectBackendMapRoute,
+  ApiIntrospectCrmSummaryRoute: ApiIntrospectCrmSummaryRoute,
   ApiIntrospectFrontendMapRoute: ApiIntrospectFrontendMapRoute,
   ApiIntrospectIntegrationsStatusRoute: ApiIntrospectIntegrationsStatusRoute,
   ApiIntrospectSchemaSummaryRoute: ApiIntrospectSchemaSummaryRoute,
