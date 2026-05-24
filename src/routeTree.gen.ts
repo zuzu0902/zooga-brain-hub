@@ -24,6 +24,7 @@ import { Route as ApiDebugSystemSummaryRouteImport } from './routes/api/debug/sy
 import { Route as ApiDebugSchemaSummaryRouteImport } from './routes/api/debug/schema-summary'
 import { Route as ApiDebugIntegrationsStatusRouteImport } from './routes/api/debug/integrations-status'
 import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
+import { Route as ApiDebugAgentsSummaryRouteImport } from './routes/api/debug/agents-summary'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
 import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
@@ -108,6 +109,11 @@ const ApiDebugFrontendMapRoute = ApiDebugFrontendMapRouteImport.update({
   path: '/api/debug/frontend-map',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDebugAgentsSummaryRoute = ApiDebugAgentsSummaryRouteImport.update({
+  id: '/api/debug/agents-summary',
+  path: '/api/debug/agents-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
   id: '/settings/api',
   path: '/settings/api',
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/contacts/$id': typeof AppContactsIdRoute
   '/offers/$id': typeof AppOffersIdRoute
   '/settings/api': typeof AppSettingsApiRoute
+  '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/_app/contacts/$id': typeof AppContactsIdRoute
   '/_app/offers/$id': typeof AppOffersIdRoute
   '/_app/settings/api': typeof AppSettingsApiRoute
+  '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
     | '/api/debug/schema-summary'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/contacts/$id'
     | '/offers/$id'
     | '/settings/api'
+    | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
     | '/api/debug/schema-summary'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/_app/contacts/$id'
     | '/_app/offers/$id'
     | '/_app/settings/api'
+    | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
     | '/api/debug/schema-summary'
@@ -304,6 +316,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiDebugAgentsSummaryRoute: typeof ApiDebugAgentsSummaryRoute
   ApiDebugFrontendMapRoute: typeof ApiDebugFrontendMapRoute
   ApiDebugIntegrationsStatusRoute: typeof ApiDebugIntegrationsStatusRoute
   ApiDebugSchemaSummaryRoute: typeof ApiDebugSchemaSummaryRoute
@@ -419,6 +432,13 @@ declare module '@tanstack/react-router' {
       path: '/api/debug/frontend-map'
       fullPath: '/api/debug/frontend-map'
       preLoaderRoute: typeof ApiDebugFrontendMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/agents-summary': {
+      id: '/api/debug/agents-summary'
+      path: '/api/debug/agents-summary'
+      fullPath: '/api/debug/agents-summary'
+      preLoaderRoute: typeof ApiDebugAgentsSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/settings/api': {
@@ -547,6 +567,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiDebugAgentsSummaryRoute: ApiDebugAgentsSummaryRoute,
   ApiDebugFrontendMapRoute: ApiDebugFrontendMapRoute,
   ApiDebugIntegrationsStatusRoute: ApiDebugIntegrationsStatusRoute,
   ApiDebugSchemaSummaryRoute: ApiDebugSchemaSummaryRoute,
