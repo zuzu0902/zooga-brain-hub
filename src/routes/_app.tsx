@@ -1,5 +1,6 @@
-import { createFileRoute, Outlet, Link, useLocation } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
+import { useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -55,6 +56,22 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
 function AppLayout() {
   const { user, isAdmin, loading, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate({ to: "/login", replace: true });
+    }
+  }, [loading, user, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground text-sm">
+        טוען…
+      </div>
+    );
+  }
+  if (!user) return null;
 
   return (
     <div className="min-h-screen flex bg-background" dir="rtl">
@@ -124,6 +141,15 @@ function AppLayout() {
         </div>
       </aside>
       <main className="flex-1 overflow-auto">
+        {!isAdmin && (
+          <div className="m-4 p-4 rounded-md border border-warning/40 bg-warning/10 text-sm">
+            <div className="font-semibold mb-1">חשבון ללא הרשאות מנהל</div>
+            <div className="text-muted-foreground">
+              המשתמש <span className="font-mono">{user.email}</span> מחובר אך אינו מוגדר כ-admin, לכן כל הנתונים מסוננים על ידי RLS ויופיעו ריקים.
+              המשתמש הראשון שנרשם הופך אוטומטית ל-admin. אם זה אינו המקרה, יש להוסיף שורה בטבלת <span className="font-mono">user_roles</span> עם role=admin עבור user_id זה.
+            </div>
+          </div>
+        )}
         <Outlet />
       </main>
     </div>
