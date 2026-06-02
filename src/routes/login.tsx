@@ -28,7 +28,7 @@ function LoginPage() {
     if (error) toast.error("שגיאת התחברות: " + error.message);
     else {
       toast.success("ברוך הבא לזוגה");
-      navigate({ to: "/" });
+      window.location.href = "/";
     }
   }
 
@@ -56,7 +56,7 @@ function LoginPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/" });
+    window.location.href = "/";
   }
 
   return (
