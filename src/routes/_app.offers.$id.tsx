@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { analyzeOfferIntelligence } from "@/lib/offer-intelligence.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tag, ChevronRight, Pencil, Trash2, Megaphone, Plus, Users, Trophy, Activity } from "lucide-react";
+import { Tag, ChevronRight, Pencil, Trash2, Megaphone, Plus, Users, Trophy, Activity, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
 import { CATEGORY_LABELS, INTEREST_LABELS, ALL_INTERESTS, SPENDING_LABELS, formatRelative } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
 import { toast } from "sonner";
