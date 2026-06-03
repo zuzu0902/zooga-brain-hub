@@ -20,11 +20,14 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { INTAKE_FLOWS, type IntakeFlowType } from "@/lib/intake-flows";
 
 async function resolve(params: Record<string, any>) {
-  const [{ data: settings }, { data: behavior }, { data: blocks }] = await Promise.all([
+  const [{ data: settings }, behaviorRes, blocksRes] = await Promise.all([
     supabaseAdmin.from("api_settings").select("default_source, webhook_token").eq("id", 1).maybeSingle(),
     supabaseAdmin.from("tamar_behavior_settings" as any).select("*").eq("id", 1).maybeSingle(),
     supabaseAdmin.from("tamar_prompt_blocks" as any).select("block_key,title,body,version,is_active,updated_at").eq("is_active", true).order("block_key", { ascending: true }),
   ]);
+  const behavior = (behaviorRes.data ?? null) as any;
+  const blocks = (blocksRes.data ?? null) as any[] | null;
+  void settings;
 
   // Contact lookup
   let contact: any = null;
