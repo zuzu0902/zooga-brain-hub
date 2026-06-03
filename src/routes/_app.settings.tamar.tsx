@@ -399,6 +399,49 @@ function TamarBehaviorPage() {
       <div className="text-xs text-muted-foreground">
         עודכן לאחרונה: {s.updated_at ? new Date(s.updated_at).toLocaleString("he-IL") : "—"}
       </div>
+
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="font-semibold flex items-center gap-2">
+            <Activity className="h-4 w-4" /> Runtime traces (15 אחרונים)
+          </h2>
+          <Button size="sm" variant="outline" onClick={loadTraces} disabled={tracesLoading} className="gap-1.5">
+            {tracesLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
+            רענן
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          כל שיחה נכנסת/קריאת runtime-pack כותבת trace עם: גרסת settings, גרסאות prompt_blocks שהוזרקו, האם הוזרקה אינטליגנציית מוצר, האם הוזרק קמפיין, ושימוש ב-fallback/escalation.
+        </p>
+        {traces.length === 0 ? (
+          <div className="text-sm text-muted-foreground">אין traces עדיין.</div>
+        ) : (
+          <div className="space-y-2">
+            {traces.map((t) => {
+              const p = t.payload || {};
+              return (
+                <details key={t.id} className="border rounded-md p-2 text-xs">
+                  <summary className="cursor-pointer flex items-center gap-2 flex-wrap">
+                    <span className="text-muted-foreground">{new Date(t.created_at).toLocaleString("he-IL")}</span>
+                    <Badge variant="outline">{t.source}</Badge>
+                    {p.campaign_injected && <Badge>campaign</Badge>}
+                    {p.offer_intelligence_injected && <Badge>offer</Badge>}
+                    {p.fallback_default_prompt_behavior && <Badge variant="outline">fallback</Badge>}
+                    {p.escalation_due_to_grounding && <Badge variant="destructive">escalate</Badge>}
+                    <span className="text-muted-foreground">
+                      settings @ {p.tamar_settings_version_at ? new Date(p.tamar_settings_version_at).toLocaleTimeString("he-IL") : "—"}
+                      {" · "}blocks: {p.prompt_blocks_count ?? (p.prompt_blocks_injected?.length ?? 0)}
+                    </span>
+                  </summary>
+                  <pre className="mt-2 whitespace-pre-wrap break-all text-[11px] leading-snug">
+                    {JSON.stringify(p, null, 2)}
+                  </pre>
+                </details>
+              );
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
