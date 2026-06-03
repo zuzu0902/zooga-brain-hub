@@ -18,6 +18,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { INTAKE_FLOWS, type IntakeFlowType } from "@/lib/intake-flows";
+import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
+
+function buildOfferIntelligenceBlock(offer: any) {
+  if (!offer) return null;
+  const lines: string[] = [`# אינטליגנציית מוצר: ${offer.title}`];
+  if (offer.ai_summary) lines.push(`סיכום: ${offer.ai_summary}`);
+  if (offer.sales_angle) lines.push(`זווית מכירה: ${offer.sales_angle}`);
+  if (offer.offer_url) lines.push(`מקור עובדתי: ${offer.offer_url}`);
+  if (offer.grounded_facts && typeof offer.grounded_facts === "object" && Object.keys(offer.grounded_facts).length) {
+    lines.push(`עובדות מבוססות (אין לחרוג מהן):\n${JSON.stringify(offer.grounded_facts, null, 2)}`);
+  }
+  const faq = Array.isArray(offer.faq_bundle) ? offer.faq_bundle : [];
+  if (faq.length) lines.push(`שאלות נפוצות:\n${faq.map((f: any, i: number) => `${i + 1}. ש: ${f.q || f.question}\n   ת: ${f.a || f.answer}`).join("\n")}`);
+  const objections = Array.isArray(offer.objection_notes) ? offer.objection_notes : [];
+  if (objections.length) lines.push(`התנגדויות ומענה:\n${objections.map((o: any, i: number) => `${i + 1}. ${o.objection || o.q}: ${o.response || o.a}`).join("\n")}`);
+  if (Array.isArray(offer.matching_tags) && offer.matching_tags.length) lines.push(`תגי התאמה: ${offer.matching_tags.join(", ")}`);
+  if (offer.escalation_boundary && typeof offer.escalation_boundary === "object") {
+    const canAns = Array.isArray(offer.escalation_boundary.tamar_can_answer) ? offer.escalation_boundary.tamar_can_answer : [];
+    const mustEsc = Array.isArray(offer.escalation_boundary.must_escalate) ? offer.escalation_boundary.must_escalate : [];
+    if (canAns.length) lines.push(`תמר יכולה לענות על: ${canAns.join(", ")}`);
+    if (mustEsc.length) lines.push(`חובה להעביר לאדם בנושאים: ${mustEsc.join(", ")}`);
+  }
+  lines.push("כלל הזהב: אם המידע לא מופיע למעלה — אל תמציאי. אמרי בכנות שאת מבררת ותעבירי לבן אדם.");
+  return lines.join("\n");
+}
 
 async function resolve(params: Record<string, any>) {
   const [{ data: settings }, behaviorRes, blocksRes] = await Promise.all([
@@ -129,6 +154,49 @@ async function resolve(params: Record<string, any>) {
     return acc;
   }, {});
 
+  const campaignContextText = campaign
+    ? [
+        `# הקשר קמפיין: ${campaign.name}`,
+        campaign.objective ? `מטרה: ${campaign.objective}` : "",
+        campaign.ai_goal ? `יעד AI: ${campaign.ai_goal}` : "",
+        campaign.tone_style ? `טון: ${campaign.tone_style}` : "",
+        campaign.emotional_angle ? `זווית רגשית: ${campaign.emotional_angle}` : "",
+        campaign.target_audience ? `קהל יעד: ${campaign.target_audience}` : "",
+        campaign.objections?.length ? `התנגדויות: ${campaign.objections.join(", ")}` : "",
+        campaign.prohibited_promises?.length ? `אסור להבטיח: ${campaign.prohibited_promises.join(", ")}` : "",
+        `שאלות אינטייק:\n- ${flowDef.questions.join("\n- ")}`,
+        `הוראת התנהגות: ${flowDef.system_addendum}`,
+      ].filter(Boolean).join("\n")
+    : null;
+  const offerIntelligenceText = buildOfferIntelligenceBlock(offer);
+  const offerHasGrounding = !!offer && ((offer.grounded_facts && Object.keys(offer.grounded_facts).length > 0) || (Array.isArray(offer.faq_bundle) && offer.faq_bundle.length > 0));
+  const offerFieldsInjected = offer
+    ? Object.entries({
+        ai_summary: !!offer.ai_summary,
+        sales_angle: !!offer.sales_angle,
+        grounded_facts: !!offer.grounded_facts && Object.keys(offer.grounded_facts).length > 0,
+        faq_bundle: Array.isArray(offer.faq_bundle) && offer.faq_bundle.length > 0,
+        objection_notes: Array.isArray(offer.objection_notes) && offer.objection_notes.length > 0,
+        matching_tags: Array.isArray(offer.matching_tags) && offer.matching_tags.length > 0,
+        escalation_boundary: !!offer.escalation_boundary && Object.keys(offer.escalation_boundary).length > 0,
+      }).filter(([, v]) => v).map(([k]) => k)
+    : [];
+  const escalationFallback = !!offer && !offerHasGrounding;
+  const runtimeComposition = buildTamarRuntimeComposition({
+    inboundMessage: params.message || params.text || null,
+    source: "runtime_pack",
+    contact,
+    campaign,
+    campaignContextText,
+    offer,
+    offerIntelligenceText,
+    tamarSettings: behavior,
+    promptBlocks: promptBlocksMap,
+    escalationFallback,
+    escalationReason: escalationFallback ? "offer_intelligence_missing_grounded_knowledge" : null,
+    offerFieldsInjected,
+  });
+
   const observability = {
     generated_at: new Date().toISOString(),
     contact_id: contact?.id || null,
@@ -136,6 +204,7 @@ async function resolve(params: Record<string, any>) {
     campaign_id: campaign?.id || null,
     offer_intelligence_injected: !!offer,
     offer_id: offer?.id || null,
+    offer_fields_injected: offerFieldsInjected,
     tamar_settings_version_at: behavior?.updated_at || null,
     prompt_blocks_injected: Object.entries(promptBlocksMap).map(([k, v]: [string, any]) => ({
       key: k,
@@ -143,6 +212,16 @@ async function resolve(params: Record<string, any>) {
       updated_at: v?.updated_at ?? null,
     })),
     fallback_default_prompt_behavior: Object.keys(promptBlocksMap).length === 0,
+    prompt_composition: {
+      composed_runtime_prompt_available: true,
+      composed_runtime_prompt_returned_to_tamar: true,
+      railway_prompt_consumption_confirmed_by_zooga: false,
+      zooga_direct_model_call: false,
+      model_call_owner: "railway_tamar_runtime",
+      fallback_default_prompt_path: runtimeComposition.tracePromptContext.fallback_default_prompt_path,
+      injected_sections: runtimeComposition.tracePromptContext.injected_sections,
+    },
+    composed_runtime_prompt_context: runtimeComposition.tracePromptContext,
     runtime_pack_sections: [
       "tamar_settings",
       "prompt_blocks",
@@ -218,6 +297,7 @@ async function resolve(params: Record<string, any>) {
         }
       : null,
     active_offer: offer,
+    offer_intelligence_context: offerIntelligenceText,
     tamar_settings: behavior
       ? {
           tone_preset: behavior.tone_preset,
@@ -251,6 +331,7 @@ async function resolve(params: Record<string, any>) {
         }
       : null,
     prompt_blocks: promptBlocksMap,
+    runtime_prompt_context: runtimeComposition.runtimePromptContext,
     workflow_state: {
       open_handoffs: openHandoff,
       open_tasks: openTasks,
