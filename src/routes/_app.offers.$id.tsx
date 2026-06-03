@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { analyzeOfferIntelligence } from "@/lib/offer-intelligence.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tag, ChevronRight, Pencil, Trash2, Megaphone, Plus, Users, Trophy, Activity } from "lucide-react";
+import { Tag, ChevronRight, Pencil, Trash2, Megaphone, Plus, Users, Trophy, Activity, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
 import { CATEGORY_LABELS, INTEREST_LABELS, ALL_INTERESTS, SPENDING_LABELS, formatRelative } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
 import { toast } from "sonner";
@@ -175,6 +177,8 @@ function OfferDetailPage() {
         )}
       </Card>
 
+      <OfferIntelligencePanel offer={offer} onRefreshed={refetch} />
+
       <div className="flex items-center justify-between pt-4">
         <h2 className="text-lg font-semibold flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> קמפיינים שמקדמים את ההצעה</h2>
         <Link to="/campaigns/new" search={{ offer_id: id }}>
@@ -294,4 +298,163 @@ function OfferEditForm({ offer, onSaved, onCancel }: any) {
       </div>
     </Card>
   );
+}
+
+function OfferIntelligencePanel({ offer, onRefreshed }: { offer: any; onRefreshed: () => void }) {
+  const analyzeFn = useServerFn(analyzeOfferIntelligence);
+  const [busy, setBusy] = useState(false);
+
+  const status: string = offer.ingestion_status || "idle";
+  const isError = status.startsWith("error");
+  const isRunning = status === "running" || busy;
+  const hasData = !!offer.ai_summary || (offer.faq_bundle?.length ?? 0) > 0;
+
+  async function run() {
+    if (!offer.offer_url) {
+      toast.error("להצעה אין קישור (offer_url) — הוסיפו URL ונסו שוב.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await analyzeFn({ data: { offerId: offer.id } });
+      toast.success("האינטליגנציה של ההצעה עודכנה");
+      onRefreshed();
+    } catch (e: any) {
+      toast.error(e?.message || "שגיאה בניתוח ההצעה");
+      onRefreshed();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const facts = offer.grounded_facts && typeof offer.grounded_facts === "object" ? offer.grounded_facts : {};
+  const faq: any[] = Array.isArray(offer.faq_bundle) ? offer.faq_bundle : [];
+  const objections: any[] = Array.isArray(offer.objection_notes) ? offer.objection_notes : [];
+  const tags: string[] = Array.isArray(offer.matching_tags) ? offer.matching_tags : [];
+  const escalation = offer.escalation_boundary && typeof offer.escalation_boundary === "object" ? offer.escalation_boundary : {};
+
+  return (
+    <Card className="p-5 space-y-4 border-primary/30">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center"><Sparkles className="h-4 w-4" /></div>
+          <div>
+            <h2 className="text-lg font-semibold">אינטליגנציית הצעה (Tamar-ready)</h2>
+            <div className="text-xs text-muted-foreground">
+              {offer.last_ingested_at ? `נותח לאחרונה: ${formatRelative(offer.last_ingested_at)}` : "טרם נותח"}
+              {" · "}סטטוס: <span className={isError ? "text-destructive" : ""}>{status}</span>
+            </div>
+          </div>
+        </div>
+        <Button onClick={run} disabled={isRunning} className="gap-2">
+          <RefreshCw className={`h-4 w-4 ${isRunning ? "animate-spin" : ""}`} />
+          {hasData ? "רענון אינטליגנציה" : "ניתוח הצעה"}
+        </Button>
+      </div>
+
+      {isError && (
+        <div className="flex items-start gap-2 text-sm bg-destructive/10 text-destructive p-3 rounded-lg">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>{status}</div>
+        </div>
+      )}
+
+      {!hasData && !isError && (
+        <div className="text-sm text-muted-foreground bg-muted/50 p-4 rounded-lg">
+          עדיין אין אינטליגנציה להצעה. לחצו "ניתוח הצעה" — נמשוך את עמוד המקור, ננתח אותו ב-AI ונבנה תקציר מוצק, FAQ, התנגדויות וגבולות הסלמה לתמר.
+        </div>
+      )}
+
+      {hasData && (
+        <div className="grid md:grid-cols-2 gap-4">
+          <Section title="תקציר AI (Tamar-safe)">
+            <p className="text-sm whitespace-pre-wrap">{offer.ai_summary || "—"}</p>
+          </Section>
+
+          <Section title="זווית מכירה">
+            <p className="text-sm whitespace-pre-wrap">{offer.sales_angle || "—"}</p>
+          </Section>
+
+          <Section title="עובדות מוצקות (Grounded Facts)">
+            {Object.keys(facts).length === 0 ? <Empty /> : (
+              <dl className="text-sm space-y-1">
+                {Object.entries(facts).map(([k, v]) => (
+                  <div key={k} className="flex gap-2">
+                    <dt className="text-muted-foreground min-w-[120px]">{k}</dt>
+                    <dd className="font-medium break-words">{typeof v === "string" ? v : JSON.stringify(v)}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </Section>
+
+          <Section title="תגיות התאמה">
+            {tags.length === 0 ? <Empty /> : (
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
+              </div>
+            )}
+          </Section>
+
+          <Section title="שאלות נפוצות (FAQ)">
+            {faq.length === 0 ? <Empty /> : (
+              <ul className="space-y-2 text-sm">
+                {faq.map((f, i) => (
+                  <li key={i}>
+                    <div className="font-medium">{f.q || f.question}</div>
+                    <div className="text-muted-foreground">{f.a || f.answer}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          <Section title="התנגדויות ומענה">
+            {objections.length === 0 ? <Empty /> : (
+              <ul className="space-y-2 text-sm">
+                {objections.map((o, i) => (
+                  <li key={i}>
+                    <div className="font-medium">{o.objection}</div>
+                    <div className="text-muted-foreground">{o.response}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          <Section title="גבולות הסלמה (מה תמר עונה / מתי להעביר לאדם)" className="md:col-span-2">
+            <div className="grid sm:grid-cols-2 gap-3 text-sm">
+              <div>
+                <div className="text-xs font-medium text-emerald-700 mb-1">תמר יכולה לענות</div>
+                <ul className="list-disc pr-4 space-y-0.5">
+                  {(escalation.tamar_can_answer || []).map((s: string, i: number) => <li key={i}>{s}</li>)}
+                  {!(escalation.tamar_can_answer?.length) && <Empty />}
+                </ul>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-amber-700 mb-1">חובה להעביר לאדם</div>
+                <ul className="list-disc pr-4 space-y-0.5">
+                  {(escalation.must_escalate || []).map((s: string, i: number) => <li key={i}>{s}</li>)}
+                  {!(escalation.must_escalate?.length) && <Empty />}
+                </ul>
+              </div>
+            </div>
+          </Section>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function Section({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`bg-muted/30 rounded-lg p-3 ${className || ""}`}>
+      <div className="text-xs font-medium text-muted-foreground mb-2">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function Empty() {
+  return <span className="text-xs text-muted-foreground">—</span>;
 }
