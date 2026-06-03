@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bot, Loader2, Save, RotateCw, Sparkles, FileText, Activity } from "lucide-react";
+import { Bot, Loader2, Save, RotateCw, Sparkles, FileText, Activity, Send } from "lucide-react";
 
 export const Route = createFileRoute("/_app/settings/tamar")({
   head: () => ({ meta: [{ title: "Tamar Behavior — Zooga CRM" }] }),
@@ -57,6 +57,51 @@ function TamarBehaviorPage() {
   const [running, setRunning] = useState(false);
   const [traces, setTraces] = useState<any[]>([]);
   const [tracesLoading, setTracesLoading] = useState(false);
+
+  // Simulator state
+  const [simPhone, setSimPhone] = useState("");
+  const [simMessage, setSimMessage] = useState("היי, רציתי לשמוע פרטים");
+  const [simCampaignId, setSimCampaignId] = useState("");
+  const [simOfferId, setSimOfferId] = useState("");
+  const [simSending, setSimSending] = useState(false);
+  const [simResponse, setSimResponse] = useState<any>(null);
+  const [simError, setSimError] = useState<string | null>(null);
+
+  async function runSimulation() {
+    setSimError(null);
+    setSimResponse(null);
+    const phone = simPhone.trim();
+    const message = simMessage.trim();
+    if (!phone || !message) { setSimError("phone ו-message חובה"); return; }
+    if (phone.length > 32 || message.length > 2000) { setSimError("phone עד 32 תווים, message עד 2000"); return; }
+    setSimSending(true);
+    try {
+      const body: any = {
+        phone,
+        whatsapp_number: phone,
+        message,
+        source: "Simulator (in-app)",
+      };
+      if (simCampaignId.trim()) body.campaign_id = simCampaignId.trim();
+      if (simOfferId.trim()) body.offer_id = simOfferId.trim();
+      const resp = await fetch("/api/public/webhook/tamar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-simulator": "1" },
+        body: JSON.stringify(body),
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(j?.error || `HTTP ${resp.status}`);
+      setSimResponse(j);
+      toast.success("סימולציה הצליחה");
+      // Refresh traces so the new entry appears
+      await loadTraces();
+    } catch (e: any) {
+      setSimError(String(e?.message || e));
+      toast.error(String(e?.message || e));
+    } finally {
+      setSimSending(false);
+    }
+  }
 
   async function loadTraces() {
     setTracesLoading(true);
