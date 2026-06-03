@@ -270,6 +270,12 @@ function TamarBehaviorPage() {
                 </pre>
               </div>
               <div className="md:col-span-2">
+                <div className="text-xs font-semibold mb-1">Composed runtime prompt/context sent to Tamar runtime</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-96 overflow-auto">
+                  {JSON.stringify(simResponse.runtime_prompt_context ?? simResponse._observability?.composed_runtime_prompt_context ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div className="md:col-span-2">
                 <div className="text-xs font-semibold mb-1">Full response payload</div>
                 <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-96 overflow-auto">
                   {JSON.stringify(simResponse, null, 2)}
