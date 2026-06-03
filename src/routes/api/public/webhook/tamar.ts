@@ -468,6 +468,35 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               ctx.campaign_context = `${ctx.campaign_context}\n\n${offerIntelligenceText}`;
             }
 
+            const finalComposition = buildTamarRuntimeComposition({
+              inboundMessage: message,
+              source,
+              contact: { ...matched, ...patch },
+              campaign,
+              campaignContextText: ctx?.campaign_context ?? null,
+              offer,
+              offerIntelligenceText,
+              tamarSettings,
+              promptBlocks,
+              escalationFallback,
+              escalationReason: escalationFallback ? "offer_intelligence_missing_grounded_knowledge" : null,
+              offerFieldsInjected,
+            });
+            const finalObservability = {
+              ...observability,
+              prompt_composition: {
+                ...observability.prompt_composition,
+                fallback_default_prompt_path: finalComposition.tracePromptContext.fallback_default_prompt_path,
+                injected_sections: finalComposition.tracePromptContext.injected_sections,
+              },
+              composed_runtime_prompt_context: finalComposition.tracePromptContext,
+            };
+            await supabaseAdmin.from("webhook_logs").insert({
+              source: "tamar_bot",
+              status: "tamar_runtime_trace",
+              payload: finalObservability,
+            });
+
             if (message) triggerExtraction(request, matched.id);
 
             return Response.json({
@@ -498,7 +527,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 : null,
               tamar_settings: tamarSettings,
               prompt_blocks: promptBlocks,
-              _observability: observability,
+              runtime_prompt_context: finalComposition.runtimePromptContext,
+              _observability: finalObservability,
             });
           }
 
@@ -577,6 +607,35 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             ctx.campaign_context = `${ctx.campaign_context}\n\n${offerIntelligenceText}`;
           }
 
+          const finalComposition = buildTamarRuntimeComposition({
+            inboundMessage: message,
+            source,
+            contact: { ...insertRow, id: created?.id ?? null },
+            campaign,
+            campaignContextText: ctx?.campaign_context ?? null,
+            offer,
+            offerIntelligenceText,
+            tamarSettings,
+            promptBlocks,
+            escalationFallback,
+            escalationReason: escalationFallback ? "offer_intelligence_missing_grounded_knowledge" : null,
+            offerFieldsInjected,
+          });
+          const finalObservability = {
+            ...observability,
+            prompt_composition: {
+              ...observability.prompt_composition,
+              fallback_default_prompt_path: finalComposition.tracePromptContext.fallback_default_prompt_path,
+              injected_sections: finalComposition.tracePromptContext.injected_sections,
+            },
+            composed_runtime_prompt_context: finalComposition.tracePromptContext,
+          };
+          await supabaseAdmin.from("webhook_logs").insert({
+            source: "tamar_bot",
+            status: "tamar_runtime_trace",
+            payload: finalObservability,
+          });
+
           if (created?.id && message) triggerExtraction(request, created.id);
 
           return Response.json({
@@ -604,7 +663,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               : null,
             tamar_settings: tamarSettings,
             prompt_blocks: promptBlocks,
-            _observability: observability,
+            runtime_prompt_context: finalComposition.runtimePromptContext,
+            _observability: finalObservability,
           });
         } catch (e: any) {
           await supabaseAdmin.from("webhook_logs").insert({
