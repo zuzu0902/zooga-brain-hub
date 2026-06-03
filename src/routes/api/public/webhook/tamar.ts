@@ -43,6 +43,46 @@ function buildCampaignContext(campaign: any, contact: any) {
   };
 }
 
+function buildOfferIntelligenceBlock(offer: any) {
+  if (!offer) return null;
+  const lines: string[] = [`# אינטליגנציית מוצר: ${offer.title}`];
+  if (offer.ai_summary) lines.push(`סיכום: ${offer.ai_summary}`);
+  if (offer.sales_angle) lines.push(`זווית מכירה: ${offer.sales_angle}`);
+  if (offer.offer_url) lines.push(`מקור עובדתי: ${offer.offer_url}`);
+  const facts = offer.grounded_facts && typeof offer.grounded_facts === "object" ? offer.grounded_facts : null;
+  if (facts && Object.keys(facts).length) {
+    lines.push(`עובדות מבוססות (אין לחרוג מהן):\n${JSON.stringify(facts, null, 2)}`);
+  }
+  const faq = Array.isArray(offer.faq_bundle) ? offer.faq_bundle : [];
+  if (faq.length) {
+    lines.push(
+      `שאלות נפוצות:\n` +
+        faq.map((f: any, i: number) => `${i + 1}. ש: ${f.q || f.question}\n   ת: ${f.a || f.answer}`).join("\n"),
+    );
+  }
+  const objs = Array.isArray(offer.objection_notes) ? offer.objection_notes : [];
+  if (objs.length) {
+    lines.push(
+      `התנגדויות ומענה:\n` +
+        objs.map((o: any, i: number) => `${i + 1}. ${o.objection || o.q}: ${o.response || o.a}`).join("\n"),
+    );
+  }
+  if (Array.isArray(offer.matching_tags) && offer.matching_tags.length) {
+    lines.push(`תגי התאמה: ${offer.matching_tags.join(", ")}`);
+  }
+  const esc = offer.escalation_boundary && typeof offer.escalation_boundary === "object" ? offer.escalation_boundary : null;
+  if (esc) {
+    const canAns = Array.isArray(esc.tamar_can_answer) ? esc.tamar_can_answer : [];
+    const mustEsc = Array.isArray(esc.must_escalate) ? esc.must_escalate : [];
+    if (canAns.length) lines.push(`תמר יכולה לענות על: ${canAns.join(", ")}`);
+    if (mustEsc.length) lines.push(`חובה להעביר לאדם בנושאים: ${mustEsc.join(", ")}`);
+  }
+  lines.push(
+    `כלל הזהב: אם המידע לא מופיע למעלה — אל תמציאי. אמרי בכנות שאת מבררת ותעבירי לבן אדם.`,
+  );
+  return lines.join("\n");
+}
+
 export const Route = createFileRoute("/api/public/webhook/tamar")({
   server: {
     handlers: {
@@ -209,6 +249,64 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             if (data && data[0]) campaign = data[0];
           }
 
+          // === Offer Intelligence load ===
+          // If the matched campaign points at an offer, pull the Tamar-ready
+          // intelligence layer so the bot can answer from grounded facts/FAQ
+          // and know when to escalate. Also accept an explicit offer_id hint.
+          let offer: any = null;
+          const offerIdHint =
+            payload?.offer_id || payload?.offerId || campaign?.offer_id || null;
+          if (offerIdHint) {
+            const { data } = await supabaseAdmin
+              .from("offers")
+              .select(
+                "id,title,offer_url,ai_summary,sales_angle,grounded_facts,faq_bundle,objection_notes,matching_tags,escalation_boundary,ingestion_status,last_ingested_at",
+              )
+              .eq("id", offerIdHint)
+              .maybeSingle();
+            if (data) offer = data;
+          }
+          const offerIntelligenceText = offer ? buildOfferIntelligenceBlock(offer) : null;
+          const offerIntelligenceLoaded = !!offer && !!offerIntelligenceText;
+          const offerHasGrounding =
+            !!offer &&
+            ((offer.grounded_facts && Object.keys(offer.grounded_facts).length > 0) ||
+              (Array.isArray(offer.faq_bundle) && offer.faq_bundle.length > 0));
+          const offerFieldsInjected = offer
+            ? Object.entries({
+                ai_summary: !!offer.ai_summary,
+                sales_angle: !!offer.sales_angle,
+                grounded_facts:
+                  !!offer.grounded_facts && Object.keys(offer.grounded_facts).length > 0,
+                faq_bundle: Array.isArray(offer.faq_bundle) && offer.faq_bundle.length > 0,
+                objection_notes:
+                  Array.isArray(offer.objection_notes) && offer.objection_notes.length > 0,
+                matching_tags:
+                  Array.isArray(offer.matching_tags) && offer.matching_tags.length > 0,
+                escalation_boundary:
+                  !!offer.escalation_boundary &&
+                  Object.keys(offer.escalation_boundary).length > 0,
+              })
+                .filter(([, v]) => v)
+                .map(([k]) => k)
+            : [];
+          const escalationFallback = !!campaign && !!offerIdHint && !offerHasGrounding;
+
+          // Observability for pilot
+          await supabaseAdmin.from("webhook_logs").insert({
+            source: "tamar_bot",
+            status: "offer_intelligence_trace",
+            payload: {
+              matched_offer_id: offer?.id || null,
+              matched_offer_title: offer?.title || null,
+              campaign_id: campaign?.id || null,
+              offer_intelligence_loaded: offerIntelligenceLoaded,
+              offer_fields_injected: offerFieldsInjected,
+              escalation_fallback: escalationFallback,
+              ingestion_status: offer?.ingestion_status || null,
+            },
+          });
+
           // Phone is the master key. Try to match existing contact by phone first.
           let matched: any = null;
           if (phone) {
@@ -300,6 +398,9 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             }
 
             const ctx = campaign ? buildCampaignContext(campaign, matched) : null;
+            if (ctx && offerIntelligenceText) {
+              ctx.campaign_context = `${ctx.campaign_context}\n\n${offerIntelligenceText}`;
+            }
 
             if (message) triggerExtraction(request, matched.id);
 
@@ -310,6 +411,25 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               updated_fields: Object.keys(patch),
               campaign: campaign ? { id: campaign.id, name: campaign.name } : null,
               ...(ctx || {}),
+              offer: offer ? { id: offer.id, title: offer.title } : null,
+              offer_intelligence: offer
+                ? {
+                    ai_summary: offer.ai_summary,
+                    sales_angle: offer.sales_angle,
+                    grounded_facts: offer.grounded_facts,
+                    faq_bundle: offer.faq_bundle,
+                    objection_notes: offer.objection_notes,
+                    matching_tags: offer.matching_tags,
+                    escalation_boundary: offer.escalation_boundary,
+                  }
+                : null,
+              offer_intelligence_context: offerIntelligenceText,
+              offer_intelligence_loaded: offerIntelligenceLoaded,
+              offer_fields_injected: offerFieldsInjected,
+              should_escalate: escalationFallback,
+              escalation_reason: escalationFallback
+                ? "offer_intelligence_missing_grounded_knowledge"
+                : null,
             });
           }
 
@@ -384,6 +504,9 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           });
 
           const ctx = campaign ? buildCampaignContext(campaign, { first_name: insertRow.first_name }) : null;
+          if (ctx && offerIntelligenceText) {
+            ctx.campaign_context = `${ctx.campaign_context}\n\n${offerIntelligenceText}`;
+          }
 
           if (created?.id && message) triggerExtraction(request, created.id);
 
@@ -391,6 +514,25 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             ok: true, matched: false, created: true, contact_id: created?.id,
             campaign: campaign ? { id: campaign.id, name: campaign.name } : null,
             ...(ctx || {}),
+            offer: offer ? { id: offer.id, title: offer.title } : null,
+            offer_intelligence: offer
+              ? {
+                  ai_summary: offer.ai_summary,
+                  sales_angle: offer.sales_angle,
+                  grounded_facts: offer.grounded_facts,
+                  faq_bundle: offer.faq_bundle,
+                  objection_notes: offer.objection_notes,
+                  matching_tags: offer.matching_tags,
+                  escalation_boundary: offer.escalation_boundary,
+                }
+              : null,
+            offer_intelligence_context: offerIntelligenceText,
+            offer_intelligence_loaded: offerIntelligenceLoaded,
+            offer_fields_injected: offerFieldsInjected,
+            should_escalate: escalationFallback,
+            escalation_reason: escalationFallback
+              ? "offer_intelligence_missing_grounded_knowledge"
+              : null,
           });
         } catch (e: any) {
           await supabaseAdmin.from("webhook_logs").insert({
