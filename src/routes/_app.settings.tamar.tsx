@@ -138,6 +138,14 @@ function TamarBehaviorPage() {
         </Button>
       </div>
 
+      <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm">
+          <FileText className="h-4 w-4 text-primary" />
+          <span>עורך בלוקי פרומפט מודולריים (first_response, handoff_language, sales_behavior וכו׳)</span>
+        </div>
+        <Link to="/settings/tamar-blocks" className="text-sm underline text-primary">פתח עורך Prompt Blocks →</Link>
+      </Card>
+
       <Card className="p-4 space-y-4">
         <h2 className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4" /> Tone & language</h2>
         <div className="grid md:grid-cols-2 gap-4">
