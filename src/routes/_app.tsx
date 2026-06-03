@@ -48,6 +48,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
     items: [
       { to: "/ai-assistant", label: "AI Assistant", icon: Sparkles },
       { to: "/settings/tamar", label: "Tamar Behavior", icon: Bot },
+      { to: "/settings/tamar-blocks", label: "Prompt Blocks", icon: Bot },
       { to: "/settings/api", label: "הגדרות API", icon: Settings },
     ],
   },
