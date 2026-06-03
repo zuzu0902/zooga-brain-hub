@@ -191,6 +191,95 @@ function TamarBehaviorPage() {
         <Link to="/settings/tamar-blocks" className="text-sm underline text-primary">פתח עורך Prompt Blocks →</Link>
       </Card>
 
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="font-semibold flex items-center gap-2">
+            <Send className="h-4 w-4" /> Simulate Tamar webhook
+          </h2>
+          <span className="text-xs text-muted-foreground">בודק שינויי settings/blocks ללא שליחת WhatsApp אמיתי</span>
+        </div>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div>
+            <Label>טלפון *</Label>
+            <Input value={simPhone} onChange={(e) => setSimPhone(e.target.value)} placeholder="972501234567" maxLength={32} />
+          </div>
+          <div>
+            <Label>campaign_id (אופציונלי)</Label>
+            <Input value={simCampaignId} onChange={(e) => setSimCampaignId(e.target.value)} placeholder="uuid" />
+          </div>
+          <div className="md:col-span-2">
+            <Label>offer_id (אופציונלי)</Label>
+            <Input value={simOfferId} onChange={(e) => setSimOfferId(e.target.value)} placeholder="uuid" />
+          </div>
+          <div className="md:col-span-2">
+            <Label>הודעה *</Label>
+            <Textarea rows={3} value={simMessage} onChange={(e) => setSimMessage(e.target.value)} maxLength={2000} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={runSimulation} disabled={simSending} className="gap-1.5">
+            {simSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            שלח סימולציה
+          </Button>
+          {simError && <span className="text-xs text-destructive">{simError}</span>}
+        </div>
+
+        {simResponse && (
+          <div className="border-t pt-3 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              {simResponse._observability?.campaign_injected && <Badge>campaign</Badge>}
+              {simResponse._observability?.offer_intelligence_injected && <Badge>offer</Badge>}
+              {simResponse._observability?.fallback_default_prompt_behavior && <Badge variant="outline">fallback</Badge>}
+              {simResponse._observability?.escalation_due_to_grounding && <Badge variant="destructive">escalate</Badge>}
+              <span className="text-muted-foreground">
+                settings @ {simResponse._observability?.tamar_settings_version_at
+                  ? new Date(simResponse._observability.tamar_settings_version_at).toLocaleString("he-IL")
+                  : "—"}
+                {" · "}blocks: {simResponse._observability?.prompt_blocks_count ?? 0}
+              </span>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs font-semibold mb-1">Runtime trace (_observability)</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-72 overflow-auto">
+                  {JSON.stringify(simResponse._observability ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <div className="text-xs font-semibold mb-1">Injected prompt_blocks</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-72 overflow-auto">
+                  {JSON.stringify(simResponse.prompt_blocks ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <div className="text-xs font-semibold mb-1">Resolved tamar_settings</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-72 overflow-auto">
+                  {JSON.stringify(simResponse.tamar_settings ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <div className="text-xs font-semibold mb-1">Offer / campaign context</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-72 overflow-auto">
+                  {JSON.stringify({
+                    campaign: simResponse.campaign ?? null,
+                    offer: simResponse.offer ?? null,
+                    offer_intelligence_context: simResponse.offer_intelligence_context ?? null,
+                    campaign_context: simResponse.campaign_context ?? null,
+                  }, null, 2)}
+                </pre>
+              </div>
+              <div className="md:col-span-2">
+                <div className="text-xs font-semibold mb-1">Full response payload</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-96 overflow-auto">
+                  {JSON.stringify(simResponse, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
       <Card className="p-4 space-y-4">
         <h2 className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4" /> Tone & language</h2>
         <div className="grid md:grid-cols-2 gap-4">
