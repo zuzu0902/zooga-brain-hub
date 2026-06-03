@@ -177,6 +177,8 @@ function OfferDetailPage() {
         )}
       </Card>
 
+      <OfferIntelligencePanel offer={offer} onRefreshed={refetch} />
+
       <div className="flex items-center justify-between pt-4">
         <h2 className="text-lg font-semibold flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> קמפיינים שמקדמים את ההצעה</h2>
         <Link to="/campaigns/new" search={{ offer_id: id }}>
