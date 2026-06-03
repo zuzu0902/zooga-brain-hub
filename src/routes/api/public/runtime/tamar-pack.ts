@@ -214,7 +214,8 @@ async function resolve(params: Record<string, any>) {
     fallback_default_prompt_behavior: Object.keys(promptBlocksMap).length === 0,
     prompt_composition: {
       composed_runtime_prompt_available: true,
-      composed_runtime_prompt_injected_for_tamar: true,
+      composed_runtime_prompt_returned_to_tamar: true,
+      railway_prompt_consumption_confirmed_by_zooga: false,
       zooga_direct_model_call: false,
       model_call_owner: "railway_tamar_runtime",
       fallback_default_prompt_path: runtimeComposition.tracePromptContext.fallback_default_prompt_path,
