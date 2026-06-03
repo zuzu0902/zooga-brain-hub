@@ -124,6 +124,54 @@ async function resolve(params: Record<string, any>) {
   const flow = (campaign?.intake_flow_type || "generic") as IntakeFlowType;
   const flowDef = INTAKE_FLOWS[flow];
 
+  const promptBlocksMap = (blocks ?? []).reduce((acc: Record<string, any>, b: any) => {
+    acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
+    return acc;
+  }, {});
+
+  const observability = {
+    generated_at: new Date().toISOString(),
+    contact_id: contact?.id || null,
+    campaign_injected: !!campaign,
+    campaign_id: campaign?.id || null,
+    offer_intelligence_injected: !!offer,
+    offer_id: offer?.id || null,
+    tamar_settings_version_at: behavior?.updated_at || null,
+    prompt_blocks_injected: Object.entries(promptBlocksMap).map(([k, v]: [string, any]) => ({
+      key: k,
+      version: v?.version ?? null,
+      updated_at: v?.updated_at ?? null,
+    })),
+    fallback_default_prompt_behavior: Object.keys(promptBlocksMap).length === 0,
+    runtime_pack_sections: [
+      "tamar_settings",
+      "prompt_blocks",
+      contact ? "contact" : null,
+      contact ? "recent_interactions" : null,
+      contact ? "relevant_memories" : null,
+      "internal_inference_pack",
+      campaign ? "active_campaign" : null,
+      offer ? "active_offer" : null,
+      "consent_state",
+      "workflow_state",
+    ].filter(Boolean) as string[],
+    lookup_params: {
+      contact_id: params.contact_id || null,
+      phone: params.phone || null,
+      whatsapp_number: params.whatsapp_number || null,
+      facebook_id: params.facebook_id || null,
+      email: params.email || null,
+      campaign_id: params.campaign_id || null,
+      offer_id: params.offer_id || null,
+    },
+  };
+
+  // Fire-and-forget trace insert; never blocks the pack response.
+  void supabaseAdmin
+    .from("webhook_logs")
+    .insert({ source: "tamar_runtime_pack", status: "tamar_runtime_trace", payload: observability })
+    .then(() => {});
+
   return {
     ok: true,
     generated_at: new Date().toISOString(),
@@ -202,14 +250,12 @@ async function resolve(params: Record<string, any>) {
           updated_at: behavior.updated_at,
         }
       : null,
-    prompt_blocks: (blocks ?? []).reduce((acc: Record<string, any>, b: any) => {
-      acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
-      return acc;
-    }, {}),
+    prompt_blocks: promptBlocksMap,
     workflow_state: {
       open_handoffs: openHandoff,
       open_tasks: openTasks,
     },
+    _observability: observability,
   };
 }
 

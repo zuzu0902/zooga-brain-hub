@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bot, Loader2, Save, RotateCw, Sparkles } from "lucide-react";
+import { Bot, Loader2, Save, RotateCw, Sparkles, FileText, Activity } from "lucide-react";
 
 export const Route = createFileRoute("/_app/settings/tamar")({
   head: () => ({ meta: [{ title: "Tamar Behavior — Zooga CRM" }] }),
@@ -55,6 +55,22 @@ function TamarBehaviorPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
+  const [traces, setTraces] = useState<any[]>([]);
+  const [tracesLoading, setTracesLoading] = useState(false);
+
+  async function loadTraces() {
+    setTracesLoading(true);
+    const { data } = await supabase
+      .from("webhook_logs" as any)
+      .select("id, source, status, payload, created_at")
+      .eq("status", "tamar_runtime_trace")
+      .order("created_at", { ascending: false })
+      .limit(15);
+    setTraces((data as any) ?? []);
+    setTracesLoading(false);
+  }
+
+  useEffect(() => { loadTraces(); }, []);
 
   async function load() {
     setLoading(true);
@@ -121,6 +137,14 @@ function TamarBehaviorPage() {
           שמור שינויים
         </Button>
       </div>
+
+      <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm">
+          <FileText className="h-4 w-4 text-primary" />
+          <span>עורך בלוקי פרומפט מודולריים (first_response, handoff_language, sales_behavior וכו׳)</span>
+        </div>
+        <Link to="/settings/tamar-blocks" className="text-sm underline text-primary">פתח עורך Prompt Blocks →</Link>
+      </Card>
 
       <Card className="p-4 space-y-4">
         <h2 className="font-semibold flex items-center gap-2"><Sparkles className="h-4 w-4" /> Tone & language</h2>
@@ -375,6 +399,49 @@ function TamarBehaviorPage() {
       <div className="text-xs text-muted-foreground">
         עודכן לאחרונה: {s.updated_at ? new Date(s.updated_at).toLocaleString("he-IL") : "—"}
       </div>
+
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="font-semibold flex items-center gap-2">
+            <Activity className="h-4 w-4" /> Runtime traces (15 אחרונים)
+          </h2>
+          <Button size="sm" variant="outline" onClick={loadTraces} disabled={tracesLoading} className="gap-1.5">
+            {tracesLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
+            רענן
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          כל שיחה נכנסת/קריאת runtime-pack כותבת trace עם: גרסת settings, גרסאות prompt_blocks שהוזרקו, האם הוזרקה אינטליגנציית מוצר, האם הוזרק קמפיין, ושימוש ב-fallback/escalation.
+        </p>
+        {traces.length === 0 ? (
+          <div className="text-sm text-muted-foreground">אין traces עדיין.</div>
+        ) : (
+          <div className="space-y-2">
+            {traces.map((t) => {
+              const p = t.payload || {};
+              return (
+                <details key={t.id} className="border rounded-md p-2 text-xs">
+                  <summary className="cursor-pointer flex items-center gap-2 flex-wrap">
+                    <span className="text-muted-foreground">{new Date(t.created_at).toLocaleString("he-IL")}</span>
+                    <Badge variant="outline">{t.source}</Badge>
+                    {p.campaign_injected && <Badge>campaign</Badge>}
+                    {p.offer_intelligence_injected && <Badge>offer</Badge>}
+                    {p.fallback_default_prompt_behavior && <Badge variant="outline">fallback</Badge>}
+                    {p.escalation_due_to_grounding && <Badge variant="destructive">escalate</Badge>}
+                    <span className="text-muted-foreground">
+                      settings @ {p.tamar_settings_version_at ? new Date(p.tamar_settings_version_at).toLocaleTimeString("he-IL") : "—"}
+                      {" · "}blocks: {p.prompt_blocks_count ?? (p.prompt_blocks_injected?.length ?? 0)}
+                    </span>
+                  </summary>
+                  <pre className="mt-2 whitespace-pre-wrap break-all text-[11px] leading-snug">
+                    {JSON.stringify(p, null, 2)}
+                  </pre>
+                </details>
+              );
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
