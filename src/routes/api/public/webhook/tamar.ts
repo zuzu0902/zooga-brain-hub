@@ -408,6 +408,25 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               updated_fields: Object.keys(patch),
               campaign: campaign ? { id: campaign.id, name: campaign.name } : null,
               ...(ctx || {}),
+              offer: offer ? { id: offer.id, title: offer.title } : null,
+              offer_intelligence: offer
+                ? {
+                    ai_summary: offer.ai_summary,
+                    sales_angle: offer.sales_angle,
+                    grounded_facts: offer.grounded_facts,
+                    faq_bundle: offer.faq_bundle,
+                    objection_notes: offer.objection_notes,
+                    matching_tags: offer.matching_tags,
+                    escalation_boundary: offer.escalation_boundary,
+                  }
+                : null,
+              offer_intelligence_context: offerIntelligenceText,
+              offer_intelligence_loaded: offerIntelligenceLoaded,
+              offer_fields_injected: offerFieldsInjected,
+              should_escalate: escalationFallback,
+              escalation_reason: escalationFallback
+                ? "offer_intelligence_missing_grounded_knowledge"
+                : null,
             });
           }
 
@@ -489,6 +508,25 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             ok: true, matched: false, created: true, contact_id: created?.id,
             campaign: campaign ? { id: campaign.id, name: campaign.name } : null,
             ...(ctx || {}),
+            offer: offer ? { id: offer.id, title: offer.title } : null,
+            offer_intelligence: offer
+              ? {
+                  ai_summary: offer.ai_summary,
+                  sales_angle: offer.sales_angle,
+                  grounded_facts: offer.grounded_facts,
+                  faq_bundle: offer.faq_bundle,
+                  objection_notes: offer.objection_notes,
+                  matching_tags: offer.matching_tags,
+                  escalation_boundary: offer.escalation_boundary,
+                }
+              : null,
+            offer_intelligence_context: offerIntelligenceText,
+            offer_intelligence_loaded: offerIntelligenceLoaded,
+            offer_fields_injected: offerFieldsInjected,
+            should_escalate: escalationFallback,
+            escalation_reason: escalationFallback
+              ? "offer_intelligence_missing_grounded_knowledge"
+              : null,
           });
         } catch (e: any) {
           await supabaseAdmin.from("webhook_logs").insert({
