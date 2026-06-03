@@ -309,19 +309,45 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             {},
           );
 
-          // Observability for pilot
+          // === Runtime observability trace (manager-visible only) ===
+          // Captures exactly what context Tamar runtime received for this
+          // inbound message, so we can verify control-plane → runtime wiring.
+          const promptBlockKeysInjected = Object.entries(promptBlocks).map(
+            ([k, v]: [string, any]) => ({ key: k, version: v?.version ?? null, updated_at: v?.updated_at ?? null }),
+          );
+          const runtimePackSections = [
+            "tamar_settings",
+            "prompt_blocks",
+            campaign ? "campaign_context" : null,
+            offerIntelligenceLoaded ? "offer_intelligence" : null,
+            "consent_state",
+          ].filter(Boolean) as string[];
+          const observability = {
+            inbound_at: nowIsoTrace(),
+            phone_or_id: phone || facebook_id || email || null,
+            campaign_injected: !!campaign,
+            campaign_id: campaign?.id || null,
+            campaign_name: campaign?.name || null,
+            offer_intelligence_injected: offerIntelligenceLoaded,
+            offer_id: offer?.id || null,
+            offer_title: offer?.title || null,
+            offer_fields_injected: offerFieldsInjected,
+            offer_ingestion_status: offer?.ingestion_status || null,
+            tamar_settings_version_at: tamarSettings?.updated_at || null,
+            tamar_settings_id: tamarSettings ? 1 : null,
+            prompt_blocks_injected: promptBlockKeysInjected,
+            prompt_blocks_count: promptBlockKeysInjected.length,
+            fallback_default_prompt_behavior: promptBlockKeysInjected.length === 0,
+            runtime_pack_sections: runtimePackSections,
+            escalation_due_to_grounding: escalationFallback,
+            escalation_reason: escalationFallback
+              ? "offer_intelligence_missing_grounded_knowledge"
+              : null,
+          };
           await supabaseAdmin.from("webhook_logs").insert({
             source: "tamar_bot",
-            status: "offer_intelligence_trace",
-            payload: {
-              matched_offer_id: offer?.id || null,
-              matched_offer_title: offer?.title || null,
-              campaign_id: campaign?.id || null,
-              offer_intelligence_loaded: offerIntelligenceLoaded,
-              offer_fields_injected: offerFieldsInjected,
-              escalation_fallback: escalationFallback,
-              ingestion_status: offer?.ingestion_status || null,
-            },
+            status: "tamar_runtime_trace",
+            payload: observability,
           });
 
           // Phone is the master key. Try to match existing contact by phone first.
