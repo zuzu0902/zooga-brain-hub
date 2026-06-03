@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bot, Loader2, Save, RotateCw, Sparkles, FileText, Activity } from "lucide-react";
+import { Bot, Loader2, Save, RotateCw, Sparkles, FileText, Activity, Send } from "lucide-react";
 
 export const Route = createFileRoute("/_app/settings/tamar")({
   head: () => ({ meta: [{ title: "Tamar Behavior — Zooga CRM" }] }),
@@ -57,6 +57,51 @@ function TamarBehaviorPage() {
   const [running, setRunning] = useState(false);
   const [traces, setTraces] = useState<any[]>([]);
   const [tracesLoading, setTracesLoading] = useState(false);
+
+  // Simulator state
+  const [simPhone, setSimPhone] = useState("");
+  const [simMessage, setSimMessage] = useState("היי, רציתי לשמוע פרטים");
+  const [simCampaignId, setSimCampaignId] = useState("");
+  const [simOfferId, setSimOfferId] = useState("");
+  const [simSending, setSimSending] = useState(false);
+  const [simResponse, setSimResponse] = useState<any>(null);
+  const [simError, setSimError] = useState<string | null>(null);
+
+  async function runSimulation() {
+    setSimError(null);
+    setSimResponse(null);
+    const phone = simPhone.trim();
+    const message = simMessage.trim();
+    if (!phone || !message) { setSimError("phone ו-message חובה"); return; }
+    if (phone.length > 32 || message.length > 2000) { setSimError("phone עד 32 תווים, message עד 2000"); return; }
+    setSimSending(true);
+    try {
+      const body: any = {
+        phone,
+        whatsapp_number: phone,
+        message,
+        source: "Simulator (in-app)",
+      };
+      if (simCampaignId.trim()) body.campaign_id = simCampaignId.trim();
+      if (simOfferId.trim()) body.offer_id = simOfferId.trim();
+      const resp = await fetch("/api/public/webhook/tamar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-simulator": "1" },
+        body: JSON.stringify(body),
+      });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(j?.error || `HTTP ${resp.status}`);
+      setSimResponse(j);
+      toast.success("סימולציה הצליחה");
+      // Refresh traces so the new entry appears
+      await loadTraces();
+    } catch (e: any) {
+      setSimError(String(e?.message || e));
+      toast.error(String(e?.message || e));
+    } finally {
+      setSimSending(false);
+    }
+  }
 
   async function loadTraces() {
     setTracesLoading(true);
@@ -144,6 +189,95 @@ function TamarBehaviorPage() {
           <span>עורך בלוקי פרומפט מודולריים (first_response, handoff_language, sales_behavior וכו׳)</span>
         </div>
         <Link to="/settings/tamar-blocks" className="text-sm underline text-primary">פתח עורך Prompt Blocks →</Link>
+      </Card>
+
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="font-semibold flex items-center gap-2">
+            <Send className="h-4 w-4" /> Simulate Tamar webhook
+          </h2>
+          <span className="text-xs text-muted-foreground">בודק שינויי settings/blocks ללא שליחת WhatsApp אמיתי</span>
+        </div>
+        <div className="grid md:grid-cols-2 gap-3">
+          <div>
+            <Label>טלפון *</Label>
+            <Input value={simPhone} onChange={(e) => setSimPhone(e.target.value)} placeholder="972501234567" maxLength={32} />
+          </div>
+          <div>
+            <Label>campaign_id (אופציונלי)</Label>
+            <Input value={simCampaignId} onChange={(e) => setSimCampaignId(e.target.value)} placeholder="uuid" />
+          </div>
+          <div className="md:col-span-2">
+            <Label>offer_id (אופציונלי)</Label>
+            <Input value={simOfferId} onChange={(e) => setSimOfferId(e.target.value)} placeholder="uuid" />
+          </div>
+          <div className="md:col-span-2">
+            <Label>הודעה *</Label>
+            <Textarea rows={3} value={simMessage} onChange={(e) => setSimMessage(e.target.value)} maxLength={2000} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={runSimulation} disabled={simSending} className="gap-1.5">
+            {simSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            שלח סימולציה
+          </Button>
+          {simError && <span className="text-xs text-destructive">{simError}</span>}
+        </div>
+
+        {simResponse && (
+          <div className="border-t pt-3 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              {simResponse._observability?.campaign_injected && <Badge>campaign</Badge>}
+              {simResponse._observability?.offer_intelligence_injected && <Badge>offer</Badge>}
+              {simResponse._observability?.fallback_default_prompt_behavior && <Badge variant="outline">fallback</Badge>}
+              {simResponse._observability?.escalation_due_to_grounding && <Badge variant="destructive">escalate</Badge>}
+              <span className="text-muted-foreground">
+                settings @ {simResponse._observability?.tamar_settings_version_at
+                  ? new Date(simResponse._observability.tamar_settings_version_at).toLocaleString("he-IL")
+                  : "—"}
+                {" · "}blocks: {simResponse._observability?.prompt_blocks_count ?? 0}
+              </span>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs font-semibold mb-1">Runtime trace (_observability)</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-72 overflow-auto">
+                  {JSON.stringify(simResponse._observability ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <div className="text-xs font-semibold mb-1">Injected prompt_blocks</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-72 overflow-auto">
+                  {JSON.stringify(simResponse.prompt_blocks ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <div className="text-xs font-semibold mb-1">Resolved tamar_settings</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-72 overflow-auto">
+                  {JSON.stringify(simResponse.tamar_settings ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <div className="text-xs font-semibold mb-1">Offer / campaign context</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-72 overflow-auto">
+                  {JSON.stringify({
+                    campaign: simResponse.campaign ?? null,
+                    offer: simResponse.offer ?? null,
+                    offer_intelligence_context: simResponse.offer_intelligence_context ?? null,
+                    campaign_context: simResponse.campaign_context ?? null,
+                  }, null, 2)}
+                </pre>
+              </div>
+              <div className="md:col-span-2">
+                <div className="text-xs font-semibold mb-1">Full response payload</div>
+                <pre className="bg-muted p-2 rounded text-[11px] whitespace-pre-wrap break-all max-h-96 overflow-auto">
+                  {JSON.stringify(simResponse, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card className="p-4 space-y-4">
