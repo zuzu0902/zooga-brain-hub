@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bot, Loader2, Save, RotateCw, Sparkles } from "lucide-react";
+import { Bot, Loader2, Save, RotateCw, Sparkles, FileText, Activity } from "lucide-react";
 
 export const Route = createFileRoute("/_app/settings/tamar")({
   head: () => ({ meta: [{ title: "Tamar Behavior — Zooga CRM" }] }),
