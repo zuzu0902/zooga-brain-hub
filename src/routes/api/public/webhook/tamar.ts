@@ -249,6 +249,64 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             if (data && data[0]) campaign = data[0];
           }
 
+          // === Offer Intelligence load ===
+          // If the matched campaign points at an offer, pull the Tamar-ready
+          // intelligence layer so the bot can answer from grounded facts/FAQ
+          // and know when to escalate. Also accept an explicit offer_id hint.
+          let offer: any = null;
+          const offerIdHint =
+            payload?.offer_id || payload?.offerId || campaign?.offer_id || null;
+          if (offerIdHint) {
+            const { data } = await supabaseAdmin
+              .from("offers")
+              .select(
+                "id,title,offer_url,ai_summary,sales_angle,grounded_facts,faq_bundle,objection_notes,matching_tags,escalation_boundary,ingestion_status,last_ingested_at",
+              )
+              .eq("id", offerIdHint)
+              .maybeSingle();
+            if (data) offer = data;
+          }
+          const offerIntelligenceText = offer ? buildOfferIntelligenceBlock(offer) : null;
+          const offerIntelligenceLoaded = !!offer && !!offerIntelligenceText;
+          const offerHasGrounding =
+            !!offer &&
+            ((offer.grounded_facts && Object.keys(offer.grounded_facts).length > 0) ||
+              (Array.isArray(offer.faq_bundle) && offer.faq_bundle.length > 0));
+          const offerFieldsInjected = offer
+            ? Object.entries({
+                ai_summary: !!offer.ai_summary,
+                sales_angle: !!offer.sales_angle,
+                grounded_facts:
+                  !!offer.grounded_facts && Object.keys(offer.grounded_facts).length > 0,
+                faq_bundle: Array.isArray(offer.faq_bundle) && offer.faq_bundle.length > 0,
+                objection_notes:
+                  Array.isArray(offer.objection_notes) && offer.objection_notes.length > 0,
+                matching_tags:
+                  Array.isArray(offer.matching_tags) && offer.matching_tags.length > 0,
+                escalation_boundary:
+                  !!offer.escalation_boundary &&
+                  Object.keys(offer.escalation_boundary).length > 0,
+              })
+                .filter(([, v]) => v)
+                .map(([k]) => k)
+            : [];
+          const escalationFallback = !!campaign && !!offerIdHint && !offerHasGrounding;
+
+          // Observability for pilot
+          await supabaseAdmin.from("webhook_logs").insert({
+            source: "tamar_bot",
+            status: "offer_intelligence_trace",
+            payload: {
+              matched_offer_id: offer?.id || null,
+              matched_offer_title: offer?.title || null,
+              campaign_id: campaign?.id || null,
+              offer_intelligence_loaded: offerIntelligenceLoaded,
+              offer_fields_injected: offerFieldsInjected,
+              escalation_fallback: escalationFallback,
+              ingestion_status: offer?.ingestion_status || null,
+            },
+          });
+
           // Phone is the master key. Try to match existing contact by phone first.
           let matched: any = null;
           if (phone) {
