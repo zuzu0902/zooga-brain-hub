@@ -55,6 +55,22 @@ function TamarBehaviorPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
+  const [traces, setTraces] = useState<any[]>([]);
+  const [tracesLoading, setTracesLoading] = useState(false);
+
+  async function loadTraces() {
+    setTracesLoading(true);
+    const { data } = await supabase
+      .from("webhook_logs" as any)
+      .select("id, source, status, payload, created_at")
+      .eq("status", "tamar_runtime_trace")
+      .order("created_at", { ascending: false })
+      .limit(15);
+    setTraces((data as any) ?? []);
+    setTracesLoading(false);
+  }
+
+  useEffect(() => { loadTraces(); }, []);
 
   async function load() {
     setLoading(true);
