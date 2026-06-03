@@ -928,12 +928,21 @@ export type Database = {
       }
       offers: {
         Row: {
+          ai_summary: string | null
           category: Database["public"]["Enums"]["offer_category"]
           created_at: string
           description: string | null
+          escalation_boundary: Json
+          faq_bundle: Json
+          grounded_facts: Json
           id: string
+          ingestion_status: string
+          last_ingested_at: string | null
+          matching_tags: string[]
+          objection_notes: Json
           offer_url: string | null
           price: number | null
+          sales_angle: string | null
           status: Database["public"]["Enums"]["offer_status"]
           target_interests: string[]
           target_max_age: number | null
@@ -946,12 +955,21 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_summary?: string | null
           category: Database["public"]["Enums"]["offer_category"]
           created_at?: string
           description?: string | null
+          escalation_boundary?: Json
+          faq_bundle?: Json
+          grounded_facts?: Json
           id?: string
+          ingestion_status?: string
+          last_ingested_at?: string | null
+          matching_tags?: string[]
+          objection_notes?: Json
           offer_url?: string | null
           price?: number | null
+          sales_angle?: string | null
           status?: Database["public"]["Enums"]["offer_status"]
           target_interests?: string[]
           target_max_age?: number | null
@@ -964,12 +982,21 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_summary?: string | null
           category?: Database["public"]["Enums"]["offer_category"]
           created_at?: string
           description?: string | null
+          escalation_boundary?: Json
+          faq_bundle?: Json
+          grounded_facts?: Json
           id?: string
+          ingestion_status?: string
+          last_ingested_at?: string | null
+          matching_tags?: string[]
+          objection_notes?: Json
           offer_url?: string | null
           price?: number | null
+          sales_angle?: string | null
           status?: Database["public"]["Enums"]["offer_status"]
           target_interests?: string[]
           target_max_age?: number | null
