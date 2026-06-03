@@ -43,6 +43,46 @@ function buildCampaignContext(campaign: any, contact: any) {
   };
 }
 
+function buildOfferIntelligenceBlock(offer: any) {
+  if (!offer) return null;
+  const lines: string[] = [`# אינטליגנציית מוצר: ${offer.title}`];
+  if (offer.ai_summary) lines.push(`סיכום: ${offer.ai_summary}`);
+  if (offer.sales_angle) lines.push(`זווית מכירה: ${offer.sales_angle}`);
+  if (offer.offer_url) lines.push(`מקור עובדתי: ${offer.offer_url}`);
+  const facts = offer.grounded_facts && typeof offer.grounded_facts === "object" ? offer.grounded_facts : null;
+  if (facts && Object.keys(facts).length) {
+    lines.push(`עובדות מבוססות (אין לחרוג מהן):\n${JSON.stringify(facts, null, 2)}`);
+  }
+  const faq = Array.isArray(offer.faq_bundle) ? offer.faq_bundle : [];
+  if (faq.length) {
+    lines.push(
+      `שאלות נפוצות:\n` +
+        faq.map((f: any, i: number) => `${i + 1}. ש: ${f.q || f.question}\n   ת: ${f.a || f.answer}`).join("\n"),
+    );
+  }
+  const objs = Array.isArray(offer.objection_notes) ? offer.objection_notes : [];
+  if (objs.length) {
+    lines.push(
+      `התנגדויות ומענה:\n` +
+        objs.map((o: any, i: number) => `${i + 1}. ${o.objection || o.q}: ${o.response || o.a}`).join("\n"),
+    );
+  }
+  if (Array.isArray(offer.matching_tags) && offer.matching_tags.length) {
+    lines.push(`תגי התאמה: ${offer.matching_tags.join(", ")}`);
+  }
+  const esc = offer.escalation_boundary && typeof offer.escalation_boundary === "object" ? offer.escalation_boundary : null;
+  if (esc) {
+    const canAns = Array.isArray(esc.tamar_can_answer) ? esc.tamar_can_answer : [];
+    const mustEsc = Array.isArray(esc.must_escalate) ? esc.must_escalate : [];
+    if (canAns.length) lines.push(`תמר יכולה לענות על: ${canAns.join(", ")}`);
+    if (mustEsc.length) lines.push(`חובה להעביר לאדם בנושאים: ${mustEsc.join(", ")}`);
+  }
+  lines.push(
+    `כלל הזהב: אם המידע לא מופיע למעלה — אל תמציאי. אמרי בכנות שאת מבררת ותעבירי לבן אדם.`,
+  );
+  return lines.join("\n");
+}
+
 export const Route = createFileRoute("/api/public/webhook/tamar")({
   server: {
     handlers: {
