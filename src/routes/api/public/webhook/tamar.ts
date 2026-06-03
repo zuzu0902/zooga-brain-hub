@@ -292,6 +292,23 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             : [];
           const escalationFallback = !!campaign && !!offerIdHint && !offerHasGrounding;
 
+          // === Tamar runtime settings + prompt blocks (live control plane) ===
+          const [behaviorRes2, blocksRes2] = await Promise.all([
+            supabaseAdmin.from("tamar_behavior_settings" as any).select("*").eq("id", 1).maybeSingle(),
+            supabaseAdmin
+              .from("tamar_prompt_blocks" as any)
+              .select("block_key,title,body,version,updated_at")
+              .eq("is_active", true),
+          ]);
+          const tamarSettings = (behaviorRes2.data ?? null) as any;
+          const promptBlocks = ((blocksRes2.data ?? []) as any[]).reduce(
+            (acc: Record<string, any>, b: any) => {
+              acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
+              return acc;
+            },
+            {},
+          );
+
           // Observability for pilot
           await supabaseAdmin.from("webhook_logs").insert({
             source: "tamar_bot",
