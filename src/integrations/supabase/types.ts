@@ -1067,57 +1067,132 @@ export type Database = {
           confidence_high_min: number
           confidence_medium_min: number
           confidence_pending_max: number
+          consent_timing_rule: string
+          create_contact_on_first_unknown_phone: boolean
+          dating_counselor_mode_disabled: boolean
+          emoji_policy: string
+          gender_language_sensitivity: boolean
           handoff_confidence_threshold: number
           handoff_keywords: string[]
           handoff_on_factual_doubt: boolean
           id: number
+          internal_inference_visibility: string
           memory_kinds_enabled: string[]
           memory_write_policy: string
+          naturalness_level: string
+          no_invention_rule: boolean
           routing_allow_autonomous_campaigns: boolean
           routing_allow_autonomous_offers: boolean
           routing_mode: string
           sales_aggressiveness: string
           sales_max_followups_per_week: number
+          service_inquiry_is_lead: boolean
+          therapist_mode_disabled: boolean
           tone_preset: string
           updated_at: string
+          verbosity_level: string
+          warmth_level: string
         }
         Insert: {
           confidence_auto_apply_min?: number
           confidence_high_min?: number
           confidence_medium_min?: number
           confidence_pending_max?: number
+          consent_timing_rule?: string
+          create_contact_on_first_unknown_phone?: boolean
+          dating_counselor_mode_disabled?: boolean
+          emoji_policy?: string
+          gender_language_sensitivity?: boolean
           handoff_confidence_threshold?: number
           handoff_keywords?: string[]
           handoff_on_factual_doubt?: boolean
           id?: number
+          internal_inference_visibility?: string
           memory_kinds_enabled?: string[]
           memory_write_policy?: string
+          naturalness_level?: string
+          no_invention_rule?: boolean
           routing_allow_autonomous_campaigns?: boolean
           routing_allow_autonomous_offers?: boolean
           routing_mode?: string
           sales_aggressiveness?: string
           sales_max_followups_per_week?: number
+          service_inquiry_is_lead?: boolean
+          therapist_mode_disabled?: boolean
           tone_preset?: string
           updated_at?: string
+          verbosity_level?: string
+          warmth_level?: string
         }
         Update: {
           confidence_auto_apply_min?: number
           confidence_high_min?: number
           confidence_medium_min?: number
           confidence_pending_max?: number
+          consent_timing_rule?: string
+          create_contact_on_first_unknown_phone?: boolean
+          dating_counselor_mode_disabled?: boolean
+          emoji_policy?: string
+          gender_language_sensitivity?: boolean
           handoff_confidence_threshold?: number
           handoff_keywords?: string[]
           handoff_on_factual_doubt?: boolean
           id?: number
+          internal_inference_visibility?: string
           memory_kinds_enabled?: string[]
           memory_write_policy?: string
+          naturalness_level?: string
+          no_invention_rule?: boolean
           routing_allow_autonomous_campaigns?: boolean
           routing_allow_autonomous_offers?: boolean
           routing_mode?: string
           sales_aggressiveness?: string
           sales_max_followups_per_week?: number
+          service_inquiry_is_lead?: boolean
+          therapist_mode_disabled?: boolean
           tone_preset?: string
           updated_at?: string
+          verbosity_level?: string
+          warmth_level?: string
+        }
+        Relationships: []
+      }
+      tamar_prompt_blocks: {
+        Row: {
+          block_key: string
+          body: string
+          created_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          title: string | null
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          block_key: string
+          body?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Update: {
+          block_key?: string
+          body?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          title?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
         }
         Relationships: []
       }

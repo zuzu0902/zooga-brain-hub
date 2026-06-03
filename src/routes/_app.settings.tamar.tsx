@@ -33,6 +33,18 @@ type Settings = {
   routing_allow_autonomous_campaigns: boolean;
   sales_aggressiveness: string;
   sales_max_followups_per_week: number;
+  warmth_level: string;
+  verbosity_level: string;
+  emoji_policy: string;
+  naturalness_level: string;
+  gender_language_sensitivity: boolean;
+  therapist_mode_disabled: boolean;
+  dating_counselor_mode_disabled: boolean;
+  consent_timing_rule: string;
+  create_contact_on_first_unknown_phone: boolean;
+  service_inquiry_is_lead: boolean;
+  internal_inference_visibility: string;
+  no_invention_rule: boolean;
   updated_at?: string;
 };
 
@@ -261,6 +273,101 @@ function TamarBehaviorPage() {
               <div className="text-xs text-muted-foreground">Off until autonomous campaign agent ships.</div>
             </div>
             <Switch checked={s.routing_allow_autonomous_campaigns} onCheckedChange={(v) => u({ routing_allow_autonomous_campaigns: v })} />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-4 space-y-4">
+        <h2 className="font-semibold">Structured behavior (Tamar runtime)</h2>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div>
+            <Label>Warmth level</Label>
+            <Select value={s.warmth_level} onValueChange={(v) => u({ warmth_level: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="reserved">reserved</SelectItem>
+                <SelectItem value="warm">warm</SelectItem>
+                <SelectItem value="very_warm">very_warm</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Verbosity</Label>
+            <Select value={s.verbosity_level} onValueChange={(v) => u({ verbosity_level: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="terse">terse</SelectItem>
+                <SelectItem value="concise">concise</SelectItem>
+                <SelectItem value="detailed">detailed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Emoji policy</Label>
+            <Select value={s.emoji_policy} onValueChange={(v) => u({ emoji_policy: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">none</SelectItem>
+                <SelectItem value="sparing">sparing</SelectItem>
+                <SelectItem value="liberal">liberal</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Naturalness / formality</Label>
+            <Select value={s.naturalness_level} onValueChange={(v) => u({ naturalness_level: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="formal">formal</SelectItem>
+                <SelectItem value="natural">natural</SelectItem>
+                <SelectItem value="casual">casual</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Consent timing rule</Label>
+            <Select value={s.consent_timing_rule} onValueChange={(v) => u({ consent_timing_rule: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="immediate">immediate</SelectItem>
+                <SelectItem value="after_first_meaningful_reply">after_first_meaningful_reply</SelectItem>
+                <SelectItem value="before_offer">before_offer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Internal inference visibility</Label>
+            <Select value={s.internal_inference_visibility} onValueChange={(v) => u({ internal_inference_visibility: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="manager_only">manager_only</SelectItem>
+                <SelectItem value="never">never</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between border rounded-md px-3 py-2">
+            <div className="text-sm font-medium">Gender-language sensitivity (Hebrew)</div>
+            <Switch checked={s.gender_language_sensitivity} onCheckedChange={(v) => u({ gender_language_sensitivity: v })} />
+          </div>
+          <div className="flex items-center justify-between border rounded-md px-3 py-2">
+            <div className="text-sm font-medium">Therapist mode disabled</div>
+            <Switch checked={s.therapist_mode_disabled} onCheckedChange={(v) => u({ therapist_mode_disabled: v })} />
+          </div>
+          <div className="flex items-center justify-between border rounded-md px-3 py-2">
+            <div className="text-sm font-medium">Dating-counselor mode disabled</div>
+            <Switch checked={s.dating_counselor_mode_disabled} onCheckedChange={(v) => u({ dating_counselor_mode_disabled: v })} />
+          </div>
+          <div className="flex items-center justify-between border rounded-md px-3 py-2">
+            <div className="text-sm font-medium">Create contact on first unknown phone</div>
+            <Switch checked={s.create_contact_on_first_unknown_phone} onCheckedChange={(v) => u({ create_contact_on_first_unknown_phone: v })} />
+          </div>
+          <div className="flex items-center justify-between border rounded-md px-3 py-2">
+            <div className="text-sm font-medium">Service inquiry counts as lead</div>
+            <Switch checked={s.service_inquiry_is_lead} onCheckedChange={(v) => u({ service_inquiry_is_lead: v })} />
+          </div>
+          <div className="flex items-center justify-between border rounded-md px-3 py-2">
+            <div className="text-sm font-medium">No-invention rule (must not fabricate facts)</div>
+            <Switch checked={s.no_invention_rule} onCheckedChange={(v) => u({ no_invention_rule: v })} />
           </div>
         </div>
       </Card>
