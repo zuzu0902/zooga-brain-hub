@@ -140,6 +140,7 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
     composition_version: "zooga-tamar-runtime-composition-v1",
     model_call_owner: "railway_tamar_runtime",
     zooga_direct_model_call: false,
+    railway_prompt_consumption_confirmed_by_zooga: false,
     fallback_default_prompt_path: !input.tamarSettings && blockEntries.length === 0,
     injected_sections: {
       tamar_settings: !!input.tamarSettings,
