@@ -9,6 +9,7 @@ function stripHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -18,6 +19,25 @@ function stripHtml(html: string): string {
     .replace(/&#39;/gi, "'")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function extractMeta(html: string): string {
+  const parts: string[] = [];
+  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (title?.[1]) parts.push(`TITLE: ${title[1].trim()}`);
+  const metaRe = /<meta\s+[^>]*?(?:name|property)=["']([^"']+)["'][^>]*?content=["']([^"']*)["'][^>]*>/gi;
+  let m: RegExpExecArray | null;
+  const keep = /^(description|og:title|og:description|og:site_name|twitter:title|twitter:description|keywords)$/i;
+  while ((m = metaRe.exec(html))) {
+    if (keep.test(m[1])) parts.push(`${m[1]}: ${m[2].trim()}`);
+  }
+  // JSON-LD blocks often contain product/event facts
+  const ldRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let l: RegExpExecArray | null;
+  while ((l = ldRe.exec(html))) {
+    parts.push(`JSON-LD: ${l[1].trim().slice(0, 2000)}`);
+  }
+  return parts.join("\n");
 }
 
 const SYSTEM_PROMPT = `אתה עוזר אנליסט עבור הסוכנת "תמר" — בוט מכירות בעברית.
@@ -67,14 +87,20 @@ export const analyzeOfferIntelligence = createServerFn({ method: "POST" })
       const res = await fetch(offer.offer_url, {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; ZoogaBot/1.0; +https://zooga-brain-hub.lovable.app)",
-          Accept: "text/html,*/*",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,*/*",
+          "Accept-Language": "he-IL,he;q=0.9,en;q=0.7",
         },
+        redirect: "follow",
       });
       if (!res.ok) throw new Error(`fetch failed: HTTP ${res.status}`);
       const html = await res.text();
-      const text = stripHtml(html).slice(0, 18000);
-      if (text.length < 60) throw new Error("התוכן שחולץ מהדף קצר מדי לניתוח.");
+      const metaBlock = extractMeta(html);
+      const bodyText = stripHtml(html);
+      const combined = [metaBlock, bodyText].filter(Boolean).join("\n\n").slice(0, 18000);
+      if (combined.replace(/\s+/g, "").length < 20) {
+        throw new Error("לא הצלחנו לחלץ תוכן מהדף (יתכן דף JS דינמי או חסום). ודאו שה-URL נגיש ציבורית.");
+      }
 
       // 2. Call Lovable AI Gateway
       const apiKey = process.env.LOVABLE_API_KEY;
@@ -86,9 +112,9 @@ export const analyzeOfferIntelligence = createServerFn({ method: "POST" })
 מחיר במערכת: ${offer.price ?? "(אין)"}
 URL מקור: ${offer.offer_url}
 
-תוכן הדף (נקי מ-HTML):
+תוכן הדף (מטא + טקסט נקי מ-HTML):
 """
-${text}
+${combined}
 """
 
 הפק את ה-JSON לפי המבנה שהוגדר.`;
