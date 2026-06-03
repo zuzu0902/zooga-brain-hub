@@ -447,6 +447,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               escalation_reason: escalationFallback
                 ? "offer_intelligence_missing_grounded_knowledge"
                 : null,
+              tamar_settings: tamarSettings,
+              prompt_blocks: promptBlocks,
             });
           }
 
