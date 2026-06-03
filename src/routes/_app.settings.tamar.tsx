@@ -33,6 +33,18 @@ type Settings = {
   routing_allow_autonomous_campaigns: boolean;
   sales_aggressiveness: string;
   sales_max_followups_per_week: number;
+  warmth_level: string;
+  verbosity_level: string;
+  emoji_policy: string;
+  naturalness_level: string;
+  gender_language_sensitivity: boolean;
+  therapist_mode_disabled: boolean;
+  dating_counselor_mode_disabled: boolean;
+  consent_timing_rule: string;
+  create_contact_on_first_unknown_phone: boolean;
+  service_inquiry_is_lead: boolean;
+  internal_inference_visibility: string;
+  no_invention_rule: boolean;
   updated_at?: string;
 };
 
