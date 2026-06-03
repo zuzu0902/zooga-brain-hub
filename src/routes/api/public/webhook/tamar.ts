@@ -313,7 +313,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             ? { first_name: String(name).trim().split(/\s+/)[0], full_name: String(name) }
             : null;
           const provisionalCampaignContext = campaign ? buildCampaignContext(campaign, provisionalContact) : null;
-          const { runtimePromptContext, tracePromptContext } = buildTamarRuntimeComposition({
+          const provisionalComposition = buildTamarRuntimeComposition({
             inboundMessage: message,
             source,
             contact: provisionalContact,
@@ -367,16 +367,11 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               composed_runtime_prompt_injected_for_tamar: true,
               zooga_direct_model_call: false,
               model_call_owner: "railway_tamar_runtime",
-              fallback_default_prompt_path: tracePromptContext.fallback_default_prompt_path,
-              injected_sections: tracePromptContext.injected_sections,
+              fallback_default_prompt_path: provisionalComposition.tracePromptContext.fallback_default_prompt_path,
+              injected_sections: provisionalComposition.tracePromptContext.injected_sections,
             },
-            composed_runtime_prompt_context: tracePromptContext,
+            composed_runtime_prompt_context: provisionalComposition.tracePromptContext,
           };
-          await supabaseAdmin.from("webhook_logs").insert({
-            source: "tamar_bot",
-            status: "tamar_runtime_trace",
-            payload: observability,
-          });
 
           // Phone is the master key. Try to match existing contact by phone first.
           let matched: any = null;
