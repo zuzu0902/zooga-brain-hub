@@ -581,6 +581,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               : null,
             tamar_settings: tamarSettings,
             prompt_blocks: promptBlocks,
+            _observability: observability,
           });
         } catch (e: any) {
           await supabaseAdmin.from("webhook_logs").insert({
