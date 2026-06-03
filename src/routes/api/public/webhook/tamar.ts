@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { INTAKE_FLOWS, buildSuggestedOpening, type IntakeFlowType } from "@/lib/intake-flows";
+import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
 
 function triggerExtraction(request: Request, contactId: string) {
   try {
@@ -308,6 +309,24 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             },
             {},
           );
+          const provisionalContact = name
+            ? { first_name: String(name).trim().split(/\s+/)[0], full_name: String(name) }
+            : null;
+          const provisionalCampaignContext = campaign ? buildCampaignContext(campaign, provisionalContact) : null;
+          const { runtimePromptContext, tracePromptContext } = buildTamarRuntimeComposition({
+            inboundMessage: message,
+            source,
+            contact: provisionalContact,
+            campaign,
+            campaignContextText: provisionalCampaignContext?.campaign_context ?? null,
+            offer,
+            offerIntelligenceText,
+            tamarSettings,
+            promptBlocks,
+            escalationFallback,
+            escalationReason: escalationFallback ? "offer_intelligence_missing_grounded_knowledge" : null,
+            offerFieldsInjected,
+          });
 
           // === Runtime observability trace (manager-visible only) ===
           // Captures exactly what context Tamar runtime received for this
@@ -343,6 +362,15 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             escalation_reason: escalationFallback
               ? "offer_intelligence_missing_grounded_knowledge"
               : null,
+            prompt_composition: {
+              composed_runtime_prompt_available: true,
+              composed_runtime_prompt_injected_for_tamar: true,
+              zooga_direct_model_call: false,
+              model_call_owner: "railway_tamar_runtime",
+              fallback_default_prompt_path: tracePromptContext.fallback_default_prompt_path,
+              injected_sections: tracePromptContext.injected_sections,
+            },
+            composed_runtime_prompt_context: tracePromptContext,
           };
           await supabaseAdmin.from("webhook_logs").insert({
             source: "tamar_bot",
