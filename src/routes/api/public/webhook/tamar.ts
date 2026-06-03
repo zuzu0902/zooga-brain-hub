@@ -323,7 +323,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             "consent_state",
           ].filter(Boolean) as string[];
           const observability = {
-            inbound_at: nowIsoTrace(),
+            inbound_at: new Date().toISOString(),
             phone_or_id: phone || facebook_id || email || null,
             campaign_injected: !!campaign,
             campaign_id: campaign?.id || null,
