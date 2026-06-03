@@ -398,6 +398,9 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             }
 
             const ctx = campaign ? buildCampaignContext(campaign, matched) : null;
+            if (ctx && offerIntelligenceText) {
+              ctx.campaign_context = `${ctx.campaign_context}\n\n${offerIntelligenceText}`;
+            }
 
             if (message) triggerExtraction(request, matched.id);
 
@@ -501,6 +504,9 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           });
 
           const ctx = campaign ? buildCampaignContext(campaign, { first_name: insertRow.first_name }) : null;
+          if (ctx && offerIntelligenceText) {
+            ctx.campaign_context = `${ctx.campaign_context}\n\n${offerIntelligenceText}`;
+          }
 
           if (created?.id && message) triggerExtraction(request, created.id);
 
