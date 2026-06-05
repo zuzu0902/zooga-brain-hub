@@ -19,7 +19,7 @@ async function normalizeCatastrophicSsrResponse(res: Response): Promise<Response
     if (ct.includes("text/html")) return res;
     const text = await res.clone().text();
     if (text && text.trim().length > 0) return res;
-    return new Response(renderErrorPage({ title: "Server error", message: "The server returned an empty 500 response." }), {
+    return new Response(renderErrorPage(), {
       status: 500,
       headers: { "content-type": "text/html; charset=utf-8" },
     });
@@ -35,12 +35,11 @@ export default {
       const handler = entry.default?.fetch ?? entry.fetch;
       const res: Response = await handler(request);
       return await normalizeCatastrophicSsrResponse(res);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return new Response(
-        renderErrorPage({ title: "Server error", message, stack: err instanceof Error ? err.stack : undefined }),
-        { status: 500, headers: { "content-type": "text/html; charset=utf-8" } },
-      );
+    } catch {
+      return new Response(renderErrorPage(), {
+        status: 500,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
     }
   },
 };
