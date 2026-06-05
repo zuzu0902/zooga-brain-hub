@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
+import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
 import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-campaign'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
@@ -53,6 +54,7 @@ import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new
 import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
 import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
+import { Route as ApiPublicRuntimeTamarWritebackRouteImport } from './routes/api/public/runtime/tamar-writeback'
 import { Route as ApiPublicRuntimeTamarPackRouteImport } from './routes/api/public/runtime/tamar-pack'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
@@ -80,6 +82,11 @@ const AppTasksRoute = AppTasksRouteImport.update({
 const AppSendOfferRoute = AppSendOfferRouteImport.update({
   id: '/send-offer',
   path: '/send-offer',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRuntimeTraceRoute = AppRuntimeTraceRouteImport.update({
+  id: '/runtime-trace',
+  path: '/runtime-trace',
   getParentRoute: () => AppRoute,
 } as any)
 const AppOffersRoute = AppOffersRouteImport.update({
@@ -291,6 +298,12 @@ const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
   path: '/api/public/webhook/tamar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRuntimeTamarWritebackRoute =
+  ApiPublicRuntimeTamarWritebackRouteImport.update({
+    id: '/api/public/runtime/tamar-writeback',
+    path: '/api/public/runtime/tamar-writeback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicRuntimeTamarPackRoute =
   ApiPublicRuntimeTamarPackRouteImport.update({
     id: '/api/public/runtime/tamar-pack',
@@ -326,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRouteWithChildren
+  '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
@@ -361,6 +375,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
+  '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -374,6 +389,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRouteWithChildren
+  '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
@@ -410,6 +426,7 @@ export interface FileRoutesByTo {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
+  '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -425,6 +442,7 @@ export interface FileRoutesById {
   '/_app/inbox': typeof AppInboxRoute
   '/_app/intake-campaign': typeof AppIntakeCampaignRoute
   '/_app/offers': typeof AppOffersRouteWithChildren
+  '/_app/runtime-trace': typeof AppRuntimeTraceRoute
   '/_app/send-offer': typeof AppSendOfferRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
@@ -461,6 +479,7 @@ export interface FileRoutesById {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
+  '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -477,6 +496,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/intake-campaign'
     | '/offers'
+    | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
     | '/campaigns/$id'
@@ -512,6 +532,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
+    | '/api/public/runtime/tamar-writeback'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   fileRoutesByTo: FileRoutesByTo
@@ -525,6 +546,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/intake-campaign'
     | '/offers'
+    | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
     | '/'
@@ -561,6 +583,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
+    | '/api/public/runtime/tamar-writeback'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   id:
@@ -575,6 +598,7 @@ export interface FileRouteTypes {
     | '/_app/inbox'
     | '/_app/intake-campaign'
     | '/_app/offers'
+    | '/_app/runtime-trace'
     | '/_app/send-offer'
     | '/_app/tasks'
     | '/_app/'
@@ -611,6 +635,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
+    | '/api/public/runtime/tamar-writeback'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   fileRoutesById: FileRoutesById
@@ -644,6 +669,7 @@ export interface RootRouteChildren {
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeTamarPackRoute: typeof ApiPublicRuntimeTamarPackRoute
+  ApiPublicRuntimeTamarWritebackRoute: typeof ApiPublicRuntimeTamarWritebackRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -683,6 +709,13 @@ declare module '@tanstack/react-router' {
       path: '/send-offer'
       fullPath: '/send-offer'
       preLoaderRoute: typeof AppSendOfferRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/runtime-trace': {
+      id: '/_app/runtime-trace'
+      path: '/runtime-trace'
+      fullPath: '/runtime-trace'
+      preLoaderRoute: typeof AppRuntimeTraceRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/offers': {
@@ -958,6 +991,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhookTamarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/runtime/tamar-writeback': {
+      id: '/api/public/runtime/tamar-writeback'
+      path: '/api/public/runtime/tamar-writeback'
+      fullPath: '/api/public/runtime/tamar-writeback'
+      preLoaderRoute: typeof ApiPublicRuntimeTamarWritebackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/runtime/tamar-pack': {
       id: '/api/public/runtime/tamar-pack'
       path: '/api/public/runtime/tamar-pack'
@@ -1036,6 +1076,7 @@ interface AppRouteChildren {
   AppInboxRoute: typeof AppInboxRoute
   AppIntakeCampaignRoute: typeof AppIntakeCampaignRoute
   AppOffersRoute: typeof AppOffersRouteWithChildren
+  AppRuntimeTraceRoute: typeof AppRuntimeTraceRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1053,6 +1094,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppInboxRoute: AppInboxRoute,
   AppIntakeCampaignRoute: AppIntakeCampaignRoute,
   AppOffersRoute: AppOffersRouteWithChildren,
+  AppRuntimeTraceRoute: AppRuntimeTraceRoute,
   AppSendOfferRoute: AppSendOfferRoute,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
@@ -1092,19 +1134,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicRuntimeTamarPackRoute: ApiPublicRuntimeTamarPackRoute,
+  ApiPublicRuntimeTamarWritebackRoute: ApiPublicRuntimeTamarWritebackRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

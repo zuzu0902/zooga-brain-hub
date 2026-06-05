@@ -1,0 +1,186 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+export const Route = createFileRoute("/_app/runtime-trace")({
+  component: RuntimeTracePage,
+});
+
+type Row = {
+  id: string;
+  created_at: string;
+  contact_id: string | null;
+  campaign_id: string | null;
+  offer_id: string | null;
+  channel: string | null;
+  source: string | null;
+  inbound_message: string | null;
+  outbound_reply: string | null;
+  runtime_mode: string;
+  runtime_pack_fetch_ok: boolean | null;
+  fallback_reason: string | null;
+  deployment_sha: string | null;
+  composition_version: string | null;
+  tamar_settings_version_at: string | null;
+  prompt_blocks_injected: any;
+  offer_intelligence_injected: boolean;
+  campaign_injected: boolean;
+  latency_ms: number | null;
+  error: string | null;
+  raw_payload: any;
+};
+
+function modeBadge(mode: string) {
+  if (mode === "zooga_pack")
+    return <Badge className="bg-emerald-600 hover:bg-emerald-600">zooga_pack</Badge>;
+  if (mode === "fallback")
+    return <Badge className="bg-amber-600 hover:bg-amber-600">fallback</Badge>;
+  if (mode === "failed_before_reply")
+    return <Badge variant="destructive">failed_before_reply</Badge>;
+  return <Badge variant="secondary">{mode}</Badge>;
+}
+
+function RuntimeTracePage() {
+  const [modeFilter, setModeFilter] = useState<string>("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["tamar_runtime_executions", modeFilter],
+    queryFn: async () => {
+      let q = supabase
+        .from("tamar_runtime_executions" as any)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (modeFilter) q = q.eq("runtime_mode", modeFilter);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as unknown as Row[];
+    },
+  });
+
+  return (
+    <div className="p-6 space-y-4" dir="rtl">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Runtime Trace</h1>
+          <p className="text-sm text-muted-foreground">
+            אמת הריצה של Tamar מ-Railway. כל שורה מייצגת תור שיחה אחד שנשלח חזרה ל-Zooga (writeback).
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {["", "zooga_pack", "fallback", "failed_before_reply"].map((m) => (
+            <Button
+              key={m || "all"}
+              size="sm"
+              variant={modeFilter === m ? "default" : "outline"}
+              onClick={() => setModeFilter(m)}
+            >
+              {m || "הכל"}
+            </Button>
+          ))}
+          <Button size="sm" variant="ghost" onClick={() => refetch()}>
+            רענן
+          </Button>
+        </div>
+      </div>
+
+      {isLoading && <div className="text-sm text-muted-foreground">טוען…</div>}
+      {error && (
+        <div className="text-sm text-destructive">שגיאה: {(error as Error).message}</div>
+      )}
+      {!isLoading && !error && (data ?? []).length === 0 && (
+        <Card className="p-6 text-sm text-muted-foreground">
+          עוד אין רשומות. Railway צריך להפעיל את <span className="font-mono">POST /api/public/runtime/tamar-writeback</span> אחרי כל תור שיחה.
+        </Card>
+      )}
+
+      <div className="space-y-3">
+        {(data ?? []).map((r) => {
+          const expanded = expandedId === r.id;
+          return (
+            <Card key={r.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {modeBadge(r.runtime_mode)}
+                    {r.runtime_pack_fetch_ok === true && (
+                      <Badge variant="outline">pack_fetch_ok</Badge>
+                    )}
+                    {r.runtime_pack_fetch_ok === false && (
+                      <Badge variant="destructive">pack_fetch_failed</Badge>
+                    )}
+                    {r.campaign_injected && <Badge variant="outline">campaign</Badge>}
+                    {r.offer_intelligence_injected && (
+                      <Badge variant="outline">offer_intel</Badge>
+                    )}
+                    {Array.isArray(r.prompt_blocks_injected) &&
+                      r.prompt_blocks_injected.length > 0 && (
+                        <Badge variant="outline">
+                          blocks: {r.prompt_blocks_injected.length}
+                        </Badge>
+                      )}
+                    {r.latency_ms != null && (
+                      <span className="text-xs text-muted-foreground">
+                        {r.latency_ms}ms
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(r.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {r.fallback_reason && (
+                    <div className="text-sm text-amber-700">
+                      fallback_reason: <span className="font-mono">{r.fallback_reason}</span>
+                    </div>
+                  )}
+                  {r.error && (
+                    <div className="text-sm text-destructive">
+                      error: <span className="font-mono">{r.error}</span>
+                    </div>
+                  )}
+                  {r.inbound_message && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">נכנס: </span>
+                      <span className="whitespace-pre-wrap">{r.inbound_message}</span>
+                    </div>
+                  )}
+                  {r.outbound_reply && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">תשובה: </span>
+                      <span className="whitespace-pre-wrap">{r.outbound_reply}</span>
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground space-x-3 space-x-reverse">
+                    {r.deployment_sha && <span>sha: {r.deployment_sha.slice(0, 10)}</span>}
+                    {r.composition_version && <span>· comp: {r.composition_version}</span>}
+                    {r.tamar_settings_version_at && (
+                      <span>· settings@ {new Date(r.tamar_settings_version_at).toLocaleString()}</span>
+                    )}
+                    {r.contact_id && <span>· contact: {r.contact_id.slice(0, 8)}</span>}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setExpandedId(expanded ? null : r.id)}
+                >
+                  {expanded ? "הסתר" : "raw"}
+                </Button>
+              </div>
+              {expanded && (
+                <pre className="mt-3 p-3 bg-muted rounded text-xs overflow-auto max-h-96" dir="ltr">
+                  {JSON.stringify(r, null, 2)}
+                </pre>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
