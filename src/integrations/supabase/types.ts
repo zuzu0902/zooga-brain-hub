@@ -1196,6 +1196,78 @@ export type Database = {
         }
         Relationships: []
       }
+      tamar_runtime_executions: {
+        Row: {
+          campaign_id: string | null
+          campaign_injected: boolean
+          channel: string | null
+          composition_version: string | null
+          contact_id: string | null
+          created_at: string
+          deployment_sha: string | null
+          error: string | null
+          fallback_reason: string | null
+          id: string
+          inbound_message: string | null
+          latency_ms: number | null
+          offer_id: string | null
+          offer_intelligence_injected: boolean
+          outbound_reply: string | null
+          prompt_blocks_injected: Json
+          raw_payload: Json | null
+          runtime_mode: string
+          runtime_pack_fetch_ok: boolean | null
+          source: string | null
+          tamar_settings_version_at: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          campaign_injected?: boolean
+          channel?: string | null
+          composition_version?: string | null
+          contact_id?: string | null
+          created_at?: string
+          deployment_sha?: string | null
+          error?: string | null
+          fallback_reason?: string | null
+          id?: string
+          inbound_message?: string | null
+          latency_ms?: number | null
+          offer_id?: string | null
+          offer_intelligence_injected?: boolean
+          outbound_reply?: string | null
+          prompt_blocks_injected?: Json
+          raw_payload?: Json | null
+          runtime_mode?: string
+          runtime_pack_fetch_ok?: boolean | null
+          source?: string | null
+          tamar_settings_version_at?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          campaign_injected?: boolean
+          channel?: string | null
+          composition_version?: string | null
+          contact_id?: string | null
+          created_at?: string
+          deployment_sha?: string | null
+          error?: string | null
+          fallback_reason?: string | null
+          id?: string
+          inbound_message?: string | null
+          latency_ms?: number | null
+          offer_id?: string | null
+          offer_intelligence_injected?: boolean
+          outbound_reply?: string | null
+          prompt_blocks_injected?: Json
+          raw_payload?: Json | null
+          runtime_mode?: string
+          runtime_pack_fetch_ok?: boolean | null
+          source?: string | null
+          tamar_settings_version_at?: string | null
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_to: string | null
