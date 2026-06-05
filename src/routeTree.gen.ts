@@ -53,6 +53,7 @@ import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new
 import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
 import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
+import { Route as ApiPublicRuntimeTamarWritebackRouteImport } from './routes/api/public/runtime/tamar-writeback'
 import { Route as ApiPublicRuntimeTamarPackRouteImport } from './routes/api/public/runtime/tamar-pack'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
@@ -291,6 +292,12 @@ const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
   path: '/api/public/webhook/tamar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRuntimeTamarWritebackRoute =
+  ApiPublicRuntimeTamarWritebackRouteImport.update({
+    id: '/api/public/runtime/tamar-writeback',
+    path: '/api/public/runtime/tamar-writeback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicRuntimeTamarPackRoute =
   ApiPublicRuntimeTamarPackRouteImport.update({
     id: '/api/public/runtime/tamar-pack',
@@ -361,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
+  '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -410,6 +418,7 @@ export interface FileRoutesByTo {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
+  '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -461,6 +470,7 @@ export interface FileRoutesById {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
+  '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -512,6 +522,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
+    | '/api/public/runtime/tamar-writeback'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   fileRoutesByTo: FileRoutesByTo
@@ -561,6 +572,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
+    | '/api/public/runtime/tamar-writeback'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   id:
@@ -611,6 +623,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
+    | '/api/public/runtime/tamar-writeback'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
   fileRoutesById: FileRoutesById
@@ -644,6 +657,7 @@ export interface RootRouteChildren {
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeTamarPackRoute: typeof ApiPublicRuntimeTamarPackRoute
+  ApiPublicRuntimeTamarWritebackRoute: typeof ApiPublicRuntimeTamarWritebackRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
 }
@@ -958,6 +972,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhookTamarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/runtime/tamar-writeback': {
+      id: '/api/public/runtime/tamar-writeback'
+      path: '/api/public/runtime/tamar-writeback'
+      fullPath: '/api/public/runtime/tamar-writeback'
+      preLoaderRoute: typeof ApiPublicRuntimeTamarWritebackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/runtime/tamar-pack': {
       id: '/api/public/runtime/tamar-pack'
       path: '/api/public/runtime/tamar-pack'
@@ -1092,6 +1113,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicRuntimeTamarPackRoute: ApiPublicRuntimeTamarPackRoute,
+  ApiPublicRuntimeTamarWritebackRoute: ApiPublicRuntimeTamarWritebackRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
 }
