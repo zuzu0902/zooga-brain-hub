@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
+import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
 import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-campaign'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
@@ -81,6 +82,11 @@ const AppTasksRoute = AppTasksRouteImport.update({
 const AppSendOfferRoute = AppSendOfferRouteImport.update({
   id: '/send-offer',
   path: '/send-offer',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRuntimeTraceRoute = AppRuntimeTraceRouteImport.update({
+  id: '/runtime-trace',
+  path: '/runtime-trace',
   getParentRoute: () => AppRoute,
 } as any)
 const AppOffersRoute = AppOffersRouteImport.update({
@@ -333,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRouteWithChildren
+  '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
@@ -382,6 +389,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/offers': typeof AppOffersRouteWithChildren
+  '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
@@ -434,6 +442,7 @@ export interface FileRoutesById {
   '/_app/inbox': typeof AppInboxRoute
   '/_app/intake-campaign': typeof AppIntakeCampaignRoute
   '/_app/offers': typeof AppOffersRouteWithChildren
+  '/_app/runtime-trace': typeof AppRuntimeTraceRoute
   '/_app/send-offer': typeof AppSendOfferRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
@@ -487,6 +496,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/intake-campaign'
     | '/offers'
+    | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
     | '/campaigns/$id'
@@ -536,6 +546,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/intake-campaign'
     | '/offers'
+    | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
     | '/'
@@ -587,6 +598,7 @@ export interface FileRouteTypes {
     | '/_app/inbox'
     | '/_app/intake-campaign'
     | '/_app/offers'
+    | '/_app/runtime-trace'
     | '/_app/send-offer'
     | '/_app/tasks'
     | '/_app/'
@@ -697,6 +709,13 @@ declare module '@tanstack/react-router' {
       path: '/send-offer'
       fullPath: '/send-offer'
       preLoaderRoute: typeof AppSendOfferRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/runtime-trace': {
+      id: '/_app/runtime-trace'
+      path: '/runtime-trace'
+      fullPath: '/runtime-trace'
+      preLoaderRoute: typeof AppRuntimeTraceRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/offers': {
@@ -1057,6 +1076,7 @@ interface AppRouteChildren {
   AppInboxRoute: typeof AppInboxRoute
   AppIntakeCampaignRoute: typeof AppIntakeCampaignRoute
   AppOffersRoute: typeof AppOffersRouteWithChildren
+  AppRuntimeTraceRoute: typeof AppRuntimeTraceRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
   AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1074,6 +1094,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppInboxRoute: AppInboxRoute,
   AppIntakeCampaignRoute: AppIntakeCampaignRoute,
   AppOffersRoute: AppOffersRouteWithChildren,
+  AppRuntimeTraceRoute: AppRuntimeTraceRoute,
   AppSendOfferRoute: AppSendOfferRoute,
   AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
