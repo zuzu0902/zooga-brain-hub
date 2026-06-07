@@ -15,6 +15,21 @@ import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
 
+const HANDOFF_PATTERNS = [
+  /מעביר(ה)?\s+(אותך\s+)?ל(נציג|אדם|מנהל|צוות)/i,
+  /אבדוק\s+(מול|עם)\s+(הצוות|מנהל|נציג|אדם)/i,
+  /אחזור\s+אלי(י)?ך\s+(עם\s+תשובה|בהקדם)/i,
+  /מעבירה?\s+לטיפול\s+אנושי/i,
+  /transferring you to (a|our) (human|agent|representative|manager)/i,
+  /escalat(e|ing) to (a|our) (human|agent|team|manager)/i,
+  /let me check with (the|our) (team|manager|human)/i,
+];
+
+function detectHandoff(reply: string): boolean {
+  if (!reply) return false;
+  return HANDOFF_PATTERNS.some((re) => re.test(reply));
+}
+
 async function authorize(request: Request, body: any): Promise<Response | null> {
   const provided =
     request.headers.get("x-api-token") ||
@@ -146,6 +161,35 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         }
 
         const channel = body.source ?? "whatsapp";
+        const metaMessageId = body.meta_message_id ? String(body.meta_message_id) : null;
+
+        // Idempotency: if we've already processed this Meta message id, return the prior result.
+        if (metaMessageId) {
+          const { data: prior } = await supabaseAdmin
+            .from("tamar_runtime_executions" as any)
+            .select("id, contact_id, outbound_reply, runtime_mode, raw_payload")
+            .eq("raw_payload->>meta_message_id", metaMessageId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (prior) {
+            return Response.json({
+              ok: true,
+              duplicate: true,
+              reply_text: (prior as any).outbound_reply ?? "",
+              contact_id: (prior as any).contact_id ?? null,
+              runtime_mode: (prior as any).runtime_mode ?? "zooga_direct",
+              trace_id: (prior as any).id,
+              handoff_requested: false,
+              meta: {
+                offer_id: null,
+                campaign_id: null,
+                idempotent_replay: true,
+              },
+            });
+          }
+        }
+
         const contact = await resolveOrCreateContact(body);
         const contactId = contact?.id ?? null;
 
@@ -248,7 +292,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             error: runtimeError,
             raw_payload: {
               request: { ...body, message },
-              meta_message_id: body.meta_message_id ?? null,
+              meta_message_id: metaMessageId,
               meta_timestamp: body.meta_timestamp ?? null,
               model: MODEL,
               prompt_preview: composition.tracePromptContext.prompt_text_preview,
@@ -270,13 +314,15 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           );
         }
 
+        const handoffRequested = detectHandoff(replyText);
+
         return Response.json({
           ok: true,
           reply_text: replyText,
           contact_id: contactId,
           runtime_mode: "zooga_direct",
           trace_id: (trace as any)?.id ?? null,
-          handoff_requested: false,
+          handoff_requested: handoffRequested,
           meta: {
             offer_id: offer?.id ?? null,
             campaign_id: campaign?.id ?? null,
