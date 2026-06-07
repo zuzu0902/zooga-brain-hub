@@ -70,7 +70,7 @@ function CampaignsListPage() {
     queryKey: ["offers-map", offerIds.join(",")],
     enabled: offerIds.length > 0,
     queryFn: async () => {
-      const { data } = await supabase.from("offers").select("id,title,price").in("id", offerIds);
+      const { data } = await supabase.from("offers").select("id,title,price,currency").in("id", offerIds);
       const m: Record<string, any> = {};
       (data || []).forEach((o: any) => { m[o.id] = o; });
       return m;
@@ -175,7 +175,7 @@ function CampaignsListPage() {
                         <Link to="/offers/$id" params={{ id: o.id }} className="inline-flex items-center gap-1.5 text-xs hover:text-primary">
                           <Tag className="h-3 w-3 text-primary" />
                           <span className="truncate max-w-[140px]">{o.title}</span>
-                          {o.price && <span className="text-muted-foreground">· ₪{o.price}</span>}
+                          {o.price && <span className="text-muted-foreground">· {formatPrice(o.price, o.currency)}</span>}
                         </Link>
                       );
                       return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30 text-xs">לא משויך</Badge>;
