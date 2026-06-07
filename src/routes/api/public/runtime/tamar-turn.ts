@@ -359,8 +359,11 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           lines.push(`Offer: ${offer.title}`);
           offerFieldsInjected.push("title");
           if (offer.price != null && offer.price !== "") {
-            lines.push(`Price (authoritative — answer directly if asked): ${offer.price}`);
+            const cur = (offer.currency || "ILS").toUpperCase();
+            const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
+            lines.push(`Price (authoritative — answer directly if asked, in this currency): ${sym}${offer.price} (${cur})`);
             offerFieldsInjected.push("price");
+            offerFieldsInjected.push("currency");
           }
           if (offer.offer_url) {
             lines.push(`Offer URL (send this link directly when the user asks for a link, sales page, registration, or more info): ${offer.offer_url}`);
