@@ -13,6 +13,7 @@ import { CampaignForm } from "@/components/campaign-form";
 import { INTAKE_FLOW_LABELS, INTAKE_FLOWS } from "@/lib/intake-flows";
 import { formatRelative } from "@/lib/i18n";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/currency";
 
 export const Route = createFileRoute("/_app/campaigns/$id")({
   head: () => ({ meta: [{ title: "פרופיל קמפיין — Zooga CRM" }] }),
