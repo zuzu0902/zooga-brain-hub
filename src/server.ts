@@ -47,10 +47,3 @@ export default {
     }
   },
 };
-
-type _Unused = {
-  title?: string | null;
-  body?: string | null;
-  version?: number | null;
-  updated_at?: string | null;
-};
