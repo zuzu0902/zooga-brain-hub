@@ -131,10 +131,10 @@ async function resolveOrCreateContact(body: any) {
       phone: phone ?? lookup,
       whatsapp_number: wa ?? lookup,
       source: body.source ?? "whatsapp_inbound",
-      status: "new",
+      status: "new_lead",
     } as any)
     .select("*")
-    .single();
+    .maybeSingle();
   return created;
 }
 
