@@ -79,7 +79,6 @@ function RuntimeTracePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {["", "zooga_pack", "fallback", "failed_before_reply"].map((m) => (
           {["", "zooga_direct", "zooga_pack", "fallback", "failed_before_reply"].map((m) => (
             <Button
               key={m || "all"}
