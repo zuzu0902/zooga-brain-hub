@@ -67,10 +67,16 @@ export function ContactConversation({ contactId }: { contactId: string }) {
           </div>
         ) : (
           rows!.map((m: any) => {
+            // Outbound = sent BY Tamar (our bot). Inbound channel labels like
+            // "Tamar WhatsApp" describe the channel, not the author — they are
+            // lead messages and must NOT be classified as outbound.
+            const src = String(m.source ?? "").toLowerCase();
+            const type = String(m.type ?? "").toLowerCase();
             const outbound =
-              String(m.type).includes("outbound") ||
-              String(m.source ?? "").toLowerCase().includes("tamar") ||
-              String(m.source ?? "").toLowerCase().includes("bot");
+              type.includes("outbound") ||
+              src === "tamar_outbound" ||
+              src === "tamar_bot_outbound" ||
+              src === "bot_outbound";
             return (
               <div
                 key={m.id}

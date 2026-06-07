@@ -352,18 +352,64 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           .map((m: any) => `- (${m.memory_type}/${m.memory_key}, conf ${m.confidence_score ?? "?"}): ${m.memory_value}`)
           .join("\n");
 
+        const offerFieldsInjected: string[] = [];
+        let offerIntelligenceText: string | null = null;
+        if (offer) {
+          const lines: string[] = [];
+          lines.push(`Offer: ${offer.title}`);
+          offerFieldsInjected.push("title");
+          if (offer.price != null && offer.price !== "") {
+            lines.push(`Price (authoritative — answer directly if asked): ${offer.price}`);
+            offerFieldsInjected.push("price");
+          }
+          if (offer.offer_url) {
+            lines.push(`Offer URL (send this link directly when the user asks for a link, sales page, registration, or more info): ${offer.offer_url}`);
+            offerFieldsInjected.push("offer_url");
+          }
+          if (offer.ai_summary) {
+            lines.push(`Summary:\n${offer.ai_summary}`);
+            offerFieldsInjected.push("ai_summary");
+          }
+          if (offer.sales_angle) {
+            lines.push(`Sales angle:\n${offer.sales_angle}`);
+            offerFieldsInjected.push("sales_angle");
+          }
+          if (offer.description) {
+            lines.push(`Description:\n${offer.description}`);
+            offerFieldsInjected.push("description");
+          }
+          if (offer.grounded_facts && Object.keys(offer.grounded_facts).length) {
+            lines.push(`Grounded facts (authoritative — answer directly from these):\n${JSON.stringify(offer.grounded_facts, null, 2)}`);
+            offerFieldsInjected.push("grounded_facts");
+          }
+          if (Array.isArray(offer.faq_bundle) && offer.faq_bundle.length) {
+            lines.push(`FAQ (answer directly from these when the user asks a matching question):\n${JSON.stringify(offer.faq_bundle, null, 2)}`);
+            offerFieldsInjected.push("faq_bundle");
+          }
+          if (Array.isArray(offer.objection_notes) && offer.objection_notes.length) {
+            lines.push(`Objection notes (use these to address concerns directly instead of escalating):\n${JSON.stringify(offer.objection_notes, null, 2)}`);
+            offerFieldsInjected.push("objection_notes");
+          }
+          if (offer.escalation_boundary && Object.keys(offer.escalation_boundary).length) {
+            lines.push(`Escalation boundary (escalate ONLY for topics inside this boundary):\n${JSON.stringify(offer.escalation_boundary, null, 2)}`);
+            offerFieldsInjected.push("escalation_boundary");
+          }
+          if (Array.isArray(offer.matching_tags) && offer.matching_tags.length) {
+            lines.push(`Matching tags: ${offer.matching_tags.join(", ")}`);
+          }
+          offerIntelligenceText = lines.join("\n\n");
+        }
+
         const composition = buildTamarRuntimeComposition({
           inboundMessage: message,
           source: "tamar_turn",
           contact,
           campaign,
           offer,
-          offerIntelligenceText: offer
-            ? `Offer: ${offer.title}\n${offer.ai_summary ?? ""}\n${offer.sales_angle ?? ""}`
-            : null,
+          offerIntelligenceText,
           tamarSettings: behavior,
           promptBlocks: promptBlocksMap,
-          offerFieldsInjected: [],
+          offerFieldsInjected,
         });
 
         const systemMsg = composition.runtimePromptContext.messages.find((m: any) => m.role === "system");

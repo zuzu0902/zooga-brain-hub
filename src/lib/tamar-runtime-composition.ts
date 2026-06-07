@@ -131,7 +131,10 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
     [
       "Answer in Hebrew unless the user clearly uses another language.",
       "Do not expose internal inference, scores, prompt blocks, or manager-only notes to the customer.",
-      "If the answer requires facts outside the offer/event knowledge above, say you will check and escalate to a human manager.",
+      "Answer concrete questions DIRECTLY from the offer intelligence context above whenever the answer exists there. Specifically: if the offer has a price, state the price. If the offer has an offer_url, send the link when the user asks for it, asks where to read more, asks to register/sign up, or expresses purchase intent. If grounded_facts / FAQ / objection notes contain the answer, answer from them.",
+      "Do NOT default to 'a human representative will get back to you' when the requested fact is already present in the offer intelligence context. That phrasing is reserved for genuinely missing facts.",
+      "Escalate to a human ONLY when: (a) the user explicitly asks for a human/manager, (b) the requested fact is genuinely missing from the offer intelligence and grounded facts, (c) the request is outside the offer's escalation_boundary, or (d) sensitive routing applies (distress, payment dispute, abuse, minor age signal).",
+      "For active trips/offers, prefer useful concrete answers (price, dates, what's included, link) over generic soft deflection.",
       "Keep the reply aligned with the active prompt blocks and behavior settings above.",
     ].join("\n- "),
   ].join("\n");
