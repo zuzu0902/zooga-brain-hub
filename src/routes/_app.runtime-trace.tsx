@@ -75,7 +75,7 @@ function RuntimeTracePage() {
         <div>
           <h1 className="text-2xl font-bold">Runtime Trace</h1>
           <p className="text-sm text-muted-foreground">
-            אמת הריצה של Tamar מ-Railway. כל שורה מייצגת תור שיחה אחד שנשלח חזרה ל-Zooga (writeback).
+            אמת הריצה של Tamar. זרימת ייצור (zooga_direct): Railway מקבל webhook → קורא ל-<span className="font-mono">POST /api/public/runtime/tamar-turn</span> → Zooga מייצר את <span className="font-mono">reply_text</span> → Railway שולח ל-WhatsApp. כל שורה כאן מייצגת תור שיחה אחד.
           </p>
         </div>
         <div className="flex gap-2">
@@ -101,7 +101,7 @@ function RuntimeTracePage() {
       )}
       {!isLoading && !error && (data ?? []).length === 0 && (
         <Card className="p-6 text-sm text-muted-foreground">
-          עוד אין רשומות. Railway צריך להפעיל את <span className="font-mono">POST /api/public/runtime/tamar-writeback</span> אחרי כל תור שיחה.
+          עוד אין רשומות. Railway צריך להפעיל את <span className="font-mono">POST /api/public/runtime/tamar-turn</span> עבור כל הודעה נכנסת.
         </Card>
       )}
 
