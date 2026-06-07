@@ -198,9 +198,20 @@ async function fetchOffer(id: string | null | undefined) {
   return data;
 }
 
+function normalizeHe(s: string): string {
+  // Normalize Hebrew destination spellings (double-yud variants, alef variants,
+  // final-mem). E.g. "ויאטנם" / "ויטנאם" / "וייטנם" all collapse to a single form.
+  return String(s)
+    .toLowerCase()
+    .replace(/יי/g, "י")
+    .replace(/א/g, "")
+    .replace(/ם/g, "מ");
+}
+
 function keywordMatchOffer(message: string, offers: any[]): any | null {
   if (!message || !offers?.length) return null;
   const msg = message.toLowerCase();
+  const msgNorm = normalizeHe(message);
   let best: { offer: any; score: number } | null = null;
   for (const o of offers) {
     const candidates: string[] = [];
@@ -211,6 +222,10 @@ function keywordMatchOffer(message: string, offers: any[]): any | null {
       const token = c.toLowerCase().trim();
       if (!token || token.length < 2) continue;
       if (msg.includes(token)) score += token.length;
+      else {
+        const tokenNorm = normalizeHe(c);
+        if (tokenNorm.length >= 2 && msgNorm.includes(tokenNorm)) score += tokenNorm.length;
+      }
     }
     // English aliases for common destinations
     const aliases: Record<string, string[]> = {
