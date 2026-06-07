@@ -703,7 +703,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             let alertError: string | null = null;
             if (baseUrl && manager) {
               try {
-                const res = await fetch(`${baseUrl}/manager-alert`, {
+                const res = await fetch(`${baseUrl}/manager-alerts/handoff`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
