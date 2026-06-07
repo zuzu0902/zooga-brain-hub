@@ -551,7 +551,7 @@ function TamarBehaviorPage() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          כל שיחה נכנסת/קריאת runtime-pack כותבת trace עם: גרסת settings, גרסאות prompt_blocks שהוזרקו, האם הוזרקה אינטליגנציית מוצר, האם הוזרק קמפיין, ושימוש ב-fallback/escalation.
+          זרימת ייצור: Railway → <span className="font-mono">POST /api/public/runtime/tamar-turn</span> → Zooga מייצר reply_text → Railway שולח ל-WhatsApp. כל קריאה כותבת trace עם: גרסת settings, גרסאות prompt_blocks שהוזרקו, האם הוזרקה אינטליגנציית מוצר, האם הוזרק קמפיין, ושימוש ב-fallback/escalation.
         </p>
         {traces.length === 0 ? (
           <div className="text-sm text-muted-foreground">אין traces עדיין.</div>
