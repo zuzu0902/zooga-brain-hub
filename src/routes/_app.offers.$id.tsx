@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tag, ChevronRight, Pencil, Trash2, Megaphone, Plus, Users, Trophy, Activity, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
 import { CATEGORY_LABELS, INTEREST_LABELS, ALL_INTERESTS, SPENDING_LABELS, formatRelative } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
+import { CURRENCIES, formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/offers/$id")({
@@ -131,7 +132,7 @@ function OfferDetailPage() {
                 <h1 className="text-2xl font-bold tracking-tight">{offer.title}</h1>
                 <Badge variant="outline" className={STATUS_TONE[offer.status]}>{offer.status}</Badge>
                 {offer.category && <Badge variant="secondary">{CATEGORY_LABELS[offer.category] || offer.category}</Badge>}
-                {offer.price && <Badge>₪{offer.price}</Badge>}
+                {offer.price && <Badge>{formatPrice(offer.price, offer.currency)}</Badge>}
               </div>
               {offer.description && <p className="text-muted-foreground mt-2">{offer.description}</p>}
             </div>
@@ -228,7 +229,7 @@ function OfferDetailPage() {
 }
 
 function OfferEditForm({ offer, onSaved, onCancel }: any) {
-  const [s, setS] = useState<any>({ ...offer, price: offer.price ?? "" });
+  const [s, setS] = useState<any>({ ...offer, price: offer.price ?? "", currency: offer.currency ?? "ILS" });
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -237,6 +238,7 @@ function OfferEditForm({ offer, onSaved, onCancel }: any) {
     const { error } = await supabase.from("offers").update({
       title: s.title, description: s.description || null, category: s.category, status: s.status,
       price: s.price ? Number(s.price) : null, offer_url: s.offer_url || null,
+      currency: s.currency || "ILS",
       target_region: s.target_region || null, target_interests: s.target_interests || [],
       target_spending_profile: s.target_spending_profile || null,
       target_min_age: s.target_min_age ? Number(s.target_min_age) : null,
@@ -271,7 +273,18 @@ function OfferEditForm({ offer, onSaved, onCancel }: any) {
             </SelectContent>
           </Select>
         </div>
-        <div><Label>מחיר ₪</Label><Input type="number" value={s.price} onChange={(e) => setS({ ...s, price: e.target.value })} /></div>
+        <div>
+          <Label>מחיר</Label>
+          <div className="flex gap-2">
+            <Input type="number" className="flex-1" value={s.price} onChange={(e) => setS({ ...s, price: e.target.value })} />
+            <Select value={s.currency} onValueChange={(v) => setS({ ...s, currency: v })}>
+              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.symbol} {c.code}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <div><Label>אזור יעד</Label><Input value={s.target_region || ""} onChange={(e) => setS({ ...s, target_region: e.target.value })} /></div>
         <div><Label>גיל מינ׳</Label><Input type="number" value={s.target_min_age ?? ""} onChange={(e) => setS({ ...s, target_min_age: e.target.value })} /></div>
         <div><Label>גיל מקס׳</Label><Input type="number" value={s.target_max_age ?? ""} onChange={(e) => setS({ ...s, target_max_age: e.target.value })} /></div>

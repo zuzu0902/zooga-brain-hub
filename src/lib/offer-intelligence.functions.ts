@@ -72,7 +72,7 @@ export const analyzeOfferIntelligence = createServerFn({ method: "POST" })
 
     const { data: offer, error: loadErr } = await sb
       .from("offers")
-      .select("id, title, description, category, price, offer_url")
+      .select("id, title, description, category, price, currency, offer_url")
       .eq("id", offerId)
       .maybeSingle();
 
@@ -109,7 +109,7 @@ export const analyzeOfferIntelligence = createServerFn({ method: "POST" })
       const userPrompt = `כותרת ההצעה: ${offer.title}
 תיאור פנימי: ${offer.description ?? "(אין)"}
 קטגוריה: ${offer.category ?? "(אין)"}
-מחיר במערכת: ${offer.price ?? "(אין)"}
+מחיר במערכת: ${offer.price ?? "(אין)"} ${offer.price ? (offer as any).currency ?? "ILS" : ""}
 URL מקור: ${offer.offer_url}
 
 תוכן הדף (מטא + טקסט נקי מ-HTML):

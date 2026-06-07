@@ -13,6 +13,7 @@ import { CampaignForm } from "@/components/campaign-form";
 import { INTAKE_FLOW_LABELS, INTAKE_FLOWS } from "@/lib/intake-flows";
 import { formatRelative } from "@/lib/i18n";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/currency";
 
 export const Route = createFileRoute("/_app/campaigns/$id")({
   head: () => ({ meta: [{ title: "פרופיל קמפיין — Zooga CRM" }] }),
@@ -83,7 +84,7 @@ function CampaignDetailPage() {
     queryKey: ["campaign-offer", campaign?.offer_id],
     enabled: !!campaign?.offer_id,
     queryFn: async () => {
-      const { data } = await supabase.from("offers").select("id,title,price,category,status,description").eq("id", campaign!.offer_id!).maybeSingle();
+      const { data } = await supabase.from("offers").select("id,title,price,currency,category,status,description").eq("id", campaign!.offer_id!).maybeSingle();
       return data;
     },
   });
@@ -211,7 +212,7 @@ function CampaignDetailPage() {
                   <Link to="/offers/$id" params={{ id: offer.id }} className="font-semibold text-base hover:text-primary">
                     {offer.title}
                   </Link>
-                  {offer.price && <Badge>₪{offer.price}</Badge>}
+                  {offer.price && <Badge>{formatPrice(offer.price, offer.currency)}</Badge>}
                   <Badge variant="outline">{offer.status}</Badge>
                 </div>
                 {offer.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{offer.description}</p>}

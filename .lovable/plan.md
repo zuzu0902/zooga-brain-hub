@@ -1,33 +1,45 @@
-## Vietnam offer fix
+## Goal
+Today every price is rendered with `₪`. Trips are often priced in USD/EUR. Add a `currency` field per offer, default ILS, and surface the right symbol everywhere — including in what Tamar tells customers.
 
-User-supplied values:
-- price: **3600** (USD)
-- offer_url: **https://zooga.biz** (unchanged — still generic root)
-- description: generate via LLM summary of the Vietnam trip
+## 1. Database (migration)
+- Add column `offers.currency text NOT NULL DEFAULT 'ILS'`
+- Add CHECK constraint: `currency IN ('ILS','USD','EUR')`
+- Backfill: the Vietnam offer (`1afaec91-4c77-4715-aceb-633f5bbe6093`) → `USD`. All others stay `ILS`.
 
-### Caveat (must surface before doing this)
-`https://zooga.biz` is the same generic homepage we already flagged as the root cause for weak grounded_facts / faq_bundle / sales_angle. Re-analyzing the same URL will regenerate roughly the same homepage-derived intelligence — Tamar will now state the price correctly, but trip-specific facts (dates, itinerary, what's included, flight info, etc.) will still be missing because there is no Vietnam-specific page to analyze. Recommend the user obtain the real Vietnam landing page URL before this fix delivers full quality.
+## 2. Shared helper
+Add `src/lib/currency.ts`:
+- `CURRENCIES = [{code:'ILS', symbol:'₪'}, {code:'USD', symbol:'$'}, {code:'EUR', symbol:'€'}]`
+- `formatPrice(price, currency)` → e.g. `₪3600`, `$3600`, `€3600` (symbol + number, per user choice)
+- `currencySymbol(currency)`
 
-### Steps
+## 3. UI changes (display + edit)
+Replace hardcoded `₪{price}` with `formatPrice(price, currency)` in:
+- `src/routes/_app.offers.tsx` (list row + create dialog)
+- `src/routes/_app.offers.$id.tsx` (header badge + edit form)
+- `src/routes/_app.campaigns.tsx` (offer chip)
+- `src/routes/_app.campaigns.$id.tsx` (offer badge)
+- `src/components/offer-picker.tsx` (selected card, list items, create dialog)
 
-1. **Update the Vietnam offer row** (`offers` where `id = 1afaec91-4c77-4715-aceb-633f5bbe6093`) via the data-insert tool:
-   - `price = 3600`
-   - `description = <LLM-generated Hebrew summary>` — generated with Lovable AI (Gemini Flash) using the offer title + existing `ai_summary` as input, producing a concise 2–3 sentence Hebrew description of the Vietnam 60+ trip.
-   - `offer_url` left as-is per user input.
+In every create/edit form, replace the single "מחיר ₪" input with a two-control row: numeric price input + currency `Select` (ILS/USD/EUR), default ILS. Persist `currency` alongside `price` in the same insert/update calls.
 
-2. **Re-run Analyze** by calling the existing `analyzeOfferIntelligence` serverFn against the offer id. This refreshes `ai_summary`, `grounded_facts`, `faq_bundle`, `objection_notes`, `sales_angle`, `matching_tags`, `escalation_boundary` from the (still generic) URL, and sets `ingestion_status=ready` with a new `last_ingested_at`.
+Extend each `supabase.from("offers").select(...)` that currently picks `price` to also pick `currency`.
 
-3. **Verify** by reading the offer row back and confirming `price=3600`, new `description` present, fresh `last_ingested_at`.
+## 4. Tamar runtime (so the bot says the right currency)
+- `src/lib/offer-intelligence.functions.ts`: include `currency` in the select and in the prompt line (e.g. `מחיר במערכת: 3600 USD`).
+- `src/routes/api/public/runtime/tamar-turn.ts`: when injecting the authoritative price line, format it with the currency symbol so Tamar's reply uses the right symbol instead of defaulting to ₪.
 
-4. **Retest Tamar** by posting a synthetic inbound to `/api/public/runtime/tamar-turn` (POST) with three short Hebrew prompts against the Vietnam contact/whatsapp number:
-   - price question → expect Tamar to answer "3600" directly, no escalation
-   - sales-page-link question → expect Tamar to send `https://zooga.biz`
-   - trip-details question (e.g. dates / what's included) → expect either a grounded answer if Analyze produced it, or a graceful escalation. Report which.
-   Inspect the resulting `tamar_runtime_executions` row (`runtime_mode`, `offer_id`, `inbound_message`, `outbound_reply`, `latency_ms`) to confirm grounded behavior.
+## 5. Out of scope
+- No FX conversion. Each offer stores one currency and is displayed in that currency.
+- No new currencies beyond ILS/USD/EUR (can be added later by extending the helper + CHECK constraint).
+- No changes to the offer-intelligence schema (`grounded_facts`, `faq_bundle`, etc.) — currency is read directly off the offer row.
 
-### Files / surfaces touched
-- DB only: `offers` row update (data, not schema). No source files edited.
-- No code changes needed — analyzer + runtime are already in place.
+## Files touched
+- new: `supabase/migrations/<timestamp>_offer_currency.sql`
+- new: `src/lib/currency.ts`
+- edited: `src/routes/_app.offers.tsx`, `src/routes/_app.offers.$id.tsx`, `src/routes/_app.campaigns.tsx`, `src/routes/_app.campaigns.$id.tsx`, `src/components/offer-picker.tsx`, `src/lib/offer-intelligence.functions.ts`, `src/routes/api/public/runtime/tamar-turn.ts`
+- data: backfill Vietnam offer currency = USD
 
-### Deliverable
-A short report containing: updated values written, Analyze result summary, the three test prompts + Tamar's actual replies, and an explicit verdict on whether the remaining quality gap is now purely the generic-URL limitation.
+## Verification
+- Open Vietnam offer → badge shows `$3600`, edit form shows USD selected.
+- Edit a שקלים event → badge shows `₪<price>`.
+- Trigger a Tamar price question on the Vietnam offer → reply includes `$3600` (or `3600 דולר`), not `₪3600`.

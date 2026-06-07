@@ -931,6 +931,7 @@ export type Database = {
           ai_summary: string | null
           category: Database["public"]["Enums"]["offer_category"]
           created_at: string
+          currency: string
           description: string | null
           escalation_boundary: Json
           faq_bundle: Json
@@ -958,6 +959,7 @@ export type Database = {
           ai_summary?: string | null
           category: Database["public"]["Enums"]["offer_category"]
           created_at?: string
+          currency?: string
           description?: string | null
           escalation_boundary?: Json
           faq_bundle?: Json
@@ -985,6 +987,7 @@ export type Database = {
           ai_summary?: string | null
           category?: Database["public"]["Enums"]["offer_category"]
           created_at?: string
+          currency?: string
           description?: string | null
           escalation_boundary?: Json
           faq_bundle?: Json

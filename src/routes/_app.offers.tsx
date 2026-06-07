@@ -14,6 +14,7 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORY_LABELS, INTEREST_LABELS, ALL_INTERESTS, SPENDING_LABELS } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
+import { CURRENCIES, formatPrice } from "@/lib/currency";
 
 export const Route = createFileRoute("/_app/offers")({
   head: () => ({ meta: [{ title: "הצעות — Zooga CRM" }] }),
@@ -68,7 +69,7 @@ function OffersPage() {
               ))}
             </div>
             <div className="flex items-center justify-between mt-4 gap-2">
-              <div className="text-sm text-muted-foreground">{o.price ? `₪${o.price}` : ""}</div>
+              <div className="text-sm text-muted-foreground">{formatPrice(o.price, o.currency)}</div>
               <div className="flex gap-1">
                 <Button asChild size="sm" variant="ghost">
                   <Link to="/offers/$id" params={{ id: o.id }}>פתח</Link>
@@ -94,7 +95,7 @@ function OfferDialog({ open, onOpenChange, onCreated }: any) {
   const [s, setS] = useState<any>({
     title: "", description: "", category: "event", price: "",
     target_interests: [], target_region: "", status: "active", offer_url: "",
-    target_spending_profile: "",
+    target_spending_profile: "", currency: "ILS",
   });
   const [saving, setSaving] = useState(false);
 
@@ -104,6 +105,7 @@ function OfferDialog({ open, onOpenChange, onCreated }: any) {
     const { error } = await supabase.from("offers").insert({
       ...s,
       price: s.price ? Number(s.price) : null,
+      currency: s.currency || "ILS",
       target_spending_profile: s.target_spending_profile || null,
     });
     setSaving(false);
@@ -130,7 +132,18 @@ function OfferDialog({ open, onOpenChange, onCreated }: any) {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>מחיר ₪</Label><Input type="number" value={s.price} onChange={(e) => setS({ ...s, price: e.target.value })} /></div>
+            <div>
+              <Label>מחיר</Label>
+              <div className="flex gap-2">
+                <Input type="number" className="flex-1" value={s.price} onChange={(e) => setS({ ...s, price: e.target.value })} />
+                <Select value={s.currency} onValueChange={(v) => setS({ ...s, currency: v })}>
+                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.symbol} {c.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div><Label>אזור יעד</Label><Input value={s.target_region} onChange={(e) => setS({ ...s, target_region: e.target.value })} /></div>
             <div>
               <Label>פרופיל הוצאה יעד</Label>

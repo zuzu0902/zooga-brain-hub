@@ -14,6 +14,7 @@ import { Check, ChevronsUpDown, Plus, Tag, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/i18n";
 import { toast } from "sonner";
+import { CURRENCIES, formatPrice } from "@/lib/currency";
 
 export function OfferPicker({ value, onChange }: { value?: string | null; onChange: (offerId: string | null) => void }) {
   const qc = useQueryClient();
@@ -23,7 +24,7 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
   const { data: offers } = useQuery({
     queryKey: ["offers-picker"],
     queryFn: async () => {
-      const { data } = await supabase.from("offers").select("id,title,category,price,status,target_min_age,target_max_age,description").order("created_at", { ascending: false });
+      const { data } = await supabase.from("offers").select("id,title,category,price,currency,status,target_min_age,target_max_age,description").order("created_at", { ascending: false });
       return data ?? [];
     },
   });
@@ -40,7 +41,7 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
                 <span className="flex items-center gap-2 truncate">
                   <Tag className="h-3.5 w-3.5 text-primary shrink-0" />
                   <span className="truncate">{selected.title}</span>
-                  {selected.price && <span className="text-muted-foreground text-xs">· ₪{selected.price}</span>}
+                  {selected.price && <span className="text-muted-foreground text-xs">· {formatPrice(selected.price, selected.currency)}</span>}
                 </span>
               ) : (
                 <span className="text-muted-foreground">בחר הצעה קיימת...</span>
@@ -64,7 +65,7 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
                       <div className="flex flex-col flex-1 min-w-0">
                         <span className="truncate">{o.title}</span>
                         <span className="text-xs text-muted-foreground truncate">
-                          {CATEGORY_LABELS[o.category] || o.category}{o.price ? ` · ₪${o.price}` : ""}
+                          {CATEGORY_LABELS[o.category] || o.category}{o.price ? ` · ${formatPrice(o.price, o.currency)}` : ""}
                         </span>
                       </div>
                     </CommandItem>
@@ -93,7 +94,7 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
             <div className="flex items-center gap-2 flex-wrap">
               <div className="font-semibold truncate">{selected.title}</div>
               {selected.category && <Badge variant="outline">{CATEGORY_LABELS[selected.category] || selected.category}</Badge>}
-              {selected.price && <Badge variant="secondary">₪{selected.price}</Badge>}
+              {selected.price && <Badge variant="secondary">{formatPrice(selected.price, selected.currency)}</Badge>}
               <Badge variant="outline" className="text-xs">{selected.status}</Badge>
             </div>
             {selected.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{selected.description}</p>}
@@ -116,7 +117,7 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
 }
 
 function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
-  const [s, setS] = useState<any>({ title: "", description: "", category: "event", price: "", status: "active" });
+  const [s, setS] = useState<any>({ title: "", description: "", category: "event", price: "", currency: "ILS", status: "active" });
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -125,12 +126,13 @@ function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
     const { data, error } = await supabase.from("offers").insert({
       title: s.title, description: s.description || null, category: s.category, status: s.status,
       price: s.price ? Number(s.price) : null,
+      currency: s.currency || "ILS",
     }).select("id").single();
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success("הצעה נוצרה ושויכה");
     onOpenChange(false);
-    setS({ title: "", description: "", category: "event", price: "", status: "active" });
+    setS({ title: "", description: "", category: "event", price: "", currency: "ILS", status: "active" });
     onCreated?.(data!.id);
   }
 
@@ -151,7 +153,18 @@ function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>מחיר ₪</Label><Input type="number" value={s.price} onChange={(e) => setS({ ...s, price: e.target.value })} /></div>
+            <div>
+              <Label>מחיר</Label>
+              <div className="flex gap-2">
+                <Input type="number" className="flex-1" value={s.price} onChange={(e) => setS({ ...s, price: e.target.value })} />
+                <Select value={s.currency} onValueChange={(v) => setS({ ...s, currency: v })}>
+                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.symbol} {c.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">תוכל לערוך פרטים נוספים (קהל יעד, תחומי עניין) במסך ההצעות.</p>
         </div>
