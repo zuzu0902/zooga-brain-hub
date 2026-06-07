@@ -123,6 +123,148 @@ async function loadCampaignOffer(contact: any, body: any) {
   return { campaign, offer };
 }
 
+async function fetchCampaign(id: string | null | undefined) {
+  if (!id) return null;
+  const { data } = await supabaseAdmin.from("campaigns").select("*").eq("id", id).maybeSingle();
+  return data;
+}
+
+async function fetchOffer(id: string | null | undefined) {
+  if (!id) return null;
+  const { data } = await supabaseAdmin.from("offers").select("*").eq("id", id).maybeSingle();
+  return data;
+}
+
+function keywordMatchOffer(message: string, offers: any[]): any | null {
+  if (!message || !offers?.length) return null;
+  const msg = message.toLowerCase();
+  let best: { offer: any; score: number } | null = null;
+  for (const o of offers) {
+    const candidates: string[] = [];
+    if (o.title) candidates.push(String(o.title));
+    if (Array.isArray(o.matching_tags)) candidates.push(...o.matching_tags.map(String));
+    let score = 0;
+    for (const c of candidates) {
+      const token = c.toLowerCase().trim();
+      if (!token || token.length < 2) continue;
+      if (msg.includes(token)) score += token.length;
+    }
+    // English aliases for common destinations
+    const aliases: Record<string, string[]> = {
+      "וייטנאם": ["vietnam", "viet nam"],
+      "יפן": ["japan"],
+      "מונטנגרו": ["montenegro"],
+      "תאילנד": ["thailand"],
+      "הודו": ["india"],
+    };
+    for (const [he, ens] of Object.entries(aliases)) {
+      if (candidates.some((c) => c.includes(he)) && ens.some((en) => msg.includes(en))) {
+        score += 10;
+      }
+    }
+    if (score > 0 && (!best || score > best.score)) best = { offer: o, score };
+  }
+  return best?.offer ?? null;
+}
+
+/**
+ * Resolution order:
+ * 1. explicit offer_id from payload
+ * 2. explicit campaign_id -> campaign.offer_id
+ * 3. contact.last_touch_campaign_id -> campaign.offer_id
+ * 4. latest interaction.related_offer_id / campaign_id for this contact
+ * 5. campaign_contacts linkage (last_touch first, else most recent)
+ * 6. deterministic keyword match against active offers (title + matching_tags + EN aliases)
+ * 7. if exactly one active offer exists, use it as safe fallback
+ */
+async function resolveCampaignAndOffer(contact: any, body: any, message: string) {
+  const trail: string[] = [];
+  let campaign: any = null;
+  let offer: any = null;
+
+  // 1
+  if (body.offer_id) {
+    offer = await fetchOffer(body.offer_id);
+    if (offer) trail.push("explicit_offer_id");
+  }
+  // 2
+  if (body.campaign_id) {
+    campaign = await fetchCampaign(body.campaign_id);
+    if (campaign) trail.push("explicit_campaign_id");
+    if (!offer && campaign?.offer_id) {
+      offer = await fetchOffer(campaign.offer_id);
+      if (offer) trail.push("explicit_campaign_offer");
+    }
+  }
+  // 3
+  if (!campaign && contact?.last_touch_campaign_id) {
+    campaign = await fetchCampaign(contact.last_touch_campaign_id);
+    if (campaign) trail.push("contact_last_touch_campaign");
+    if (!offer && campaign?.offer_id) {
+      offer = await fetchOffer(campaign.offer_id);
+      if (offer) trail.push("contact_last_touch_offer");
+    }
+  }
+  // 4
+  if ((!campaign || !offer) && contact?.id) {
+    const { data: latest } = await supabaseAdmin
+      .from("interactions")
+      .select("campaign_id, related_offer_id, timestamp")
+      .eq("contact_id", contact.id)
+      .or("campaign_id.not.is.null,related_offer_id.not.is.null")
+      .order("timestamp", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latest) {
+      if (!campaign && (latest as any).campaign_id) {
+        campaign = await fetchCampaign((latest as any).campaign_id);
+        if (campaign) trail.push("latest_interaction_campaign");
+      }
+      if (!offer && (latest as any).related_offer_id) {
+        offer = await fetchOffer((latest as any).related_offer_id);
+        if (offer) trail.push("latest_interaction_offer");
+      }
+    }
+  }
+  // 5
+  if (!campaign && contact?.id) {
+    const { data: cc } = await supabaseAdmin
+      .from("campaign_contacts")
+      .select("campaign_id, last_touch, last_activity_at")
+      .eq("contact_id", contact.id)
+      .order("last_touch", { ascending: false })
+      .order("last_activity_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if ((cc as any)?.campaign_id) {
+      campaign = await fetchCampaign((cc as any).campaign_id);
+      if (campaign) trail.push("campaign_contacts_link");
+      if (!offer && campaign?.offer_id) {
+        offer = await fetchOffer(campaign.offer_id);
+        if (offer) trail.push("campaign_contacts_offer");
+      }
+    }
+  }
+  // 6 + 7
+  if (!offer) {
+    const { data: activeOffers } = await supabaseAdmin
+      .from("offers")
+      .select("*")
+      .eq("status", "active");
+    const list = (activeOffers as any[]) ?? [];
+    const matched = keywordMatchOffer(message, list);
+    if (matched) {
+      offer = matched;
+      trail.push("keyword_match");
+    } else if (list.length === 1) {
+      offer = list[0];
+      trail.push("single_active_offer_fallback");
+    }
+  }
+
+  return { campaign, offer, resolutionTrail: trail };
+}
+
 async function callModel(messages: Array<{ role: string; content: string }>) {
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
@@ -194,7 +336,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const contactId = contact?.id ?? null;
 
         const { behavior, blocks, interactions, memories } = await loadContext(contactId);
-        const { campaign, offer } = await loadCampaignOffer(contact, body);
+        const { campaign, offer, resolutionTrail } = await resolveCampaignAndOffer(contact, body, message);
 
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
@@ -296,6 +438,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               meta_timestamp: body.meta_timestamp ?? null,
               model: MODEL,
               prompt_preview: composition.tracePromptContext.prompt_text_preview,
+              resolution_trail: resolutionTrail,
+              resolved_offer_id: offer?.id ?? null,
+              resolved_campaign_id: campaign?.id ?? null,
             },
           })
           .select("id")
