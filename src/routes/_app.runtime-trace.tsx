@@ -37,6 +37,12 @@ type Row = {
 function modeBadge(mode: string) {
   if (mode === "zooga_pack")
     return <Badge className="bg-emerald-600 hover:bg-emerald-600">zooga_pack</Badge>;
+  if (mode === "zooga_direct")
+    return (
+      <Badge className="bg-indigo-600 hover:bg-indigo-600">
+        zooga_direct · Zooga reply · Railway delivery
+      </Badge>
+    );
   if (mode === "fallback")
     return <Badge className="bg-amber-600 hover:bg-amber-600">fallback</Badge>;
   if (mode === "failed_before_reply")
@@ -74,6 +80,7 @@ function RuntimeTracePage() {
         </div>
         <div className="flex gap-2">
           {["", "zooga_pack", "fallback", "failed_before_reply"].map((m) => (
+          {["", "zooga_direct", "zooga_pack", "fallback", "failed_before_reply"].map((m) => (
             <Button
               key={m || "all"}
               size="sm"
