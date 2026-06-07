@@ -598,6 +598,160 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
 
         const handoffRequested = detectHandoff(replyText);
 
+        // --- Manager handoff alert (V1) ---
+        // Trigger when Tamar decided handoff mode OR the reply text contains
+        // a handoff phrase. Zooga owns the decision; Railway only delivers.
+        let handoffId: string | null = null;
+        let managerNotified = false;
+        if (conversationMode === "handoff" || handoffRequested) {
+          try {
+            const excerpt = interactions
+              .slice(0, 10)
+              .reverse()
+              .map((i: any) => ({
+                ts: i.timestamp,
+                source: i.source ?? i.type,
+                content: i.content ?? "",
+              }));
+            excerpt.push({ ts: new Date().toISOString(), source: "customer_inbound", content: message });
+            if (replyText) {
+              excerpt.push({ ts: new Date().toISOString(), source: "tamar_outbound", content: replyText });
+            }
+
+            const handoffReason =
+              conversationMode === "handoff"
+                ? (conversationModeReasons[0] || "conversation_mode_handoff")
+                : "tamar_reply_handoff_phrase";
+
+            const customerPhone =
+              (contact?.phone as string | null) ||
+              (contact?.whatsapp_number as string | null) ||
+              (body.phone as string | null) ||
+              (body.whatsapp_number as string | null) ||
+              null;
+            const customerName =
+              (contact?.full_name as string | null) ||
+              [contact?.first_name, contact?.last_name].filter(Boolean).join(" ") ||
+              null;
+
+            const { data: handoffRow } = await supabaseAdmin
+              .from("manager_handoffs" as any)
+              .insert({
+                contact_id: contactId,
+                customer_phone: customerPhone,
+                customer_name: customerName,
+                handoff_reason: handoffReason,
+                latest_inbound_message: message,
+                conversation_excerpt: excerpt,
+                resolved_offer_id: offer?.id ?? null,
+                resolved_campaign_id: campaign?.id ?? null,
+                runtime_trace_id: (trace as any)?.id ?? null,
+                conversation_mode: conversationMode,
+                conversation_mode_reasons: conversationModeReasons,
+                status: "open",
+              } as any)
+              .select("id")
+              .single();
+            handoffId = (handoffRow as any)?.id ?? null;
+
+            // Resolve active manager (V1: first active row, typically Alex)
+            const { data: manager } = await supabaseAdmin
+              .from("managers" as any)
+              .select("id, name, phone")
+              .eq("active", true)
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .maybeSingle();
+
+            // Resolve Railway delivery target
+            const { data: api } = await supabaseAdmin
+              .from("api_settings")
+              .select("tamar_backend_url, tamar_backend_api_token")
+              .eq("id", 1)
+              .maybeSingle();
+            const baseUrl = (api as any)?.tamar_backend_url
+              ? String((api as any).tamar_backend_url).replace(/\/$/, "")
+              : null;
+            const bearer = (api as any)?.tamar_backend_api_token ?? null;
+
+            const alertPayload = {
+              handoff_id: handoffId,
+              manager: manager
+                ? { id: (manager as any).id, name: (manager as any).name, phone: (manager as any).phone }
+                : null,
+              customer: {
+                contact_id: contactId,
+                phone: customerPhone,
+                name: customerName,
+              },
+              handoff_reason: handoffReason,
+              conversation_mode: conversationMode,
+              conversation_mode_reasons: conversationModeReasons,
+              latest_inbound_message: message,
+              conversation_excerpt: excerpt,
+              resolved: {
+                offer_id: offer?.id ?? null,
+                offer_title: offer?.title ?? null,
+                campaign_id: campaign?.id ?? null,
+                campaign_name: campaign?.name ?? null,
+              },
+              runtime_trace_id: (trace as any)?.id ?? null,
+              created_at: new Date().toISOString(),
+            };
+
+            let alertResponse: any = null;
+            let alertError: string | null = null;
+            if (baseUrl && manager) {
+              try {
+                const res = await fetch(`${baseUrl}/manager-alert`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+                  },
+                  body: JSON.stringify(alertPayload),
+                });
+                const txt = await res.text().catch(() => "");
+                let parsed: any = null;
+                try { parsed = txt ? JSON.parse(txt) : null; } catch { parsed = { raw: txt }; }
+                alertResponse = { status: res.status, body: parsed };
+                if (res.ok) managerNotified = true;
+                else alertError = `railway_${res.status}`;
+              } catch (e: any) {
+                alertError = `delivery_failed: ${String(e?.message ?? e).slice(0, 200)}`;
+              }
+            } else {
+              alertError = !baseUrl ? "tamar_backend_url_missing" : "no_active_manager";
+            }
+
+            if (handoffId) {
+              await supabaseAdmin
+                .from("manager_handoffs" as any)
+                .update({
+                  alert_payload: alertPayload,
+                  alert_response: alertResponse,
+                  alert_error: alertError,
+                  manager_notified: managerNotified,
+                  notified_at: managerNotified ? new Date().toISOString() : null,
+                  notified_manager_id: manager ? (manager as any).id : null,
+                  status: managerNotified ? "notified" : "open",
+                } as any)
+                .eq("id", handoffId);
+            }
+
+            // Flag the contact for the existing Handoff Console
+            if (contactId) {
+              await supabaseAdmin
+                .from("contacts")
+                .update({ manager_attention_required: true } as any)
+                .eq("id", contactId);
+            }
+          } catch (e) {
+            // Never block the customer reply on alert failure.
+            console.error("[manager-handoff] failed", e);
+          }
+        }
+
         return Response.json({
           ok: true,
           reply_text: replyText,
@@ -605,6 +759,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           runtime_mode: "zooga_direct",
           trace_id: (trace as any)?.id ?? null,
           handoff_requested: handoffRequested,
+          handoff: handoffId
+            ? { id: handoffId, manager_notified: managerNotified }
+            : null,
           meta: {
             offer_id: offer?.id ?? null,
             campaign_id: campaign?.id ?? null,
