@@ -1206,6 +1206,8 @@ export type Database = {
           channel: string | null
           composition_version: string | null
           contact_id: string | null
+          conversation_mode: string | null
+          conversation_mode_reasons: Json | null
           created_at: string
           deployment_sha: string | null
           error: string | null
@@ -1229,6 +1231,8 @@ export type Database = {
           channel?: string | null
           composition_version?: string | null
           contact_id?: string | null
+          conversation_mode?: string | null
+          conversation_mode_reasons?: Json | null
           created_at?: string
           deployment_sha?: string | null
           error?: string | null
@@ -1252,6 +1256,8 @@ export type Database = {
           channel?: string | null
           composition_version?: string | null
           contact_id?: string | null
+          conversation_mode?: string | null
+          conversation_mode_reasons?: Json | null
           created_at?: string
           deployment_sha?: string | null
           error?: string | null
