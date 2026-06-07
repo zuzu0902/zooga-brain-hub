@@ -21,6 +21,8 @@ type Row = {
   inbound_message: string | null;
   outbound_reply: string | null;
   runtime_mode: string;
+  conversation_mode: string | null;
+  conversation_mode_reasons: string[] | null;
   runtime_pack_fetch_ok: boolean | null;
   fallback_reason: string | null;
   deployment_sha: string | null;
@@ -50,12 +52,28 @@ function modeBadge(mode: string) {
   return <Badge variant="secondary">{mode}</Badge>;
 }
 
+function conversationModeBadge(mode: string | null) {
+  if (!mode) return <Badge variant="outline">mode: ?</Badge>;
+  const cls =
+    mode === "offer_specific"
+      ? "bg-emerald-600 hover:bg-emerald-600"
+      : mode === "generic_intake"
+        ? "bg-sky-600 hover:bg-sky-600"
+        : mode === "support"
+          ? "bg-amber-600 hover:bg-amber-600"
+          : mode === "handoff"
+            ? "bg-rose-600 hover:bg-rose-600"
+            : "";
+  return <Badge className={cls}>mode: {mode}</Badge>;
+}
+
 function RuntimeTracePage() {
   const [modeFilter, setModeFilter] = useState<string>("");
+  const [convModeFilter, setConvModeFilter] = useState<string>("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["tamar_runtime_executions", modeFilter],
+    queryKey: ["tamar_runtime_executions", modeFilter, convModeFilter],
     queryFn: async () => {
       let q = supabase
         .from("tamar_runtime_executions" as any)
@@ -63,6 +81,7 @@ function RuntimeTracePage() {
         .order("created_at", { ascending: false })
         .limit(100);
       if (modeFilter) q = q.eq("runtime_mode", modeFilter);
+      if (convModeFilter) q = q.eq("conversation_mode", convModeFilter);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as Row[];
@@ -95,6 +114,20 @@ function RuntimeTracePage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">conversation mode:</span>
+        {["", "generic_intake", "offer_specific", "support", "handoff"].map((m) => (
+          <Button
+            key={`cm-${m || "all"}`}
+            size="sm"
+            variant={convModeFilter === m ? "default" : "outline"}
+            onClick={() => setConvModeFilter(m)}
+          >
+            {m || "all"}
+          </Button>
+        ))}
+      </div>
+
       {isLoading && <div className="text-sm text-muted-foreground">טוען…</div>}
       {error && (
         <div className="text-sm text-destructive">שגיאה: {(error as Error).message}</div>
@@ -114,6 +147,7 @@ function RuntimeTracePage() {
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     {modeBadge(r.runtime_mode)}
+                    {conversationModeBadge(r.conversation_mode)}
                     {r.runtime_pack_fetch_ok === true && (
                       <Badge variant="outline">
                         {r.runtime_mode === "zooga_direct" ? "turn_ok" : "pack_fetch_ok"}
@@ -126,7 +160,12 @@ function RuntimeTracePage() {
                     )}
                     {r.campaign_injected && <Badge variant="outline">campaign</Badge>}
                     {r.offer_intelligence_injected && (
-                      <Badge variant="outline">offer_intel</Badge>
+                      <Badge variant="outline">offer_intel (active)</Badge>
+                    )}
+                    {!r.offer_intelligence_injected && r.offer_id && (
+                      <Badge variant="outline" className="border-dashed">
+                        offer resolved (background)
+                      </Badge>
                     )}
                     {Array.isArray(r.prompt_blocks_injected) &&
                       r.prompt_blocks_injected.length > 0 && (
@@ -172,6 +211,11 @@ function RuntimeTracePage() {
                       <span>· settings@ {new Date(r.tamar_settings_version_at).toLocaleString()}</span>
                     )}
                     {r.contact_id && <span>· contact: {r.contact_id.slice(0, 8)}</span>}
+                    {r.offer_id && <span>· resolved_offer_id: {r.offer_id.slice(0, 8)}</span>}
+                    {Array.isArray(r.conversation_mode_reasons) &&
+                      r.conversation_mode_reasons.length > 0 && (
+                        <span>· reasons: {r.conversation_mode_reasons.join(", ")}</span>
+                      )}
                   </div>
                 </div>
                 <Button

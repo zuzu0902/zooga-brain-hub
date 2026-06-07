@@ -30,6 +30,69 @@ function detectHandoff(reply: string): boolean {
   return HANDOFF_PATTERNS.some((re) => re.test(reply));
 }
 
+// --- Conversation intent mode ---
+
+type ConversationMode = "generic_intake" | "offer_specific" | "support" | "handoff";
+
+const HUMAN_REQUEST_RE =
+  /(נציג|לדבר עם אדם|אדם אמיתי|בן ?אדם|מנהל(ת)?|human|real person|speak to (a |an )?(agent|representative|manager|human))/i;
+const SUPPORT_RE =
+  /(בעיה|תקלה|לא קיבלתי|החזר|לבטל|ביטול|תשלום נכשל|חיוב כפול|לא עובד|refund|cancel(l(ed|ation))?|problem|issue|not working|broken|charged twice)/i;
+
+function explicitOfferMention(message: string, offer: any): boolean {
+  if (!message || !offer) return false;
+  return !!keywordMatchOffer(message, [offer]);
+}
+
+function decideConversationMode(args: {
+  message: string;
+  body: any;
+  offer: any;
+  resolutionTrail: string[];
+  interactions: any[];
+}): { mode: ConversationMode; reasons: string[] } {
+  const reasons: string[] = [];
+  const { message, body, offer, resolutionTrail, interactions } = args;
+
+  if (HUMAN_REQUEST_RE.test(message)) {
+    reasons.push("explicit_human_request");
+    return { mode: "handoff", reasons };
+  }
+  if (SUPPORT_RE.test(message)) {
+    reasons.push("support_keywords");
+    return { mode: "support", reasons };
+  }
+
+  const signals: string[] = [];
+  if (body?.offer_id) signals.push("payload_offer_id");
+  if (body?.campaign_id) signals.push("payload_campaign_id");
+  if (offer && explicitOfferMention(message, offer)) signals.push("explicit_offer_mention");
+
+  const strongTrail = ["explicit_offer_id", "explicit_campaign_id", "explicit_campaign_offer", "keyword_match"];
+  if (resolutionTrail.some((t) => strongTrail.includes(t))) signals.push("strong_attribution");
+
+  // Recent follow-up: previous outbound (within 24h) mentioned this offer title
+  if (offer?.title && Array.isArray(interactions) && interactions.length) {
+    const lastOutbound = interactions.find((i: any) => i.source === "tamar_outbound");
+    if (lastOutbound?.content && lastOutbound?.timestamp) {
+      const t = new Date(lastOutbound.timestamp).getTime();
+      const fresh = Number.isFinite(t) && Date.now() - t < 24 * 3600 * 1000;
+      if (
+        fresh &&
+        String(lastOutbound.content).toLowerCase().includes(String(offer.title).toLowerCase())
+      ) {
+        signals.push("recent_offer_followup");
+      }
+    }
+  }
+
+  if (signals.length) return { mode: "offer_specific", reasons: signals };
+
+  reasons.push("no_strong_offer_evidence");
+  if (resolutionTrail.length) reasons.push(`weak_resolution:${resolutionTrail.join(",")}`);
+  return { mode: "generic_intake", reasons };
+}
+
 async function authorize(request: Request, body: any): Promise<Response | null> {
   const provided =
     request.headers.get("x-api-token") ||
@@ -338,6 +401,14 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const { behavior, blocks, interactions, memories } = await loadContext(contactId);
         const { campaign, offer, resolutionTrail } = await resolveCampaignAndOffer(contact, body, message);
 
+        const { mode: conversationMode, reasons: conversationModeReasons } = decideConversationMode({
+          message,
+          body,
+          offer,
+          resolutionTrail,
+          interactions,
+        });
+
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
           return acc;
@@ -403,16 +474,28 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           offerIntelligenceText = lines.join("\n\n");
         }
 
+        // Gate offer intelligence by conversation mode. Resolved offer stays in
+        // the background for enrichment, but does not hijack the dialogue
+        // unless we have strong evidence the user is talking about it.
+        const effectiveOfferIntelligenceText =
+          conversationMode === "offer_specific"
+            ? offerIntelligenceText
+            : offer
+              ? `Background only — a possibly related offer is "${offer.title}" (id ${offer.id}). Do NOT pivot the conversation to this offer, do NOT pitch it, and do NOT answer offer-specific questions from it. Use it only as a soft hint about what the user might be interested in. Only switch to offer-specific answering if the user explicitly raises this offer.`
+              : null;
+
         const composition = buildTamarRuntimeComposition({
           inboundMessage: message,
           source: "tamar_turn",
           contact,
           campaign,
           offer,
-          offerIntelligenceText,
+          offerIntelligenceText: effectiveOfferIntelligenceText,
           tamarSettings: behavior,
           promptBlocks: promptBlocksMap,
           offerFieldsInjected,
+          conversationMode,
+          conversationModeReasons,
         });
 
         const systemMsg = composition.runtimePromptContext.messages.find((m: any) => m.role === "system");
@@ -472,12 +555,14 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             inbound_message: message,
             outbound_reply: replyText || null,
             runtime_mode: runtimeError ? "failed_before_reply" : "zooga_direct",
+            conversation_mode: conversationMode,
+            conversation_mode_reasons: conversationModeReasons,
             runtime_pack_fetch_ok: true,
             fallback_reason: runtimeError,
             composition_version: "zooga-tamar-runtime-composition-v1",
             tamar_settings_version_at: behavior?.updated_at ?? null,
             prompt_blocks_injected: promptBlocksInjected,
-            offer_intelligence_injected: !!offer,
+            offer_intelligence_injected: conversationMode === "offer_specific" && !!offer,
             campaign_injected: !!campaign,
             latency_ms: Date.now() - startedAt,
             error: runtimeError,
@@ -490,6 +575,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               resolution_trail: resolutionTrail,
               resolved_offer_id: offer?.id ?? null,
               resolved_campaign_id: campaign?.id ?? null,
+              conversation_mode: conversationMode,
+              conversation_mode_reasons: conversationModeReasons,
+              offer_intelligence_effective: conversationMode === "offer_specific" && !!offer,
             },
           })
           .select("id")
@@ -520,6 +608,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           meta: {
             offer_id: offer?.id ?? null,
             campaign_id: campaign?.id ?? null,
+            conversation_mode: conversationMode,
+            conversation_mode_reasons: conversationModeReasons,
           },
         });
       },
