@@ -37,6 +37,12 @@ type Row = {
 function modeBadge(mode: string) {
   if (mode === "zooga_pack")
     return <Badge className="bg-emerald-600 hover:bg-emerald-600">zooga_pack</Badge>;
+  if (mode === "zooga_direct")
+    return (
+      <Badge className="bg-indigo-600 hover:bg-indigo-600">
+        zooga_direct · Zooga reply · Railway delivery
+      </Badge>
+    );
   if (mode === "fallback")
     return <Badge className="bg-amber-600 hover:bg-amber-600">fallback</Badge>;
   if (mode === "failed_before_reply")
@@ -73,7 +79,7 @@ function RuntimeTracePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {["", "zooga_pack", "fallback", "failed_before_reply"].map((m) => (
+          {["", "zooga_direct", "zooga_pack", "fallback", "failed_before_reply"].map((m) => (
             <Button
               key={m || "all"}
               size="sm"
@@ -109,10 +115,14 @@ function RuntimeTracePage() {
                   <div className="flex flex-wrap items-center gap-2">
                     {modeBadge(r.runtime_mode)}
                     {r.runtime_pack_fetch_ok === true && (
-                      <Badge variant="outline">pack_fetch_ok</Badge>
+                      <Badge variant="outline">
+                        {r.runtime_mode === "zooga_direct" ? "turn_ok" : "pack_fetch_ok"}
+                      </Badge>
                     )}
                     {r.runtime_pack_fetch_ok === false && (
-                      <Badge variant="destructive">pack_fetch_failed</Badge>
+                      <Badge variant="destructive">
+                        {r.runtime_mode === "zooga_direct" ? "turn_failed" : "pack_fetch_failed"}
+                      </Badge>
                     )}
                     {r.campaign_injected && <Badge variant="outline">campaign</Badge>}
                     {r.offer_intelligence_injected && (
