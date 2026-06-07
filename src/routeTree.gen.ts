@@ -16,6 +16,7 @@ import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
+import { Route as AppManagerAlertsRouteImport } from './routes/_app.manager-alerts'
 import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-campaign'
 import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
@@ -93,6 +94,11 @@ const AppRuntimeTraceRoute = AppRuntimeTraceRouteImport.update({
 const AppOffersRoute = AppOffersRouteImport.update({
   id: '/offers',
   path: '/offers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppManagerAlertsRoute = AppManagerAlertsRouteImport.update({
+  id: '/manager-alerts',
+  path: '/manager-alerts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIntakeCampaignRoute = AppIntakeCampaignRouteImport.update({
@@ -345,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
+  '/manager-alerts': typeof AppManagerAlertsRoute
   '/offers': typeof AppOffersRouteWithChildren
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
@@ -396,6 +403,7 @@ export interface FileRoutesByTo {
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
+  '/manager-alerts': typeof AppManagerAlertsRoute
   '/offers': typeof AppOffersRouteWithChildren
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
@@ -450,6 +458,7 @@ export interface FileRoutesById {
   '/_app/import-leads': typeof AppImportLeadsRoute
   '/_app/inbox': typeof AppInboxRoute
   '/_app/intake-campaign': typeof AppIntakeCampaignRoute
+  '/_app/manager-alerts': typeof AppManagerAlertsRoute
   '/_app/offers': typeof AppOffersRouteWithChildren
   '/_app/runtime-trace': typeof AppRuntimeTraceRoute
   '/_app/send-offer': typeof AppSendOfferRoute
@@ -505,6 +514,7 @@ export interface FileRouteTypes {
     | '/import-leads'
     | '/inbox'
     | '/intake-campaign'
+    | '/manager-alerts'
     | '/offers'
     | '/runtime-trace'
     | '/send-offer'
@@ -556,6 +566,7 @@ export interface FileRouteTypes {
     | '/import-leads'
     | '/inbox'
     | '/intake-campaign'
+    | '/manager-alerts'
     | '/offers'
     | '/runtime-trace'
     | '/send-offer'
@@ -609,6 +620,7 @@ export interface FileRouteTypes {
     | '/_app/import-leads'
     | '/_app/inbox'
     | '/_app/intake-campaign'
+    | '/_app/manager-alerts'
     | '/_app/offers'
     | '/_app/runtime-trace'
     | '/_app/send-offer'
@@ -737,6 +749,13 @@ declare module '@tanstack/react-router' {
       path: '/offers'
       fullPath: '/offers'
       preLoaderRoute: typeof AppOffersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/manager-alerts': {
+      id: '/_app/manager-alerts'
+      path: '/manager-alerts'
+      fullPath: '/manager-alerts'
+      preLoaderRoute: typeof AppManagerAlertsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/intake-campaign': {
@@ -1096,6 +1115,7 @@ interface AppRouteChildren {
   AppImportLeadsRoute: typeof AppImportLeadsRoute
   AppInboxRoute: typeof AppInboxRoute
   AppIntakeCampaignRoute: typeof AppIntakeCampaignRoute
+  AppManagerAlertsRoute: typeof AppManagerAlertsRoute
   AppOffersRoute: typeof AppOffersRouteWithChildren
   AppRuntimeTraceRoute: typeof AppRuntimeTraceRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
@@ -1114,6 +1134,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppImportLeadsRoute: AppImportLeadsRoute,
   AppInboxRoute: AppInboxRoute,
   AppIntakeCampaignRoute: AppIntakeCampaignRoute,
+  AppManagerAlertsRoute: AppManagerAlertsRoute,
   AppOffersRoute: AppOffersRouteWithChildren,
   AppRuntimeTraceRoute: AppRuntimeTraceRoute,
   AppSendOfferRoute: AppSendOfferRoute,

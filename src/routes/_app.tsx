@@ -16,6 +16,7 @@ import {
   Sparkles,
   Bot,
   Activity,
+  BellRing,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +33,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
       { to: "/inbox", label: "תיבת קליטה", icon: Inbox },
       { to: "/tasks", label: "משימות", icon: CheckSquare },
       { to: "/handoff", label: "Handoff Console", icon: Flag },
+      { to: "/manager-alerts", label: "Manager Alerts", icon: BellRing },
       { to: "/runtime-trace", label: "Runtime Trace", icon: Activity },
     ],
   },
