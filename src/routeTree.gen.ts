@@ -55,6 +55,7 @@ import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
 import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 import { Route as ApiPublicRuntimeTamarWritebackRouteImport } from './routes/api/public/runtime/tamar-writeback'
+import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
 import { Route as ApiPublicRuntimeTamarPackRouteImport } from './routes/api/public/runtime/tamar-pack'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
@@ -304,6 +305,12 @@ const ApiPublicRuntimeTamarWritebackRoute =
     path: '/api/public/runtime/tamar-writeback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicRuntimeTamarTurnRoute =
+  ApiPublicRuntimeTamarTurnRouteImport.update({
+    id: '/api/public/runtime/tamar-turn',
+    path: '/api/public/runtime/tamar-turn',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicRuntimeTamarPackRoute =
   ApiPublicRuntimeTamarPackRouteImport.update({
     id: '/api/public/runtime/tamar-pack',
@@ -375,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
+  '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
   '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -426,6 +434,7 @@ export interface FileRoutesByTo {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
+  '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
   '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -479,6 +488,7 @@ export interface FileRoutesById {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
+  '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
   '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
   '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
@@ -532,6 +542,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
+    | '/api/public/runtime/tamar-turn'
     | '/api/public/runtime/tamar-writeback'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -583,6 +594,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
+    | '/api/public/runtime/tamar-turn'
     | '/api/public/runtime/tamar-writeback'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -635,6 +647,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
+    | '/api/public/runtime/tamar-turn'
     | '/api/public/runtime/tamar-writeback'
     | '/api/public/webhook/tamar'
     | '/api/public/webhook/tamar-status'
@@ -669,6 +682,7 @@ export interface RootRouteChildren {
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeTamarPackRoute: typeof ApiPublicRuntimeTamarPackRoute
+  ApiPublicRuntimeTamarTurnRoute: typeof ApiPublicRuntimeTamarTurnRoute
   ApiPublicRuntimeTamarWritebackRoute: typeof ApiPublicRuntimeTamarWritebackRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
   ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
@@ -998,6 +1012,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRuntimeTamarWritebackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/runtime/tamar-turn': {
+      id: '/api/public/runtime/tamar-turn'
+      path: '/api/public/runtime/tamar-turn'
+      fullPath: '/api/public/runtime/tamar-turn'
+      preLoaderRoute: typeof ApiPublicRuntimeTamarTurnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/runtime/tamar-pack': {
       id: '/api/public/runtime/tamar-pack'
       path: '/api/public/runtime/tamar-pack'
@@ -1134,6 +1155,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicRuntimeTamarPackRoute: ApiPublicRuntimeTamarPackRoute,
+  ApiPublicRuntimeTamarTurnRoute: ApiPublicRuntimeTamarTurnRoute,
   ApiPublicRuntimeTamarWritebackRoute: ApiPublicRuntimeTamarWritebackRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
   ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
@@ -1141,13 +1163,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
