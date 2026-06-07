@@ -875,6 +875,114 @@ export type Database = {
           },
         ]
       }
+      manager_handoffs: {
+        Row: {
+          alert_error: string | null
+          alert_payload: Json | null
+          alert_response: Json | null
+          claimed_at: string | null
+          contact_id: string | null
+          conversation_excerpt: Json
+          conversation_mode: string | null
+          conversation_mode_reasons: Json | null
+          created_at: string
+          customer_name: string | null
+          customer_phone: string | null
+          handoff_reason: string | null
+          id: string
+          latest_inbound_message: string | null
+          manager_notified: boolean
+          notified_at: string | null
+          notified_manager_id: string | null
+          resolved_at: string | null
+          resolved_campaign_id: string | null
+          resolved_offer_id: string | null
+          runtime_trace_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          alert_error?: string | null
+          alert_payload?: Json | null
+          alert_response?: Json | null
+          claimed_at?: string | null
+          contact_id?: string | null
+          conversation_excerpt?: Json
+          conversation_mode?: string | null
+          conversation_mode_reasons?: Json | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          handoff_reason?: string | null
+          id?: string
+          latest_inbound_message?: string | null
+          manager_notified?: boolean
+          notified_at?: string | null
+          notified_manager_id?: string | null
+          resolved_at?: string | null
+          resolved_campaign_id?: string | null
+          resolved_offer_id?: string | null
+          runtime_trace_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_error?: string | null
+          alert_payload?: Json | null
+          alert_response?: Json | null
+          claimed_at?: string | null
+          contact_id?: string | null
+          conversation_excerpt?: Json
+          conversation_mode?: string | null
+          conversation_mode_reasons?: Json | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          handoff_reason?: string | null
+          id?: string
+          latest_inbound_message?: string | null
+          manager_notified?: boolean
+          notified_at?: string | null
+          notified_manager_id?: string | null
+          resolved_at?: string | null
+          resolved_campaign_id?: string | null
+          resolved_offer_id?: string | null
+          runtime_trace_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      managers: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           channel: Database["public"]["Enums"]["message_channel"]
