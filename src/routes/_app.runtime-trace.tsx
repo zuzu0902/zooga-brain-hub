@@ -115,10 +115,14 @@ function RuntimeTracePage() {
                   <div className="flex flex-wrap items-center gap-2">
                     {modeBadge(r.runtime_mode)}
                     {r.runtime_pack_fetch_ok === true && (
-                      <Badge variant="outline">pack_fetch_ok</Badge>
+                      <Badge variant="outline">
+                        {r.runtime_mode === "zooga_direct" ? "turn_ok" : "pack_fetch_ok"}
+                      </Badge>
                     )}
                     {r.runtime_pack_fetch_ok === false && (
-                      <Badge variant="destructive">pack_fetch_failed</Badge>
+                      <Badge variant="destructive">
+                        {r.runtime_mode === "zooga_direct" ? "turn_failed" : "pack_fetch_failed"}
+                      </Badge>
                     )}
                     {r.campaign_injected && <Badge variant="outline">campaign</Badge>}
                     {r.offer_intelligence_injected && (
