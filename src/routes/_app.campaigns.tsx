@@ -12,6 +12,7 @@ import { INTAKE_FLOW_LABELS } from "@/lib/intake-flows";
 import { formatRelative } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
 import { Tag } from "lucide-react";
+import { formatPrice } from "@/lib/currency";
 
 export const Route = createFileRoute("/_app/campaigns")({
   head: () => ({ meta: [{ title: "קמפיינים — Zooga CRM" }] }),
