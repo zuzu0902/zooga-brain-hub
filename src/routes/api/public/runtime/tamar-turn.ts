@@ -363,6 +363,20 @@ async function callModel(messages: Array<{ role: string; content: string }>) {
   return reply.trim();
 }
 
+function resolveTamarBackendConfig(api: any): { baseUrl: string | null; bearer: string | null; source: string } {
+  const envUrl = process.env.TAMAR_API_URL?.trim();
+  const envToken = process.env.TAMAR_API_TOKEN?.trim();
+  const dbUrl = api?.tamar_backend_url ? String(api.tamar_backend_url).trim() : "";
+  const dbToken = api?.tamar_backend_api_token ? String(api.tamar_backend_api_token).trim() : "";
+
+  const rawUrl = envUrl || dbUrl;
+  return {
+    baseUrl: rawUrl ? rawUrl.replace(/\/$/, "") : null,
+    bearer: envToken || dbToken || null,
+    source: envUrl ? "env" : dbUrl ? "db" : "missing",
+  };
+}
+
 export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
   server: {
     handlers: {
