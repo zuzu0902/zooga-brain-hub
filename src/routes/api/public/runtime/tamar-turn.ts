@@ -243,6 +243,45 @@ async function loadContext(contactId: string | null) {
   };
 }
 
+async function loadRecentRuntimeHistoryByPhone(body: any) {
+  const candidates = phoneLookupCandidates(body.phone, body.whatsapp_number, body.from, body.sender, body.customer_phone);
+  if (!candidates.length) return [] as any[];
+  const candidateSet = new Set(candidates);
+  const { data } = await supabaseAdmin
+    .from("tamar_runtime_executions" as any)
+    .select("created_at,inbound_message,outbound_reply,raw_payload,campaign_id,offer_id")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  return ((data as any[]) ?? [])
+    .filter((row) => {
+      const req = row?.raw_payload?.request ?? {};
+      const rowCandidates = phoneLookupCandidates(req.phone, req.whatsapp_number, req.from, req.sender, req.customer_phone);
+      return rowCandidates.some((candidate) => candidateSet.has(candidate));
+    })
+    .flatMap((row) => {
+      const ts = row.created_at;
+      const common = { timestamp: ts, campaign_id: row.campaign_id ?? null, related_offer_id: row.offer_id ?? null };
+      return [
+        row.inbound_message ? { ...common, type: "whatsapp_message", source: "customer_inbound", content: row.inbound_message } : null,
+        row.outbound_reply ? { ...common, type: "whatsapp_message", source: "tamar_outbound", content: row.outbound_reply } : null,
+      ].filter(Boolean);
+    });
+}
+
+function mergeRecentInteractions(primary: any[], fallback: any[]) {
+  const seen = new Set<string>();
+  return [...(primary ?? []), ...(fallback ?? [])]
+    .filter((item) => {
+      const key = `${item.timestamp ?? ""}|${item.source ?? item.type ?? ""}|${item.content ?? ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return !!item.content;
+    })
+    .sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime())
+    .slice(0, 20);
+}
+
 async function loadCampaignOffer(contact: any, body: any) {
   let campaign: any = null;
   const campaignId = body.campaign_id || contact?.last_touch_campaign_id || null;
