@@ -804,6 +804,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               firstNonEmpty(contact?.phone, contact?.whatsapp_number, body.phone, body.whatsapp_number, body.from, body.sender, body.customer_phone);
             const customerName =
               firstNonEmpty(contact?.full_name, [contact?.first_name, contact?.last_name].filter(Boolean).join(" "), inboundName(body));
+            const customerNameForAlert = customerName ?? "Unknown WhatsApp contact";
             const recentConversationExcerpt = conversationExcerptText(excerpt);
             const resolvedOfferTitle = offer?.title ?? null;
             const resolvedCampaignName = campaign?.name ?? null;
@@ -814,7 +815,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               .insert({
                 contact_id: contactId,
                 customer_phone: customerPhone,
-                customer_name: customerName,
+                customer_name: customerNameForAlert,
                 handoff_reason: handoffReason,
                 latest_inbound_message: message,
                 conversation_excerpt: excerpt,
@@ -856,11 +857,13 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 : null,
               customer_contact_id: contactId,
               customer_phone: customerPhone,
-              customer_name: customerName,
+              customer_name: customerNameForAlert,
+              customer_name_known: !!customerName,
               customer: {
                 contact_id: contactId,
                 phone: customerPhone,
-                name: customerName,
+                name: customerNameForAlert,
+                name_known: !!customerName,
               },
               handoff_reason: handoffReason,
               conversation_mode: conversationMode,
