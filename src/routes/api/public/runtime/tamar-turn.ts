@@ -844,7 +844,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               .select("tamar_backend_url, tamar_backend_api_token")
               .eq("id", 1)
               .maybeSingle();
-            const { baseUrl, bearer, source: backendConfigSource } = resolveTamarBackendConfig(api);
+            const { baseUrl, bearer, fallbackBearer, source: backendConfigSource } = resolveTamarBackendConfig(api);
 
             const alertPayload = {
               handoff_id: handoffId,
@@ -887,18 +887,24 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             let alertError: string | null = null;
             if (baseUrl && manager) {
               try {
-                const res = await fetch(`${baseUrl}/manager-alerts/handoff`, {
+                const postAlert = (token: string | null) => fetch(`${baseUrl}/manager-alerts/handoff`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
-                    ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
                   },
                   body: JSON.stringify(alertPayload),
                 });
+                let res = await postAlert(bearer);
+                let retriedWithDbToken = false;
+                if (res.status === 401 && fallbackBearer) {
+                  res = await postAlert(fallbackBearer);
+                  retriedWithDbToken = true;
+                }
                 const txt = await res.text().catch(() => "");
                 let parsed: any = null;
                 try { parsed = txt ? JSON.parse(txt) : null; } catch { parsed = { raw: txt }; }
-                alertResponse = { status: res.status, body: parsed };
+                alertResponse = { status: res.status, body: parsed, retried_with_db_token: retriedWithDbToken };
                 if (res.ok) managerNotified = true;
                 else alertError = `railway_${res.status}`;
               } catch (e: any) {
