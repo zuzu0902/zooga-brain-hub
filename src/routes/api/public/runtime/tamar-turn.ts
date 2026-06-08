@@ -30,6 +30,57 @@ function detectHandoff(reply: string): boolean {
   return HANDOFF_PATTERNS.some((re) => re.test(reply));
 }
 
+function firstNonEmpty(...values: unknown[]): string | null {
+  for (const value of values) {
+    const text = value == null ? "" : String(value).trim();
+    if (text) return text;
+  }
+  return null;
+}
+
+function inboundName(body: any): string | null {
+  return firstNonEmpty(
+    body?.name,
+    body?.customer_name,
+    body?.contact_name,
+    body?.profile_name,
+    body?.push_name,
+    body?.whatsapp_name,
+    body?.sender_name,
+    body?.from_name,
+  );
+}
+
+function phoneLookupCandidates(...values: unknown[]): string[] {
+  const out = new Set<string>();
+  for (const value of values) {
+    const raw = value == null ? "" : String(value).trim();
+    if (!raw) continue;
+    out.add(raw);
+    const compact = raw.replace(/[\s().-]/g, "");
+    if (compact) out.add(compact);
+    const digits = compact.replace(/^\+/, "");
+    if (digits) {
+      out.add(digits);
+      out.add(`+${digits}`);
+    }
+  }
+  return [...out];
+}
+
+function coerceContactSource(source: unknown): string {
+  const value = source == null ? "" : String(source).trim();
+  const allowed = new Set(["Facebook", "WhatsApp", "Zooga Website", "Event", "Tamar Bot", "Manual", "Tamar WhatsApp"]);
+  return allowed.has(value) ? value : "Tamar WhatsApp";
+}
+
+function conversationExcerptText(excerpt: Array<{ ts: string; source: string; content: string }>): string {
+  return excerpt
+    .filter((item) => item.content)
+    .map((item) => `[${item.ts}] ${item.source}: ${item.content}`)
+    .join("\n");
+}
+
 // --- Conversation intent mode ---
 
 type ConversationMode = "generic_intake" | "offer_specific" | "support" | "handoff";
@@ -115,27 +166,48 @@ async function authorize(request: Request, body: any): Promise<Response | null> 
 async function resolveOrCreateContact(body: any) {
   const phone = body.phone ? String(body.phone).trim() : null;
   const wa = body.whatsapp_number ? String(body.whatsapp_number).trim() : null;
-  const lookup = phone || wa;
+  const candidates = phoneLookupCandidates(phone, wa, body.from, body.sender, body.customer_phone);
+  const lookup = candidates[0] ?? null;
+  const name = inboundName(body);
   if (!lookup) return null;
 
-  const { data: existing } = await supabaseAdmin
+  const { data: existingByPhone } = await supabaseAdmin
     .from("contacts")
     .select("*")
-    .or(`phone.eq.${lookup},whatsapp_number.eq.${lookup}`)
+    .in("phone", candidates)
+    .limit(1)
     .maybeSingle();
-  if (existing) return existing;
+  const existing = existingByPhone ?? (await supabaseAdmin
+    .from("contacts")
+    .select("*")
+    .in("whatsapp_number", candidates)
+    .limit(1)
+    .maybeSingle()).data;
+  if (existing) {
+    if (name && !(existing as any).full_name) {
+      const { data: updated } = await supabaseAdmin
+        .from("contacts")
+        .update({ full_name: name } as any)
+        .eq("id", (existing as any).id)
+        .select("*")
+        .maybeSingle();
+      return updated ?? existing;
+    }
+    return existing;
+  }
 
-  const { data: created } = await supabaseAdmin
+  const { data: created, error } = await supabaseAdmin
     .from("contacts")
     .insert({
-      full_name: body.name ? String(body.name).trim() : null,
+      full_name: name,
       phone: phone ?? lookup,
       whatsapp_number: wa ?? lookup,
-      source: body.source ?? "whatsapp_inbound",
+      source: coerceContactSource(body.source),
       status: "new_lead",
     } as any)
     .select("*")
     .maybeSingle();
+  if (error) console.error("[tamar-turn] contact_create_failed", error.message);
   return created;
 }
 
