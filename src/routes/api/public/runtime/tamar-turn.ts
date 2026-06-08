@@ -542,7 +542,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const contactId = contact?.id ?? null;
 
         const { behavior, blocks, interactions: contactInteractions, memories } = await loadContext(contactId);
-        const runtimeHistoryFallback = contactId ? [] : await loadRecentRuntimeHistoryByPhone(body);
+        const runtimeHistoryFallback = await loadRecentRuntimeHistoryByPhone(body);
         const interactions = mergeRecentInteractions(contactInteractions, runtimeHistoryFallback);
         const { campaign, offer, resolutionTrail } = await resolveCampaignAndOffer(contact, body, message);
 
