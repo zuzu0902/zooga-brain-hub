@@ -45,8 +45,8 @@ function ApiSettingsPage() {
         setToken(data.webhook_token ?? "");
         setPageId(data.facebook_page_id ?? "");
         setDefaultSource(data.default_source ?? "Tamar Bot");
-        setTamarUrl((data as any).tamar_backend_url ?? "");
-        setTamarToken((data as any).tamar_backend_api_token ?? "");
+        setTamarUrl(((data as any).tamar_backend_url ?? "").trim());
+        setTamarToken(((data as any).tamar_backend_api_token ?? "").trim());
       }
       setLoading(false);
     })();
@@ -61,8 +61,8 @@ function ApiSettingsPage() {
         webhook_token: token || null,
         facebook_page_id: pageId || null,
         default_source: defaultSource as any,
-        tamar_backend_url: tamarUrl || null,
-        tamar_backend_api_token: tamarToken || null,
+        tamar_backend_url: tamarUrl.trim() || null,
+        tamar_backend_api_token: tamarToken.trim() || null,
       });
     setSaving(false);
     if (error) toast.error("שגיאה: " + error.message);

@@ -128,6 +128,7 @@ async function resolveOrCreateContact(body: any) {
   const { data: created } = await supabaseAdmin
     .from("contacts")
     .insert({
+      full_name: body.name ? String(body.name).trim() : null,
       phone: phone ?? lookup,
       whatsapp_number: wa ?? lookup,
       source: body.source ?? "whatsapp_inbound",
@@ -361,6 +362,20 @@ async function callModel(messages: Array<{ role: string; content: string }>) {
   const json: any = await res.json();
   const reply: string = json?.choices?.[0]?.message?.content ?? "";
   return reply.trim();
+}
+
+function resolveTamarBackendConfig(api: any): { baseUrl: string | null; bearer: string | null; source: string } {
+  const envUrl = process.env.TAMAR_API_URL?.trim();
+  const envToken = process.env.TAMAR_API_TOKEN?.trim();
+  const dbUrl = api?.tamar_backend_url ? String(api.tamar_backend_url).trim() : "";
+  const dbToken = api?.tamar_backend_api_token ? String(api.tamar_backend_api_token).trim() : "";
+
+  const rawUrl = envUrl || dbUrl;
+  return {
+    baseUrl: rawUrl ? rawUrl.replace(/\/$/, "") : null,
+    bearer: envToken || dbToken || null,
+    source: envUrl ? "env" : dbUrl ? "db" : "missing",
+  };
 }
 
 export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
@@ -647,6 +662,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             const customerName =
               (contact?.full_name as string | null) ||
               [contact?.first_name, contact?.last_name].filter(Boolean).join(" ") ||
+              (body.name ? String(body.name).trim() : null) ||
               null;
 
             const { data: handoffRow } = await supabaseAdmin
@@ -684,16 +700,19 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               .select("tamar_backend_url, tamar_backend_api_token")
               .eq("id", 1)
               .maybeSingle();
-            const baseUrl = (api as any)?.tamar_backend_url
-              ? String((api as any).tamar_backend_url).replace(/\/$/, "")
-              : null;
-            const bearer = (api as any)?.tamar_backend_api_token ?? null;
+            const { baseUrl, bearer, source: backendConfigSource } = resolveTamarBackendConfig(api);
 
             const alertPayload = {
               handoff_id: handoffId,
+              manager_id: manager ? (manager as any).id : null,
+              manager_name: manager ? (manager as any).name : null,
+              manager_phone: manager ? (manager as any).phone : null,
               manager: manager
                 ? { id: (manager as any).id, name: (manager as any).name, phone: (manager as any).phone }
                 : null,
+              customer_contact_id: contactId,
+              customer_phone: customerPhone,
+              customer_name: customerName,
               customer: {
                 contact_id: contactId,
                 phone: customerPhone,
@@ -711,6 +730,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 campaign_name: campaign?.name ?? null,
               },
               runtime_trace_id: (trace as any)?.id ?? null,
+              backend_config_source: backendConfigSource,
               created_at: new Date().toISOString(),
             };
 
