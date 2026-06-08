@@ -758,16 +758,13 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 : "tamar_reply_handoff_phrase";
 
             const customerPhone =
-              (contact?.phone as string | null) ||
-              (contact?.whatsapp_number as string | null) ||
-              (body.phone as string | null) ||
-              (body.whatsapp_number as string | null) ||
-              null;
+              firstNonEmpty(contact?.phone, contact?.whatsapp_number, body.phone, body.whatsapp_number, body.from, body.sender, body.customer_phone);
             const customerName =
-              (contact?.full_name as string | null) ||
-              [contact?.first_name, contact?.last_name].filter(Boolean).join(" ") ||
-              (body.name ? String(body.name).trim() : null) ||
-              null;
+              firstNonEmpty(contact?.full_name, [contact?.first_name, contact?.last_name].filter(Boolean).join(" "), inboundName(body));
+            const recentConversationExcerpt = conversationExcerptText(excerpt);
+            const resolvedOfferTitle = offer?.title ?? null;
+            const resolvedCampaignName = campaign?.name ?? null;
+            const runtimeTraceId = (trace as any)?.id ?? null;
 
             const { data: handoffRow } = await supabaseAdmin
               .from("manager_handoffs" as any)
@@ -780,7 +777,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 conversation_excerpt: excerpt,
                 resolved_offer_id: offer?.id ?? null,
                 resolved_campaign_id: campaign?.id ?? null,
-                runtime_trace_id: (trace as any)?.id ?? null,
+                runtime_trace_id: runtimeTraceId,
                 conversation_mode: conversationMode,
                 conversation_mode_reasons: conversationModeReasons,
                 status: "open",
@@ -826,14 +823,19 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               conversation_mode: conversationMode,
               conversation_mode_reasons: conversationModeReasons,
               latest_inbound_message: message,
+              recent_conversation_excerpt: recentConversationExcerpt,
               conversation_excerpt: excerpt,
+              resolved_offer_id: offer?.id ?? null,
+              resolved_offer_title: resolvedOfferTitle,
+              resolved_campaign_id: campaign?.id ?? null,
+              resolved_campaign_name: resolvedCampaignName,
               resolved: {
                 offer_id: offer?.id ?? null,
-                offer_title: offer?.title ?? null,
+                offer_title: resolvedOfferTitle,
                 campaign_id: campaign?.id ?? null,
-                campaign_name: campaign?.name ?? null,
+                campaign_name: resolvedCampaignName,
               },
-              runtime_trace_id: (trace as any)?.id ?? null,
+              runtime_trace_id: runtimeTraceId,
               backend_config_source: backendConfigSource,
               created_at: new Date().toISOString(),
             };
