@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -165,7 +165,7 @@ function RuntimeTracePage() {
                     {(() => {
                       const layers = (r.raw_payload as any)?.active_context_layers;
                       if (!layers) return null;
-                      const chips: JSX.Element[] = [];
+                      const chips: ReactElement[] = [];
                       if (layers.memory?.active)
                         chips.push(<Badge key="mem" variant="outline">memory:{layers.memory.count}</Badge>);
                       if (layers.contact_profile?.active)
