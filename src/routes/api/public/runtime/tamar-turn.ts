@@ -128,6 +128,7 @@ async function resolveOrCreateContact(body: any) {
   const { data: created } = await supabaseAdmin
     .from("contacts")
     .insert({
+      full_name: body.name ? String(body.name).trim() : null,
       phone: phone ?? lookup,
       whatsapp_number: wa ?? lookup,
       source: body.source ?? "whatsapp_inbound",
@@ -661,6 +662,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             const customerName =
               (contact?.full_name as string | null) ||
               [contact?.first_name, contact?.last_name].filter(Boolean).join(" ") ||
+              (body.name ? String(body.name).trim() : null) ||
               null;
 
             const { data: handoffRow } = await supabaseAdmin
