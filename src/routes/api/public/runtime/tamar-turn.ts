@@ -30,6 +30,57 @@ function detectHandoff(reply: string): boolean {
   return HANDOFF_PATTERNS.some((re) => re.test(reply));
 }
 
+function firstNonEmpty(...values: unknown[]): string | null {
+  for (const value of values) {
+    const text = value == null ? "" : String(value).trim();
+    if (text) return text;
+  }
+  return null;
+}
+
+function inboundName(body: any): string | null {
+  return firstNonEmpty(
+    body?.name,
+    body?.customer_name,
+    body?.contact_name,
+    body?.profile_name,
+    body?.push_name,
+    body?.whatsapp_name,
+    body?.sender_name,
+    body?.from_name,
+  );
+}
+
+function phoneLookupCandidates(...values: unknown[]): string[] {
+  const out = new Set<string>();
+  for (const value of values) {
+    const raw = value == null ? "" : String(value).trim();
+    if (!raw) continue;
+    out.add(raw);
+    const compact = raw.replace(/[\s().-]/g, "");
+    if (compact) out.add(compact);
+    const digits = compact.replace(/^\+/, "");
+    if (digits) {
+      out.add(digits);
+      out.add(`+${digits}`);
+    }
+  }
+  return [...out];
+}
+
+function coerceContactSource(source: unknown): string {
+  const value = source == null ? "" : String(source).trim();
+  const allowed = new Set(["Facebook", "WhatsApp", "Zooga Website", "Event", "Tamar Bot", "Manual", "Tamar WhatsApp"]);
+  return allowed.has(value) ? value : "Tamar WhatsApp";
+}
+
+function conversationExcerptText(excerpt: Array<{ ts: string; source: string; content: string }>): string {
+  return excerpt
+    .filter((item) => item.content)
+    .map((item) => `[${item.ts}] ${item.source}: ${item.content}`)
+    .join("\n");
+}
+
 // --- Conversation intent mode ---
 
 type ConversationMode = "generic_intake" | "offer_specific" | "support" | "handoff";
@@ -115,27 +166,48 @@ async function authorize(request: Request, body: any): Promise<Response | null> 
 async function resolveOrCreateContact(body: any) {
   const phone = body.phone ? String(body.phone).trim() : null;
   const wa = body.whatsapp_number ? String(body.whatsapp_number).trim() : null;
-  const lookup = phone || wa;
+  const candidates = phoneLookupCandidates(phone, wa, body.from, body.sender, body.customer_phone);
+  const lookup = candidates[0] ?? null;
+  const name = inboundName(body);
   if (!lookup) return null;
 
-  const { data: existing } = await supabaseAdmin
+  const { data: existingByPhone } = await supabaseAdmin
     .from("contacts")
     .select("*")
-    .or(`phone.eq.${lookup},whatsapp_number.eq.${lookup}`)
+    .in("phone", candidates)
+    .limit(1)
     .maybeSingle();
-  if (existing) return existing;
+  const existing = existingByPhone ?? (await supabaseAdmin
+    .from("contacts")
+    .select("*")
+    .in("whatsapp_number", candidates)
+    .limit(1)
+    .maybeSingle()).data;
+  if (existing) {
+    if (name && !(existing as any).full_name) {
+      const { data: updated } = await supabaseAdmin
+        .from("contacts")
+        .update({ full_name: name } as any)
+        .eq("id", (existing as any).id)
+        .select("*")
+        .maybeSingle();
+      return updated ?? existing;
+    }
+    return existing;
+  }
 
-  const { data: created } = await supabaseAdmin
+  const { data: created, error } = await supabaseAdmin
     .from("contacts")
     .insert({
-      full_name: body.name ? String(body.name).trim() : null,
+      full_name: name,
       phone: phone ?? lookup,
       whatsapp_number: wa ?? lookup,
-      source: body.source ?? "whatsapp_inbound",
+      source: coerceContactSource(body.source),
       status: "new_lead",
     } as any)
     .select("*")
     .maybeSingle();
+  if (error) console.error("[tamar-turn] contact_create_failed", error.message);
   return created;
 }
 
@@ -169,6 +241,45 @@ async function loadContext(contactId: string | null) {
     interactions: (interactionsRes as any).data ?? [],
     memories: (memoriesRes as any).data ?? [],
   };
+}
+
+async function loadRecentRuntimeHistoryByPhone(body: any) {
+  const candidates = phoneLookupCandidates(body.phone, body.whatsapp_number, body.from, body.sender, body.customer_phone);
+  if (!candidates.length) return [] as any[];
+  const candidateSet = new Set(candidates);
+  const { data } = await supabaseAdmin
+    .from("tamar_runtime_executions" as any)
+    .select("created_at,inbound_message,outbound_reply,raw_payload,campaign_id,offer_id")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  return ((data as any[]) ?? [])
+    .filter((row) => {
+      const req = row?.raw_payload?.request ?? {};
+      const rowCandidates = phoneLookupCandidates(req.phone, req.whatsapp_number, req.from, req.sender, req.customer_phone);
+      return rowCandidates.some((candidate) => candidateSet.has(candidate));
+    })
+    .flatMap((row) => {
+      const ts = row.created_at;
+      const common = { timestamp: ts, campaign_id: row.campaign_id ?? null, related_offer_id: row.offer_id ?? null };
+      return [
+        row.inbound_message ? { ...common, type: "whatsapp_message", source: "customer_inbound", content: row.inbound_message } : null,
+        row.outbound_reply ? { ...common, type: "whatsapp_message", source: "tamar_outbound", content: row.outbound_reply } : null,
+      ].filter(Boolean);
+    });
+}
+
+function mergeRecentInteractions(primary: any[], fallback: any[]) {
+  const seen = new Set<string>();
+  return [...(primary ?? []), ...(fallback ?? [])]
+    .filter((item) => {
+      const key = `${item.timestamp ?? ""}|${item.source ?? item.type ?? ""}|${item.content ?? ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return !!item.content;
+    })
+    .sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime())
+    .slice(0, 20);
 }
 
 async function loadCampaignOffer(contact: any, body: any) {
@@ -364,16 +475,18 @@ async function callModel(messages: Array<{ role: string; content: string }>) {
   return reply.trim();
 }
 
-function resolveTamarBackendConfig(api: any): { baseUrl: string | null; bearer: string | null; source: string } {
+function resolveTamarBackendConfig(api: any): { baseUrl: string | null; bearer: string | null; fallbackBearer: string | null; source: string } {
   const envUrl = process.env.TAMAR_API_URL?.trim();
   const envToken = process.env.TAMAR_API_TOKEN?.trim();
   const dbUrl = api?.tamar_backend_url ? String(api.tamar_backend_url).trim() : "";
   const dbToken = api?.tamar_backend_api_token ? String(api.tamar_backend_api_token).trim() : "";
 
   const rawUrl = envUrl || dbUrl;
+  const bearer = envToken || dbToken || null;
   return {
     baseUrl: rawUrl ? rawUrl.replace(/\/$/, "") : null,
-    bearer: envToken || dbToken || null,
+    bearer,
+    fallbackBearer: envToken && dbToken && envToken !== dbToken ? dbToken : null,
     source: envUrl ? "env" : dbUrl ? "db" : "missing",
   };
 }
@@ -428,7 +541,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const contact = await resolveOrCreateContact(body);
         const contactId = contact?.id ?? null;
 
-        const { behavior, blocks, interactions, memories } = await loadContext(contactId);
+        const { behavior, blocks, interactions: contactInteractions, memories } = await loadContext(contactId);
+        const runtimeHistoryFallback = await loadRecentRuntimeHistoryByPhone(body);
+        const interactions = mergeRecentInteractions(contactInteractions, runtimeHistoryFallback);
         const { campaign, offer, resolutionTrail } = await resolveCampaignAndOffer(contact, body, message);
 
         const { mode: conversationMode, reasons: conversationModeReasons } = decideConversationMode({
@@ -686,29 +801,27 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 : "tamar_reply_handoff_phrase";
 
             const customerPhone =
-              (contact?.phone as string | null) ||
-              (contact?.whatsapp_number as string | null) ||
-              (body.phone as string | null) ||
-              (body.whatsapp_number as string | null) ||
-              null;
+              firstNonEmpty(contact?.phone, contact?.whatsapp_number, body.phone, body.whatsapp_number, body.from, body.sender, body.customer_phone);
             const customerName =
-              (contact?.full_name as string | null) ||
-              [contact?.first_name, contact?.last_name].filter(Boolean).join(" ") ||
-              (body.name ? String(body.name).trim() : null) ||
-              null;
+              firstNonEmpty(contact?.full_name, [contact?.first_name, contact?.last_name].filter(Boolean).join(" "), inboundName(body));
+            const customerNameForAlert = customerName ?? "Unknown WhatsApp contact";
+            const recentConversationExcerpt = conversationExcerptText(excerpt);
+            const resolvedOfferTitle = offer?.title ?? null;
+            const resolvedCampaignName = campaign?.name ?? null;
+            const runtimeTraceId = (trace as any)?.id ?? null;
 
             const { data: handoffRow } = await supabaseAdmin
               .from("manager_handoffs" as any)
               .insert({
                 contact_id: contactId,
                 customer_phone: customerPhone,
-                customer_name: customerName,
+                customer_name: customerNameForAlert,
                 handoff_reason: handoffReason,
                 latest_inbound_message: message,
                 conversation_excerpt: excerpt,
                 resolved_offer_id: offer?.id ?? null,
                 resolved_campaign_id: campaign?.id ?? null,
-                runtime_trace_id: (trace as any)?.id ?? null,
+                runtime_trace_id: runtimeTraceId,
                 conversation_mode: conversationMode,
                 conversation_mode_reasons: conversationModeReasons,
                 status: "open",
@@ -732,7 +845,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               .select("tamar_backend_url, tamar_backend_api_token")
               .eq("id", 1)
               .maybeSingle();
-            const { baseUrl, bearer, source: backendConfigSource } = resolveTamarBackendConfig(api);
+            const { baseUrl, bearer, fallbackBearer, source: backendConfigSource } = resolveTamarBackendConfig(api);
 
             const alertPayload = {
               handoff_id: handoffId,
@@ -744,24 +857,31 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 : null,
               customer_contact_id: contactId,
               customer_phone: customerPhone,
-              customer_name: customerName,
+              customer_name: customerNameForAlert,
+              customer_name_known: !!customerName,
               customer: {
                 contact_id: contactId,
                 phone: customerPhone,
-                name: customerName,
+                name: customerNameForAlert,
+                name_known: !!customerName,
               },
               handoff_reason: handoffReason,
               conversation_mode: conversationMode,
               conversation_mode_reasons: conversationModeReasons,
               latest_inbound_message: message,
+              recent_conversation_excerpt: recentConversationExcerpt,
               conversation_excerpt: excerpt,
+              resolved_offer_id: offer?.id ?? null,
+              resolved_offer_title: resolvedOfferTitle,
+              resolved_campaign_id: campaign?.id ?? null,
+              resolved_campaign_name: resolvedCampaignName,
               resolved: {
                 offer_id: offer?.id ?? null,
-                offer_title: offer?.title ?? null,
+                offer_title: resolvedOfferTitle,
                 campaign_id: campaign?.id ?? null,
-                campaign_name: campaign?.name ?? null,
+                campaign_name: resolvedCampaignName,
               },
-              runtime_trace_id: (trace as any)?.id ?? null,
+              runtime_trace_id: runtimeTraceId,
               backend_config_source: backendConfigSource,
               created_at: new Date().toISOString(),
             };
@@ -770,18 +890,24 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             let alertError: string | null = null;
             if (baseUrl && manager) {
               try {
-                const res = await fetch(`${baseUrl}/manager-alerts/handoff`, {
+                const postAlert = (token: string | null) => fetch(`${baseUrl}/manager-alerts/handoff`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
-                    ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
                   },
                   body: JSON.stringify(alertPayload),
                 });
+                let res = await postAlert(bearer);
+                let retriedWithDbToken = false;
+                if (res.status === 401 && fallbackBearer) {
+                  res = await postAlert(fallbackBearer);
+                  retriedWithDbToken = true;
+                }
                 const txt = await res.text().catch(() => "");
                 let parsed: any = null;
                 try { parsed = txt ? JSON.parse(txt) : null; } catch { parsed = { raw: txt }; }
-                alertResponse = { status: res.status, body: parsed };
+                alertResponse = { status: res.status, body: parsed, retried_with_db_token: retriedWithDbToken };
                 if (res.ok) managerNotified = true;
                 else alertError = `railway_${res.status}`;
               } catch (e: any) {
