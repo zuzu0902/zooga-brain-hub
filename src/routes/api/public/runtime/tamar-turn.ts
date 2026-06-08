@@ -504,15 +504,45 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           offerIntelligenceText = lines.join("\n\n");
         }
 
-        // Gate offer intelligence by conversation mode. Resolved offer stays in
-        // the background for enrichment, but does not hijack the dialogue
-        // unless we have strong evidence the user is talking about it.
-        const effectiveOfferIntelligenceText =
-          conversationMode === "offer_specific"
-            ? offerIntelligenceText
-            : offer
-              ? `Background only — a possibly related offer is "${offer.title}" (id ${offer.id}). Do NOT pivot the conversation to this offer, do NOT pitch it, and do NOT answer offer-specific questions from it. Use it only as a soft hint about what the user might be interested in. Only switch to offer-specific answering if the user explicitly raises this offer.`
-              : null;
+        // Unified runtime: do NOT gate offer intelligence by mode. If an offer
+        // was resolved as relevant, its full intelligence is always available
+        // to the reply. Mode only shifts emphasis (see composition mode rules).
+        const effectiveOfferIntelligenceText = offerIntelligenceText;
+
+        // Active context layers — visible in Runtime Trace so we can see
+        // every capability that ran on this turn (memory, profile, offer,
+        // intake, handoff risk) instead of a single mode badge.
+        const activeContextLayers = {
+          memory: {
+            active: (memories?.length ?? 0) > 0,
+            count: memories?.length ?? 0,
+          },
+          contact_profile: {
+            active: !!contact,
+            known_name: !!(contact?.full_name || contact?.first_name),
+            intake_status: contact?.intake_status ?? null,
+          },
+          offer_event: {
+            active: !!offer,
+            offer_id: offer?.id ?? null,
+            offer_title: offer?.title ?? null,
+            campaign_id: campaign?.id ?? null,
+            resolution_trail: resolutionTrail,
+          },
+          intake_progress: {
+            active: !contact?.full_name || !contact?.preferred_language_style,
+            missing: [
+              !contact?.full_name ? "full_name" : null,
+              !contact?.preferred_language_style ? "preferred_language_style" : null,
+            ].filter(Boolean) as string[],
+          },
+          handoff_risk: {
+            active: conversationMode === "handoff" || HUMAN_REQUEST_RE.test(message),
+            triggered_by: conversationMode === "handoff" ? conversationModeReasons : [],
+          },
+          conversation_priority: conversationMode,
+          conversation_priority_reasons: conversationModeReasons,
+        };
 
         const composition = buildTamarRuntimeComposition({
           inboundMessage: message,
@@ -526,6 +556,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           offerFieldsInjected,
           conversationMode,
           conversationModeReasons,
+          activeContextLayers,
         });
 
         const systemMsg = composition.runtimePromptContext.messages.find((m: any) => m.role === "system");
@@ -592,7 +623,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             composition_version: "zooga-tamar-runtime-composition-v1",
             tamar_settings_version_at: behavior?.updated_at ?? null,
             prompt_blocks_injected: promptBlocksInjected,
-            offer_intelligence_injected: conversationMode === "offer_specific" && !!offer,
+            offer_intelligence_injected: !!offer,
             campaign_injected: !!campaign,
             latency_ms: Date.now() - startedAt,
             error: runtimeError,
@@ -607,7 +638,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               resolved_campaign_id: campaign?.id ?? null,
               conversation_mode: conversationMode,
               conversation_mode_reasons: conversationModeReasons,
-              offer_intelligence_effective: conversationMode === "offer_specific" && !!offer,
+              offer_intelligence_effective: !!offer,
+              active_context_layers: activeContextLayers,
             },
           })
           .select("id")

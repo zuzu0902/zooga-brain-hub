@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -160,13 +160,26 @@ function RuntimeTracePage() {
                     )}
                     {r.campaign_injected && <Badge variant="outline">campaign</Badge>}
                     {r.offer_intelligence_injected && (
-                      <Badge variant="outline">offer_intel (active)</Badge>
+                      <Badge variant="outline">offer_intel</Badge>
                     )}
-                    {!r.offer_intelligence_injected && r.offer_id && (
-                      <Badge variant="outline" className="border-dashed">
-                        offer resolved (background)
-                      </Badge>
-                    )}
+                    {(() => {
+                      const layers = (r.raw_payload as any)?.active_context_layers;
+                      if (!layers) return null;
+                      const chips: ReactElement[] = [];
+                      if (layers.memory?.active)
+                        chips.push(<Badge key="mem" variant="outline">memory:{layers.memory.count}</Badge>);
+                      if (layers.contact_profile?.active)
+                        chips.push(<Badge key="prof" variant="outline">profile</Badge>);
+                      if (layers.intake_progress?.active)
+                        chips.push(
+                          <Badge key="intk" variant="outline">
+                            intake:{(layers.intake_progress.missing ?? []).length} missing
+                          </Badge>,
+                        );
+                      if (layers.handoff_risk?.active)
+                        chips.push(<Badge key="hand" variant="outline" className="border-rose-500">handoff</Badge>);
+                      return chips;
+                    })()}
                     {Array.isArray(r.prompt_blocks_injected) &&
                       r.prompt_blocks_injected.length > 0 && (
                         <Badge variant="outline">
