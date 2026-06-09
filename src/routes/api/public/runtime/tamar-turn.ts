@@ -1050,6 +1050,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 runtime_trace_id: runtimeTraceId,
                 conversation_mode: conversationMode,
                 conversation_mode_reasons: conversationModeReasons,
+                handoff_triggers: handoffDecision.triggers,
                 status: "open",
               } as any)
               .select("id")
