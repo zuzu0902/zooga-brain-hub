@@ -346,7 +346,29 @@ function extractSocialGoal(text: string): Capture | null {
   return null;
 }
 
-export function extractIntakeCaptures(inbound: string, contact: any): Capture[] {
+const BARE_NAME_RE = /^[\u0590-\u05FFA-Za-z][\u0590-\u05FFA-Za-z'’\-]{1,19}$/;
+const NAME_BLOCKLIST = new Set([
+  "כן","לא","אוקיי","אוקי","בסדר","סבבה","תודה","שלום","היי","הי","בוקר","ערב","ביי","אולי","בטח","בהחלט",
+  "yes","no","ok","okay","hi","hello","hey","thanks","thank","bye","sure","maybe",
+]);
+
+function extractBareFirstName(text: string): Capture | null {
+  const t = text.trim();
+  if (!BARE_NAME_RE.test(t)) return null;
+  if (NAME_BLOCKLIST.has(t.toLowerCase())) return null;
+  return {
+    field: "first_name",
+    value: t,
+    confidence: 80,
+    columnUpdates: { first_name: t },
+  };
+}
+
+export function extractIntakeCaptures(
+  inbound: string,
+  contact: any,
+  opts?: { lastAskedKey?: string | null },
+): Capture[] {
   const text = String(inbound ?? "").trim();
   if (!text) return [];
   const out: Capture[] = [];
@@ -362,6 +384,16 @@ export function extractIntakeCaptures(inbound: string, contact: any): Capture[] 
   for (const fn of tryFns) {
     const cap = fn(text);
     if (cap && !fieldSatisfied(contact, cap.field)) out.push(cap);
+  }
+  // Context-aware fallback: if we just asked for the first name and the user
+  // replied with a bare token (e.g. "שושו"), accept it as the name.
+  if (
+    opts?.lastAskedKey === "first_name" &&
+    !out.some((c) => c.field === "first_name") &&
+    !fieldSatisfied(contact, "first_name")
+  ) {
+    const bare = extractBareFirstName(text);
+    if (bare) out.push(bare);
   }
   return out;
 }

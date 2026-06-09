@@ -896,7 +896,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         let intakeStageAfter = intakeSnapshot.stage;
         if (contactId) {
           try {
-            const captures = extractIntakeCaptures(message, contact);
+            const captures = extractIntakeCaptures(message, contact, {
+              lastAskedKey,
+            });
             const highConf = captures.filter((c) => c.confidence >= 75);
             const lowConf = captures.filter((c) => c.confidence < 75);
 
