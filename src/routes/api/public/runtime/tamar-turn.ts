@@ -1049,8 +1049,10 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 resolved_campaign_id: campaign?.id ?? null,
                 runtime_trace_id: runtimeTraceId,
                 conversation_mode: conversationMode,
-                conversation_mode_reasons: conversationModeReasons,
-                handoff_triggers: handoffDecision.triggers,
+                conversation_mode_reasons: [
+                  ...conversationModeReasons,
+                  ...handoffDecision.triggers.map((t) => `handoff_trigger:${t}`),
+                ],
                 status: "open",
               } as any)
               .select("id")
