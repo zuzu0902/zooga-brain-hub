@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -28,7 +28,7 @@ function LoginPage() {
     if (error) toast.error("שגיאת התחברות: " + error.message);
     else {
       toast.success("ברוך הבא לזוגה");
-      window.location.href = "/";
+      navigate({ to: "/", replace: true });
     }
   }
 
@@ -56,7 +56,14 @@ function LoginPage() {
       return;
     }
     if (result.redirected) return;
-    window.location.href = "/";
+    // Verify session is in memory before navigating (Safari ITP guard).
+    const { data } = await supabase.auth.getSession();
+    setLoading(false);
+    if (!data.session) {
+      toast.error("ההתחברות לא הושלמה. נסה שוב.");
+      return;
+    }
+    navigate({ to: "/", replace: true });
   }
 
   return (
