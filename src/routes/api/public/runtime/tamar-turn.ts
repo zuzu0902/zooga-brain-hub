@@ -193,9 +193,14 @@ async function resolveOrCreateContact(body: any) {
     .maybeSingle()).data;
   if (existing) {
     if (name && !(existing as any).full_name) {
+      const [firstPart, ...restParts] = name.split(/\s+/);
+      const lastPart = restParts.join(" ").trim() || null;
       const { data: updated } = await supabaseAdmin
         .from("contacts")
-        .update({ full_name: name } as any)
+        .update({
+          first_name: firstPart || null,
+          last_name: lastPart,
+        } as any)
         .eq("id", (existing as any).id)
         .select("*")
         .maybeSingle();
@@ -204,10 +209,13 @@ async function resolveOrCreateContact(body: any) {
     return existing;
   }
 
+  const [firstPart, ...restParts] = (name ?? "").split(/\s+/).filter(Boolean);
+  const lastPart = restParts.join(" ").trim() || null;
   const { data: created, error } = await supabaseAdmin
     .from("contacts")
     .insert({
-      full_name: name,
+      first_name: firstPart || null,
+      last_name: lastPart,
       phone: phone ?? lookup,
       whatsapp_number: wa ?? lookup,
       source: coerceContactSource(body.source),
