@@ -665,11 +665,15 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             resolution_trail: resolutionTrail,
           },
           intake_progress: {
-            active: !contact?.full_name || !contact?.preferred_language_style,
-            missing: [
-              !contact?.full_name ? "full_name" : null,
-              !contact?.preferred_language_style ? "preferred_language_style" : null,
-            ].filter(Boolean) as string[],
+            active: intakeSnapshot.state !== "completed",
+            state: intakeSnapshot.state,
+            stage: intakeSnapshot.stage,
+            completion_score: intakeSnapshot.completion_score,
+            completed: intakeSnapshot.completed,
+            missing: intakeSnapshot.missing,
+            next_target_field: nextIntakeField,
+            last_asked_key: lastAskedKey,
+            last_inbound_answered: lastAnswered,
           },
           handoff_risk: {
             active: conversationMode === "handoff" || HUMAN_REQUEST_RE.test(message),
