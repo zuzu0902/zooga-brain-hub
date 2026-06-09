@@ -196,6 +196,8 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
     conversation_mode: conversationMode,
     conversation_mode_reasons: conversationModeReasons,
     active_context_layers: activeContextLayers,
+    intake_snapshot: input.intakeSnapshot ?? null,
+    intake_directive: input.intakeDirective ?? null,
     injected_sections: {
       tamar_settings: !!input.tamarSettings,
       prompt_blocks: blockEntries.length > 0,
