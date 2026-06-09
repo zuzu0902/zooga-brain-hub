@@ -11,6 +11,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
+import {
+  computeIntakeSnapshot,
+  selectNextIntakeField,
+  composeIntakeDirective,
+  extractIntakeCaptures,
+  inboundAnswersField,
+  INTAKE_REQUIRED_FIELDS,
+} from "@/lib/intake-workflow";
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
