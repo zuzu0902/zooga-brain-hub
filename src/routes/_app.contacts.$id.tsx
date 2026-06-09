@@ -270,7 +270,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
  * Premium 5-section layout components
  * ============================================================ */
 
-function IdentityHeader({ contact, initials, id, update, onMessage, onTask }: any) {
+function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDelete }: any) {
   return (
     <Card className="p-6 shadow-[var(--shadow-elevated)] border-border/60 overflow-hidden relative">
       <div
@@ -356,6 +356,14 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask }: an
               onClick={() => window.open(`/contacts/${id}`, "_blank", "noopener,noreferrer")}
             >
               <ExternalLink className="h-3.5 w-3.5" /> פתח להדפסה / PDF
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 col-span-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> מחק איש קשר
             </Button>
           </div>
         </div>
