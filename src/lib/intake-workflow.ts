@@ -164,9 +164,10 @@ export function composeIntakeDirective(nextField: IntakeFieldKey | null): string
   const instruction = INTAKE_FIELD_PROMPT[nextField];
   if (!instruction) return null;
   return [
-    `Intake target this turn: ${nextField}.`,
-    `Instruction: After fully answering the user's actual question, weave in ONE natural follow-up to ${instruction}.`,
-    `Never replace the answer with the intake question. Never stack multiple intake questions. If the user already implicitly answered this field, skip it.`,
+    `MANDATORY intake target this turn: ${nextField}.`,
+    `You MUST include ONE short, natural question in this reply to ${instruction}.`,
+    `Placement: AFTER you answer the user's actual question / topic (offer, support, etc.), in the same reply. Do NOT skip it just because the offer answer feels complete.`,
+    `Hard rules: (a) never replace the user-facing answer with the intake question, (b) never stack multiple intake questions in one reply, (c) skip ONLY if the user already implicitly answered this field in the current message, (d) do not defer with "later" / "בהמשך" — ask it now.`,
   ].join(" ");
 }
 

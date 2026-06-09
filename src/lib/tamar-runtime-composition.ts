@@ -156,7 +156,9 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
     "",
     "## Intake workflow (runs in parallel; never replaces the answer)",
     input.intakeSnapshot ? JSON.stringify(input.intakeSnapshot, null, 2) : "(no intake snapshot)",
-    input.intakeDirective ? `Directive: ${input.intakeDirective}` : "No intake question this turn.",
+    input.intakeDirective
+      ? `Directive (MANDATORY this turn — must appear in the reply): ${input.intakeDirective}`
+      : "No intake question this turn.",
     "",
     "## Resolved behavior settings",
     settingsDirectives.map((d) => `- ${d}`).join("\n"),
@@ -184,6 +186,9 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
       "Keep the reply aligned with the active prompt blocks and behavior settings above.",
       "Always run lightweight intake in parallel: if name, language preference, or stated interest are missing, weave ONE natural question after answering the user's actual question. Never replace the answer with an intake question.",
       "Always use prior memory when present (preferences, past interactions, prior stated facts). Memory must influence the reply on every turn it is relevant.",
+      input.intakeDirective
+        ? "Intake enforcement: the Intake Directive above is MANDATORY for this reply. Structure the reply as [answer to user's topic] + [one short natural intake question for the target field]. A reply that contains only the offer/topic answer without that intake question is INVALID this turn."
+        : "Intake enforcement: no intake target this turn — answer the topic without forcing a question.",
     ].join("\n- "),
   ].join("\n");
 
