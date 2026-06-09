@@ -1117,6 +1117,13 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             campaign_id: campaign?.id ?? null,
             conversation_mode: conversationMode,
             conversation_mode_reasons: conversationModeReasons,
+            intake: {
+              state: intakeStateAfter,
+              stage: intakeStageAfter,
+              completion_score: intakeCompletionAfter,
+              next_target_field: nextIntakeField,
+              captured_this_turn: capturedFieldsThisTurn,
+            },
           },
         });
       },
