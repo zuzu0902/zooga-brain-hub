@@ -173,7 +173,7 @@ function RuntimeTracePage() {
                       if (layers.intake_progress?.active)
                         chips.push(
                           <Badge key="intk" variant="outline">
-                            intake:{(layers.intake_progress.missing ?? []).length} missing
+                            intake:{layers.intake_progress.stage ?? "?"} · {layers.intake_progress.completion_score ?? layers.intake_progress.completion_score_after ?? 0}%
                           </Badge>,
                         );
                       if (layers.handoff_risk?.active)
