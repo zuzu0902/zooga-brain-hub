@@ -21,6 +21,8 @@ type RuntimeCompositionInput = {
   conversationMode?: "generic_intake" | "offer_specific" | "support" | "handoff";
   conversationModeReasons?: string[];
   activeContextLayers?: Record<string, any>;
+  intakeDirective?: string | null;
+  intakeSnapshot?: any;
 };
 
 function truncate(text: string, max = 12000) {
