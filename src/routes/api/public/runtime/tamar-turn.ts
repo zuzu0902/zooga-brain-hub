@@ -883,6 +883,34 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 source: "intake_extractor",
               } as any);
             }
+
+            // Enrich trace row with post-turn intake snapshot for Runtime Trace UI
+            if ((trace as any)?.id) {
+              await supabaseAdmin
+                .from("tamar_runtime_executions" as any)
+                .update({
+                  raw_payload: {
+                    ...((trace as any).raw_payload ?? {}),
+                    intake_snapshot_before: intakeSnapshot,
+                    intake_next_target_field: nextIntakeField,
+                    intake_captured_this_turn: capturedFieldsThisTurn,
+                    intake_completion_score_after: intakeCompletionAfter,
+                    intake_state_after: intakeStateAfter,
+                    intake_stage_after: intakeStageAfter,
+                    active_context_layers: {
+                      ...activeContextLayers,
+                      intake_progress: {
+                        ...activeContextLayers.intake_progress,
+                        completion_score_after: intakeCompletionAfter,
+                        state_after: intakeStateAfter,
+                        stage_after: intakeStageAfter,
+                        captured_this_turn: capturedFieldsThisTurn,
+                      },
+                    },
+                  },
+                } as any)
+                .eq("id", (trace as any).id);
+            }
           } catch (e) {
             console.error("[intake-workflow] failed", e);
           }
