@@ -696,6 +696,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           conversationMode,
           conversationModeReasons,
           activeContextLayers,
+          intakeDirective,
+          intakeSnapshot,
         });
 
         const systemMsg = composition.runtimePromptContext.messages.find((m: any) => m.role === "system");
