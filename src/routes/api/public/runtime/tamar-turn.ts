@@ -895,7 +895,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 .from("tamar_runtime_executions" as any)
                 .update({
                   raw_payload: {
-                    ...((trace as any).raw_payload ?? {}),
+                    ...traceRawPayload,
                     intake_snapshot_before: intakeSnapshot,
                     intake_next_target_field: nextIntakeField,
                     intake_captured_this_turn: capturedFieldsThisTurn,
