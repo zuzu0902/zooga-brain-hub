@@ -235,6 +235,22 @@ function ContactProfile() {
           contactId={id}
           onAdded={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
         />
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>למחוק את איש הקשר?</AlertDialogTitle>
+              <AlertDialogDescription>
+                פעולה זו תמחק לצמיתות את {contact.full_name || "איש הקשר"} ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>ביטול</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleting ? "מוחק..." : "מחק"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
