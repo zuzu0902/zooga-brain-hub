@@ -9,7 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Filter, X, AlertCircle } from "lucide-react";
+import { Plus, Search, Filter, X, AlertCircle, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import {
   STATUS_LABELS, SOURCE_LABELS, INTEREST_LABELS, ALL_INTERESTS,
   SALES_TEMP_LABELS, SALES_TEMP_TONE, formatRelative,
@@ -48,6 +53,22 @@ function ContactsPage() {
   const [activity, setActivity] = useState<string>("all");
   const [consent, setConsent] = useState<string>("all");
   const [open, setOpen] = useState(false);
+  const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function confirmDelete() {
+    if (!toDelete) return;
+    setDeleting(true);
+    const { error } = await supabase.from("contacts").delete().eq("id", toDelete.id);
+    setDeleting(false);
+    if (error) {
+      toast.error("שגיאה במחיקה: " + error.message);
+      return;
+    }
+    toast.success("איש הקשר נמחק");
+    setToDelete(null);
+    refetch();
+  }
 
   const { data: contacts, isLoading, refetch } = useQuery({
     queryKey: ["contacts-rich"],
@@ -173,14 +194,15 @@ function ContactsPage() {
                 <th className="px-4 py-3 font-medium">אינטר׳</th>
                 <th className="px-4 py-3 font-medium">הסכמה</th>
                 <th className="px-4 py-3 font-medium">אחרון</th>
+                <th className="px-4 py-3 font-medium w-10"></th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={13} className="p-10 text-center text-muted-foreground">טוען...</td></tr>
+                <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">טוען...</td></tr>
               )}
               {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={13} className="p-10 text-center text-muted-foreground">אין אנשי קשר התואמים לסינון</td></tr>
+                <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">אין אנשי קשר התואמים לסינון</td></tr>
               )}
               {filtered.map((c: any) => {
                 const initials = (c.full_name || c.first_name || "?").trim().slice(0, 1);
@@ -255,6 +277,20 @@ function ContactsPage() {
                         : <span className="text-muted-foreground text-xs">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-muted-foreground text-xs whitespace-nowrap">{formatRelative(c.last_interaction_at)}</td>
+                    <td className="px-4 py-2.5">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setToDelete({ id: c.id, name: c.full_name || "ללא שם" });
+                        }}
+                        aria-label="מחק"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
                   </tr>
                 );
               })}
@@ -264,6 +300,22 @@ function ContactsPage() {
       </Card>
 
       <ContactCreateDialog open={open} onOpenChange={setOpen} onCreated={() => refetch()} />
+      <AlertDialog open={!!toDelete} onOpenChange={(v) => !v && setToDelete(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>למחוק את איש הקשר?</AlertDialogTitle>
+            <AlertDialogDescription>
+              פעולה זו תמחק לצמיתות את {toDelete?.name} ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>ביטול</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting ? "מוחק..." : "מחק"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

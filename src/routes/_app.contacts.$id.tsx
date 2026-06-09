@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   ArrowRight, Plus, Save, X, MessageSquare, StickyNote,
   CheckSquare, Flag, Phone, Mail, MapPin, Calendar, ShieldCheck,
@@ -42,6 +46,9 @@ export const Route = createFileRoute("/_app/contacts/$id")({
 function ContactProfile() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ["contact", id],
@@ -116,6 +123,20 @@ function ContactProfile() {
 
   const initials = (contact.full_name || contact.first_name || "?").trim().slice(0, 1);
 
+  async function handleDelete() {
+    setDeleting(true);
+    const { error } = await supabase.from("contacts").delete().eq("id", id);
+    setDeleting(false);
+    if (error) {
+      toast.error("שגיאה במחיקה: " + error.message);
+      return;
+    }
+    toast.success("איש הקשר נמחק");
+    setDeleteOpen(false);
+    qc.invalidateQueries({ queryKey: ["contacts-rich"] });
+    navigate({ to: "/contacts" });
+  }
+
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <div className="p-6 space-y-6 max-w-[1500px] mx-auto">
@@ -131,6 +152,7 @@ function ContactProfile() {
           update={update}
           onMessage={() => setInteractionOpen(true)}
           onTask={() => setTaskOpen(true)}
+          onDelete={() => setDeleteOpen(true)}
         />
 
         {/* === AI RELATIONSHIP SUMMARY === */}
@@ -213,6 +235,22 @@ function ContactProfile() {
           contactId={id}
           onAdded={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
         />
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>למחוק את איש הקשר?</AlertDialogTitle>
+              <AlertDialogDescription>
+                פעולה זו תמחק לצמיתות את {contact.full_name || "איש הקשר"} ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>ביטול</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {deleting ? "מוחק..." : "מחק"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
@@ -232,7 +270,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
  * Premium 5-section layout components
  * ============================================================ */
 
-function IdentityHeader({ contact, initials, id, update, onMessage, onTask }: any) {
+function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDelete }: any) {
   return (
     <Card className="p-6 shadow-[var(--shadow-elevated)] border-border/60 overflow-hidden relative">
       <div
@@ -318,6 +356,14 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask }: an
               onClick={() => window.open(`/contacts/${id}`, "_blank", "noopener,noreferrer")}
             >
               <ExternalLink className="h-3.5 w-3.5" /> פתח להדפסה / PDF
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 col-span-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> מחק איש קשר
             </Button>
           </div>
         </div>
