@@ -139,6 +139,9 @@ function ContactProfile() {
         {/* === TAMAR DECISION STRIP === */}
         <TamarDecisionStrip contactId={id} contact={contact} />
 
+        {/* === INTAKE PROGRESS (V1) === */}
+        <IntakeProgressCard contact={contact} contactId={id} />
+
         {/* === LIVE CONVERSATION === */}
         <ContactConversation contactId={id} />
 
