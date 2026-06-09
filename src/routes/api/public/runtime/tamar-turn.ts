@@ -25,17 +25,85 @@ const MODEL = "google/gemini-2.5-flash";
 
 const HANDOFF_PATTERNS = [
   /מעביר(ה)?\s+(אותך\s+)?ל(נציג|אדם|מנהל|צוות)/i,
+  /מעביר(ה)?\s+(את\s+)?(הבקשה|הפנייה|הפרטים|הנושא|הפנייה\s+שלך|הבקשה\s+שלך)/i,
+  /(אעביר|נעביר|מעבירים)\s+(את\s+)?(זה|הבקשה|הפנייה|הפרטים|הנושא|הפנייה\s+שלך|הבקשה\s+שלך)?\s*(ל)?(צוות|נציג|מנהל|טיפול\s+אנושי|מי\s+שיוכל)?/i,
+  /(אעדכן|נעדכן|אעביר\s+עדכון)\s+את\s+(הצוות|הנציג|המנהל)/i,
+  /(הצוות|נציג|מנהל)\s+(שלנו\s+)?(יחזור|תחזור|יחזרו|נחזור|יצור\s+קשר|ייצור\s+קשר)\s+אלי(י)?ך/i,
+  /נחזור\s+אלי(י)?ך\s+(בהקדם|עם\s+תשובה|בקרוב)/i,
+  /(מעביר(ה)?|אעביר)\s+(את\s+)?הפרטים\s+ל(צוות|נציג|מנהל)/i,
   /אבדוק\s+(מול|עם)\s+(הצוות|מנהל|נציג|אדם)/i,
   /אחזור\s+אלי(י)?ך\s+(עם\s+תשובה|בהקדם)/i,
   /מעבירה?\s+לטיפול\s+אנושי/i,
   /transferring you to (a|our) (human|agent|representative|manager)/i,
   /escalat(e|ing) to (a|our) (human|agent|team|manager)/i,
   /let me check with (the|our) (team|manager|human)/i,
+  /(i'll|i will|we'll|we will)\s+(forward|pass|escalate|hand)\s+(this|your|the)\s+(request|details|message)\s+to\s+(the\s+)?(team|manager|human|agent)/i,
+  /(our|the)\s+(team|manager|agent)\s+(will|'ll)\s+(get back|reach out|contact you)/i,
 ];
+
+// User explicitly asking for a human (already handled in mode decision, kept
+// here so the handoff decision is robust even if mode is wrong).
+const USER_HUMAN_REQUEST_RE =
+  /(נציג|לדבר עם אדם|אדם אמיתי|בן ?אדם|מנהל(ת)?|העבר(ו|י)?\s+(אותי\s+)?ל(נציג|מנהל|אדם)|תעביר(י|ו)?\s+(אותי\s+)?ל|human|real person|speak to (a |an )?(agent|representative|manager|human))/i;
+
+// Phrasings Tamar uses when she proposes transferring to a human. If a prior
+// assistant turn contained one of these and the next user reply is an
+// affirmation, that counts as the user confirming a handoff.
+const TRANSFER_QUESTION_RE =
+  /(להעביר(\s+אותך)?\s+ל(נציג|מנהל|צוות|אדם))|(שאעביר\s+(אותך|את\s+הבקשה|את\s+הפרטים)?\s*ל?(נציג|מנהל|צוות))|(תרצ(ה|י)\s+ש(אעביר|נעביר|אדבר|נדבר|נציג|מישהו))|(want me to (transfer|escalate|connect|forward).+(human|agent|manager|team))/i;
+
+// Affirmative user replies (Hebrew + English, short forms).
+const AFFIRMATIVE_RE =
+  /^(\s*)(כן|בטח|בהחלט|אוקיי|אוקי|אישור|מאשר(ת)?|סבבה|יאללה|נכון|בסדר|אנא|בבקשה|תעביר(י|ו)?|העבר(ו|י)?|yes|yep|yeah|sure|ok|okay|please\s+do|go\s+ahead|do\s+it)([\s.!?]|$)/i;
 
 function detectHandoff(reply: string): boolean {
   if (!reply) return false;
   return HANDOFF_PATTERNS.some((re) => re.test(reply));
+}
+
+/**
+ * Robust handoff decision. Does NOT rely only on the reply text — combines:
+ *  - conversation mode decision (mode === 'handoff')
+ *  - explicit human request in the current user message
+ *  - assistant reply text containing a transfer phrase
+ *  - prior assistant turn asked "should I transfer?" + current user said yes
+ */
+function decideHandoff(args: {
+  message: string;
+  replyText: string;
+  conversationMode: ConversationMode;
+  conversationModeReasons: string[];
+  interactions: any[];
+}): { handoff: boolean; reason: string; triggers: string[] } {
+  const triggers: string[] = [];
+
+  if (args.conversationMode === "handoff") {
+    triggers.push("conversation_mode_handoff");
+  }
+  if (args.message && USER_HUMAN_REQUEST_RE.test(args.message)) {
+    triggers.push("explicit_human_request");
+  }
+  if (args.replyText && HANDOFF_PATTERNS.some((re) => re.test(args.replyText))) {
+    triggers.push("assistant_transfer_phrase");
+  }
+
+  // Confirmation flow: was the previous assistant turn asking to transfer?
+  if (args.message && AFFIRMATIVE_RE.test(args.message.trim())) {
+    const lastOutbound = (args.interactions || []).find(
+      (i: any) => i?.source === "tamar_outbound" || i?.type === "tamar_outbound",
+    );
+    const prevText = String(lastOutbound?.content ?? "");
+    if (prevText && TRANSFER_QUESTION_RE.test(prevText)) {
+      triggers.push("user_confirmed_transfer");
+    }
+  }
+
+  const handoff = triggers.length > 0;
+  const reason =
+    triggers[0] ||
+    args.conversationModeReasons[0] ||
+    "no_trigger";
+  return { handoff, reason, triggers };
 }
 
 function firstNonEmpty(...values: unknown[]): string | null {
@@ -812,7 +880,14 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           );
         }
 
-        const handoffRequested = detectHandoff(replyText);
+        const handoffDecision = decideHandoff({
+          message,
+          replyText,
+          conversationMode,
+          conversationModeReasons,
+          interactions,
+        });
+        const handoffRequested = handoffDecision.handoff;
 
         // --- Intake capture + state persistence (parallel to handoff) ---
         let capturedFieldsThisTurn: string[] = [];
@@ -934,7 +1009,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // a handoff phrase. Zooga owns the decision; Railway only delivers.
         let handoffId: string | null = null;
         let managerNotified = false;
-        if (conversationMode === "handoff" || handoffRequested) {
+        if (handoffRequested) {
           try {
             const excerpt = interactions
               .slice(0, 10)
@@ -949,10 +1024,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               excerpt.push({ ts: new Date().toISOString(), source: "tamar_outbound", content: replyText });
             }
 
-            const handoffReason =
-              conversationMode === "handoff"
-                ? (conversationModeReasons[0] || "conversation_mode_handoff")
-                : "tamar_reply_handoff_phrase";
+            const handoffReason = handoffDecision.reason;
 
             const customerPhone =
               firstNonEmpty(contact?.phone, contact?.whatsapp_number, body.phone, body.whatsapp_number, body.from, body.sender, body.customer_phone);
@@ -977,7 +1049,10 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 resolved_campaign_id: campaign?.id ?? null,
                 runtime_trace_id: runtimeTraceId,
                 conversation_mode: conversationMode,
-                conversation_mode_reasons: conversationModeReasons,
+                conversation_mode_reasons: [
+                  ...conversationModeReasons,
+                  ...handoffDecision.triggers.map((t) => `handoff_trigger:${t}`),
+                ],
                 status: "open",
               } as any)
               .select("id")
