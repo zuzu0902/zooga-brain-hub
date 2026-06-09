@@ -880,7 +880,14 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           );
         }
 
-        const handoffRequested = detectHandoff(replyText);
+        const handoffDecision = decideHandoff({
+          message,
+          replyText,
+          conversationMode,
+          conversationModeReasons,
+          interactions,
+        });
+        const handoffRequested = handoffDecision.handoff;
 
         // --- Intake capture + state persistence (parallel to handoff) ---
         let capturedFieldsThisTurn: string[] = [];
@@ -1002,7 +1009,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // a handoff phrase. Zooga owns the decision; Railway only delivers.
         let handoffId: string | null = null;
         let managerNotified = false;
-        if (conversationMode === "handoff" || handoffRequested) {
+        if (handoffRequested) {
           try {
             const excerpt = interactions
               .slice(0, 10)
@@ -1017,10 +1024,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               excerpt.push({ ts: new Date().toISOString(), source: "tamar_outbound", content: replyText });
             }
 
-            const handoffReason =
-              conversationMode === "handoff"
-                ? (conversationModeReasons[0] || "conversation_mode_handoff")
-                : "tamar_reply_handoff_phrase";
+            const handoffReason = handoffDecision.reason;
 
             const customerPhone =
               firstNonEmpty(contact?.phone, contact?.whatsapp_number, body.phone, body.whatsapp_number, body.from, body.sender, body.customer_phone);
