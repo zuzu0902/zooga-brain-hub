@@ -746,6 +746,24 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           updated_at: v?.updated_at ?? null,
         }));
 
+        const traceRawPayload: any = {
+          request: { ...body, message },
+          meta_message_id: metaMessageId,
+          meta_timestamp: body.meta_timestamp ?? null,
+          model: MODEL,
+          prompt_preview: composition.tracePromptContext.prompt_text_preview,
+          resolution_trail: resolutionTrail,
+          resolved_offer_id: offer?.id ?? null,
+          resolved_campaign_id: campaign?.id ?? null,
+          conversation_mode: conversationMode,
+          conversation_mode_reasons: conversationModeReasons,
+          offer_intelligence_effective: !!offer,
+          active_context_layers: activeContextLayers,
+          intake_snapshot_before: intakeSnapshot,
+          intake_next_target_field: nextIntakeField,
+          intake_directive: intakeDirective,
+        };
+
         const { data: trace } = await supabaseAdmin
           .from("tamar_runtime_executions" as any)
           .insert({
@@ -768,20 +786,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             campaign_injected: !!campaign,
             latency_ms: Date.now() - startedAt,
             error: runtimeError,
-            raw_payload: {
-              request: { ...body, message },
-              meta_message_id: metaMessageId,
-              meta_timestamp: body.meta_timestamp ?? null,
-              model: MODEL,
-              prompt_preview: composition.tracePromptContext.prompt_text_preview,
-              resolution_trail: resolutionTrail,
-              resolved_offer_id: offer?.id ?? null,
-              resolved_campaign_id: campaign?.id ?? null,
-              conversation_mode: conversationMode,
-              conversation_mode_reasons: conversationModeReasons,
-              offer_intelligence_effective: !!offer,
-              active_context_layers: activeContextLayers,
-            },
+            raw_payload: traceRawPayload,
           })
           .select("id")
           .single();
