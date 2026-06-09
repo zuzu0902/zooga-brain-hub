@@ -34,7 +34,7 @@ export const Route = createFileRoute("/api/introspect/tamar-routing")({
       },
       intake_stages: Object.keys(INTAKE_FLOWS).map((k) => ({
         flow: k, label: (INTAKE_FLOW_LABELS as any)[k] ?? k,
-        stages: ["greeting","scripted_questions","ai_qualification","summary","handoff_or_offer"],
+        stages: ["identity","demographic","preferences","qualification","completed"],
       })),
       sensitive_routing: {
         risk_routing_exists: true,
