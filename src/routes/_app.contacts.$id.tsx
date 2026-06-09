@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   ArrowRight, Plus, Save, X, MessageSquare, StickyNote,
   CheckSquare, Flag, Phone, Mail, MapPin, Calendar, ShieldCheck,
@@ -42,6 +46,9 @@ export const Route = createFileRoute("/_app/contacts/$id")({
 function ContactProfile() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ["contact", id],
@@ -116,6 +123,20 @@ function ContactProfile() {
 
   const initials = (contact.full_name || contact.first_name || "?").trim().slice(0, 1);
 
+  async function handleDelete() {
+    setDeleting(true);
+    const { error } = await supabase.from("contacts").delete().eq("id", id);
+    setDeleting(false);
+    if (error) {
+      toast.error("שגיאה במחיקה: " + error.message);
+      return;
+    }
+    toast.success("איש הקשר נמחק");
+    setDeleteOpen(false);
+    qc.invalidateQueries({ queryKey: ["contacts-rich"] });
+    navigate({ to: "/contacts" });
+  }
+
   return (
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <div className="p-6 space-y-6 max-w-[1500px] mx-auto">
@@ -131,6 +152,7 @@ function ContactProfile() {
           update={update}
           onMessage={() => setInteractionOpen(true)}
           onTask={() => setTaskOpen(true)}
+          onDelete={() => setDeleteOpen(true)}
         />
 
         {/* === AI RELATIONSHIP SUMMARY === */}
