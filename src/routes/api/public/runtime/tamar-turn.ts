@@ -995,6 +995,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 campaign_name: resolvedCampaignName,
               },
               runtime_trace_id: runtimeTraceId,
+              intake_stage: intakeStageAfter,
+              intake_state: intakeStateAfter,
+              intake_completion_score: intakeCompletionAfter,
+              intake_missing_fields: INTAKE_REQUIRED_FIELDS.filter(
+                (k) =>
+                  !(Array.isArray(contact?.intake_completed_fields)
+                    ? (contact!.intake_completed_fields as string[])
+                    : intakeSnapshot.completed
+                  ).includes(k) && !capturedFieldsThisTurn.includes(k),
+              ),
+              intake_captured_this_turn: capturedFieldsThisTurn,
               backend_config_source: backendConfigSource,
               created_at: new Date().toISOString(),
             };
