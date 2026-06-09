@@ -801,6 +801,93 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
 
         const handoffRequested = detectHandoff(replyText);
 
+        // --- Intake capture + state persistence (parallel to handoff) ---
+        let capturedFieldsThisTurn: string[] = [];
+        let intakeCompletionAfter = intakeSnapshot.completion_score;
+        let intakeStateAfter = intakeSnapshot.state;
+        let intakeStageAfter = intakeSnapshot.stage;
+        if (contactId) {
+          try {
+            const captures = extractIntakeCaptures(message, contact);
+            const highConf = captures.filter((c) => c.confidence >= 75);
+            const lowConf = captures.filter((c) => c.confidence < 75);
+
+            // High-confidence: update contact columns + intake state
+            const completedSet = new Set<string>(
+              Array.isArray(contact?.intake_completed_fields)
+                ? (contact!.intake_completed_fields as string[])
+                : intakeSnapshot.completed,
+            );
+            const columnUpdates: Record<string, any> = {};
+            for (const cap of highConf) {
+              Object.assign(columnUpdates, cap.columnUpdates);
+              completedSet.add(cap.field);
+              capturedFieldsThisTurn.push(cap.field);
+              await supabaseAdmin.from("intake_field_captures" as any).insert({
+                contact_id: contactId,
+                field_key: cap.field,
+                value_text: cap.value,
+                confidence: cap.confidence,
+                source: "extractor",
+                runtime_execution_id: (trace as any)?.id ?? null,
+              } as any);
+            }
+
+            // Auto-credit source_attribution silently if contact has any source signal.
+            if (
+              !completedSet.has("source_attribution") &&
+              (contact?.source || contact?.acquisition_source || contact?.campaign_source || contact?.first_touch_campaign_id || body?.source)
+            ) {
+              completedSet.add("source_attribution");
+            }
+
+            const missingAfter = INTAKE_REQUIRED_FIELDS.filter((k) => !completedSet.has(k));
+            const completedAfter = INTAKE_REQUIRED_FIELDS.filter((k) => completedSet.has(k));
+            intakeCompletionAfter = Math.round(
+              (completedAfter.length / INTAKE_REQUIRED_FIELDS.length) * 100,
+            );
+            intakeStateAfter = missingAfter.length === 0 ? "completed" : "active";
+            const nextMissing = missingAfter[0];
+            intakeStageAfter = nextMissing
+              ? ((await import("@/lib/intake-workflow")).INTAKE_FIELD_STAGE as any)[nextMissing]
+              : "completed";
+
+            const contactPatch: Record<string, any> = {
+              ...columnUpdates,
+              intake_state: intakeStateAfter,
+              intake_stage: intakeStageAfter,
+              intake_completed_fields: completedAfter,
+              intake_missing_fields: missingAfter,
+              intake_required_fields: INTAKE_REQUIRED_FIELDS,
+              intake_completion_score: intakeCompletionAfter,
+            };
+            if (highConf.length > 0) {
+              contactPatch.intake_last_captured_field = highConf[highConf.length - 1].field;
+              contactPatch.intake_last_captured_at = new Date().toISOString();
+            }
+            if (nextIntakeField) {
+              contactPatch.intake_last_question_key = nextIntakeField;
+              contactPatch.intake_last_question_at = new Date().toISOString();
+            }
+            await supabaseAdmin.from("contacts").update(contactPatch as any).eq("id", contactId);
+
+            // Low-confidence -> pending_ai_insights for human review
+            for (const cap of lowConf) {
+              await supabaseAdmin.from("pending_ai_insights").insert({
+                contact_id: contactId,
+                insight_type: "intake_field_candidate",
+                insight_key: cap.field,
+                insight_value: cap.value,
+                confidence_score: cap.confidence,
+                status: "pending",
+                source: "intake_extractor",
+              } as any);
+            }
+          } catch (e) {
+            console.error("[intake-workflow] failed", e);
+          }
+        }
+
         // --- Manager handoff alert (V1) ---
         // Trigger when Tamar decided handoff mode OR the reply text contains
         // a handoff phrase. Zooga owns the decision; Railway only delivers.
