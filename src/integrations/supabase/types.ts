@@ -381,6 +381,16 @@ export type Database = {
           hobbies: string[]
           id: string
           income_range: Database["public"]["Enums"]["income_range"] | null
+          intake_completed_fields: string[] | null
+          intake_completion_score: number | null
+          intake_last_captured_at: string | null
+          intake_last_captured_field: string | null
+          intake_last_question_at: string | null
+          intake_last_question_key: string | null
+          intake_missing_fields: string[] | null
+          intake_required_fields: string[] | null
+          intake_stage: string | null
+          intake_state: string | null
           intake_status: string | null
           interaction_count: number
           interests: string[]
@@ -477,6 +487,16 @@ export type Database = {
           hobbies?: string[]
           id?: string
           income_range?: Database["public"]["Enums"]["income_range"] | null
+          intake_completed_fields?: string[] | null
+          intake_completion_score?: number | null
+          intake_last_captured_at?: string | null
+          intake_last_captured_field?: string | null
+          intake_last_question_at?: string | null
+          intake_last_question_key?: string | null
+          intake_missing_fields?: string[] | null
+          intake_required_fields?: string[] | null
+          intake_stage?: string | null
+          intake_state?: string | null
           intake_status?: string | null
           interaction_count?: number
           interests?: string[]
@@ -573,6 +593,16 @@ export type Database = {
           hobbies?: string[]
           id?: string
           income_range?: Database["public"]["Enums"]["income_range"] | null
+          intake_completed_fields?: string[] | null
+          intake_completion_score?: number | null
+          intake_last_captured_at?: string | null
+          intake_last_captured_field?: string | null
+          intake_last_question_at?: string | null
+          intake_last_question_key?: string | null
+          intake_missing_fields?: string[] | null
+          intake_required_fields?: string[] | null
+          intake_stage?: string | null
+          intake_state?: string | null
           intake_status?: string | null
           interaction_count?: number
           interests?: string[]
@@ -774,6 +804,47 @@ export type Database = {
           template_name?: string
         }
         Relationships: []
+      }
+      intake_field_captures: {
+        Row: {
+          confidence: number | null
+          contact_id: string
+          created_at: string
+          field_key: string
+          id: string
+          runtime_execution_id: string | null
+          source: string | null
+          value_text: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          contact_id: string
+          created_at?: string
+          field_key: string
+          id?: string
+          runtime_execution_id?: string | null
+          source?: string | null
+          value_text?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          contact_id?: string
+          created_at?: string
+          field_key?: string
+          id?: string
+          runtime_execution_id?: string | null
+          source?: string | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_field_captures_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       intake_inbox: {
         Row: {

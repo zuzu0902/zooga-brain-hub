@@ -21,6 +21,8 @@ type RuntimeCompositionInput = {
   conversationMode?: "generic_intake" | "offer_specific" | "support" | "handoff";
   conversationModeReasons?: string[];
   activeContextLayers?: Record<string, any>;
+  intakeDirective?: string | null;
+  intakeSnapshot?: any;
 };
 
 function truncate(text: string, max = 12000) {
@@ -152,6 +154,10 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
     "## Priority rules (shift emphasis; do NOT disable other capabilities)",
     modeRules.map((r) => `- ${r}`).join("\n"),
     "",
+    "## Intake workflow (runs in parallel; never replaces the answer)",
+    input.intakeSnapshot ? JSON.stringify(input.intakeSnapshot, null, 2) : "(no intake snapshot)",
+    input.intakeDirective ? `Directive: ${input.intakeDirective}` : "No intake question this turn.",
+    "",
     "## Resolved behavior settings",
     settingsDirectives.map((d) => `- ${d}`).join("\n"),
     "",
@@ -190,6 +196,8 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
     conversation_mode: conversationMode,
     conversation_mode_reasons: conversationModeReasons,
     active_context_layers: activeContextLayers,
+    intake_snapshot: input.intakeSnapshot ?? null,
+    intake_directive: input.intakeDirective ?? null,
     injected_sections: {
       tamar_settings: !!input.tamarSettings,
       prompt_blocks: blockEntries.length > 0,

@@ -11,6 +11,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
+import {
+  computeIntakeSnapshot,
+  selectNextIntakeField,
+  composeIntakeDirective,
+  extractIntakeCaptures,
+  inboundAnswersField,
+  INTAKE_REQUIRED_FIELDS,
+} from "@/lib/intake-workflow";
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -554,6 +562,18 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           interactions,
         });
 
+        // --- Intake Workflow V1 (parallel layer; never suppresses answer) ---
+        const intakeSnapshot = computeIntakeSnapshot(contact);
+        const lastAskedKey = contact?.intake_last_question_key ?? null;
+        const lastAnswered = inboundAnswersField(message, lastAskedKey);
+        const nextIntakeField = selectNextIntakeField(intakeSnapshot, {
+          lastAskedKey,
+          lastAskedAt: contact?.intake_last_question_at ?? null,
+          lastInboundLooksLikeAnswer: lastAnswered,
+          mode: conversationMode,
+        });
+        const intakeDirective = composeIntakeDirective(nextIntakeField);
+
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
           return acc;
@@ -645,11 +665,15 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             resolution_trail: resolutionTrail,
           },
           intake_progress: {
-            active: !contact?.full_name || !contact?.preferred_language_style,
-            missing: [
-              !contact?.full_name ? "full_name" : null,
-              !contact?.preferred_language_style ? "preferred_language_style" : null,
-            ].filter(Boolean) as string[],
+            active: intakeSnapshot.state !== "completed",
+            state: intakeSnapshot.state,
+            stage: intakeSnapshot.stage,
+            completion_score: intakeSnapshot.completion_score,
+            completed: intakeSnapshot.completed,
+            missing: intakeSnapshot.missing,
+            next_target_field: nextIntakeField,
+            last_asked_key: lastAskedKey,
+            last_inbound_answered: lastAnswered,
           },
           handoff_risk: {
             active: conversationMode === "handoff" || HUMAN_REQUEST_RE.test(message),
@@ -672,6 +696,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           conversationMode,
           conversationModeReasons,
           activeContextLayers,
+          intakeDirective,
+          intakeSnapshot,
         });
 
         const systemMsg = composition.runtimePromptContext.messages.find((m: any) => m.role === "system");
@@ -720,6 +746,24 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           updated_at: v?.updated_at ?? null,
         }));
 
+        const traceRawPayload: any = {
+          request: { ...body, message },
+          meta_message_id: metaMessageId,
+          meta_timestamp: body.meta_timestamp ?? null,
+          model: MODEL,
+          prompt_preview: composition.tracePromptContext.prompt_text_preview,
+          resolution_trail: resolutionTrail,
+          resolved_offer_id: offer?.id ?? null,
+          resolved_campaign_id: campaign?.id ?? null,
+          conversation_mode: conversationMode,
+          conversation_mode_reasons: conversationModeReasons,
+          offer_intelligence_effective: !!offer,
+          active_context_layers: activeContextLayers,
+          intake_snapshot_before: intakeSnapshot,
+          intake_next_target_field: nextIntakeField,
+          intake_directive: intakeDirective,
+        };
+
         const { data: trace } = await supabaseAdmin
           .from("tamar_runtime_executions" as any)
           .insert({
@@ -742,20 +786,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             campaign_injected: !!campaign,
             latency_ms: Date.now() - startedAt,
             error: runtimeError,
-            raw_payload: {
-              request: { ...body, message },
-              meta_message_id: metaMessageId,
-              meta_timestamp: body.meta_timestamp ?? null,
-              model: MODEL,
-              prompt_preview: composition.tracePromptContext.prompt_text_preview,
-              resolution_trail: resolutionTrail,
-              resolved_offer_id: offer?.id ?? null,
-              resolved_campaign_id: campaign?.id ?? null,
-              conversation_mode: conversationMode,
-              conversation_mode_reasons: conversationModeReasons,
-              offer_intelligence_effective: !!offer,
-              active_context_layers: activeContextLayers,
-            },
+            raw_payload: traceRawPayload,
           })
           .select("id")
           .single();
@@ -774,6 +805,121 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         }
 
         const handoffRequested = detectHandoff(replyText);
+
+        // --- Intake capture + state persistence (parallel to handoff) ---
+        let capturedFieldsThisTurn: string[] = [];
+        let intakeCompletionAfter = intakeSnapshot.completion_score;
+        let intakeStateAfter = intakeSnapshot.state;
+        let intakeStageAfter = intakeSnapshot.stage;
+        if (contactId) {
+          try {
+            const captures = extractIntakeCaptures(message, contact);
+            const highConf = captures.filter((c) => c.confidence >= 75);
+            const lowConf = captures.filter((c) => c.confidence < 75);
+
+            // High-confidence: update contact columns + intake state
+            const completedSet = new Set<string>(
+              Array.isArray(contact?.intake_completed_fields)
+                ? (contact!.intake_completed_fields as string[])
+                : intakeSnapshot.completed,
+            );
+            const columnUpdates: Record<string, any> = {};
+            for (const cap of highConf) {
+              Object.assign(columnUpdates, cap.columnUpdates);
+              completedSet.add(cap.field);
+              capturedFieldsThisTurn.push(cap.field);
+              await supabaseAdmin.from("intake_field_captures" as any).insert({
+                contact_id: contactId,
+                field_key: cap.field,
+                value_text: cap.value,
+                confidence: cap.confidence,
+                source: "extractor",
+                runtime_execution_id: (trace as any)?.id ?? null,
+              } as any);
+            }
+
+            // Auto-credit source_attribution silently if contact has any source signal.
+            if (
+              !completedSet.has("source_attribution") &&
+              (contact?.source || contact?.acquisition_source || contact?.campaign_source || contact?.first_touch_campaign_id || body?.source)
+            ) {
+              completedSet.add("source_attribution");
+            }
+
+            const missingAfter = INTAKE_REQUIRED_FIELDS.filter((k) => !completedSet.has(k));
+            const completedAfter = INTAKE_REQUIRED_FIELDS.filter((k) => completedSet.has(k));
+            intakeCompletionAfter = Math.round(
+              (completedAfter.length / INTAKE_REQUIRED_FIELDS.length) * 100,
+            );
+            intakeStateAfter = missingAfter.length === 0 ? "completed" : "active";
+            const nextMissing = missingAfter[0];
+            intakeStageAfter = nextMissing
+              ? ((await import("@/lib/intake-workflow")).INTAKE_FIELD_STAGE as any)[nextMissing]
+              : "completed";
+
+            const contactPatch: Record<string, any> = {
+              ...columnUpdates,
+              intake_state: intakeStateAfter,
+              intake_stage: intakeStageAfter,
+              intake_completed_fields: completedAfter,
+              intake_missing_fields: missingAfter,
+              intake_required_fields: INTAKE_REQUIRED_FIELDS,
+              intake_completion_score: intakeCompletionAfter,
+            };
+            if (highConf.length > 0) {
+              contactPatch.intake_last_captured_field = highConf[highConf.length - 1].field;
+              contactPatch.intake_last_captured_at = new Date().toISOString();
+            }
+            if (nextIntakeField) {
+              contactPatch.intake_last_question_key = nextIntakeField;
+              contactPatch.intake_last_question_at = new Date().toISOString();
+            }
+            await supabaseAdmin.from("contacts").update(contactPatch as any).eq("id", contactId);
+
+            // Low-confidence -> pending_ai_insights for human review
+            for (const cap of lowConf) {
+              await supabaseAdmin.from("pending_ai_insights").insert({
+                contact_id: contactId,
+                insight_type: "intake_field_candidate",
+                insight_key: cap.field,
+                insight_value: cap.value,
+                confidence_score: cap.confidence,
+                status: "pending",
+                source: "intake_extractor",
+              } as any);
+            }
+
+            // Enrich trace row with post-turn intake snapshot for Runtime Trace UI
+            if ((trace as any)?.id) {
+              await supabaseAdmin
+                .from("tamar_runtime_executions" as any)
+                .update({
+                  raw_payload: {
+                    ...traceRawPayload,
+                    intake_snapshot_before: intakeSnapshot,
+                    intake_next_target_field: nextIntakeField,
+                    intake_captured_this_turn: capturedFieldsThisTurn,
+                    intake_completion_score_after: intakeCompletionAfter,
+                    intake_state_after: intakeStateAfter,
+                    intake_stage_after: intakeStageAfter,
+                    active_context_layers: {
+                      ...activeContextLayers,
+                      intake_progress: {
+                        ...activeContextLayers.intake_progress,
+                        completion_score_after: intakeCompletionAfter,
+                        state_after: intakeStateAfter,
+                        stage_after: intakeStageAfter,
+                        captured_this_turn: capturedFieldsThisTurn,
+                      },
+                    },
+                  },
+                } as any)
+                .eq("id", (trace as any).id);
+            }
+          } catch (e) {
+            console.error("[intake-workflow] failed", e);
+          }
+        }
 
         // --- Manager handoff alert (V1) ---
         // Trigger when Tamar decided handoff mode OR the reply text contains
@@ -882,6 +1028,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 campaign_name: resolvedCampaignName,
               },
               runtime_trace_id: runtimeTraceId,
+              intake_stage: intakeStageAfter,
+              intake_state: intakeStateAfter,
+              intake_completion_score: intakeCompletionAfter,
+              intake_missing_fields: INTAKE_REQUIRED_FIELDS.filter(
+                (k) =>
+                  !(Array.isArray(contact?.intake_completed_fields)
+                    ? (contact!.intake_completed_fields as string[])
+                    : intakeSnapshot.completed
+                  ).includes(k) && !capturedFieldsThisTurn.includes(k),
+              ),
+              intake_captured_this_turn: capturedFieldsThisTurn,
               backend_config_source: backendConfigSource,
               created_at: new Date().toISOString(),
             };
@@ -960,6 +1117,13 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             campaign_id: campaign?.id ?? null,
             conversation_mode: conversationMode,
             conversation_mode_reasons: conversationModeReasons,
+            intake: {
+              state: intakeStateAfter,
+              stage: intakeStageAfter,
+              completion_score: intakeCompletionAfter,
+              next_target_field: nextIntakeField,
+              captured_this_turn: capturedFieldsThisTurn,
+            },
           },
         });
       },

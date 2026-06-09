@@ -173,7 +173,7 @@ function RuntimeTracePage() {
                       if (layers.intake_progress?.active)
                         chips.push(
                           <Badge key="intk" variant="outline">
-                            intake:{(layers.intake_progress.missing ?? []).length} missing
+                            intake:{layers.intake_progress.stage ?? "?"} · {layers.intake_progress.completion_score ?? layers.intake_progress.completion_score_after ?? 0}%
                           </Badge>,
                         );
                       if (layers.handoff_risk?.active)
@@ -217,6 +217,29 @@ function RuntimeTracePage() {
                       <span className="whitespace-pre-wrap">{r.outbound_reply}</span>
                     </div>
                   )}
+                  {(() => {
+                    const p: any = r.raw_payload ?? {};
+                    const layers = p.active_context_layers ?? {};
+                    const intake = layers.intake_progress ?? {};
+                    if (!intake.active && p.intake_snapshot_before == null) return null;
+                    return (
+                      <div className="mt-2 text-xs bg-muted/40 rounded px-3 py-2 space-y-1">
+                        <div className="font-medium">Intake</div>
+                        <div>
+                          active: <span className="font-mono">{String(!!intake.active)}</span> ·
+                          status: <span className="font-mono">{intake.state_after ?? intake.state ?? "—"}</span> ·
+                          stage: <span className="font-mono">{intake.stage_after ?? intake.stage ?? "—"}</span> ·
+                          score: <span className="font-mono">{intake.completion_score_after ?? intake.completion_score ?? 0}%</span>
+                        </div>
+                        <div>
+                          next_target_field: <span className="font-mono">{p.intake_next_target_field ?? intake.next_target_field ?? "—"}</span>
+                        </div>
+                        <div>
+                          captured_this_turn: <span className="font-mono">{Array.isArray(intake.captured_this_turn) && intake.captured_this_turn.length ? intake.captured_this_turn.join(", ") : "—"}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="text-xs text-muted-foreground space-x-3 space-x-reverse">
                     {r.deployment_sha && <span>sha: {r.deployment_sha.slice(0, 10)}</span>}
                     {r.composition_version && <span>· comp: {r.composition_version}</span>}

@@ -139,6 +139,9 @@ function ContactProfile() {
         {/* === TAMAR DECISION STRIP === */}
         <TamarDecisionStrip contactId={id} contact={contact} />
 
+        {/* === INTAKE PROGRESS (V1) === */}
+        <IntakeProgressCard contact={contact} contactId={id} />
+
         {/* === LIVE CONVERSATION === */}
         <ContactConversation contactId={id} />
 
@@ -1745,4 +1748,126 @@ function AddTaskDialog({ open, onOpenChange, contactId, onAdded }: any) {
 function normalizeP(s: string | null | undefined): string {
   if (!s) return "";
   return String(s).replace(/[^\d]/g, "").replace(/^0+/, "");
+}
+/* ============================================================
+ * Intake Progress (V1)
+ * ============================================================ */
+const INTAKE_FIELD_LABELS: Record<string, string> = {
+  first_name: "שם פרטי",
+  age_or_birth_date: "גיל / טווח גילים",
+  city_or_region: "אזור מגורים",
+  social_or_relationship_goal: "מטרה חברתית/זוגית",
+  preferred_activity_type: "סוגי פעילות מועדפים",
+  budget_sensitivity_or_range: "טווח תקציב",
+  language_style_preference: "סגנון פנייה",
+  source_attribution: "מקור הגעה",
+};
+
+const INTAKE_STATE_TONE: Record<string, string> = {
+  not_started: "bg-muted text-muted-foreground",
+  active: "bg-primary/15 text-primary",
+  paused: "bg-amber-100 text-amber-800",
+  completed: "bg-emerald-100 text-emerald-800",
+  blocked: "bg-rose-100 text-rose-800",
+  handoff: "bg-rose-100 text-rose-800",
+};
+
+function IntakeProgressCard({ contact, contactId }: { contact: any; contactId: string }) {
+  const state = contact?.intake_state ?? "not_started";
+  const stage = contact?.intake_stage ?? "identity";
+  const completed: string[] = Array.isArray(contact?.intake_completed_fields)
+    ? contact!.intake_completed_fields
+    : [];
+  const missing: string[] = Array.isArray(contact?.intake_missing_fields)
+    ? contact!.intake_missing_fields
+    : [];
+  const total = completed.length + missing.length || 8;
+  const score = contact?.intake_completion_score ?? Math.round((completed.length / total) * 100);
+
+  const { data: captures } = useQuery({
+    queryKey: ["intake-captures", contactId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("intake_field_captures" as any)
+        .select("*")
+        .eq("contact_id", contactId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return (data ?? []) as any[];
+    },
+  });
+
+  return (
+    <Card className="p-5 shadow-[var(--shadow-card)] space-y-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="text-lg font-bold">Intake Workflow</h3>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${INTAKE_STATE_TONE[state] ?? INTAKE_STATE_TONE.not_started}`}>
+            {state}
+          </span>
+          <Badge variant="outline">שלב: {stage}</Badge>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {completed.length}/{total} שדות · {score}%
+        </div>
+      </div>
+      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+        <div className="h-full bg-primary transition-all" style={{ width: `${score}%` }} />
+      </div>
+
+      {completed.length > 0 && (
+        <div>
+          <div className="text-xs text-muted-foreground mb-1">נאספו</div>
+          <div className="flex flex-wrap gap-1.5">
+            {completed.map((k) => (
+              <Badge key={k} className="bg-emerald-100 text-emerald-800 border-emerald-200">
+                {INTAKE_FIELD_LABELS[k] ?? k}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {missing.length > 0 && (
+        <div>
+          <div className="text-xs text-muted-foreground mb-1">חסרים</div>
+          <div className="flex flex-wrap gap-1.5">
+            {missing.map((k) => (
+              <Badge key={k} variant="outline" className="text-muted-foreground">
+                {INTAKE_FIELD_LABELS[k] ?? k}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground pt-2 border-t border-border/60">
+        <div>
+          <div className="font-medium">שאלה אחרונה</div>
+          <div className="font-mono">{contact?.intake_last_question_key ?? "—"}</div>
+          <div>{contact?.intake_last_question_at ? formatRelative(contact.intake_last_question_at) : ""}</div>
+        </div>
+        <div>
+          <div className="font-medium">נקלט לאחרונה</div>
+          <div className="font-mono">{contact?.intake_last_captured_field ?? "—"}</div>
+          <div>{contact?.intake_last_captured_at ? formatRelative(contact.intake_last_captured_at) : ""}</div>
+        </div>
+      </div>
+
+      {captures && captures.length > 0 && (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+            יומן קליטות אחרונות ({captures.length})
+          </summary>
+          <div className="mt-2 space-y-1">
+            {captures.map((c: any) => (
+              <div key={c.id} className="font-mono">
+                [{new Date(c.created_at).toLocaleString()}] {c.field_key} = {c.value_text} (conf {c.confidence}, {c.source})
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </Card>
+  );
 }
