@@ -562,6 +562,18 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           interactions,
         });
 
+        // --- Intake Workflow V1 (parallel layer; never suppresses answer) ---
+        const intakeSnapshot = computeIntakeSnapshot(contact);
+        const lastAskedKey = contact?.intake_last_question_key ?? null;
+        const lastAnswered = inboundAnswersField(message, lastAskedKey);
+        const nextIntakeField = selectNextIntakeField(intakeSnapshot, {
+          lastAskedKey,
+          lastAskedAt: contact?.intake_last_question_at ?? null,
+          lastInboundLooksLikeAnswer: lastAnswered,
+          mode: conversationMode,
+        });
+        const intakeDirective = composeIntakeDirective(nextIntakeField);
+
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
           return acc;
