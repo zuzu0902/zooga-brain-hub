@@ -247,18 +247,23 @@ function extractAgeOrBirth(text: string): Capture | null {
             field: "age_or_birth_date",
             value: iso,
             confidence: 92,
-            // birth_date is a relationship-trigger field: also flag birthday outreach eligibility.
-            columnUpdates: { birth_date: iso, birthday_outreach_eligible: true },
+            // birth_date is a relationship-trigger field — also populate
+            // birthday_day/month/year so future outreach jobs can fire.
+            columnUpdates: {
+              birth_date: iso,
+              birthday_day: dd,
+              birthday_month: mm,
+              birthday_year: yyyy,
+            },
           };
         }
       } else {
-        // DD/MM only — store as MMDD trigger string; eligibility still true.
-        const md = `--${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+        // DD/MM only — year unknown, still eligible for birthday outreach.
         return {
           field: "age_or_birth_date",
-          value: md,
+          value: `${String(dd).padStart(2, "0")}/${String(mm).padStart(2, "0")}`,
           confidence: 78,
-          columnUpdates: { birth_date_md: md, birthday_outreach_eligible: true },
+          columnUpdates: { birthday_day: dd, birthday_month: mm },
         };
       }
     }
@@ -488,13 +493,20 @@ export function fieldValueToColumnUpdates(
     case "first_name":
       return { first_name: v };
     case "age_or_birth_date": {
-      // ISO birth date
-      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        return { birth_date: v, birthday_outreach_eligible: true };
+      // ISO birth date (YYYY-MM-DD)
+      const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (iso) {
+        return {
+          birth_date: v,
+          birthday_year: Number(iso[1]),
+          birthday_month: Number(iso[2]),
+          birthday_day: Number(iso[3]),
+        };
       }
-      // DD/MM trigger (no year)
-      if (/^--\d{2}-\d{2}$/.test(v)) {
-        return { birth_date_md: v, birthday_outreach_eligible: true };
+      // DD/MM (no year)
+      const md = v.match(/^(\d{2})\/(\d{2})$/);
+      if (md) {
+        return { birthday_day: Number(md[1]), birthday_month: Number(md[2]) };
       }
       const n = Number(v);
       if (Number.isFinite(n) && n >= 16 && n <= 95) return { age: n };
