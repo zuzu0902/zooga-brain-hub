@@ -170,7 +170,47 @@ ${combined}
         escalation_boundary: parsed.escalation_boundary ?? {},
         ingestion_status: "ready",
         last_ingested_at: new Date().toISOString(),
+      } as Record<string, unknown>;
+
+      // Typed-column backfill — only set when extractable and not already set
+      // by the operator. This is what lets "URL + Analyze" be enough.
+      const extractedTitle = typeof parsed.extracted_title === "string" ? parsed.extracted_title.trim() : "";
+      if (
+        extractedTitle &&
+        (!offer.title || offer.title.trim() === "" || offer.title.trim() === offer.offer_url?.trim())
+      ) {
+        update.title = extractedTitle.slice(0, 200);
+      }
+
+      const rawPrice = parsed.extracted_price;
+      const priceNum = typeof rawPrice === "number" ? rawPrice : Number(String(rawPrice ?? "").replace(/[^\d.]/g, ""));
+      if (Number.isFinite(priceNum) && priceNum > 0 && (offer.price == null)) {
+        update.price = priceNum;
+      }
+
+      const curRaw = typeof parsed.extracted_currency === "string" ? parsed.extracted_currency.toUpperCase() : "";
+      const curNormalized = ["ILS", "USD", "EUR"].includes(curRaw)
+        ? curRaw
+        : /(₪|שח|שקל|nis)/i.test(curRaw)
+        ? "ILS"
+        : /\$|usd|דולר/i.test(curRaw)
+        ? "USD"
+        : /€|eur|אירו/i.test(curRaw)
+        ? "EUR"
+        : "";
+      if (curNormalized && (!offer.currency || offer.currency === "ILS")) {
+        update.currency = curNormalized;
+      }
+
+      const parseDate = (v: unknown): string | null => {
+        if (typeof v !== "string" || !v.trim()) return null;
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? null : d.toISOString();
       };
+      const evStart = parseDate(parsed.extracted_event_date);
+      const evEnd = parseDate(parsed.extracted_event_end_date);
+      if (evStart) update.event_date = evStart;
+      if (evEnd) update.event_end_date = evEnd;
 
       const { error: updErr } = await sb.from("offers").update(update).eq("id", offerId);
       if (updErr) throw new Error(updErr.message);
