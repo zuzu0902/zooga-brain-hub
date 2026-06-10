@@ -1,16 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CampaignForm } from "@/components/campaign-form";
 import { ChevronRight } from "lucide-react";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { z } from "zod";
-
-const searchSchema = z.object({
-  offer_id: fallback(z.string().optional(), undefined),
-});
 
 export const Route = createFileRoute("/_app/campaigns/new")({
   head: () => ({ meta: [{ title: "קמפיין חדש — Zooga CRM" }] }),
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: (search: Record<string, unknown>) => ({
+    offer_id: typeof search.offer_id === "string" ? search.offer_id : undefined,
+  }),
   component: NewCampaignPage,
 });
 
