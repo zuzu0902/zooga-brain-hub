@@ -741,8 +741,22 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               lastInboundLooksLikeAnswer: lastAnswered,
               mode: conversationMode,
             });
+        // Price-question guard. If the user is asking about price and the
+        // resolved offer has an authoritative price, do NOT layer a budget
+        // intake question on top of the answer — it reads as evasive. Tamar
+        // must state the price directly first; budget can come later.
+        const PRICE_QUERY_RE =
+          /(כמה\s+(זה|עולה|המחיר)|מה\s+המחיר|המחיר\??|מחיר\??|עלות|how\s+much|price|cost)/i;
+        const offerHasPrice = !!offer && offer.price != null && offer.price !== "";
+        const priceQueryThisTurn = PRICE_QUERY_RE.test(message ?? "");
+        const suppressBudgetForPriceQuery =
+          priceQueryThisTurn &&
+          offerHasPrice &&
+          nextIntakeField === "budget_sensitivity_or_range";
+        const effectiveNextIntakeField = suppressBudgetForPriceQuery ? null : nextIntakeField;
         // In recovery mode the recovery directive REPLACES the intake directive.
-        const intakeDirective = recovery.directive ?? composeIntakeDirective(nextIntakeField);
+        const intakeDirective =
+          recovery.directive ?? composeIntakeDirective(effectiveNextIntakeField);
 
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
@@ -901,7 +915,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             completion_score: intakeSnapshot.completion_score,
             completed: intakeSnapshot.completed,
             missing: intakeSnapshot.missing,
-            next_target_field: nextIntakeField,
+            next_target_field: effectiveNextIntakeField,
             last_asked_key: lastAskedKey,
             last_inbound_answered: lastAnswered,
             projected_capture_fields: preHighConf.map((c) => c.field),
@@ -1007,7 +1021,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           offer_intelligence_effective: !!offer,
           active_context_layers: activeContextLayers,
           intake_snapshot_before: intakeSnapshot,
-          intake_next_target_field: nextIntakeField,
+          intake_next_target_field: effectiveNextIntakeField,
           intake_directive: intakeDirective,
           recovery: {
             mode: recovery.mode,
@@ -1206,8 +1220,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             const effectiveNextAsked =
               recovery.mode !== "none"
                 ? (recovery.recovery_target_field ?? lastAskedKey ?? null)
-                : nextIntakeField
-                ? (nextMissing ?? nextIntakeField)
+                : effectiveNextIntakeField
+                ? (nextMissing ?? effectiveNextIntakeField)
                 : null;
             if (effectiveNextAsked) {
               contactPatch.intake_last_question_key = effectiveNextAsked;
@@ -1236,7 +1250,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                   raw_payload: {
                     ...traceRawPayload,
                     intake_snapshot_before: intakeSnapshot,
-                    intake_next_target_field: nextIntakeField,
+                    intake_next_target_field: effectiveNextIntakeField,
                     intake_captured_this_turn: capturedFieldsThisTurn,
                     intake_capture_sources: captureSources,
                     intake_completion_score_after: intakeCompletionAfter,
@@ -1476,7 +1490,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               state: intakeStateAfter,
               stage: intakeStageAfter,
               completion_score: intakeCompletionAfter,
-              next_target_field: nextIntakeField,
+              next_target_field: effectiveNextIntakeField,
               captured_this_turn: capturedFieldsThisTurn,
             },
             llm_decision: {

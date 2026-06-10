@@ -21,9 +21,12 @@ export const INTAKE_REQUIRED_FIELDS: IntakeFieldKey[] = [
   "city_or_region",
   "social_or_relationship_goal",
   "preferred_activity_type",
-  "budget_sensitivity_or_range",
   "language_style_preference",
   "source_attribution",
+  // Budget intentionally last and deferred. See selectNextIntakeField:
+  // it is only asked once everything else is satisfied OR the mode signals
+  // active qualification / offer engagement. Never an early-funnel question.
+  "budget_sensitivity_or_range",
 ];
 
 export const INTAKE_FIELD_STAGE: Record<IntakeFieldKey, IntakeStage> = {
@@ -138,8 +141,28 @@ export function selectNextIntakeField(
   if (opts.mode === "handoff") return null;
 
   // Skip source_attribution — captured silently, never asked aloud.
-  const askable = snapshot.missing.filter((k) => k !== "source_attribution");
+  let askable = snapshot.missing.filter((k) => k !== "source_attribution");
   if (!askable.length) return null;
+
+  // Budget is DEFERRED. Only surface it when:
+  //  (a) the conversation is in an offer/qualification mode where price
+  //      framing actually helps, OR
+  //  (b) every other askable field is already satisfied.
+  // This prevents the early-funnel "what's your budget?" pressure that made
+  // conversations feel forced before any rapport was built.
+  const budgetModesOk = new Set([
+    "offer_qualification",
+    "qualification",
+    "objection_handling",
+    "closing",
+    "handoff_followup",
+  ]);
+  const budgetAllowedByMode = budgetModesOk.has(opts.mode);
+  const onlyBudgetLeft = askable.length === 1 && askable[0] === "budget_sensitivity_or_range";
+  if (!budgetAllowedByMode && !onlyBudgetLeft) {
+    askable = askable.filter((k) => k !== "budget_sensitivity_or_range");
+    if (!askable.length) return null;
+  }
 
   const top = askable[0];
   // If we asked this same field last turn and the user ignored it, defer 1 turn.
