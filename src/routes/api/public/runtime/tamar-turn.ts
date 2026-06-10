@@ -677,7 +677,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const { behavior, blocks, interactions: contactInteractions, memories } = await loadContext(contactId);
         const runtimeHistoryFallback = await loadRecentRuntimeHistoryByPhone(body);
         const interactions = mergeRecentInteractions(contactInteractions, runtimeHistoryFallback);
-        const { campaign, offer, resolutionTrail } = await resolveCampaignAndOffer(contact, body, message);
+        const browseIntentDetected = isCatalogBrowseIntent(message);
+        const { campaign, offer, resolutionTrail, activeOffersAll: resolverActiveOffers } =
+          await resolveCampaignAndOffer(contact, body, message, { browseIntent: browseIntentDetected });
 
         const { mode: conversationMode, reasons: conversationModeReasons } = decideConversationMode({
           message,
@@ -809,7 +811,58 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // Unified runtime: do NOT gate offer intelligence by mode. If an offer
         // was resolved as relevant, its full intelligence is always available
         // to the reply. Mode only shifts emphasis (see composition mode rules).
-        const effectiveOfferIntelligenceText = offerIntelligenceText;
+        let effectiveOfferIntelligenceText = offerIntelligenceText;
+
+        // --- Catalog awareness (multi-offer browse) ---
+        // When the user is browsing ("יש יעדים נוספים?"), or when the resolver
+        // itself flagged weak evidence for the picked offer, inject the full
+        // active offer catalog so Tamar names every available trip — including
+        // newly added ones — instead of speaking as if only the sticky offer
+        // exists. Additive: the deep pack for the resolved offer (above) still
+        // wins on offer-specific turns.
+        const weakResolution = !offer || resolutionTrail.some((t) => t.startsWith("stale_interaction_skipped"));
+        const shouldInjectCatalog = browseIntentDetected || weakResolution;
+        let catalogInjected = false;
+        let catalogOfferIds: string[] = [];
+        if (shouldInjectCatalog) {
+          let catalog = resolverActiveOffers;
+          if (!catalog) {
+            const { data } = await supabaseAdmin
+              .from("offers")
+              .select("id,title,price,currency,offer_url,ai_summary,matching_tags,target_min_age,target_max_age,ingestion_status,status")
+              .eq("status", "active");
+            catalog = (data as any[]) ?? [];
+          }
+          const ready = (catalog ?? []).filter(
+            (o: any) => !o.ingestion_status || o.ingestion_status === "ready",
+          );
+          if (ready.length) {
+            const otherOffers = ready.filter((o: any) => o.id !== offer?.id);
+            const lines = otherOffers.map((o: any) => {
+              const cur = (o.currency || "ILS").toUpperCase();
+              const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
+              const price = o.price != null && o.price !== "" ? `${sym}${o.price} (${cur})` : "price n/a";
+              const tags = Array.isArray(o.matching_tags) && o.matching_tags.length
+                ? ` | tags: ${o.matching_tags.join(", ")}`
+                : "";
+              const url = o.offer_url ? ` | link: ${o.offer_url}` : "";
+              const summary = o.ai_summary ? `\n    summary: ${String(o.ai_summary).slice(0, 280)}` : "";
+              return `- ${o.title} — ${price}${tags}${url}${summary}`;
+            });
+            if (lines.length) {
+              const header = offer
+                ? `Active offers catalog (ADDITIONAL trips also available — do NOT speak as if only the trip above exists. When the user asks "what else do you have", name these by title and price):`
+                : `Active offers catalog (use these — the user is browsing; name them by title and price):`;
+              const catalogText = `${header}\n${lines.join("\n")}`;
+              effectiveOfferIntelligenceText = effectiveOfferIntelligenceText
+                ? `${effectiveOfferIntelligenceText}\n\n${catalogText}`
+                : catalogText;
+              catalogInjected = true;
+              catalogOfferIds = otherOffers.map((o: any) => o.id);
+              offerFieldsInjected.push("active_catalog");
+            }
+          }
+        }
 
         // Active context layers — visible in Runtime Trace so we can see
         // every capability that ran on this turn (memory, profile, offer,
@@ -835,6 +888,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             offer_title: offer?.title ?? null,
             campaign_id: campaign?.id ?? null,
             resolution_trail: resolutionTrail,
+            browse_intent_detected: browseIntentDetected,
+            catalog_injected: catalogInjected,
+            catalog_offer_ids: catalogOfferIds,
           },
           intake_progress: {
             active: intakeSnapshot.state !== "completed",
