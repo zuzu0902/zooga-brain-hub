@@ -3,13 +3,11 @@ import { CampaignForm } from "@/components/campaign-form";
 import { ChevronRight } from "lucide-react";
 import { z } from "zod";
 
-const searchSchema = z.object({
-  offer_id: z.string().optional().catch(undefined),
-});
-
 export const Route = createFileRoute("/_app/campaigns/new")({
   head: () => ({ meta: [{ title: "קמפיין חדש — Zooga CRM" }] }),
-  validateSearch: searchSchema,
+  validateSearch: (search: Record<string, unknown>) => ({
+    offer_id: typeof search.offer_id === "string" ? search.offer_id : undefined,
+  }),
   component: NewCampaignPage,
 });
 
