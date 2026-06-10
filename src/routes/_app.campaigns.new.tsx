@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CampaignForm } from "@/components/campaign-form";
 import { ChevronRight } from "lucide-react";
-import { z } from "zod";
 
 export const Route = createFileRoute("/_app/campaigns/new")({
   head: () => ({ meta: [{ title: "קמפיין חדש — Zooga CRM" }] }),
