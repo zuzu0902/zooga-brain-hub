@@ -915,7 +915,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             completion_score: intakeSnapshot.completion_score,
             completed: intakeSnapshot.completed,
             missing: intakeSnapshot.missing,
-            next_target_field: nextIntakeField,
+            next_target_field: effectiveNextIntakeField,
             last_asked_key: lastAskedKey,
             last_inbound_answered: lastAnswered,
             projected_capture_fields: preHighConf.map((c) => c.field),
@@ -1021,7 +1021,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           offer_intelligence_effective: !!offer,
           active_context_layers: activeContextLayers,
           intake_snapshot_before: intakeSnapshot,
-          intake_next_target_field: nextIntakeField,
+          intake_next_target_field: effectiveNextIntakeField,
           intake_directive: intakeDirective,
           recovery: {
             mode: recovery.mode,
@@ -1220,8 +1220,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             const effectiveNextAsked =
               recovery.mode !== "none"
                 ? (recovery.recovery_target_field ?? lastAskedKey ?? null)
-                : nextIntakeField
-                ? (nextMissing ?? nextIntakeField)
+                : effectiveNextIntakeField
+                ? (nextMissing ?? effectiveNextIntakeField)
                 : null;
             if (effectiveNextAsked) {
               contactPatch.intake_last_question_key = effectiveNextAsked;
@@ -1250,7 +1250,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                   raw_payload: {
                     ...traceRawPayload,
                     intake_snapshot_before: intakeSnapshot,
-                    intake_next_target_field: nextIntakeField,
+                    intake_next_target_field: effectiveNextIntakeField,
                     intake_captured_this_turn: capturedFieldsThisTurn,
                     intake_capture_sources: captureSources,
                     intake_completion_score_after: intakeCompletionAfter,
@@ -1490,7 +1490,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               state: intakeStateAfter,
               stage: intakeStageAfter,
               completion_score: intakeCompletionAfter,
-              next_target_field: nextIntakeField,
+              next_target_field: effectiveNextIntakeField,
               captured_this_turn: capturedFieldsThisTurn,
             },
             llm_decision: {
