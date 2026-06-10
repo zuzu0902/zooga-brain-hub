@@ -252,23 +252,21 @@ function extractAgeOrBirth(text: string): Capture | null {
             field: "age_or_birth_date",
             value: iso,
             confidence: 92,
-            // birth_date is a relationship-trigger field — also populate
-            // birthday_day/month/year so future outreach jobs can fire.
-            columnUpdates: {
-              birth_date: iso,
-              birthday_day: dd,
-              birthday_month: mm,
-              birthday_year: yyyy,
-            },
+            // birthday_day/month/year are GENERATED from birth_date — only
+            // write birth_date itself.
+            columnUpdates: { birth_date: iso },
           };
         }
       } else {
         // DD/MM only — year unknown, still eligible for birthday outreach.
+        // Use 1900 as sentinel year so the generated birthday_day/month
+        // columns are populated (badge + relationship triggers fire).
+        const iso = `1900-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
         return {
           field: "age_or_birth_date",
           value: `${String(dd).padStart(2, "0")}/${String(mm).padStart(2, "0")}`,
           confidence: 78,
-          columnUpdates: { birthday_day: dd, birthday_month: mm },
+          columnUpdates: { birth_date: iso },
         };
       }
     }
