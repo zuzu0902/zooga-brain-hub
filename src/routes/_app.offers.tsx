@@ -61,7 +61,14 @@ function OffersPage() {
                   <h3 className="font-semibold mt-2 hover:text-primary cursor-pointer">{o.title}</h3>
                 </Link>
               </div>
-              <Badge>{o.status}</Badge>
+              <div className="flex flex-col items-end gap-1">
+                <Badge>{o.status}</Badge>
+                {o.event_date && new Date(o.event_date) < new Date() && (
+                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 bg-amber-500/10">
+                    תאריך עבר
+                  </Badge>
+                )}
+              </div>
             </div>
             {o.description && <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{o.description}</p>}
             <div className="flex gap-2 flex-wrap mt-3">
