@@ -1299,6 +1299,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               next_target_field: nextIntakeField,
               captured_this_turn: capturedFieldsThisTurn,
             },
+            llm_decision: {
+              prior_question_answered: llmDecision.prior_question_answered,
+              captured_fields: llmDecision.captured_fields,
+              handoff_requested: llmDecision.handoff_requested,
+              handoff_confidence: llmDecision.handoff_confidence,
+              handoff_reasons: llmDecision.handoff_reasons,
+              offer_relevance: llmDecision.offer_relevance,
+              next_target_field: llmDecision.next_target_field,
+              error: llmDecision.error ?? null,
+            },
+            handoff_triggers: handoffDecision.triggers,
           },
         });
       },
