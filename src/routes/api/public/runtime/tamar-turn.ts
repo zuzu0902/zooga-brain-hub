@@ -1070,7 +1070,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               contactPatch.intake_last_captured_field = highConf[highConf.length - 1].field;
               contactPatch.intake_last_captured_at = new Date().toISOString();
             }
-            const effectiveNextAsked = nextMissing ?? nextIntakeField;
+            // Capture recovery: during recovery, PIN intake_last_question_key to
+            // the asked-but-unsaved field so next turn's context-aware extractors
+            // (e.g. bare-name fallback) capture the re-stated answer. Outside
+            // recovery, only update the key when an intake question was actually
+            // issued this turn — never silently rotate it.
+            const effectiveNextAsked =
+              recovery.mode !== "none"
+                ? (recovery.recovery_target_field ?? lastAskedKey ?? null)
+                : nextIntakeField
+                ? (nextMissing ?? nextIntakeField)
+                : null;
             if (effectiveNextAsked) {
               contactPatch.intake_last_question_key = effectiveNextAsked;
               contactPatch.intake_last_question_at = new Date().toISOString();
