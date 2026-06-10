@@ -424,3 +424,43 @@ export function inboundAnswersField(inbound: string, fieldKey: string | null | u
       return false;
   }
 }
+
+/**
+ * Map a field+value pair (produced by the LLM decision layer) into the
+ * concrete contact column updates we persist. Keeps the LLM layer schema-light
+ * while ensuring deterministic, auditable writes.
+ */
+export function fieldValueToColumnUpdates(
+  field: IntakeFieldKey,
+  value: string,
+): Record<string, any> {
+  const v = String(value ?? "").trim();
+  if (!v) return {};
+  switch (field) {
+    case "first_name":
+      return { first_name: v };
+    case "age_or_birth_date": {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 16 && n <= 95) return { age: n };
+      if (/^\d{2}s$/.test(v)) return { age_range: v };
+      return { age_range: v };
+    }
+    case "city_or_region": {
+      if (HEBREW_CITIES.includes(v)) return { city: v };
+      if (/^(מרכז|צפון|דרום|שרון|שפלה|גליל|נגב|ירושלים והסביבה)$/.test(v)) return { region: v };
+      return { city: v };
+    }
+    case "social_or_relationship_goal":
+      return { social_goals: [v] };
+    case "preferred_activity_type":
+      return { favorite_activity_types: v.split(",").map((s) => s.trim()).filter(Boolean) };
+    case "budget_sensitivity_or_range":
+      return { budget_sensitivity: v };
+    case "language_style_preference":
+      return { preferred_language_style: v };
+    case "source_attribution":
+      return {};
+    default:
+      return {};
+  }
+}
