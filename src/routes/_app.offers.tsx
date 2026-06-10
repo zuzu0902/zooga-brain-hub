@@ -1,20 +1,21 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { analyzeOfferIntelligence } from "@/lib/offer-intelligence.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
+import { Plus, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { CATEGORY_LABELS, INTEREST_LABELS, ALL_INTERESTS, SPENDING_LABELS } from "@/lib/i18n";
+import { CATEGORY_LABELS, INTEREST_LABELS } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
-import { CURRENCIES, formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 
 export const Route = createFileRoute("/_app/offers")({
   head: () => ({ meta: [{ title: "הצעות — Zooga CRM" }] }),
