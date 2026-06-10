@@ -499,19 +499,42 @@ export function fieldValueToColumnUpdates(
       return { first_name: v };
     case "age_or_birth_date": {
       // ISO birth date (YYYY-MM-DD)
-      const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const iso = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
       if (iso) {
+        const y = Number(iso[1]);
+        const m = Number(iso[2]);
+        const d = Number(iso[3]);
         return {
-          birth_date: v,
-          birthday_year: Number(iso[1]),
-          birthday_month: Number(iso[2]),
-          birthday_day: Number(iso[3]),
+          birth_date: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+          birthday_year: y,
+          birthday_month: m,
+          birthday_day: d,
         };
       }
-      // DD/MM (no year)
-      const md = v.match(/^(\d{2})\/(\d{2})$/);
+      // DD/MM/YYYY or DD-MM-YYYY (also DD.MM.YYYY)
+      const dmy = v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+      if (dmy) {
+        const d = Number(dmy[1]);
+        const m = Number(dmy[2]);
+        let y = Number(dmy[3]);
+        if (y < 100) y += y >= 30 ? 1900 : 2000;
+        if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
+          return {
+            birth_date: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+            birthday_year: y,
+            birthday_month: m,
+            birthday_day: d,
+          };
+        }
+      }
+      // DD/MM (no year) — also DD-MM, DD.MM
+      const md = v.match(/^(\d{1,2})[\/.\-](\d{1,2})$/);
       if (md) {
-        return { birthday_day: Number(md[1]), birthday_month: Number(md[2]) };
+        const d = Number(md[1]);
+        const m = Number(md[2]);
+        if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
+          return { birthday_day: d, birthday_month: m };
+        }
       }
       const n = Number(v);
       if (Number.isFinite(n) && n >= 16 && n <= 95) return { age: n };
