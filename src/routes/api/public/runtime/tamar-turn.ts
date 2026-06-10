@@ -658,9 +658,37 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         });
 
         // --- Intake Workflow V1 (parallel layer; never suppresses answer) ---
-        const intakeSnapshot = computeIntakeSnapshot(contact);
         const lastAskedKey = contact?.intake_last_question_key ?? null;
         const lastAnswered = inboundAnswersField(message, lastAskedKey);
+
+        // --- Pre-reply capture projection (state sync fix) ---
+        // Reply layer and intake state layer must NOT diverge. The LLM can
+        // see the inbound message and use facts from it (e.g. address the
+        // user by the name they just gave). If we compute the snapshot from
+        // the pre-turn contact only, the directive can still target a field
+        // that's effectively already known on this turn — producing a trace
+        // where reply uses the name but `next_target_field = first_name`.
+        // Fix: run the deterministic regex/bare-name extractors NOW, project
+        // those high-confidence captures onto the contact, and compute the
+        // snapshot from the projected contact. The actual persistence step
+        // below reuses the same captures so there is one source of truth.
+        const preCaptures = extractIntakeCaptures(message, contact, { lastAskedKey });
+        const preHighConf = preCaptures.filter((c) => c.confidence >= 75);
+        const projectedContact: any = contact ? { ...contact } : contact;
+        if (projectedContact) {
+          const projectedCompleted = new Set<string>(
+            Array.isArray(projectedContact.intake_completed_fields)
+              ? (projectedContact.intake_completed_fields as string[])
+              : [],
+          );
+          for (const cap of preHighConf) {
+            Object.assign(projectedContact, cap.columnUpdates);
+            projectedCompleted.add(cap.field);
+          }
+          projectedContact.intake_completed_fields = [...projectedCompleted];
+        }
+        const intakeSnapshot = computeIntakeSnapshot(projectedContact ?? contact);
+        const intakeSnapshotPreProjection = computeIntakeSnapshot(contact);
 
         // --- Recovery safeguards: repetition guard / frustration override /
         // capture recovery. Evaluated BEFORE normal intake progression.
@@ -669,7 +697,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           interactions,
           lastAskedKey,
           snapshot: intakeSnapshot,
-          knownSummary: summarizeKnownIntake(contact),
+          knownSummary: summarizeKnownIntake(projectedContact ?? contact),
         });
 
         const nextIntakeField = recovery.suppress_intake_question
@@ -763,7 +791,12 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           },
           contact_profile: {
             active: !!contact,
-            known_name: !!(contact?.full_name || contact?.first_name),
+            known_name: !!(
+              projectedContact?.full_name ||
+              projectedContact?.first_name ||
+              contact?.full_name ||
+              contact?.first_name
+            ),
             intake_status: contact?.intake_status ?? null,
           },
           offer_event: {
@@ -783,6 +816,12 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             next_target_field: nextIntakeField,
             last_asked_key: lastAskedKey,
             last_inbound_answered: lastAnswered,
+            projected_capture_fields: preHighConf.map((c) => c.field),
+            snapshot_pre_projection: {
+              completed: intakeSnapshotPreProjection.completed,
+              missing: intakeSnapshotPreProjection.missing,
+              completion_score: intakeSnapshotPreProjection.completion_score,
+            },
           },
           handoff_risk: {
             active: conversationMode === "handoff" || HUMAN_REQUEST_RE.test(message),
@@ -970,9 +1009,10 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         let intakeStageAfter = intakeSnapshot.stage;
         if (contactId) {
           try {
-            const regexCaptures = extractIntakeCaptures(message, contact, {
-              lastAskedKey,
-            });
+            // Reuse the pre-reply projected captures — same source of truth
+            // as the snapshot/directive sent to the LLM. This guarantees the
+            // trace, reply, and CRM writes agree on what was captured.
+            const regexCaptures = preCaptures;
             // Merge regex captures with LLM-proposed captures. For duplicates
             // by field, keep the higher-confidence one and union sources.
             type MergedCapture = {
