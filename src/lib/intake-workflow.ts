@@ -149,15 +149,32 @@ export function selectNextIntakeField(
 }
 
 const INTAKE_FIELD_PROMPT: Record<IntakeFieldKey, string> = {
-  first_name: "ask gently for their preferred first name (Hebrew, one short sentence)",
-  age_or_birth_date: "ask roughly which decade / age range they're in (Hebrew, casual, no exact birthdate pressure)",
-  city_or_region: "ask which area or city they're based in (Hebrew, casual)",
-  social_or_relationship_goal: "ask what they're hoping to find socially / relationally (Hebrew, warm, non-judgmental)",
-  preferred_activity_type: "ask what kinds of activities they most enjoy (Hebrew, casual)",
-  budget_sensitivity_or_range: "ask softly about their comfort range for spending on these activities (Hebrew, never pushy)",
-  language_style_preference: "ask how they prefer to be addressed (formal / casual, gender form) — Hebrew, one short sentence",
+  // Warm, value-laden framings — never form-like. One short sentence in Hebrew.
+  first_name:
+    "ask warmly for their first name. Use phrasing like \"אגב, איך קוראים לך?\" or \"ואם נעים, איך לקרוא לך?\" — never \"מה השם שלך?\".",
+  age_or_birth_date:
+    "ask for their BIRTH DATE (not just age) with a relationship-trigger framing — explain we sometimes prepare a small surprise or send a personal note around their birthday. Example: \"אם בא לך, אפשר לשתף גם תאריך לידה — לפעמים אנחנו מכינים משהו קטן סביב יום ההולדת 🙂\". DD/MM or DD/MM/YYYY is fine. Never dry / form-like.",
+  city_or_region:
+    "ask which area/city they're in, framed as \"כדי להבין מה יכול להיות לך נגיש ונוח\" — not as a bare \"איפה את/ה גר/ה?\".",
+  social_or_relationship_goal:
+    "ask what they're hoping to find — connection, friendship, partnership, community, experience — warmly, non-judgmental. Example: \"מה בדרך כלל יותר מושך אותך — חוויה חברתית, טיול, משהו זוגי, או פשוט להכיר אנשים טובים?\"",
+  preferred_activity_type:
+    "ask which style speaks to them most — \"איזה סגנון הכי מדבר אליך בדרך כלל — טיולים, אירועים חברתיים, משהו רגוע יותר?\". Casual, single sentence.",
+  budget_sensitivity_or_range:
+    "ask softly, only if relevant context exists. Example: \"כדי לכוון אותך נכון, את/ה מחפש/ת משהו יותר נגיש או שפתוח גם להשקעה קצת יותר גבוהה אם זה ממש שווה את זה?\". Never push price up front.",
+  language_style_preference:
+    "ask gently how they prefer to be addressed (זכר/נקבה, פורמלי/קליל) — one short sentence, only if it's not already obvious from prior turns.",
   source_attribution: "",
 };
+
+/**
+ * Public helper: short Hebrew label per intake field, for CRM surfaces
+ * (e.g. \"next question preview\" on the contact profile).
+ */
+export function intakeFieldFraming(field: IntakeFieldKey | null | undefined): string | null {
+  if (!field) return null;
+  return INTAKE_FIELD_PROMPT[field] || null;
+}
 
 export function composeIntakeDirective(nextField: IntakeFieldKey | null): string | null {
   if (!nextField) return null;
@@ -215,6 +232,37 @@ function extractFirstName(text: string): Capture | null {
 }
 
 function extractAgeOrBirth(text: string): Capture | null {
+  // Explicit birth date — DD/MM or DD/MM/YYYY (Hebrew users often write 17/4 or 17/04/1962).
+  const dateMatch = text.match(/(?<!\d)(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2,4}))?(?!\d)/);
+  if (dateMatch) {
+    const dd = Number(dateMatch[1]);
+    const mm = Number(dateMatch[2]);
+    let yyyy = dateMatch[3] ? Number(dateMatch[3]) : null;
+    if (dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12) {
+      if (yyyy != null) {
+        if (yyyy < 100) yyyy += yyyy >= 30 ? 1900 : 2000;
+        if (yyyy >= 1900 && yyyy <= new Date().getFullYear() - 5) {
+          const iso = `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+          return {
+            field: "age_or_birth_date",
+            value: iso,
+            confidence: 92,
+            // birth_date is a relationship-trigger field: also flag birthday outreach eligibility.
+            columnUpdates: { birth_date: iso, birthday_outreach_eligible: true },
+          };
+        }
+      } else {
+        // DD/MM only — store as MMDD trigger string; eligibility still true.
+        const md = `--${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+        return {
+          field: "age_or_birth_date",
+          value: md,
+          confidence: 78,
+          columnUpdates: { birth_date_md: md, birthday_outreach_eligible: true },
+        };
+      }
+    }
+  }
   const ageRange = text.match(/בן\s+(\d{2})|בת\s+(\d{2})|גיל\s+(\d{2})|\b(\d{2})\s*שנים?\b|\bage\s+(\d{2})\b|\bi['’]?m\s+(\d{2})\b/i);
   if (ageRange) {
     const n = Number(ageRange.slice(1).find((x) => x));
@@ -440,6 +488,14 @@ export function fieldValueToColumnUpdates(
     case "first_name":
       return { first_name: v };
     case "age_or_birth_date": {
+      // ISO birth date
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        return { birth_date: v, birthday_outreach_eligible: true };
+      }
+      // DD/MM trigger (no year)
+      if (/^--\d{2}-\d{2}$/.test(v)) {
+        return { birth_date_md: v, birthday_outreach_eligible: true };
+      }
       const n = Number(v);
       if (Number.isFinite(n) && n >= 16 && n <= 95) return { age: n };
       if (/^\d{2}s$/.test(v)) return { age_range: v };
