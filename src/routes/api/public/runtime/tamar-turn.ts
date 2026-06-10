@@ -741,8 +741,22 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               lastInboundLooksLikeAnswer: lastAnswered,
               mode: conversationMode,
             });
+        // Price-question guard. If the user is asking about price and the
+        // resolved offer has an authoritative price, do NOT layer a budget
+        // intake question on top of the answer — it reads as evasive. Tamar
+        // must state the price directly first; budget can come later.
+        const PRICE_QUERY_RE =
+          /(כמה\s+(זה|עולה|המחיר)|מה\s+המחיר|המחיר\??|מחיר\??|עלות|how\s+much|price|cost)/i;
+        const offerHasPrice = !!offer && offer.price != null && offer.price !== "";
+        const priceQueryThisTurn = PRICE_QUERY_RE.test(message ?? "");
+        const suppressBudgetForPriceQuery =
+          priceQueryThisTurn &&
+          offerHasPrice &&
+          nextIntakeField === "budget_sensitivity_or_range";
+        const effectiveNextIntakeField = suppressBudgetForPriceQuery ? null : nextIntakeField;
         // In recovery mode the recovery directive REPLACES the intake directive.
-        const intakeDirective = recovery.directive ?? composeIntakeDirective(nextIntakeField);
+        const intakeDirective =
+          recovery.directive ?? composeIntakeDirective(effectiveNextIntakeField);
 
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
