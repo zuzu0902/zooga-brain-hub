@@ -21,6 +21,7 @@ import {
 } from "@/lib/intake-workflow";
 import { fieldValueToColumnUpdates } from "@/lib/intake-workflow";
 import { requestRuntimeDecision, type RuntimeDecision } from "@/lib/runtime-decision";
+import { decideRecovery, summarizeKnownIntake, type RecoveryDecision } from "@/lib/intake-recovery";
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -77,6 +78,7 @@ function decideHandoff(args: {
   conversationModeReasons: string[];
   interactions: any[];
   llmDecision?: RuntimeDecision | null;
+  recovery?: RecoveryDecision | null;
 }): { handoff: boolean; reason: string; triggers: string[] } {
   const triggers: string[] = [];
 
@@ -107,6 +109,12 @@ function decideHandoff(args: {
     for (const r of args.llmDecision.handoff_reasons.slice(0, 4)) {
       triggers.push(`llm_reason:${r}`);
     }
+  }
+
+  // Frustration override: repeated distress signals escalate to a human even
+  // without an explicit request — the intake loop itself is the problem.
+  if (args.recovery?.suggest_handoff) {
+    triggers.push(`repeated_frustration_streak_${args.recovery.frustration_streak}`);
   }
 
   const handoff = triggers.length > 0;
@@ -653,13 +661,27 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const intakeSnapshot = computeIntakeSnapshot(contact);
         const lastAskedKey = contact?.intake_last_question_key ?? null;
         const lastAnswered = inboundAnswersField(message, lastAskedKey);
-        const nextIntakeField = selectNextIntakeField(intakeSnapshot, {
+
+        // --- Recovery safeguards: repetition guard / frustration override /
+        // capture recovery. Evaluated BEFORE normal intake progression.
+        const recovery = decideRecovery({
+          message,
+          interactions,
           lastAskedKey,
-          lastAskedAt: contact?.intake_last_question_at ?? null,
-          lastInboundLooksLikeAnswer: lastAnswered,
-          mode: conversationMode,
+          snapshot: intakeSnapshot,
+          knownSummary: summarizeKnownIntake(contact),
         });
-        const intakeDirective = composeIntakeDirective(nextIntakeField);
+
+        const nextIntakeField = recovery.suppress_intake_question
+          ? null
+          : selectNextIntakeField(intakeSnapshot, {
+              lastAskedKey,
+              lastAskedAt: contact?.intake_last_question_at ?? null,
+              lastInboundLooksLikeAnswer: lastAnswered,
+              mode: conversationMode,
+            });
+        // In recovery mode the recovery directive REPLACES the intake directive.
+        const intakeDirective = recovery.directive ?? composeIntakeDirective(nextIntakeField);
 
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
@@ -766,6 +788,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             active: conversationMode === "handoff" || HUMAN_REQUEST_RE.test(message),
             triggered_by: conversationMode === "handoff" ? conversationModeReasons : [],
           },
+          recovery: {
+            active: recovery.mode !== "none",
+            mode: recovery.mode,
+            reasons: recovery.reasons,
+            repetition_signal: recovery.repetition_signal,
+            frustration_signal: recovery.frustration_signal,
+            frustration_streak: recovery.frustration_streak,
+            recovery_target_field: recovery.recovery_target_field,
+            suppress_intake_question: recovery.suppress_intake_question,
+            suggest_handoff: recovery.suggest_handoff,
+          },
           conversation_priority: conversationMode,
           conversation_priority_reasons: conversationModeReasons,
         };
@@ -849,6 +882,14 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           intake_snapshot_before: intakeSnapshot,
           intake_next_target_field: nextIntakeField,
           intake_directive: intakeDirective,
+          recovery: {
+            mode: recovery.mode,
+            reasons: recovery.reasons,
+            frustration_streak: recovery.frustration_streak,
+            recovery_target_field: recovery.recovery_target_field,
+            suppress_intake_question: recovery.suppress_intake_question,
+            suggest_handoff: recovery.suggest_handoff,
+          },
         };
 
         const { data: trace } = await supabaseAdmin
@@ -917,6 +958,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           conversationModeReasons,
           interactions,
           llmDecision,
+          recovery,
         });
         const handoffRequested = handoffDecision.handoff;
 
@@ -1028,7 +1070,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               contactPatch.intake_last_captured_field = highConf[highConf.length - 1].field;
               contactPatch.intake_last_captured_at = new Date().toISOString();
             }
-            const effectiveNextAsked = nextMissing ?? nextIntakeField;
+            // Capture recovery: during recovery, PIN intake_last_question_key to
+            // the asked-but-unsaved field so next turn's context-aware extractors
+            // (e.g. bare-name fallback) capture the re-stated answer. Outside
+            // recovery, only update the key when an intake question was actually
+            // issued this turn — never silently rotate it.
+            const effectiveNextAsked =
+              recovery.mode !== "none"
+                ? (recovery.recovery_target_field ?? lastAskedKey ?? null)
+                : nextIntakeField
+                ? (nextMissing ?? nextIntakeField)
+                : null;
             if (effectiveNextAsked) {
               contactPatch.intake_last_question_key = effectiveNextAsked;
               contactPatch.intake_last_question_at = new Date().toISOString();
