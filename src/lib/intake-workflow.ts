@@ -71,7 +71,12 @@ function fieldSatisfied(contact: any, key: IntakeFieldKey): boolean {
     case "first_name":
       return !!(contact.first_name || contact.full_name);
     case "age_or_birth_date":
-      return !!(contact.birth_date || contact.age || contact.age_range);
+      return !!(
+        contact.birth_date ||
+        contact.age ||
+        contact.age_range ||
+        (contact.birthday_day && contact.birthday_month)
+      );
     case "city_or_region":
       return !!(contact.city || contact.region);
     case "social_or_relationship_goal":
