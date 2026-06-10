@@ -891,25 +891,82 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           );
         }
 
+        // --- Hybrid LLM decision layer ---
+        // Ask the model for STRUCTURED runtime signals. Deterministic runtime
+        // below decides what to actually do with them.
+        const lastAssistantTurn = (() => {
+          const lo = (interactions || []).find(
+            (i: any) => i?.source === "tamar_outbound" || i?.type === "tamar_outbound",
+          );
+          return lo?.content ? String(lo.content) : null;
+        })();
+        const llmDecision: RuntimeDecision = await requestRuntimeDecision({
+          inboundMessage: message,
+          assistantReply: replyText,
+          lastAssistantTurn,
+          lastAskedKey,
+          intakeSnapshot,
+          conversationMode,
+          offer: offer ? { id: offer.id, title: offer.title ?? null } : null,
+        });
+
         const handoffDecision = decideHandoff({
           message,
           replyText,
           conversationMode,
           conversationModeReasons,
           interactions,
+          llmDecision,
         });
         const handoffRequested = handoffDecision.handoff;
 
         // --- Intake capture + state persistence (parallel to handoff) ---
         let capturedFieldsThisTurn: string[] = [];
+        const captureSources: Record<string, string[]> = {};
         let intakeCompletionAfter = intakeSnapshot.completion_score;
         let intakeStateAfter = intakeSnapshot.state;
         let intakeStageAfter = intakeSnapshot.stage;
         if (contactId) {
           try {
-            const captures = extractIntakeCaptures(message, contact, {
+            const regexCaptures = extractIntakeCaptures(message, contact, {
               lastAskedKey,
             });
+            // Merge regex captures with LLM-proposed captures. For duplicates
+            // by field, keep the higher-confidence one and union sources.
+            type MergedCapture = {
+              field: string;
+              value: string;
+              confidence: number;
+              columnUpdates: Record<string, any>;
+              sources: string[];
+            };
+            const mergedMap = new Map<string, MergedCapture>();
+            for (const c of regexCaptures) {
+              mergedMap.set(c.field, {
+                field: c.field,
+                value: c.value,
+                confidence: c.confidence,
+                columnUpdates: c.columnUpdates,
+                sources: ["regex"],
+              });
+            }
+            for (const lc of llmDecision.captured_fields) {
+              const existing = mergedMap.get(lc.field);
+              if (existing) {
+                existing.sources.push("llm");
+                // small bonus when both agree
+                existing.confidence = Math.min(100, Math.max(existing.confidence, lc.confidence) + 5);
+              } else {
+                mergedMap.set(lc.field, {
+                  field: lc.field,
+                  value: lc.value,
+                  confidence: lc.confidence,
+                  columnUpdates: fieldValueToColumnUpdates(lc.field as any, lc.value),
+                  sources: ["llm"],
+                });
+              }
+            }
+            const captures = [...mergedMap.values()];
             const highConf = captures.filter((c) => c.confidence >= 75);
             const lowConf = captures.filter((c) => c.confidence < 75);
 
@@ -924,12 +981,13 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               Object.assign(columnUpdates, cap.columnUpdates);
               completedSet.add(cap.field);
               capturedFieldsThisTurn.push(cap.field);
+              captureSources[cap.field] = cap.sources;
               await supabaseAdmin.from("intake_field_captures" as any).insert({
                 contact_id: contactId,
                 field_key: cap.field,
                 value_text: cap.value,
                 confidence: cap.confidence,
-                source: "extractor",
+                source: cap.sources.join("+"),
                 runtime_execution_id: (trace as any)?.id ?? null,
               } as any);
             }
@@ -948,7 +1006,11 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               (completedAfter.length / INTAKE_REQUIRED_FIELDS.length) * 100,
             );
             intakeStateAfter = missingAfter.length === 0 ? "completed" : "active";
-            const nextMissing = missingAfter[0];
+            // Honor LLM-proposed next_target_field if it's a valid missing field;
+            // otherwise fall back to deterministic first-missing.
+            const llmNext = llmDecision.next_target_field;
+            const nextMissing =
+              llmNext && missingAfter.includes(llmNext as any) ? (llmNext as any) : missingAfter[0];
             intakeStageAfter = nextMissing
               ? ((await import("@/lib/intake-workflow")).INTAKE_FIELD_STAGE as any)[nextMissing]
               : "completed";
@@ -966,8 +1028,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               contactPatch.intake_last_captured_field = highConf[highConf.length - 1].field;
               contactPatch.intake_last_captured_at = new Date().toISOString();
             }
-            if (nextIntakeField) {
-              contactPatch.intake_last_question_key = nextIntakeField;
+            const effectiveNextAsked = nextMissing ?? nextIntakeField;
+            if (effectiveNextAsked) {
+              contactPatch.intake_last_question_key = effectiveNextAsked;
               contactPatch.intake_last_question_at = new Date().toISOString();
             }
             await supabaseAdmin.from("contacts").update(contactPatch as any).eq("id", contactId);
@@ -981,7 +1044,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 insight_value: cap.value,
                 confidence_score: cap.confidence,
                 status: "pending",
-                source: "intake_extractor",
+                source: `intake_${cap.sources.join("+")}`,
               } as any);
             }
 
@@ -995,9 +1058,12 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                     intake_snapshot_before: intakeSnapshot,
                     intake_next_target_field: nextIntakeField,
                     intake_captured_this_turn: capturedFieldsThisTurn,
+                    intake_capture_sources: captureSources,
                     intake_completion_score_after: intakeCompletionAfter,
                     intake_state_after: intakeStateAfter,
                     intake_stage_after: intakeStageAfter,
+                    llm_decision: llmDecision,
+                    handoff_decision: handoffDecision,
                     active_context_layers: {
                       ...activeContextLayers,
                       intake_progress: {
@@ -1006,6 +1072,19 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                         state_after: intakeStateAfter,
                         stage_after: intakeStageAfter,
                         captured_this_turn: capturedFieldsThisTurn,
+                        llm_proposed_next: llmDecision.next_target_field,
+                        prior_question_answered_llm: llmDecision.prior_question_answered,
+                      },
+                      offer_event: {
+                        ...activeContextLayers.offer_event,
+                        llm_offer_relevance: llmDecision.offer_relevance,
+                      },
+                      handoff_risk: {
+                        ...activeContextLayers.handoff_risk,
+                        llm_handoff_requested: llmDecision.handoff_requested,
+                        llm_handoff_confidence: llmDecision.handoff_confidence,
+                        llm_handoff_reasons: llmDecision.handoff_reasons,
+                        triggers: handoffDecision.triggers,
                       },
                     },
                   },
