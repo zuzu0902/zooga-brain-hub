@@ -788,6 +788,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             active: conversationMode === "handoff" || HUMAN_REQUEST_RE.test(message),
             triggered_by: conversationMode === "handoff" ? conversationModeReasons : [],
           },
+          recovery: {
+            active: recovery.mode !== "none",
+            mode: recovery.mode,
+            reasons: recovery.reasons,
+            repetition_signal: recovery.repetition_signal,
+            frustration_signal: recovery.frustration_signal,
+            frustration_streak: recovery.frustration_streak,
+            recovery_target_field: recovery.recovery_target_field,
+            suppress_intake_question: recovery.suppress_intake_question,
+            suggest_handoff: recovery.suggest_handoff,
+          },
           conversation_priority: conversationMode,
           conversation_priority_reasons: conversationModeReasons,
         };
@@ -871,6 +882,14 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           intake_snapshot_before: intakeSnapshot,
           intake_next_target_field: nextIntakeField,
           intake_directive: intakeDirective,
+          recovery: {
+            mode: recovery.mode,
+            reasons: recovery.reasons,
+            frustration_streak: recovery.frustration_streak,
+            recovery_target_field: recovery.recovery_target_field,
+            suppress_intake_question: recovery.suppress_intake_question,
+            suggest_handoff: recovery.suggest_handoff,
+          },
         };
 
         const { data: trace } = await supabaseAdmin
@@ -939,6 +958,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           conversationModeReasons,
           interactions,
           llmDecision,
+          recovery,
         });
         const handoffRequested = handoffDecision.handoff;
 
