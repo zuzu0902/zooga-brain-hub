@@ -502,12 +502,7 @@ export function fieldValueToColumnUpdates(
         const y = Number(iso[1]);
         const m = Number(iso[2]);
         const d = Number(iso[3]);
-        return {
-          birth_date: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
-          birthday_year: y,
-          birthday_month: m,
-          birthday_day: d,
-        };
+        return { birth_date: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
       }
       // DD/MM/YYYY or DD-MM-YYYY (also DD.MM.YYYY)
       const dmy = v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
@@ -517,12 +512,7 @@ export function fieldValueToColumnUpdates(
         let y = Number(dmy[3]);
         if (y < 100) y += y >= 30 ? 1900 : 2000;
         if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
-          return {
-            birth_date: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
-            birthday_year: y,
-            birthday_month: m,
-            birthday_day: d,
-          };
+          return { birth_date: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
         }
       }
       // DD/MM (no year) — also DD-MM, DD.MM
@@ -531,7 +521,9 @@ export function fieldValueToColumnUpdates(
         const d = Number(md[1]);
         const m = Number(md[2]);
         if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
-          return { birthday_day: d, birthday_month: m };
+          // Sentinel year 1900 — birthday_day/month are generated from
+          // birth_date and we still need the day/month to fire triggers.
+          return { birth_date: `1900-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
         }
       }
       const n = Number(v);
