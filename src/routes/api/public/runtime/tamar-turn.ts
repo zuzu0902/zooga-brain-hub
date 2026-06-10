@@ -661,13 +661,27 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const intakeSnapshot = computeIntakeSnapshot(contact);
         const lastAskedKey = contact?.intake_last_question_key ?? null;
         const lastAnswered = inboundAnswersField(message, lastAskedKey);
-        const nextIntakeField = selectNextIntakeField(intakeSnapshot, {
+
+        // --- Recovery safeguards: repetition guard / frustration override /
+        // capture recovery. Evaluated BEFORE normal intake progression.
+        const recovery = decideRecovery({
+          message,
+          interactions,
           lastAskedKey,
-          lastAskedAt: contact?.intake_last_question_at ?? null,
-          lastInboundLooksLikeAnswer: lastAnswered,
-          mode: conversationMode,
+          snapshot: intakeSnapshot,
+          knownSummary: summarizeKnownIntake(contact),
         });
-        const intakeDirective = composeIntakeDirective(nextIntakeField);
+
+        const nextIntakeField = recovery.suppress_intake_question
+          ? null
+          : selectNextIntakeField(intakeSnapshot, {
+              lastAskedKey,
+              lastAskedAt: contact?.intake_last_question_at ?? null,
+              lastInboundLooksLikeAnswer: lastAnswered,
+              mode: conversationMode,
+            });
+        // In recovery mode the recovery directive REPLACES the intake directive.
+        const intakeDirective = recovery.directive ?? composeIntakeDirective(nextIntakeField);
 
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
