@@ -1009,9 +1009,10 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         let intakeStageAfter = intakeSnapshot.stage;
         if (contactId) {
           try {
-            const regexCaptures = extractIntakeCaptures(message, contact, {
-              lastAskedKey,
-            });
+            // Reuse the pre-reply projected captures — same source of truth
+            // as the snapshot/directive sent to the LLM. This guarantees the
+            // trace, reply, and CRM writes agree on what was captured.
+            const regexCaptures = preCaptures;
             // Merge regex captures with LLM-proposed captures. For duplicates
             // by field, keep the higher-confidence one and union sources.
             type MergedCapture = {
