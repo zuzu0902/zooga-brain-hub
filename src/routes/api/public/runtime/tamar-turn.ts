@@ -59,6 +59,18 @@ const TRANSFER_QUESTION_RE =
 const AFFIRMATIVE_RE =
   /^(\s*)(כן|בטח|בהחלט|אוקיי|אוקי|אישור|מאשר(ת)?|סבבה|יאללה|נכון|בסדר|אנא|בבקשה|תעביר(י|ו)?|העבר(ו|י)?|yes|yep|yeah|sure|ok|okay|please\s+do|go\s+ahead|do\s+it)([\s.!?]|$)/i;
 
+// Catalog browse intent — the user is asking what else is on offer rather
+// than continuing a thread about one specific trip. When this fires we must
+// NOT pin to a sticky prior-interaction offer; we must broaden context and
+// inject the full active catalog so Tamar can name new trips.
+const CATALOG_BROWSE_RE =
+  /(יעדים\s*נוספים|יעדים\s*אחרים|טיולים\s*נוספים|טיולים\s*אחרים|אירועים\s*נוספים|הצעות\s*נוספות|אפשרויות\s*נוספות|אופציות\s*נוספות|משהו\s*אחר|יש\s+עוד|מה\s+(יש|עוד)\s+(לכם|אצלכם)|איזה\s+(טיולים|יעדים|הצעות|אפשרויות)|other\s+(trips|destinations|offers|options)|what\s+else\s+(do\s+you|you\s+have))/i;
+
+function isCatalogBrowseIntent(message: string): boolean {
+  if (!message) return false;
+  return CATALOG_BROWSE_RE.test(message);
+}
+
 function detectHandoff(reply: string): boolean {
   if (!reply) return false;
   return HANDOFF_PATTERNS.some((re) => re.test(reply));
