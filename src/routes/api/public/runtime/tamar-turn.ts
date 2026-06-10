@@ -482,10 +482,19 @@ function keywordMatchOffer(message: string, offers: any[]): any | null {
  * 6. deterministic keyword match against active offers (title + matching_tags + EN aliases)
  * 7. if exactly one active offer exists, use it as safe fallback
  */
-async function resolveCampaignAndOffer(contact: any, body: any, message: string) {
+const STALE_INTERACTION_SKIP_HOURS = 48;
+
+async function resolveCampaignAndOffer(
+  contact: any,
+  body: any,
+  message: string,
+  opts: { browseIntent?: boolean } = {},
+) {
   const trail: string[] = [];
   let campaign: any = null;
   let offer: any = null;
+  const browseIntent = !!opts.browseIntent;
+  let activeOffersAll: any[] | null = null;
 
   // 1
   if (body.offer_id) {
@@ -521,13 +530,21 @@ async function resolveCampaignAndOffer(contact: any, body: any, message: string)
       .limit(1)
       .maybeSingle();
     if (latest) {
-      if (!campaign && (latest as any).campaign_id) {
-        campaign = await fetchCampaign((latest as any).campaign_id);
-        if (campaign) trail.push("latest_interaction_campaign");
-      }
-      if (!offer && (latest as any).related_offer_id) {
-        offer = await fetchOffer((latest as any).related_offer_id);
-        if (offer) trail.push("latest_interaction_offer");
+      const ts = (latest as any).timestamp ? new Date((latest as any).timestamp).getTime() : 0;
+      const ageHours = ts ? (Date.now() - ts) / 3600000 : Infinity;
+      const stale = ageHours > STALE_INTERACTION_SKIP_HOURS;
+      const skipLatch = browseIntent && stale;
+      if (skipLatch) {
+        trail.push(`stale_interaction_skipped:${Math.round(ageHours)}h`);
+      } else {
+        if (!campaign && (latest as any).campaign_id) {
+          campaign = await fetchCampaign((latest as any).campaign_id);
+          if (campaign) trail.push("latest_interaction_campaign");
+        }
+        if (!offer && (latest as any).related_offer_id) {
+          offer = await fetchOffer((latest as any).related_offer_id);
+          if (offer) trail.push("latest_interaction_offer");
+        }
       }
     }
   }
@@ -557,6 +574,7 @@ async function resolveCampaignAndOffer(contact: any, body: any, message: string)
       .select("*")
       .eq("status", "active");
     const list = (activeOffers as any[]) ?? [];
+    activeOffersAll = list;
     const matched = keywordMatchOffer(message, list);
     if (matched) {
       offer = matched;
@@ -567,7 +585,7 @@ async function resolveCampaignAndOffer(contact: any, body: any, message: string)
     }
   }
 
-  return { campaign, offer, resolutionTrail: trail };
+  return { campaign, offer, resolutionTrail: trail, activeOffersAll };
 }
 
 async function callModel(messages: Array<{ role: string; content: string }>) {
