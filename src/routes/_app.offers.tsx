@@ -93,89 +93,99 @@ function OffersPage() {
 }
 
 function OfferDialog({ open, onOpenChange, onCreated }: any) {
-  const [s, setS] = useState<any>({
-    title: "", description: "", category: "event", price: "",
-    target_interests: [], target_region: "", status: "active", offer_url: "",
-    target_spending_profile: "", currency: "ILS",
-  });
-  const [saving, setSaving] = useState(false);
+  const analyzeFn = useServerFn(analyzeOfferIntelligence);
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState<string>("event");
+  const [busy, setBusy] = useState<"idle" | "creating" | "analyzing">("idle");
 
-  async function save() {
-    if (!s.title) { toast.error("שם חובה"); return; }
-    setSaving(true);
-    const { error } = await supabase.from("offers").insert({
-      ...s,
-      price: s.price ? Number(s.price) : null,
-      currency: s.currency || "ILS",
-      target_spending_profile: s.target_spending_profile || null,
-    });
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("הצעה נוצרה");
+  function reset() {
+    setUrl(""); setTitle(""); setCategory("event"); setBusy("idle");
+  }
+
+  async function addAndAnalyze() {
+    const cleanUrl = url.trim();
+    if (!cleanUrl) { toast.error("נדרש קישור לעמוד האירוע"); return; }
+    try { new URL(cleanUrl); } catch { toast.error("קישור לא תקין"); return; }
+
+    setBusy("creating");
+    const placeholderTitle = title.trim() || cleanUrl;
+    const { data: created, error } = await supabase
+      .from("offers")
+      .insert({
+        title: placeholderTitle,
+        category: category as any,
+        status: "active",
+        offer_url: cleanUrl,
+        currency: "ILS",
+      })
+      .select("id")
+      .single();
+    if (error || !created) {
+      setBusy("idle");
+      toast.error(error?.message || "שגיאה ביצירת ההצעה");
+      return;
+    }
+
+    setBusy("analyzing");
+    try {
+      await analyzeFn({ data: { offerId: created.id } });
+      toast.success("ההצעה נוצרה ונלמדה — זמינה כעת לתמר");
+    } catch (e: any) {
+      // The offer exists; analysis can be retried from the detail page.
+      toast.warning(e?.message || "ההצעה נוצרה אך הניתוח האוטומטי נכשל — אפשר לנסות שוב מתוך ההצעה");
+    }
+    setBusy("idle");
     onOpenChange(false);
+    reset();
     onCreated?.();
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
       <DialogContent dir="rtl" className="max-w-lg">
-        <DialogHeader><DialogTitle>הצעה חדשה</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>הצעה חדשה</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          מדביקים קישור לעמוד האירוע — המערכת תלמד ממנו אוטומטית את הכותרת, המחיר, התאריך,
+          שאלות נפוצות והתנגדויות, ותתחיל להציע אותו ללקוחות.
+        </p>
         <div className="space-y-3">
-          <div><Label>שם</Label><Input value={s.title} onChange={(e) => setS({ ...s, title: e.target.value })} /></div>
-          <div><Label>תיאור</Label><Textarea rows={3} value={s.description} onChange={(e) => setS({ ...s, description: e.target.value })} /></div>
+          <div>
+            <Label>קישור לעמוד *</Label>
+            <Input dir="ltr" placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
+              <Label>כותרת (לא חובה)</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="תילמד מהדף אם ריק" />
+            </div>
+            <div>
               <Label>קטגוריה</Label>
-              <Select value={s.category} onValueChange={(v) => setS({ ...s, category: v })}>
+              <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>מחיר</Label>
-              <div className="flex gap-2">
-                <Input type="number" className="flex-1" value={s.price} onChange={(e) => setS({ ...s, price: e.target.value })} />
-                <Select value={s.currency} onValueChange={(v) => setS({ ...s, currency: v })}>
-                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.symbol} {c.code}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div><Label>אזור יעד</Label><Input value={s.target_region} onChange={(e) => setS({ ...s, target_region: e.target.value })} /></div>
-            <div>
-              <Label>פרופיל הוצאה יעד</Label>
-              <Select value={s.target_spending_profile} onValueChange={(v) => setS({ ...s, target_spending_profile: v })}>
-                <SelectTrigger><SelectValue placeholder="כל" /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(SPENDING_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v as string}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <div><Label>קישור</Label><Input dir="ltr" value={s.offer_url} onChange={(e) => setS({ ...s, offer_url: e.target.value })} /></div>
-          <div>
-            <Label className="mb-2 block">תחומי עניין יעד</Label>
-            <div className="flex flex-wrap gap-2">
-              {ALL_INTERESTS.map((k) => {
-                const on = s.target_interests.includes(k);
-                return (
-                  <button key={k} type="button"
-                    onClick={() => setS({ ...s, target_interests: on ? s.target_interests.filter((x: string) => x !== k) : [...s.target_interests, k] })}
-                    className={`px-3 py-1.5 rounded-full text-sm border ${on ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}>
-                    {INTEREST_LABELS[k]}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            כל יתר השדות (מחיר, תאריך, FAQ, סיכום, התנגדויות, תגיות) ימולאו אוטומטית.
+            אפשר לערוך אחר כך בעמוד ההצעה. אם תאריך האירוע חולף — ההצעה תיפול אוטומטית מתוך
+            הקטלוג של תמר.
+          </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>ביטול</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "שומר..." : "צור"}</Button>
+          <Button variant="outline" disabled={busy !== "idle"} onClick={() => onOpenChange(false)}>ביטול</Button>
+          <Button onClick={addAndAnalyze} disabled={busy !== "idle"} className="gap-2">
+            {busy === "idle" && <Sparkles className="h-4 w-4" />}
+            {busy !== "idle" && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy === "creating" ? "יוצר..." : busy === "analyzing" ? "לומד את האירוע..." : "הוסף ונתח"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
