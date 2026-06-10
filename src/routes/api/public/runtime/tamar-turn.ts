@@ -21,6 +21,7 @@ import {
 } from "@/lib/intake-workflow";
 import { fieldValueToColumnUpdates } from "@/lib/intake-workflow";
 import { requestRuntimeDecision, type RuntimeDecision } from "@/lib/runtime-decision";
+import { decideRecovery, summarizeKnownIntake, type RecoveryDecision } from "@/lib/intake-recovery";
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -77,6 +78,7 @@ function decideHandoff(args: {
   conversationModeReasons: string[];
   interactions: any[];
   llmDecision?: RuntimeDecision | null;
+  recovery?: RecoveryDecision | null;
 }): { handoff: boolean; reason: string; triggers: string[] } {
   const triggers: string[] = [];
 
@@ -107,6 +109,12 @@ function decideHandoff(args: {
     for (const r of args.llmDecision.handoff_reasons.slice(0, 4)) {
       triggers.push(`llm_reason:${r}`);
     }
+  }
+
+  // Frustration override: repeated distress signals escalate to a human even
+  // without an explicit request — the intake loop itself is the problem.
+  if (args.recovery?.suggest_handoff) {
+    triggers.push(`repeated_frustration_streak_${args.recovery.frustration_streak}`);
   }
 
   const handoff = triggers.length > 0;
