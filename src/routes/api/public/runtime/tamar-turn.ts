@@ -19,6 +19,8 @@ import {
   inboundAnswersField,
   INTAKE_REQUIRED_FIELDS,
 } from "@/lib/intake-workflow";
+import { fieldValueToColumnUpdates } from "@/lib/intake-workflow";
+import { requestRuntimeDecision, type RuntimeDecision } from "@/lib/runtime-decision";
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -74,6 +76,7 @@ function decideHandoff(args: {
   conversationMode: ConversationMode;
   conversationModeReasons: string[];
   interactions: any[];
+  llmDecision?: RuntimeDecision | null;
 }): { handoff: boolean; reason: string; triggers: string[] } {
   const triggers: string[] = [];
 
@@ -95,6 +98,14 @@ function decideHandoff(args: {
     const prevText = String(lastOutbound?.content ?? "");
     if (prevText && TRANSFER_QUESTION_RE.test(prevText)) {
       triggers.push("user_confirmed_transfer");
+    }
+  }
+
+  // LLM decision layer (guard-railed): only honor if model is confident.
+  if (args.llmDecision?.handoff_requested && args.llmDecision.handoff_confidence >= 70) {
+    triggers.push("llm_decision_handoff");
+    for (const r of args.llmDecision.handoff_reasons.slice(0, 4)) {
+      triggers.push(`llm_reason:${r}`);
     }
   }
 
