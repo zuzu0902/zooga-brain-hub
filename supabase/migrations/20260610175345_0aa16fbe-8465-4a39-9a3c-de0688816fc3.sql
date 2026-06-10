@@ -1,0 +1,1 @@
+ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS event_date timestamptz; ALTER TABLE public.offers ADD COLUMN IF NOT EXISTS event_end_date timestamptz; CREATE INDEX IF NOT EXISTS offers_event_date_idx ON public.offers (event_date);

@@ -572,7 +572,8 @@ async function resolveCampaignAndOffer(
     const { data: activeOffers } = await supabaseAdmin
       .from("offers")
       .select("*")
-      .eq("status", "active");
+      .eq("status", "active")
+      .or(`event_date.is.null,event_date.gte.${new Date().toISOString()}`);
     const list = (activeOffers as any[]) ?? [];
     activeOffersAll = list;
     const matched = keywordMatchOffer(message, list);
@@ -829,8 +830,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           if (!catalog) {
             const { data } = await supabaseAdmin
               .from("offers")
-              .select("id,title,price,currency,offer_url,ai_summary,matching_tags,target_min_age,target_max_age,ingestion_status,status")
-              .eq("status", "active");
+              .select("id,title,price,currency,offer_url,ai_summary,matching_tags,target_min_age,target_max_age,ingestion_status,status,event_date")
+              .eq("status", "active")
+              .or(`event_date.is.null,event_date.gte.${new Date().toISOString()}`);
             catalog = (data as any[]) ?? [];
           }
           const ready = (catalog ?? []).filter(

@@ -1113,6 +1113,8 @@ export type Database = {
           currency: string
           description: string | null
           escalation_boundary: Json
+          event_date: string | null
+          event_end_date: string | null
           faq_bundle: Json
           grounded_facts: Json
           id: string
@@ -1141,6 +1143,8 @@ export type Database = {
           currency?: string
           description?: string | null
           escalation_boundary?: Json
+          event_date?: string | null
+          event_end_date?: string | null
           faq_bundle?: Json
           grounded_facts?: Json
           id?: string
@@ -1169,6 +1173,8 @@ export type Database = {
           currency?: string
           description?: string | null
           escalation_boundary?: Json
+          event_date?: string | null
+          event_end_date?: string | null
           faq_bundle?: Json
           grounded_facts?: Json
           id?: string
