@@ -572,7 +572,8 @@ async function resolveCampaignAndOffer(
     const { data: activeOffers } = await supabaseAdmin
       .from("offers")
       .select("*")
-      .eq("status", "active");
+      .eq("status", "active")
+      .or(`event_date.is.null,event_date.gte.${new Date().toISOString()}`);
     const list = (activeOffers as any[]) ?? [];
     activeOffersAll = list;
     const matched = keywordMatchOffer(message, list);
