@@ -252,23 +252,21 @@ function extractAgeOrBirth(text: string): Capture | null {
             field: "age_or_birth_date",
             value: iso,
             confidence: 92,
-            // birth_date is a relationship-trigger field — also populate
-            // birthday_day/month/year so future outreach jobs can fire.
-            columnUpdates: {
-              birth_date: iso,
-              birthday_day: dd,
-              birthday_month: mm,
-              birthday_year: yyyy,
-            },
+            // birthday_day/month/year are GENERATED from birth_date — only
+            // write birth_date itself.
+            columnUpdates: { birth_date: iso },
           };
         }
       } else {
         // DD/MM only — year unknown, still eligible for birthday outreach.
+        // Use 1900 as sentinel year so the generated birthday_day/month
+        // columns are populated (badge + relationship triggers fire).
+        const iso = `1900-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
         return {
           field: "age_or_birth_date",
           value: `${String(dd).padStart(2, "0")}/${String(mm).padStart(2, "0")}`,
           confidence: 78,
-          columnUpdates: { birthday_day: dd, birthday_month: mm },
+          columnUpdates: { birth_date: iso },
         };
       }
     }
@@ -499,19 +497,34 @@ export function fieldValueToColumnUpdates(
       return { first_name: v };
     case "age_or_birth_date": {
       // ISO birth date (YYYY-MM-DD)
-      const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const iso = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
       if (iso) {
-        return {
-          birth_date: v,
-          birthday_year: Number(iso[1]),
-          birthday_month: Number(iso[2]),
-          birthday_day: Number(iso[3]),
-        };
+        const y = Number(iso[1]);
+        const m = Number(iso[2]);
+        const d = Number(iso[3]);
+        return { birth_date: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
       }
-      // DD/MM (no year)
-      const md = v.match(/^(\d{2})\/(\d{2})$/);
+      // DD/MM/YYYY or DD-MM-YYYY (also DD.MM.YYYY)
+      const dmy = v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+      if (dmy) {
+        const d = Number(dmy[1]);
+        const m = Number(dmy[2]);
+        let y = Number(dmy[3]);
+        if (y < 100) y += y >= 30 ? 1900 : 2000;
+        if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
+          return { birth_date: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
+        }
+      }
+      // DD/MM (no year) — also DD-MM, DD.MM
+      const md = v.match(/^(\d{1,2})[\/.\-](\d{1,2})$/);
       if (md) {
-        return { birthday_day: Number(md[1]), birthday_month: Number(md[2]) };
+        const d = Number(md[1]);
+        const m = Number(md[2]);
+        if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
+          // Sentinel year 1900 — birthday_day/month are generated from
+          // birth_date and we still need the day/month to fire triggers.
+          return { birth_date: `1900-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
+        }
       }
       const n = Number(v);
       if (Number.isFinite(n) && n >= 16 && n <= 95) return { age: n };
