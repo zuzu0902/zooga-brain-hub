@@ -1829,6 +1829,8 @@ function IntakeProgressCard({ contact, contactId }: { contact: any; contactId: s
     : [];
   const total = completed.length + missing.length || 8;
   const score = contact?.intake_completion_score ?? Math.round((completed.length / total) * 100);
+  const nextField = missing.find((k) => k !== "source_attribution") ?? null;
+  const birthdayKnown = !!(contact?.birth_date || (contact?.birthday_day && contact?.birthday_month));
 
   const { data: captures } = useQuery({
     queryKey: ["intake-captures", contactId],
@@ -1859,6 +1861,17 @@ function IntakeProgressCard({ contact, contactId }: { contact: any; contactId: s
       </div>
       <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
         <div className="h-full bg-primary transition-all" style={{ width: `${score}%` }} />
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        {birthdayKnown ? (
+          <Badge className="bg-pink-100 text-pink-800 border-pink-200">🎂 birthday trigger active</Badge>
+        ) : (
+          <Badge variant="outline" className="text-muted-foreground">birthday trigger missing</Badge>
+        )}
+        {nextField && (
+          <Badge variant="outline">השאלה הבאה: {INTAKE_FIELD_LABELS[nextField] ?? nextField}</Badge>
+        )}
       </div>
 
       {completed.length > 0 && (
