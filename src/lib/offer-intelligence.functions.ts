@@ -212,7 +212,7 @@ ${combined}
       if (evStart) update.event_date = evStart;
       if (evEnd) update.event_end_date = evEnd;
 
-      const { error: updErr } = await sb.from("offers").update(update).eq("id", offerId);
+      const { error: updErr } = await sb.from("offers").update(update as any).eq("id", offerId);
       if (updErr) throw new Error(updErr.message);
 
       return { success: true, offerId, ...update };
