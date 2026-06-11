@@ -23,6 +23,7 @@ type RuntimeCompositionInput = {
   activeContextLayers?: Record<string, any>;
   intakeDirective?: string | null;
   intakeSnapshot?: any;
+  replyHardRules?: string[];
 };
 
 function truncate(text: string, max = 12000) {
@@ -82,6 +83,7 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
   const conversationMode = input.conversationMode ?? "generic_intake";
   const conversationModeReasons = input.conversationModeReasons ?? [];
   const activeContextLayers = input.activeContextLayers ?? null;
+  const replyHardRules = input.replyHardRules ?? [];
   const activeConstraints = [
     ...settingsDirectives.filter((d) => /constraint|invent|Escalate|factual|therapist|counselor/i.test(d)),
     input.escalationFallback ? input.escalationReason || "offer_intelligence_missing_grounded_knowledge" : null,
@@ -190,6 +192,9 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
         ? "Intake enforcement: the Intake Directive above is MANDATORY for this reply. Structure the reply as [answer to user's topic] + [one short natural intake question for the target field]. A reply that contains only the offer/topic answer without that intake question is INVALID this turn."
         : "Intake enforcement: no intake target this turn — answer the topic without forcing a question.",
     ].join("\n- "),
+    replyHardRules.length
+      ? `\n## Hard reply constraints for THIS turn (override mode rules — violating these makes the reply INVALID)\n- ${replyHardRules.join("\n- ")}`
+      : "",
   ].join("\n");
 
   const runtimePromptContext = {
