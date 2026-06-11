@@ -749,11 +749,35 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           /(כמה\s+(זה|עולה|המחיר)|מה\s+המחיר|המחיר\??|מחיר\??|עלות|how\s+much|price|cost)/i;
         const offerHasPrice = !!offer && offer.price != null && offer.price !== "";
         const priceQueryThisTurn = PRICE_QUERY_RE.test(message ?? "");
+        // Special / non-standard request signals: group bookings, couples-
+        // together, private group, accessibility, kosher level, custom dates,
+        // bringing kids/parents, corporate, etc. These are exactly the asks
+        // where Tamar should NOT bluff with generic answers or pile on more
+        // intake — she should answer honestly within grounded knowledge and
+        // offer a human handoff if precision is missing.
+        const SPECIAL_REQUEST_RE =
+          /(קבוצה|קבוצתי|לקבוצה|מפגש\s+קבוצתי|זוגות|כזוג|לזוגות|ביחד\s+כזוג|פרטי|פרטית|מותאם|התאמה\s+אישית|תאריכים\s+אחרים|לבד\s+אבל|נגישות|נגיש|כושר\s+פיזי|רפואי|כשרות|מהדרין|חרדי|דתי|ילדים|הורים|חברה|חברת|תאגיד|ארגוני|בלעדי|custom|group|private|couples|corporate|accessib|kosher)/i;
+        const specialRequestThisTurn = SPECIAL_REQUEST_RE.test(message ?? "");
+        // "Enough context already captured" — once a few core preference/
+        // identity fields are in, additional weak-intake questions become
+        // lower priority than clarifying, matching, suggesting or handing off.
+        const completedCount = (intakeSnapshot?.completed?.length ?? 0) as number;
+        const enoughContextCaptured = completedCount >= 3;
         const suppressBudgetForPriceQuery =
           priceQueryThisTurn &&
           offerHasPrice &&
           nextIntakeField === "budget_sensitivity_or_range";
-        const effectiveNextIntakeField = suppressBudgetForPriceQuery ? null : nextIntakeField;
+        // Suppress further intake on this turn when a higher-priority action
+        // path exists: a special/non-standard request, a price question, or
+        // when we already have enough context to be useful and the user is
+        // asking something concrete.
+        const suppressIntakeForHigherPriority =
+          specialRequestThisTurn ||
+          (enoughContextCaptured && (priceQueryThisTurn || specialRequestThisTurn));
+        const effectiveNextIntakeField =
+          suppressBudgetForPriceQuery || suppressIntakeForHigherPriority
+            ? null
+            : nextIntakeField;
         // In recovery mode the recovery directive REPLACES the intake directive.
         const intakeDirective =
           recovery.directive ?? composeIntakeDirective(effectiveNextIntakeField);
@@ -789,6 +813,25 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         if (effectiveNextIntakeField === null && !intakeDirective) {
           replyHardRules.push(
             "No intake question is permitted this turn. Do not append a qualification question of any kind — answer the user's topic and stop.",
+          );
+        }
+
+        // Special / non-standard request rule: answer honestly inside grounded
+        // knowledge; if precision is missing, say so and offer manager handoff.
+        // Do NOT pile on more intake fields, do NOT ask weak style/preference
+        // questions (formal/casual, etc.) on this turn.
+        if (specialRequestThisTurn) {
+          replyHardRules.push(
+            "The user is asking about a special / non-standard request (e.g. group, couples, private, custom dates, accessibility, kosher level, kids/parents, corporate). Answer ONLY from grounded offer intelligence / FAQ. If the precise answer is not in grounded knowledge, say so plainly in Hebrew and offer to connect a human from the team who can confirm — do NOT bluff, do NOT generalise. Do NOT append intake / birth-date / language-style / style-preference questions on this turn. ONE optional directional question is allowed only if it directly helps resolve THIS special request (e.g. group size, which dates, who's joining).",
+          );
+        }
+
+        // Once enough useful context is already captured, stop optimising for
+        // weak-field collection and bias toward matching / suggesting / next
+        // step / handoff.
+        if (enoughContextCaptured) {
+          replyHardRules.push(
+            "Enough useful context about this user is already captured. Prefer matching, clarifying intent, suggesting a concrete next step, or offering a human handoff over collecting another low-value intake field. Birth date and language-style preference must NOT be asked unless the user volunteers them or no better next step exists. Never ask 'formal or casual' style questions — infer it from how they write.",
           );
         }
 
