@@ -758,6 +758,25 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const intakeDirective =
           recovery.directive ?? composeIntakeDirective(effectiveNextIntakeField);
 
+        // Hard reply constraints that override the LLM's tendency to keep asking
+        // qualification questions even when intake state says "no question".
+        const replyHardRules: string[] = [];
+        if (suppressBudgetForPriceQuery) {
+          const cur = (offer?.currency || "ILS").toUpperCase();
+          const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
+          replyHardRules.push(
+            `The user asked the price directly. State the exact price ${sym}${offer?.price} (${cur}) from the offer intelligence FIRST, plainly.`,
+          );
+          replyHardRules.push(
+            "Do NOT ask any budget / price-range / affordability question this turn. Phrases like 'מה התקציב', 'כמה מוכן להשקיע', 'משהו יותר נגיש', 'יקר/זול', 'budget', 'price range' are FORBIDDEN this turn. A reply that contains any such question is INVALID.",
+          );
+        }
+        if (effectiveNextIntakeField === null && !intakeDirective) {
+          replyHardRules.push(
+            "No intake question is permitted this turn. Do not append a qualification question of any kind — answer the user's topic and stop.",
+          );
+        }
+
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
           return acc;
@@ -959,6 +978,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           activeContextLayers,
           intakeDirective,
           intakeSnapshot,
+          replyHardRules,
         });
 
         const systemMsg = composition.runtimePromptContext.messages.find((m: any) => m.role === "system");
