@@ -17,16 +17,20 @@ export type IntakeFieldKey =
 
 export const INTAKE_REQUIRED_FIELDS: IntakeFieldKey[] = [
   "first_name",
-  "age_or_birth_date",
-  "city_or_region",
   "social_or_relationship_goal",
   "preferred_activity_type",
-  "language_style_preference",
+  "city_or_region",
+  "age_or_birth_date",
   "source_attribution",
   // Budget intentionally last and deferred. See selectNextIntakeField:
   // it is only asked once everything else is satisfied OR the mode signals
   // active qualification / offer engagement. Never an early-funnel question.
   "budget_sensitivity_or_range",
+  // language_style_preference is intentionally LAST and is treated as
+  // inferred-only by default. selectNextIntakeField skips it unless every
+  // other askable field is already satisfied. It is still captured silently
+  // when the inbound makes it obvious.
+  "language_style_preference",
 ];
 
 export const INTAKE_FIELD_STAGE: Record<IntakeFieldKey, IntakeStage> = {
@@ -141,7 +145,11 @@ export function selectNextIntakeField(
   if (opts.mode === "handoff") return null;
 
   // Skip source_attribution — captured silently, never asked aloud.
-  let askable = snapshot.missing.filter((k) => k !== "source_attribution");
+  // Skip language_style_preference too — inferred passively from the inbound;
+  // asking it explicitly reads as a low-value administrative form question.
+  let askable = snapshot.missing.filter(
+    (k) => k !== "source_attribution" && k !== "language_style_preference",
+  );
   if (!askable.length) return null;
 
   // Budget is DEFERRED. Only surface it when:
@@ -162,6 +170,18 @@ export function selectNextIntakeField(
   if (!budgetAllowedByMode && !onlyBudgetLeft) {
     askable = askable.filter((k) => k !== "budget_sensitivity_or_range");
     if (!askable.length) return null;
+  }
+
+  // Birth date is also deferred. It is a relationship-trigger field, not a
+  // qualification field — pushing it early (especially after we already have
+  // meaningful context) makes the conversation feel like a form. Only ask it
+  // when (a) every other non-deferred askable field is satisfied, OR
+  // (b) the user's current turn is clearly idle small-talk where no higher
+  //     priority field is missing. In all other cases prefer the next field.
+  const onlyBirthLeft = askable.length === 1 && askable[0] === "age_or_birth_date";
+  if (!onlyBirthLeft) {
+    const withoutBirth = askable.filter((k) => k !== "age_or_birth_date");
+    if (withoutBirth.length) askable = withoutBirth;
   }
 
   const top = askable[0];
