@@ -792,6 +792,49 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           );
         }
 
+        // --- Sales momentum guards (offer_specific) ---
+        // Count prior Tamar outbound messages with this contact to estimate
+        // where we are in the sales conversation. Message 2-3+ on the
+        // offer-specific track is when the link + emotional/social angle
+        // should start appearing — not on the very first reply.
+        const priorTamarOutbounds = (interactions || []).filter(
+          (i: any) => i.source === "tamar_outbound",
+        ).length;
+        const isOfferSpecific = conversationMode === "offer_specific";
+        const hasOfferUrl = !!offer?.offer_url;
+        const userRequestedLink =
+          /(לינק|קישור|link|url|דף\s+ה?טיול|דף\s+המכירה|להירשם|הרשמה|register|sign\s*up)/i.test(message ?? "");
+        // Hesitation / solo-traveler / loneliness / social-trip signals.
+        const soloOrHesitationSignal =
+          /(לבד|לבדי|בלי\s+בן\s+זוג|בלי\s+חבר|אין\s+לי\s+עם\s+מי|מתלבט|מתלבטת|חוששת|חושש|פוחד|פוחדת|בודד|בדידות|מפחיד|לא\s+בטוח|לא\s+בטוחה|חברתי|להכיר\s+אנשים|alone|by\s+myself|hesit|nervous|social\s+trip)/i.test(
+            message ?? "",
+          );
+
+        if (isOfferSpecific && hasOfferUrl && !priceQueryThisTurn) {
+          // Send-link-with-framing rule: by the 2nd–3rd Tamar reply on an
+          // offer-specific track (or immediately if the user asked for a
+          // link/registration), include offer_url framed as the full info
+          // page, not as a bare URL.
+          const linkOnThisTurn = userRequestedLink || priorTamarOutbounds >= 1;
+          if (linkOnThisTurn) {
+            replyHardRules.push(
+              `Include the offer page link on THIS turn, framed as the full info page — not a bare URL. Use natural Hebrew along the lines of: "אם נוח לך, הנה גם הקישור לעמוד המלא של ${offer?.title ?? "הטיול"} — יש שם את כל הפרטים, המסלול, וכל המידע המסודר, ומשם גם נרשמים." Send exactly this URL once: ${offer.offer_url}. Do not invent any other URL. Frame it as helpful/optional, not pushy.`,
+            );
+          } else {
+            replyHardRules.push(
+              "This is the opening reply on this offer track. Do NOT paste the offer_url yet — build a little context first; the link comes on the next reply.",
+            );
+          }
+        }
+
+        if (isOfferSpecific && soloOrHesitationSignal) {
+          // Friction-reducer: it's fine to register alone; Zooga's experts
+          // help match partners. Warm, calm, social — never manipulative.
+          replyHardRules.push(
+            "The user is showing hesitation or a solo-traveler / social-trip signal. Weave in (briefly, warmly, not as a sales pitch) the message that it's completely fine to register alone, that many people do, and that Zooga's expert team helps match partners and create good fit. Keep it one short, reassuring sentence — not a paragraph, not repeated if it already appeared in the recent thread.",
+          );
+        }
+
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
           return acc;
