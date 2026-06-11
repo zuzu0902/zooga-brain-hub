@@ -771,6 +771,21 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             "Do NOT ask any budget / price-range / affordability question this turn. Phrases like 'מה התקציב', 'כמה מוכן להשקיע', 'משהו יותר נגיש', 'יקר/זול', 'budget', 'price range' are FORBIDDEN this turn. A reply that contains any such question is INVALID.",
           );
         }
+        // Cross-offer price-confusion guard. Whenever the user asks a price
+        // question, Tamar must answer ONLY about the resolved/asked offer.
+        // She must never quote another offer's price as if it were the
+        // asked offer's price, and must clearly say so when no price exists.
+        if (priceQueryThisTurn) {
+          const askedTitle = offer?.title ? `"${offer.title}"` : "the asked trip";
+          if (!offerHasPrice) {
+            replyHardRules.push(
+              `The user asked the price of ${askedTitle}, but this offer has NO authoritative final price in the system yet. You MUST say this plainly in Hebrew (e.g. "המחיר הסופי ל${offer?.title ?? "טיול הזה"} עדיין לא סגור / טרם פורסם"), and offer to update once it is set or to connect a human. Do NOT invent a price, do NOT estimate, do NOT quote a price from any other trip as if it were this one's price.`,
+            );
+          }
+          replyHardRules.push(
+            `Cross-offer price rule: prices from other trips in the active catalog belong to those OTHER trips only. Never present another trip's price as the price of ${askedTitle}. If — and only if — naming another trip's price is clearly useful, you MUST label it explicitly as a comparison (e.g. "להשוואה בלבד, טיול אחר שלנו ל… עולה …"), name that other trip by its title, and make it unambiguous that it is a different product. Prefer NOT to bring up another trip's price unless the user asked to compare.`,
+          );
+        }
         if (effectiveNextIntakeField === null && !intakeDirective) {
           replyHardRules.push(
             "No intake question is permitted this turn. Do not append a qualification question of any kind — answer the user's topic and stop.",
