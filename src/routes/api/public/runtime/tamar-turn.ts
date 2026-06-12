@@ -999,8 +999,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // newly added ones — instead of speaking as if only the sticky offer
         // exists. Additive: the deep pack for the resolved offer (above) still
         // wins on offer-specific turns.
-        const weakResolution = !offer || resolutionTrail.some((t) => t.startsWith("stale_interaction_skipped"));
-        const shouldInjectCatalog = browseIntentDetected || weakResolution;
+        const weakResolution =
+          !offer || resolutionTrail.some((t) => t.startsWith("stale_interaction_skipped"));
+        // Destination mismatch: the user's message keyword-matches an offer
+        // in the active catalog that is DIFFERENT from the one we latched
+        // onto via sticky priors. Even if we overrode the sticky offer
+        // above, still inject the catalog so Tamar can name siblings.
+        const destinationMismatch =
+          destinationOverride ||
+          (!!keywordMatchedOfferId && !!offer && keywordMatchedOfferId !== offer.id);
+        const shouldInjectCatalog =
+          browseIntentDetected || weakResolution || destinationMismatch;
         let catalogInjected = false;
         let catalogOfferIds: string[] = [];
         if (shouldInjectCatalog) {
