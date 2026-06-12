@@ -828,56 +828,45 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
 
         // Hard reply constraints that override the LLM's tendency to keep asking
         // qualification questions even when intake state says "no question".
+        // L0 of the consolidated policy hierarchy: these are THIS-TURN-ONLY
+        // facts (price values, link URLs, "no price yet", "no intake this
+        // turn"). General style / one-question / no-invention / cross-offer
+        // framing now lives in tamar-runtime-composition L1–L4 and must NOT
+        // be re-stated here.
         const replyHardRules: string[] = [];
         if (suppressBudgetForPriceQuery) {
           const cur = (offer?.currency || "ILS").toUpperCase();
           const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
           replyHardRules.push(
-            `The user asked the price directly. State the exact price ${sym}${offer?.price} (${cur}) from the offer intelligence FIRST, plainly.`,
-          );
-          replyHardRules.push(
-            "Do NOT ask any budget / price-range / affordability question this turn. Phrases like 'מה התקציב', 'כמה מוכן להשקיע', 'משהו יותר נגיש', 'יקר/זול', 'budget', 'price range' are FORBIDDEN this turn. A reply that contains any such question is INVALID.",
+            `Price-question fact: state the exact price ${sym}${offer?.price} (${cur}) for "${offer?.title ?? ""}" plainly and first. Do NOT ask any budget / price-range / affordability question this turn.`,
           );
         }
         // Cross-offer price-confusion guard. Whenever the user asks a price
-        // question, Tamar must answer ONLY about the resolved/asked offer.
-        // She must never quote another offer's price as if it were the
-        // asked offer's price, and must clearly say so when no price exists.
+        // question and the asked offer has no authoritative price, surface
+        // that fact. (General cross-offer framing lives in L1.)
         if (priceQueryThisTurn) {
           const askedTitle = offer?.title ? `"${offer.title}"` : "the asked trip";
           if (!offerHasPrice) {
             replyHardRules.push(
-              `The user asked the price of ${askedTitle}, but this offer has NO authoritative final price in the system yet. You MUST say this plainly in Hebrew (e.g. "המחיר הסופי ל${offer?.title ?? "טיול הזה"} עדיין לא סגור / טרם פורסם"), and offer to update once it is set or to connect a human. Do NOT invent a price, do NOT estimate, do NOT quote a price from any other trip as if it were this one's price.`,
+              `Price fact: ${askedTitle} has NO final price in the system yet. Say so plainly in Hebrew (e.g. "המחיר הסופי ל${offer?.title ?? "טיול הזה"} עדיין לא סגור"), offer to update once set or connect a human. Do NOT invent or estimate a price, and do NOT quote another trip's price as this one's.`,
             );
           }
-          replyHardRules.push(
-            `Cross-offer price rule: prices from other trips in the active catalog belong to those OTHER trips only. Never present another trip's price as the price of ${askedTitle}. If — and only if — naming another trip's price is clearly useful, you MUST label it explicitly as a comparison (e.g. "להשוואה בלבד, טיול אחר שלנו ל… עולה …"), name that other trip by its title, and make it unambiguous that it is a different product. Prefer NOT to bring up another trip's price unless the user asked to compare.`,
-          );
         }
         if (effectiveNextIntakeField === null && !intakeDirective) {
           replyHardRules.push(
-            "No intake question is permitted this turn. Do not append a qualification question of any kind — answer the user's topic and stop.",
+            "No intake question this turn. Answer the topic; at most ONE directional question if it clearly advances.",
           );
         }
 
-        // Special / non-standard request rule: answer honestly inside grounded
-        // knowledge; if precision is missing, say so and offer manager handoff.
-        // Do NOT pile on more intake fields, do NOT ask weak style/preference
-        // questions (formal/casual, etc.) on this turn.
+        // Special / non-standard request signal — narrow this-turn fact.
         if (specialRequestThisTurn) {
           replyHardRules.push(
-            "The user is asking about a special / non-standard request (e.g. group, couples, private, custom dates, accessibility, kosher level, kids/parents, corporate). Answer ONLY from grounded offer intelligence / FAQ. If the precise answer is not in grounded knowledge, say so plainly in Hebrew and offer to connect a human from the team who can confirm — do NOT bluff, do NOT generalise. Do NOT append intake / birth-date / language-style / style-preference questions on this turn. ONE optional directional question is allowed only if it directly helps resolve THIS special request (e.g. group size, which dates, who's joining).",
+            "Special/non-standard request on this turn (group, couples, private, custom dates, accessibility, kosher, kids/parents, corporate). Answer only from grounded FAQ/offer intelligence; if the precise answer is missing, say so plainly and offer a human handoff. Any single question this turn must directly resolve THIS request (e.g. group size, which dates) — not birth date or style preference.",
           );
         }
 
-        // Once enough useful context is already captured, stop optimising for
-        // weak-field collection and bias toward matching / suggesting / next
-        // step / handoff.
-        if (enoughContextCaptured) {
-          replyHardRules.push(
-            "Enough useful context about this user is already captured. Prefer matching, clarifying intent, suggesting a concrete next step, or offering a human handoff over collecting another low-value intake field. Birth date and language-style preference must NOT be asked unless the user volunteers them or no better next step exists. Never ask 'formal or casual' style questions — infer it from how they write.",
-          );
-        }
+        // (Bias-toward-advance when enough context is captured is enforced
+        // upstream by suppressing nextIntakeField, and globally by L2/L4.)
 
         // --- Sales momentum guards (offer_specific) ---
         // Count prior Tamar outbound messages with this contact to estimate
@@ -898,27 +887,21 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           );
 
         if (isOfferSpecific && hasOfferUrl && !priceQueryThisTurn) {
-          // Send-link-with-framing rule: by the 2nd–3rd Tamar reply on an
-          // offer-specific track (or immediately if the user asked for a
-          // link/registration), include offer_url framed as the full info
-          // page, not as a bare URL.
           const linkOnThisTurn = userRequestedLink || priorTamarOutbounds >= 1;
           if (linkOnThisTurn) {
             replyHardRules.push(
-              `Include the offer page link on THIS turn, framed as the full info page — not a bare URL. Use natural Hebrew along the lines of: "אם נוח לך, הנה גם הקישור לעמוד המלא של ${offer?.title ?? "הטיול"} — יש שם את כל הפרטים, המסלול, וכל המידע המסודר, ומשם גם נרשמים." Send exactly this URL once: ${offer.offer_url}. Do not invent any other URL. Frame it as helpful/optional, not pushy.`,
+              `Include the offer page link this turn, framed naturally as the full info page (not a bare URL). Send exactly this URL once: ${offer.offer_url}. Do not invent any other URL.`,
             );
           } else {
             replyHardRules.push(
-              "This is the opening reply on this offer track. Do NOT paste the offer_url yet — build a little context first; the link comes on the next reply.",
+              "Opening reply on this offer track — do NOT paste offer_url yet; link comes next turn.",
             );
           }
         }
 
         if (isOfferSpecific && soloOrHesitationSignal) {
-          // Friction-reducer: it's fine to register alone; Zooga's experts
-          // help match partners. Warm, calm, social — never manipulative.
           replyHardRules.push(
-            "The user is showing hesitation or a solo-traveler / social-trip signal. Weave in (briefly, warmly, not as a sales pitch) the message that it's completely fine to register alone, that many people do, and that Zooga's expert team helps match partners and create good fit. Keep it one short, reassuring sentence — not a paragraph, not repeated if it already appeared in the recent thread.",
+            "Solo / hesitation signal detected. Weave in ONE short, warm reassurance that registering alone is completely fine, many do it, and the Zooga team helps match partners. Do not repeat if it already appeared in the recent thread.",
           );
         }
 
