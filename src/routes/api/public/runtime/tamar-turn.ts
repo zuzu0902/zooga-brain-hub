@@ -567,26 +567,62 @@ async function resolveCampaignAndOffer(
       }
     }
   }
-  // 6 + 7
-  if (!offer) {
+  // Always load the active offer catalog so downstream code can:
+  //   (a) keyword-match for fallback resolution (steps 6+7), and
+  //   (b) detect destination-mismatch even when a sticky prior offer was
+  //       already latched in steps 3–5 (e.g. user asks about Albania but
+  //       the latest_interaction_offer is Vietnam).
+  if (activeOffersAll === null) {
     const { data: activeOffers } = await supabaseAdmin
       .from("offers")
       .select("*")
       .eq("status", "active")
       .or(`event_date.is.null,event_date.gte.${new Date().toISOString()}`);
-    const list = (activeOffers as any[]) ?? [];
-    activeOffersAll = list;
-    const matched = keywordMatchOffer(message, list);
-    if (matched) {
-      offer = matched;
-      trail.push("keyword_match");
-    } else if (list.length === 1) {
-      offer = list[0];
-      trail.push("single_active_offer_fallback");
-    }
+    activeOffersAll = (activeOffers as any[]) ?? [];
   }
 
-  return { campaign, offer, resolutionTrail: trail, activeOffersAll };
+  const keywordMatched = keywordMatchOffer(message, activeOffersAll);
+  let destinationOverride = false;
+
+  // 6 + 7
+  if (!offer) {
+    if (keywordMatched) {
+      offer = keywordMatched;
+      trail.push("keyword_match");
+    } else if (activeOffersAll.length === 1) {
+      offer = activeOffersAll[0];
+      trail.push("single_active_offer_fallback");
+    }
+  } else if (
+    keywordMatched &&
+    keywordMatched.id !== offer.id &&
+    // Only override sticky resolutions; do NOT override explicit_* or
+    // campaign-derived resolutions, which the caller asked for by id.
+    trail.every(
+      (t) =>
+        t === "contact_last_touch_campaign" ||
+        t === "contact_last_touch_offer" ||
+        t === "latest_interaction_campaign" ||
+        t === "latest_interaction_offer" ||
+        t === "campaign_contacts_link" ||
+        t === "campaign_contacts_offer" ||
+        t.startsWith("stale_interaction_skipped"),
+    )
+  ) {
+    offer = keywordMatched;
+    campaign = null;
+    trail.push("destination_keyword_override");
+    destinationOverride = true;
+  }
+
+  return {
+    campaign,
+    offer,
+    resolutionTrail: trail,
+    activeOffersAll,
+    keywordMatchedOfferId: keywordMatched?.id ?? null,
+    destinationOverride,
+  };
 }
 
 async function callModel(messages: Array<{ role: string; content: string }>) {
