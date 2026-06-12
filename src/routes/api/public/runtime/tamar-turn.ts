@@ -567,26 +567,62 @@ async function resolveCampaignAndOffer(
       }
     }
   }
-  // 6 + 7
-  if (!offer) {
+  // Always load the active offer catalog so downstream code can:
+  //   (a) keyword-match for fallback resolution (steps 6+7), and
+  //   (b) detect destination-mismatch even when a sticky prior offer was
+  //       already latched in steps 3–5 (e.g. user asks about Albania but
+  //       the latest_interaction_offer is Vietnam).
+  if (activeOffersAll === null) {
     const { data: activeOffers } = await supabaseAdmin
       .from("offers")
       .select("*")
       .eq("status", "active")
       .or(`event_date.is.null,event_date.gte.${new Date().toISOString()}`);
-    const list = (activeOffers as any[]) ?? [];
-    activeOffersAll = list;
-    const matched = keywordMatchOffer(message, list);
-    if (matched) {
-      offer = matched;
-      trail.push("keyword_match");
-    } else if (list.length === 1) {
-      offer = list[0];
-      trail.push("single_active_offer_fallback");
-    }
+    activeOffersAll = (activeOffers as any[]) ?? [];
   }
 
-  return { campaign, offer, resolutionTrail: trail, activeOffersAll };
+  const keywordMatched = keywordMatchOffer(message, activeOffersAll);
+  let destinationOverride = false;
+
+  // 6 + 7
+  if (!offer) {
+    if (keywordMatched) {
+      offer = keywordMatched;
+      trail.push("keyword_match");
+    } else if (activeOffersAll.length === 1) {
+      offer = activeOffersAll[0];
+      trail.push("single_active_offer_fallback");
+    }
+  } else if (
+    keywordMatched &&
+    keywordMatched.id !== offer.id &&
+    // Only override sticky resolutions; do NOT override explicit_* or
+    // campaign-derived resolutions, which the caller asked for by id.
+    trail.every(
+      (t) =>
+        t === "contact_last_touch_campaign" ||
+        t === "contact_last_touch_offer" ||
+        t === "latest_interaction_campaign" ||
+        t === "latest_interaction_offer" ||
+        t === "campaign_contacts_link" ||
+        t === "campaign_contacts_offer" ||
+        t.startsWith("stale_interaction_skipped"),
+    )
+  ) {
+    offer = keywordMatched;
+    campaign = null;
+    trail.push("destination_keyword_override");
+    destinationOverride = true;
+  }
+
+  return {
+    campaign,
+    offer,
+    resolutionTrail: trail,
+    activeOffersAll,
+    keywordMatchedOfferId: keywordMatched?.id ?? null,
+    destinationOverride,
+  };
 }
 
 async function callModel(messages: Array<{ role: string; content: string }>) {
@@ -679,8 +715,16 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const runtimeHistoryFallback = await loadRecentRuntimeHistoryByPhone(body);
         const interactions = mergeRecentInteractions(contactInteractions, runtimeHistoryFallback);
         const browseIntentDetected = isCatalogBrowseIntent(message);
-        const { campaign, offer, resolutionTrail, activeOffersAll: resolverActiveOffers } =
-          await resolveCampaignAndOffer(contact, body, message, { browseIntent: browseIntentDetected });
+        const {
+          campaign,
+          offer,
+          resolutionTrail,
+          activeOffersAll: resolverActiveOffers,
+          keywordMatchedOfferId,
+          destinationOverride,
+        } = await resolveCampaignAndOffer(contact, body, message, {
+          browseIntent: browseIntentDetected,
+        });
 
         const { mode: conversationMode, reasons: conversationModeReasons } = decideConversationMode({
           message,
@@ -955,8 +999,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // newly added ones — instead of speaking as if only the sticky offer
         // exists. Additive: the deep pack for the resolved offer (above) still
         // wins on offer-specific turns.
-        const weakResolution = !offer || resolutionTrail.some((t) => t.startsWith("stale_interaction_skipped"));
-        const shouldInjectCatalog = browseIntentDetected || weakResolution;
+        const weakResolution =
+          !offer || resolutionTrail.some((t) => t.startsWith("stale_interaction_skipped"));
+        // Destination mismatch: the user's message keyword-matches an offer
+        // in the active catalog that is DIFFERENT from the one we latched
+        // onto via sticky priors. Even if we overrode the sticky offer
+        // above, still inject the catalog so Tamar can name siblings.
+        const destinationMismatch =
+          destinationOverride ||
+          (!!keywordMatchedOfferId && !!offer && keywordMatchedOfferId !== offer.id);
+        const shouldInjectCatalog =
+          browseIntentDetected || weakResolution || destinationMismatch;
         let catalogInjected = false;
         let catalogOfferIds: string[] = [];
         if (shouldInjectCatalog) {
@@ -1027,6 +1080,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             browse_intent_detected: browseIntentDetected,
             catalog_injected: catalogInjected,
             catalog_offer_ids: catalogOfferIds,
+            keyword_matched_offer_id: keywordMatchedOfferId,
+            destination_mismatch: destinationMismatch,
+            destination_override: destinationOverride,
           },
           intake_progress: {
             active: intakeSnapshot.state !== "completed",
