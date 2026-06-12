@@ -715,8 +715,16 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const runtimeHistoryFallback = await loadRecentRuntimeHistoryByPhone(body);
         const interactions = mergeRecentInteractions(contactInteractions, runtimeHistoryFallback);
         const browseIntentDetected = isCatalogBrowseIntent(message);
-        const { campaign, offer, resolutionTrail, activeOffersAll: resolverActiveOffers } =
-          await resolveCampaignAndOffer(contact, body, message, { browseIntent: browseIntentDetected });
+        const {
+          campaign,
+          offer,
+          resolutionTrail,
+          activeOffersAll: resolverActiveOffers,
+          keywordMatchedOfferId,
+          destinationOverride,
+        } = await resolveCampaignAndOffer(contact, body, message, {
+          browseIntent: browseIntentDetected,
+        });
 
         const { mode: conversationMode, reasons: conversationModeReasons } = decideConversationMode({
           message,
