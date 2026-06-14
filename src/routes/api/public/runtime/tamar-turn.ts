@@ -932,6 +932,52 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           );
         }
 
+        // --- B4 — Handoff delivery pre-check (BEFORE composing the reply) ---
+        // Tamar must never claim a present-tense live transfer ("מעבירה אותך
+        // עכשיו") unless the manager-alert pipeline can actually dispatch
+        // right now. We compute deliverability here and inject a hard tense
+        // rule into the prompt.
+        const handoffLikelyThisTurn =
+          conversationMode === "handoff" ||
+          USER_HUMAN_REQUEST_RE.test(message) ||
+          !!recovery.suggest_handoff;
+        let handoffPreCheck: {
+          base_url_present: boolean;
+          manager_available: boolean;
+          delivery_promise: "live" | "queued";
+        } = { base_url_present: false, manager_available: false, delivery_promise: "queued" };
+        if (handoffLikelyThisTurn) {
+          const [{ data: apiPre }, { data: managerPre }] = await Promise.all([
+            supabaseAdmin
+              .from("api_settings")
+              .select("tamar_backend_url, tamar_backend_api_token")
+              .eq("id", 1)
+              .maybeSingle(),
+            supabaseAdmin
+              .from("managers" as any)
+              .select("id")
+              .eq("active", true)
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .maybeSingle(),
+          ]);
+          const { baseUrl } = resolveTamarBackendConfig(apiPre);
+          handoffPreCheck = {
+            base_url_present: !!baseUrl,
+            manager_available: !!managerPre,
+            delivery_promise: baseUrl && managerPre ? "live" : "queued",
+          };
+          if (handoffPreCheck.delivery_promise === "live") {
+            replyHardRules.push(
+              "Handoff delivery IS available this turn. You MAY use present-tense transfer wording (e.g. 'מעבירה אותך עכשיו לנציג'). Keep it ONE short sentence.",
+            );
+          } else {
+            replyHardRules.push(
+              "Handoff delivery is NOT available right now. You MUST NOT say 'מעבירה אותך עכשיו' / 'I'm transferring you now' / any present-tense live-transfer phrasing. Use FUTURE/QUEUED tense ONLY: 'אעביר את הפרטים לצוות וייצרו איתך קשר בהקדם' or equivalent. Never imply a live transfer.",
+            );
+          }
+        }
+
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
           return acc;
