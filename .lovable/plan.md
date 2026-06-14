@@ -1,5 +1,7 @@
 # First-class pricing contract for offers
 
+<!-- sync-marker: force-repush 2026-06-14 to realign Git mirror with Lovable workspace (B1/B3/B4 deterministic fixes) -->
+
 Goal: stop Tamar from saying "price not published" when the source page clearly has the price. Make pricing a typed, structured contract end-to-end — extraction → DB → runtime prompt — and reject ingestion of brand homepages that can never contain offer pricing.
 
 ## 1. Schema (new migration)
