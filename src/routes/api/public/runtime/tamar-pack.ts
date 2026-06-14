@@ -114,7 +114,7 @@ async function resolve(params: Record<string, any>) {
   if (offerId) {
     const { data } = await supabaseAdmin
       .from("offers")
-      .select("id,title,offer_url,ai_summary,sales_angle,grounded_facts,faq_bundle,objection_notes,matching_tags,escalation_boundary,ingestion_status,last_ingested_at,price,category,description")
+      .select("id,title,offer_url,ai_summary,sales_angle,grounded_facts,faq_bundle,objection_notes,matching_tags,escalation_boundary,ingestion_status,last_ingested_at,price,currency,category,description,pricing_status,base_price_per_person,single_supplement,couple_price,price_basis,rooming_policy,included,not_included,itinerary_summary,nights,flights_included")
       .eq("id", offerId)
       .maybeSingle();
     offer = data;

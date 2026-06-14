@@ -11,6 +11,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
+import { buildPricingStateBlock } from "@/lib/offer-pricing-block";
 import {
   computeIntakeSnapshot,
   selectNextIntakeField,
@@ -69,6 +70,17 @@ const CATALOG_BROWSE_RE =
 function isCatalogBrowseIntent(message: string): boolean {
   if (!message) return false;
   return CATALOG_BROWSE_RE.test(message);
+}
+
+// B1 — opener / re-entry detection. A bare greeting or restart should NEVER
+// inherit a pinned intake_last_question_key (especially not budget). When
+// this fires we both (a) suppress any intake question this turn and (b)
+// clear stale pinned question keys on the contact row.
+const OPENER_RE =
+  /^\s*(היי(\s+תמר)?|הי(\s+תמר)?|שלום(\s+תמר)?|בוקר\s+טוב|ערב\s+טוב|hi|hey|hello|good\s+(morning|evening))[\s.!?]*$/i;
+function isOpenerTurn(message: string): boolean {
+  if (!message) return false;
+  return OPENER_RE.test(message.trim());
 }
 
 function detectHandoff(reply: string): boolean {
@@ -715,6 +727,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const runtimeHistoryFallback = await loadRecentRuntimeHistoryByPhone(body);
         const interactions = mergeRecentInteractions(contactInteractions, runtimeHistoryFallback);
         const browseIntentDetected = isCatalogBrowseIntent(message);
+        const openerTurnDetected = isOpenerTurn(message);
         const {
           campaign,
           offer,
@@ -818,8 +831,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const suppressIntakeForHigherPriority =
           specialRequestThisTurn ||
           (enoughContextCaptured && (priceQueryThisTurn || specialRequestThisTurn));
+        // B1 hard guard — opener / browse / generic_intake re-entry turns
+        // must never ask about budget, affordability or investment, and must
+        // not surface any intake question. This is what prevents the
+        // resumed-thread "what's your budget?" leak.
+        const suppressIntakeForOpenerOrBrowse =
+          (openerTurnDetected || browseIntentDetected) &&
+          conversationMode === "generic_intake";
         const effectiveNextIntakeField =
-          suppressBudgetForPriceQuery || suppressIntakeForHigherPriority
+          suppressBudgetForPriceQuery ||
+          suppressIntakeForHigherPriority ||
+          suppressIntakeForOpenerOrBrowse
             ? null
             : nextIntakeField;
         // In recovery mode the recovery directive REPLACES the intake directive.
@@ -834,6 +856,11 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // framing now lives in tamar-runtime-composition L1–L4 and must NOT
         // be re-stated here.
         const replyHardRules: string[] = [];
+        if (suppressIntakeForOpenerOrBrowse) {
+          replyHardRules.push(
+            "Opener / browse / re-entry turn. ABSOLUTELY DO NOT ask about budget, price range, affordability, investment, השקעה, תקציב, or any qualification field. Greet briefly and invite them to share what they're looking for.",
+          );
+        }
         if (suppressBudgetForPriceQuery) {
           const cur = (offer?.currency || "ILS").toUpperCase();
           const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
@@ -905,6 +932,52 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           );
         }
 
+        // --- B4 — Handoff delivery pre-check (BEFORE composing the reply) ---
+        // Tamar must never claim a present-tense live transfer ("מעבירה אותך
+        // עכשיו") unless the manager-alert pipeline can actually dispatch
+        // right now. We compute deliverability here and inject a hard tense
+        // rule into the prompt.
+        const handoffLikelyThisTurn =
+          conversationMode === "handoff" ||
+          USER_HUMAN_REQUEST_RE.test(message) ||
+          !!recovery.suggest_handoff;
+        let handoffPreCheck: {
+          base_url_present: boolean;
+          manager_available: boolean;
+          delivery_promise: "live" | "queued";
+        } = { base_url_present: false, manager_available: false, delivery_promise: "queued" };
+        if (handoffLikelyThisTurn) {
+          const [{ data: apiPre }, { data: managerPre }] = await Promise.all([
+            supabaseAdmin
+              .from("api_settings")
+              .select("tamar_backend_url, tamar_backend_api_token")
+              .eq("id", 1)
+              .maybeSingle(),
+            supabaseAdmin
+              .from("managers" as any)
+              .select("id")
+              .eq("active", true)
+              .order("created_at", { ascending: true })
+              .limit(1)
+              .maybeSingle(),
+          ]);
+          const { baseUrl } = resolveTamarBackendConfig(apiPre);
+          handoffPreCheck = {
+            base_url_present: !!baseUrl,
+            manager_available: !!managerPre,
+            delivery_promise: baseUrl && managerPre ? "live" : "queued",
+          };
+          if (handoffPreCheck.delivery_promise === "live") {
+            replyHardRules.push(
+              "Handoff delivery IS available this turn. You MAY use present-tense transfer wording (e.g. 'מעבירה אותך עכשיו לנציג'). Keep it ONE short sentence.",
+            );
+          } else {
+            replyHardRules.push(
+              "Handoff delivery is NOT available right now. You MUST NOT say 'מעבירה אותך עכשיו' / 'I'm transferring you now' / any present-tense live-transfer phrasing. Use FUTURE/QUEUED tense ONLY: 'אעביר את הפרטים לצוות וייצרו איתך קשר בהקדם' or equivalent. Never imply a live transfer.",
+            );
+          }
+        }
+
         const promptBlocksMap = blocks.reduce((acc: Record<string, any>, b: any) => {
           acc[b.block_key] = { title: b.title, body: b.body, version: b.version, updated_at: b.updated_at };
           return acc;
@@ -925,6 +998,16 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           const lines: string[] = [];
           lines.push(`Offer: ${offer.title}`);
           offerFieldsInjected.push("title");
+          // B2 — first-class pricing state. This block reflects the
+          // typed pricing columns (pricing_status / base_price_per_person /
+          // single_supplement / couple_price / included / not_included /
+          // nights / flights_included). When pricing_status='published'
+          // Tamar is authorized to quote the structured price directly.
+          const pricingBlock = buildPricingStateBlock(offer);
+          if (pricingBlock) {
+            lines.push(pricingBlock);
+            offerFieldsInjected.push("pricing_state");
+          }
           if (offer.price != null && offer.price !== "") {
             const cur = (offer.currency || "ILS").toUpperCase();
             const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
@@ -995,44 +1078,82 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           browseIntentDetected || weakResolution || destinationMismatch;
         let catalogInjected = false;
         let catalogOfferIds: string[] = [];
+        let catalogMeta: {
+          total_active: number;
+          listed: number;
+          dropped_ingestion: number;
+          dropped_event_date: number;
+          ready_ids: string[];
+          pending_ids: string[];
+        } = { total_active: 0, listed: 0, dropped_ingestion: 0, dropped_event_date: 0, ready_ids: [], pending_ids: [] };
         if (shouldInjectCatalog) {
           let catalog = resolverActiveOffers;
           if (!catalog) {
             const { data } = await supabaseAdmin
               .from("offers")
-              .select("id,title,price,currency,offer_url,ai_summary,matching_tags,target_min_age,target_max_age,ingestion_status,status,event_date")
+              .select("id,title,price,currency,offer_url,ai_summary,matching_tags,target_min_age,target_max_age,ingestion_status,status,event_date,pricing_status,base_price_per_person,single_supplement")
               .eq("status", "active")
               .or(`event_date.is.null,event_date.gte.${new Date().toISOString()}`);
             catalog = (data as any[]) ?? [];
           }
-          const ready = (catalog ?? []).filter(
+          // B3 — catalog completeness. Do NOT silently drop non-ready offers
+          // and do NOT exclude the sticky/current resolved offer from the
+          // listing. Split into ready vs pending so Tamar can label pending
+          // ones honestly ("בהכנה"). Every active row is accounted for.
+          const active = (catalog ?? []) as any[];
+          const ready = active.filter(
             (o: any) => !o.ingestion_status || o.ingestion_status === "ready",
           );
-          if (ready.length) {
-            const otherOffers = ready.filter((o: any) => o.id !== offer?.id);
-            const lines = otherOffers.map((o: any) => {
-              const cur = (o.currency || "ILS").toUpperCase();
-              const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
-              const price = o.price != null && o.price !== "" ? `${sym}${o.price} (${cur})` : "price n/a";
-              const tags = Array.isArray(o.matching_tags) && o.matching_tags.length
-                ? ` | tags: ${o.matching_tags.join(", ")}`
-                : "";
-              const url = o.offer_url ? ` | link: ${o.offer_url}` : "";
-              const summary = o.ai_summary ? `\n    summary: ${String(o.ai_summary).slice(0, 280)}` : "";
-              return `- ${o.title} — ${price}${tags}${url}${summary}`;
-            });
-            if (lines.length) {
-              const header = offer
-                ? `Active offers catalog (ADDITIONAL trips also available — do NOT speak as if only the trip above exists. When the user asks "what else do you have", name these by title and price):`
-                : `Active offers catalog (use these — the user is browsing; name them by title and price):`;
-              const catalogText = `${header}\n${lines.join("\n")}`;
-              effectiveOfferIntelligenceText = effectiveOfferIntelligenceText
-                ? `${effectiveOfferIntelligenceText}\n\n${catalogText}`
-                : catalogText;
-              catalogInjected = true;
-              catalogOfferIds = otherOffers.map((o: any) => o.id);
-              offerFieldsInjected.push("active_catalog");
+          const pending = active.filter(
+            (o: any) => o.ingestion_status && o.ingestion_status !== "ready",
+          );
+          const renderOne = (o: any) => {
+            const cur = (o.currency || "ILS").toUpperCase();
+            const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
+            let price: string;
+            if (o.pricing_status === "published" && o.base_price_per_person != null) {
+              price = `${sym}${o.base_price_per_person} (${cur}) לאדם${o.single_supplement != null ? ` • תוספת ליחיד ${sym}${o.single_supplement}` : ""}`;
+            } else if (o.price != null && o.price !== "") {
+              price = `${sym}${o.price} (${cur})`;
+            } else {
+              price = "price n/a";
             }
+            const tags = Array.isArray(o.matching_tags) && o.matching_tags.length
+              ? ` | tags: ${o.matching_tags.join(", ")}`
+              : "";
+            const url = o.offer_url ? ` | link: ${o.offer_url}` : "";
+            const summary = o.ai_summary ? `\n    summary: ${String(o.ai_summary).slice(0, 200)}` : "";
+            return `- ${o.title} — ${price}${tags}${url}${summary}`;
+          };
+          const readyLines = ready.map(renderOne);
+          const pendingLines = pending.map(
+            (o: any) => `- ${o.title} — (פרטים בהכנה, ניתן לציין שעדיין בעיבוד)${o.offer_url ? ` | link: ${o.offer_url}` : ""}`,
+          );
+          catalogMeta = {
+            total_active: active.length,
+            listed: readyLines.length + pendingLines.length,
+            dropped_ingestion: 0,
+            dropped_event_date: 0,
+            ready_ids: ready.map((o: any) => o.id),
+            pending_ids: pending.map((o: any) => o.id),
+          };
+          if (readyLines.length || pendingLines.length) {
+            const header = offer
+              ? `Active offers catalog (ALL active trips, including the one above — do NOT collapse to "a few options". When the user asks "what trips do you have / איזה טיולים יש", you MUST name every trip here by title):`
+              : `Active offers catalog (use these — the user is browsing; name every trip by title):`;
+            const pendingHeader = pendingLines.length
+              ? `\nPending (ingestion not finished — mention by title only, do not invent details):\n${pendingLines.join("\n")}`
+              : "";
+            const catalogText = `${header}\n${readyLines.join("\n")}${pendingHeader}`;
+            effectiveOfferIntelligenceText = effectiveOfferIntelligenceText
+              ? `${effectiveOfferIntelligenceText}\n\n${catalogText}`
+              : catalogText;
+            catalogInjected = true;
+            catalogOfferIds = active.map((o: any) => o.id);
+            offerFieldsInjected.push("active_catalog");
+            replyHardRules.push(
+              `Browse-intent listing rule: list ALL ${active.length} active trips by title. Do not say "יש לנו כמה אפשרויות" or "a few options" — enumerate every title.`,
+            );
           }
         }
 
@@ -1066,6 +1187,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             keyword_matched_offer_id: keywordMatchedOfferId,
             destination_mismatch: destinationMismatch,
             destination_override: destinationOverride,
+            catalog_meta: catalogMeta,
           },
           intake_progress: {
             active: intakeSnapshot.state !== "completed",
@@ -1387,6 +1509,16 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               contactPatch.intake_last_question_key = effectiveNextAsked;
               contactPatch.intake_last_question_at = new Date().toISOString();
             }
+            // B1 — opener / browse re-entry must CLEAR any stale pinned
+            // budget question, otherwise the next turn keeps reading the old
+            // intake_last_question_key=budget_sensitivity_or_range and the
+            // leak resurfaces.
+            if (
+              suppressIntakeForOpenerOrBrowse &&
+              (lastAskedKey === "budget_sensitivity_or_range" || !effectiveNextAsked)
+            ) {
+              contactPatch.intake_last_question_key = null;
+            }
             await supabaseAdmin.from("contacts").update(contactPatch as any).eq("id", contactId);
 
             // Low-confidence -> pending_ai_insights for human review
@@ -1500,6 +1632,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                   ...handoffDecision.triggers.map((t) => `handoff_trigger:${t}`),
                 ],
                 status: "open",
+                delivery_promise: handoffPreCheck.delivery_promise,
+                delivery_attempts: 0,
               } as any)
               .select("id")
               .single();
@@ -1614,8 +1748,27 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                   notified_at: managerNotified ? new Date().toISOString() : null,
                   notified_manager_id: manager ? (manager as any).id : null,
                   status: managerNotified ? "notified" : "open",
+                  delivery_attempts: 1,
                 } as any)
                 .eq("id", handoffId);
+            }
+
+            // B4 — if delivery failed (no base_url, no active manager, or
+            // Railway returned non-2xx), create an ops task + flag a stronger
+            // attention requirement on the contact so a human can pick it up.
+            if (!managerNotified) {
+              try {
+                await supabaseAdmin.from("tasks").insert({
+                  contact_id: contactId,
+                  title: `Handoff delivery FAILED — ${customerNameForAlert}`,
+                  description: `reason: ${alertError ?? "unknown"} • backend_config: ${backendConfigSource} • promise: ${handoffPreCheck.delivery_promise}\n\nLatest inbound: ${message}`,
+                  status: "open",
+                  priority: "high",
+                  resolution_state: "pending",
+                } as any);
+              } catch (e) {
+                console.error("[manager-handoff] task_create_failed", e);
+              }
             }
 
             // Flag the contact for the existing Handoff Console
@@ -1639,7 +1792,11 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           trace_id: (trace as any)?.id ?? null,
           handoff_requested: handoffRequested,
           handoff: handoffId
-            ? { id: handoffId, manager_notified: managerNotified }
+            ? {
+                id: handoffId,
+                manager_notified: managerNotified,
+                delivery_promise: handoffPreCheck.delivery_promise,
+              }
             : null,
           meta: {
             offer_id: offer?.id ?? null,

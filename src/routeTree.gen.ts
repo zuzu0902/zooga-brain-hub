@@ -59,6 +59,7 @@ import { Route as ApiPublicRuntimeTamarWritebackRouteImport } from './routes/api
 import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
 import { Route as ApiPublicRuntimeTamarPackRouteImport } from './routes/api/public/runtime/tamar-pack'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
+import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
 import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
 
@@ -329,6 +330,12 @@ const ApiPublicIntelligenceExtractRoute =
     path: '/api/public/intelligence/extract',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronRetryHandoffsRoute =
+  ApiPublicCronRetryHandoffsRouteImport.update({
+    id: '/api/public/cron/retry-handoffs',
+    path: '/api/public/cron/retry-handoffs',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicAiAssistantRunRoute = ApiPublicAiAssistantRunRouteImport.update({
   id: '/api/public/ai-assistant/run',
   path: '/api/public/ai-assistant/run',
@@ -387,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
+  '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -440,6 +448,7 @@ export interface FileRoutesByTo {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
+  '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -495,6 +504,7 @@ export interface FileRoutesById {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
+  '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -550,6 +560,7 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
+    | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
     | '/api/public/runtime/tamar-turn'
@@ -603,6 +614,7 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
+    | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
     | '/api/public/runtime/tamar-turn'
@@ -657,6 +669,7 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
+    | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/tamar-pack'
     | '/api/public/runtime/tamar-turn'
@@ -692,6 +705,7 @@ export interface RootRouteChildren {
   ApiIntrospectUiGapsRoute: typeof ApiIntrospectUiGapsRoute
   ApiPublicAdminBackfillMemoriesRoute: typeof ApiPublicAdminBackfillMemoriesRoute
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
+  ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeTamarPackRoute: typeof ApiPublicRuntimeTamarPackRoute
   ApiPublicRuntimeTamarTurnRoute: typeof ApiPublicRuntimeTamarTurnRoute
@@ -1052,6 +1066,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicIntelligenceExtractRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/retry-handoffs': {
+      id: '/api/public/cron/retry-handoffs'
+      path: '/api/public/cron/retry-handoffs'
+      fullPath: '/api/public/cron/retry-handoffs'
+      preLoaderRoute: typeof ApiPublicCronRetryHandoffsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/ai-assistant/run': {
       id: '/api/public/ai-assistant/run'
       path: '/api/public/ai-assistant/run'
@@ -1174,6 +1195,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntrospectUiGapsRoute: ApiIntrospectUiGapsRoute,
   ApiPublicAdminBackfillMemoriesRoute: ApiPublicAdminBackfillMemoriesRoute,
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
+  ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicRuntimeTamarPackRoute: ApiPublicRuntimeTamarPackRoute,
   ApiPublicRuntimeTamarTurnRoute: ApiPublicRuntimeTamarTurnRoute,
@@ -1184,13 +1206,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

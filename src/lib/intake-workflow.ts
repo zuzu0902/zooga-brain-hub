@@ -167,7 +167,12 @@ export function selectNextIntakeField(
   ]);
   const budgetAllowedByMode = budgetModesOk.has(opts.mode);
   const onlyBudgetLeft = askable.length === 1 && askable[0] === "budget_sensitivity_or_range";
-  if (!budgetAllowedByMode && !onlyBudgetLeft) {
+  // B1 — deterministic budget gate. Budget is NEVER asked on opener/browse/
+  // generic_intake turns just because nothing else is left to ask. If the
+  // current mode doesn't permit budget framing, we suppress it even when it
+  // is the only remaining askable field. The directive layer must return
+  // null so the turn doesn't re-pin intake_last_question_key=budget.
+  if (!budgetAllowedByMode) {
     askable = askable.filter((k) => k !== "budget_sensitivity_or_range");
     if (!askable.length) return null;
   }
