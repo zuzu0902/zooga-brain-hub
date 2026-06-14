@@ -727,6 +727,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const runtimeHistoryFallback = await loadRecentRuntimeHistoryByPhone(body);
         const interactions = mergeRecentInteractions(contactInteractions, runtimeHistoryFallback);
         const browseIntentDetected = isCatalogBrowseIntent(message);
+        const openerTurnDetected = isOpenerTurn(message);
         const {
           campaign,
           offer,
@@ -830,8 +831,17 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const suppressIntakeForHigherPriority =
           specialRequestThisTurn ||
           (enoughContextCaptured && (priceQueryThisTurn || specialRequestThisTurn));
+        // B1 hard guard — opener / browse / generic_intake re-entry turns
+        // must never ask about budget, affordability or investment, and must
+        // not surface any intake question. This is what prevents the
+        // resumed-thread "what's your budget?" leak.
+        const suppressIntakeForOpenerOrBrowse =
+          (openerTurnDetected || browseIntentDetected) &&
+          conversationMode === "generic_intake";
         const effectiveNextIntakeField =
-          suppressBudgetForPriceQuery || suppressIntakeForHigherPriority
+          suppressBudgetForPriceQuery ||
+          suppressIntakeForHigherPriority ||
+          suppressIntakeForOpenerOrBrowse
             ? null
             : nextIntakeField;
         // In recovery mode the recovery directive REPLACES the intake directive.
@@ -846,6 +856,11 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // framing now lives in tamar-runtime-composition L1–L4 and must NOT
         // be re-stated here.
         const replyHardRules: string[] = [];
+        if (suppressIntakeForOpenerOrBrowse) {
+          replyHardRules.push(
+            "Opener / browse / re-entry turn. ABSOLUTELY DO NOT ask about budget, price range, affordability, investment, השקעה, תקציב, or any qualification field. Greet briefly and invite them to share what they're looking for.",
+          );
+        }
         if (suppressBudgetForPriceQuery) {
           const cur = (offer?.currency || "ILS").toUpperCase();
           const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
@@ -937,6 +952,16 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           const lines: string[] = [];
           lines.push(`Offer: ${offer.title}`);
           offerFieldsInjected.push("title");
+          // B2 — first-class pricing state. This block reflects the
+          // typed pricing columns (pricing_status / base_price_per_person /
+          // single_supplement / couple_price / included / not_included /
+          // nights / flights_included). When pricing_status='published'
+          // Tamar is authorized to quote the structured price directly.
+          const pricingBlock = buildPricingStateBlock(offer);
+          if (pricingBlock) {
+            lines.push(pricingBlock);
+            offerFieldsInjected.push("pricing_state");
+          }
           if (offer.price != null && offer.price !== "") {
             const cur = (offer.currency || "ILS").toUpperCase();
             const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
