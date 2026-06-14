@@ -1509,6 +1509,16 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               contactPatch.intake_last_question_key = effectiveNextAsked;
               contactPatch.intake_last_question_at = new Date().toISOString();
             }
+            // B1 — opener / browse re-entry must CLEAR any stale pinned
+            // budget question, otherwise the next turn keeps reading the old
+            // intake_last_question_key=budget_sensitivity_or_range and the
+            // leak resurfaces.
+            if (
+              suppressIntakeForOpenerOrBrowse &&
+              (lastAskedKey === "budget_sensitivity_or_range" || !effectiveNextAsked)
+            ) {
+              contactPatch.intake_last_question_key = null;
+            }
             await supabaseAdmin.from("contacts").update(contactPatch as any).eq("id", contactId);
 
             // Low-confidence -> pending_ai_insights for human review
