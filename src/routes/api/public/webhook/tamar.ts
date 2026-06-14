@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { INTAKE_FLOWS, buildSuggestedOpening, type IntakeFlowType } from "@/lib/intake-flows";
 import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
+import { buildPricingStateBlock } from "@/lib/offer-pricing-block";
 
 function triggerExtraction(request: Request, contactId: string) {
   try {
@@ -47,8 +48,6 @@ function buildCampaignContext(campaign: any, contact: any) {
 function buildOfferIntelligenceBlock(offer: any) {
   if (!offer) return null;
   const lines: string[] = [`# אינטליגנציית מוצר: ${offer.title}`];
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { buildPricingStateBlock } = require("@/lib/offer-pricing-block");
   const pricing = buildPricingStateBlock(offer);
   if (pricing) lines.push(pricing);
   if (offer.ai_summary) lines.push(`סיכום: ${offer.ai_summary}`);
