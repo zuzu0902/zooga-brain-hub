@@ -11,6 +11,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
+import { buildPricingStateBlock } from "@/lib/offer-pricing-block";
 import {
   computeIntakeSnapshot,
   selectNextIntakeField,
@@ -69,6 +70,17 @@ const CATALOG_BROWSE_RE =
 function isCatalogBrowseIntent(message: string): boolean {
   if (!message) return false;
   return CATALOG_BROWSE_RE.test(message);
+}
+
+// B1 — opener / re-entry detection. A bare greeting or restart should NEVER
+// inherit a pinned intake_last_question_key (especially not budget). When
+// this fires we both (a) suppress any intake question this turn and (b)
+// clear stale pinned question keys on the contact row.
+const OPENER_RE =
+  /^\s*(היי(\s+תמר)?|הי(\s+תמר)?|שלום(\s+תמר)?|בוקר\s+טוב|ערב\s+טוב|hi|hey|hello|good\s+(morning|evening))[\s.!?]*$/i;
+function isOpenerTurn(message: string): boolean {
+  if (!message) return false;
+  return OPENER_RE.test(message.trim());
 }
 
 function detectHandoff(reply: string): boolean {
