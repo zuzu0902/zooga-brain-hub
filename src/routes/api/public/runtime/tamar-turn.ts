@@ -1032,44 +1032,82 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           browseIntentDetected || weakResolution || destinationMismatch;
         let catalogInjected = false;
         let catalogOfferIds: string[] = [];
+        let catalogMeta: {
+          total_active: number;
+          listed: number;
+          dropped_ingestion: number;
+          dropped_event_date: number;
+          ready_ids: string[];
+          pending_ids: string[];
+        } = { total_active: 0, listed: 0, dropped_ingestion: 0, dropped_event_date: 0, ready_ids: [], pending_ids: [] };
         if (shouldInjectCatalog) {
           let catalog = resolverActiveOffers;
           if (!catalog) {
             const { data } = await supabaseAdmin
               .from("offers")
-              .select("id,title,price,currency,offer_url,ai_summary,matching_tags,target_min_age,target_max_age,ingestion_status,status,event_date")
+              .select("id,title,price,currency,offer_url,ai_summary,matching_tags,target_min_age,target_max_age,ingestion_status,status,event_date,pricing_status,base_price_per_person,single_supplement")
               .eq("status", "active")
               .or(`event_date.is.null,event_date.gte.${new Date().toISOString()}`);
             catalog = (data as any[]) ?? [];
           }
-          const ready = (catalog ?? []).filter(
+          // B3 — catalog completeness. Do NOT silently drop non-ready offers
+          // and do NOT exclude the sticky/current resolved offer from the
+          // listing. Split into ready vs pending so Tamar can label pending
+          // ones honestly ("בהכנה"). Every active row is accounted for.
+          const active = (catalog ?? []) as any[];
+          const ready = active.filter(
             (o: any) => !o.ingestion_status || o.ingestion_status === "ready",
           );
-          if (ready.length) {
-            const otherOffers = ready.filter((o: any) => o.id !== offer?.id);
-            const lines = otherOffers.map((o: any) => {
-              const cur = (o.currency || "ILS").toUpperCase();
-              const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
-              const price = o.price != null && o.price !== "" ? `${sym}${o.price} (${cur})` : "price n/a";
-              const tags = Array.isArray(o.matching_tags) && o.matching_tags.length
-                ? ` | tags: ${o.matching_tags.join(", ")}`
-                : "";
-              const url = o.offer_url ? ` | link: ${o.offer_url}` : "";
-              const summary = o.ai_summary ? `\n    summary: ${String(o.ai_summary).slice(0, 280)}` : "";
-              return `- ${o.title} — ${price}${tags}${url}${summary}`;
-            });
-            if (lines.length) {
-              const header = offer
-                ? `Active offers catalog (ADDITIONAL trips also available — do NOT speak as if only the trip above exists. When the user asks "what else do you have", name these by title and price):`
-                : `Active offers catalog (use these — the user is browsing; name them by title and price):`;
-              const catalogText = `${header}\n${lines.join("\n")}`;
-              effectiveOfferIntelligenceText = effectiveOfferIntelligenceText
-                ? `${effectiveOfferIntelligenceText}\n\n${catalogText}`
-                : catalogText;
-              catalogInjected = true;
-              catalogOfferIds = otherOffers.map((o: any) => o.id);
-              offerFieldsInjected.push("active_catalog");
+          const pending = active.filter(
+            (o: any) => o.ingestion_status && o.ingestion_status !== "ready",
+          );
+          const renderOne = (o: any) => {
+            const cur = (o.currency || "ILS").toUpperCase();
+            const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
+            let price: string;
+            if (o.pricing_status === "published" && o.base_price_per_person != null) {
+              price = `${sym}${o.base_price_per_person} (${cur}) לאדם${o.single_supplement != null ? ` • תוספת ליחיד ${sym}${o.single_supplement}` : ""}`;
+            } else if (o.price != null && o.price !== "") {
+              price = `${sym}${o.price} (${cur})`;
+            } else {
+              price = "price n/a";
             }
+            const tags = Array.isArray(o.matching_tags) && o.matching_tags.length
+              ? ` | tags: ${o.matching_tags.join(", ")}`
+              : "";
+            const url = o.offer_url ? ` | link: ${o.offer_url}` : "";
+            const summary = o.ai_summary ? `\n    summary: ${String(o.ai_summary).slice(0, 200)}` : "";
+            return `- ${o.title} — ${price}${tags}${url}${summary}`;
+          };
+          const readyLines = ready.map(renderOne);
+          const pendingLines = pending.map(
+            (o: any) => `- ${o.title} — (פרטים בהכנה, ניתן לציין שעדיין בעיבוד)${o.offer_url ? ` | link: ${o.offer_url}` : ""}`,
+          );
+          catalogMeta = {
+            total_active: active.length,
+            listed: readyLines.length + pendingLines.length,
+            dropped_ingestion: 0,
+            dropped_event_date: 0,
+            ready_ids: ready.map((o: any) => o.id),
+            pending_ids: pending.map((o: any) => o.id),
+          };
+          if (readyLines.length || pendingLines.length) {
+            const header = offer
+              ? `Active offers catalog (ALL active trips, including the one above — do NOT collapse to "a few options". When the user asks "what trips do you have / איזה טיולים יש", you MUST name every trip here by title):`
+              : `Active offers catalog (use these — the user is browsing; name every trip by title):`;
+            const pendingHeader = pendingLines.length
+              ? `\nPending (ingestion not finished — mention by title only, do not invent details):\n${pendingLines.join("\n")}`
+              : "";
+            const catalogText = `${header}\n${readyLines.join("\n")}${pendingHeader}`;
+            effectiveOfferIntelligenceText = effectiveOfferIntelligenceText
+              ? `${effectiveOfferIntelligenceText}\n\n${catalogText}`
+              : catalogText;
+            catalogInjected = true;
+            catalogOfferIds = active.map((o: any) => o.id);
+            offerFieldsInjected.push("active_catalog");
+            replyHardRules.push(
+              `Browse-intent listing rule: list ALL ${active.length} active trips by title. Do not say "יש לנו כמה אפשרויות" or "a few options" — enumerate every title.`,
+            );
           }
         }
 
