@@ -1622,6 +1622,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                   ...handoffDecision.triggers.map((t) => `handoff_trigger:${t}`),
                 ],
                 status: "open",
+                delivery_promise: handoffPreCheck.delivery_promise,
+                delivery_attempts: 0,
               } as any)
               .select("id")
               .single();
@@ -1736,8 +1738,27 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                   notified_at: managerNotified ? new Date().toISOString() : null,
                   notified_manager_id: manager ? (manager as any).id : null,
                   status: managerNotified ? "notified" : "open",
+                  delivery_attempts: 1,
                 } as any)
                 .eq("id", handoffId);
+            }
+
+            // B4 — if delivery failed (no base_url, no active manager, or
+            // Railway returned non-2xx), create an ops task + flag a stronger
+            // attention requirement on the contact so a human can pick it up.
+            if (!managerNotified) {
+              try {
+                await supabaseAdmin.from("tasks").insert({
+                  contact_id: contactId,
+                  title: `Handoff delivery FAILED — ${customerNameForAlert}`,
+                  description: `reason: ${alertError ?? "unknown"} • backend_config: ${backendConfigSource} • promise: ${handoffPreCheck.delivery_promise}\n\nLatest inbound: ${message}`,
+                  status: "open",
+                  priority: "high",
+                  resolution_state: "pending",
+                } as any);
+              } catch (e) {
+                console.error("[manager-handoff] task_create_failed", e);
+              }
             }
 
             // Flag the contact for the existing Handoff Console
@@ -1761,7 +1782,11 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           trace_id: (trace as any)?.id ?? null,
           handoff_requested: handoffRequested,
           handoff: handoffId
-            ? { id: handoffId, manager_notified: managerNotified }
+            ? {
+                id: handoffId,
+                manager_notified: managerNotified,
+                delivery_promise: handoffPreCheck.delivery_promise,
+              }
             : null,
           meta: {
             offer_id: offer?.id ?? null,
