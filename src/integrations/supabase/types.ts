@@ -1108,23 +1108,35 @@ export type Database = {
       offers: {
         Row: {
           ai_summary: string | null
+          base_price_per_person: number | null
           category: Database["public"]["Enums"]["offer_category"]
+          couple_price: number | null
           created_at: string
           currency: string
           description: string | null
           escalation_boundary: Json
           event_date: string | null
           event_end_date: string | null
+          extraction_raw: Json | null
           faq_bundle: Json
+          flights_included: boolean | null
           grounded_facts: Json
           id: string
+          included: Json
           ingestion_status: string
+          itinerary_summary: string | null
           last_ingested_at: string | null
           matching_tags: string[]
+          nights: number | null
+          not_included: Json
           objection_notes: Json
           offer_url: string | null
           price: number | null
+          price_basis: string | null
+          pricing_status: string | null
+          rooming_policy: string | null
           sales_angle: string | null
+          single_supplement: number | null
           status: Database["public"]["Enums"]["offer_status"]
           target_interests: string[]
           target_max_age: number | null
@@ -1138,23 +1150,35 @@ export type Database = {
         }
         Insert: {
           ai_summary?: string | null
+          base_price_per_person?: number | null
           category: Database["public"]["Enums"]["offer_category"]
+          couple_price?: number | null
           created_at?: string
           currency?: string
           description?: string | null
           escalation_boundary?: Json
           event_date?: string | null
           event_end_date?: string | null
+          extraction_raw?: Json | null
           faq_bundle?: Json
+          flights_included?: boolean | null
           grounded_facts?: Json
           id?: string
+          included?: Json
           ingestion_status?: string
+          itinerary_summary?: string | null
           last_ingested_at?: string | null
           matching_tags?: string[]
+          nights?: number | null
+          not_included?: Json
           objection_notes?: Json
           offer_url?: string | null
           price?: number | null
+          price_basis?: string | null
+          pricing_status?: string | null
+          rooming_policy?: string | null
           sales_angle?: string | null
+          single_supplement?: number | null
           status?: Database["public"]["Enums"]["offer_status"]
           target_interests?: string[]
           target_max_age?: number | null
@@ -1168,23 +1192,35 @@ export type Database = {
         }
         Update: {
           ai_summary?: string | null
+          base_price_per_person?: number | null
           category?: Database["public"]["Enums"]["offer_category"]
+          couple_price?: number | null
           created_at?: string
           currency?: string
           description?: string | null
           escalation_boundary?: Json
           event_date?: string | null
           event_end_date?: string | null
+          extraction_raw?: Json | null
           faq_bundle?: Json
+          flights_included?: boolean | null
           grounded_facts?: Json
           id?: string
+          included?: Json
           ingestion_status?: string
+          itinerary_summary?: string | null
           last_ingested_at?: string | null
           matching_tags?: string[]
+          nights?: number | null
+          not_included?: Json
           objection_notes?: Json
           offer_url?: string | null
           price?: number | null
+          price_basis?: string | null
+          pricing_status?: string | null
+          rooming_policy?: string | null
           sales_angle?: string | null
+          single_supplement?: number | null
           status?: Database["public"]["Enums"]["offer_status"]
           target_interests?: string[]
           target_max_age?: number | null
