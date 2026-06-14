@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzeOfferIntelligence } from "@/lib/offer-intelligence.functions";
+import { validateOfferUrl } from "@/lib/offer-pricing-block";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -114,6 +115,8 @@ function OfferDialog({ open, onOpenChange, onCreated }: any) {
     const cleanUrl = url.trim();
     if (!cleanUrl) { toast.error("נדרש קישור לעמוד האירוע"); return; }
     try { new URL(cleanUrl); } catch { toast.error("קישור לא תקין"); return; }
+    const urlGate = validateOfferUrl(cleanUrl);
+    if (urlGate) { toast.error(urlGate); return; }
 
     setBusy("creating");
     const placeholderTitle = title.trim() || cleanUrl;
