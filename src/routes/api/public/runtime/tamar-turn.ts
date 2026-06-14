@@ -1141,6 +1141,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             keyword_matched_offer_id: keywordMatchedOfferId,
             destination_mismatch: destinationMismatch,
             destination_override: destinationOverride,
+            catalog_meta: catalogMeta,
           },
           intake_progress: {
             active: intakeSnapshot.state !== "completed",
