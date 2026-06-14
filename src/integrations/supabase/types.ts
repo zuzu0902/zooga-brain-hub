@@ -959,6 +959,8 @@ export type Database = {
           created_at: string
           customer_name: string | null
           customer_phone: string | null
+          delivery_attempts: number
+          delivery_promise: string | null
           handoff_reason: string | null
           id: string
           latest_inbound_message: string | null
@@ -984,6 +986,8 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_attempts?: number
+          delivery_promise?: string | null
           handoff_reason?: string | null
           id?: string
           latest_inbound_message?: string | null
@@ -1009,6 +1013,8 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           customer_phone?: string | null
+          delivery_attempts?: number
+          delivery_promise?: string | null
           handoff_reason?: string | null
           id?: string
           latest_inbound_message?: string | null
