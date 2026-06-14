@@ -47,6 +47,10 @@ function buildCampaignContext(campaign: any, contact: any) {
 function buildOfferIntelligenceBlock(offer: any) {
   if (!offer) return null;
   const lines: string[] = [`# אינטליגנציית מוצר: ${offer.title}`];
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { buildPricingStateBlock } = require("@/lib/offer-pricing-block");
+  const pricing = buildPricingStateBlock(offer);
+  if (pricing) lines.push(pricing);
   if (offer.ai_summary) lines.push(`סיכום: ${offer.ai_summary}`);
   if (offer.sales_angle) lines.push(`זווית מכירה: ${offer.sales_angle}`);
   if (offer.offer_url) lines.push(`מקור עובדתי: ${offer.offer_url}`);
