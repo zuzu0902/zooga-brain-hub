@@ -65,11 +65,17 @@ const AFFIRMATIVE_RE =
 // NOT pin to a sticky prior-interaction offer; we must broaden context and
 // inject the full active catalog so Tamar can name new trips.
 const CATALOG_BROWSE_RE =
-  /(יעדים\s*נוספים|יעדים\s*אחרים|טיולים\s*נוספים|טיולים\s*אחרים|אירועים\s*נוספים|הצעות\s*נוספות|אפשרויות\s*נוספות|אופציות\s*נוספות|משהו\s*אחר|יש\s+עוד|מה\s+(יש|עוד)\s+(לכם|אצלכם)|איזה\s+(טיולים|יעדים|הצעות|אפשרויות)|other\s+(trips|destinations|offers|options)|what\s+else\s+(do\s+you|you\s+have))/i;
+  /(יעדים\s*נוספים|יעדים\s*אחרים|טיולים\s*נוספים|טיולים\s*אחרים|אירועים\s*נוספים|הצעות\s*נוספות|אפשרויות\s*נוספות|אופציות\s*נוספות|משהו\s*אחר|יש\s+עוד|מה\s+(יש|עוד)\s+(לך|לכם|אצלך|אצלכם)(\s+(להציע|להראות|בקטלוג|בארגז|במלאי))?|מה\s+(אתה|אתם)\s+מציע(ים)?|מה\s+ההצעות|איזה\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)|אילו\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)|להציע\s+לי|זה\s+הכל\??|זה\s+כל\s+מה|רק\s+\d+\s*(טיולים|יעדים|אפשרויות|הצעות)\??|other\s+(trips|destinations|offers|options)|what\s+else\s+(do\s+you|you\s+have)|what\s+do\s+you\s+(have|offer))/i;
+
+// Challenge-the-count: the user is doubting the size/completeness of the
+// catalog ("רק 3 טיולים?", "זה הכל?", "באמת רק 3?"). Treat as a browse
+// trigger so we re-inject the full catalog and correct the record.
+const CATALOG_CHALLENGE_RE =
+  /(רק\s*\d+\s*(טיולים|יעדים|הצעות|אפשרויות|אופציות)?\s*\??|באמת\s+רק\s*\d+|זה\s+הכל\??|זה\s+כל\s+מה\s+שיש|אין\s+(עוד|יותר)\s*\??|זהו\??)/i;
 
 function isCatalogBrowseIntent(message: string): boolean {
   if (!message) return false;
-  return CATALOG_BROWSE_RE.test(message);
+  return CATALOG_BROWSE_RE.test(message) || CATALOG_CHALLENGE_RE.test(message);
 }
 
 // B1 — opener / re-entry detection. A bare greeting or restart should NEVER
