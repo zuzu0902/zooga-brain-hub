@@ -1285,10 +1285,14 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         let runtimeError: string | null = null;
         let outboundInteractionId: string | null = null;
         try {
-          replyText = await callModel([
-            { role: "system", content: systemContent },
-            { role: "user", content: message },
-          ]);
+          if (hardBrowseCatalogReply) {
+            replyText = hardBrowseCatalogReply;
+          } else {
+            replyText = await callModel([
+              { role: "system", content: systemContent },
+              { role: "user", content: message },
+            ]);
+          }
         } catch (e: any) {
           runtimeError = String(e?.message ?? e);
         }
@@ -1333,6 +1337,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           resolved_campaign_id: campaign?.id ?? null,
           conversation_mode: conversationMode,
           conversation_mode_reasons: conversationModeReasons,
+          hard_browse_catalog_reply: !!hardBrowseCatalogReply,
           offer_intelligence_effective: !!offer,
           active_context_layers: activeContextLayers,
           intake_snapshot_before: intakeSnapshot,
@@ -1413,8 +1418,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           conversationMode,
           conversationModeReasons,
           interactions,
-          llmDecision,
-          recovery,
+          llmDecision: browseIntentDetected && !USER_HUMAN_REQUEST_RE.test(message) ? null : llmDecision,
+          recovery: browseIntentDetected && !USER_HUMAN_REQUEST_RE.test(message) ? null : recovery,
         });
         const handoffRequested = handoffDecision.handoff;
 
