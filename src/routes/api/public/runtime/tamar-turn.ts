@@ -65,7 +65,7 @@ const AFFIRMATIVE_RE =
 // NOT pin to a sticky prior-interaction offer; we must broaden context and
 // inject the full active catalog so Tamar can name new trips.
 const CATALOG_BROWSE_RE =
-  /(יעדים\s*נוספים|יעדים\s*אחרים|טיולים\s*נוספים|טיולים\s*אחרים|אירועים\s*נוספים|הצעות\s*נוספות|אפשרויות\s*נוספות|אופציות\s*נוספות|משהו\s*אחר|יש\s+עוד|מה\s+(יש|עוד)\s+(לך|לכם|אצלך|אצלכם)(\s+(להציע|להראות|בקטלוג|בארגז|במלאי))?|מה\s+(אתה|אתם)\s+מציע(ים)?|מה\s+ההצעות|איזה\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)|אילו\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)|להציע\s+לי|זה\s+הכל\??|זה\s+כל\s+מה|רק\s+\d+\s*(טיולים|יעדים|אפשרויות|הצעות)\??|other\s+(trips|destinations|offers|options)|what\s+else\s+(do\s+you|you\s+have)|what\s+do\s+you\s+(have|offer))/i;
+  /(יעדים\s*נוספים|יעדים\s*אחרים|טיולים\s*נוספים|טיולים\s*אחרים|טיולים?\s+ל?(חו["׳״']?ל|חול|חוץ\s+לארץ)|טיולי\s+(חו["׳״']?ל|חול|חוץ\s+לארץ)|יש\s+(לך|לכם)\s+טיולים?|אירועים\s*נוספים|הצעות\s*נוספות|אפשרויות\s*נוספות|אופציות\s*נוספות|משהו\s*אחר|יש\s+עוד|מה\s+(יש|עוד|קיים)\s+(לך|לכם|אצלך|אצלכם)?(\s+(להציע|להראות|בקטלוג|בארגז|במלאי))?|מה\s+(אתה|אתם)\s+מציע(ים)?|מה\s+ההצעות|איזה\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)(\s+יש|\s+קיימים)?|אילו\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)(\s+יש|\s+קיימים)?|כל\s+(הטיולים|היעדים|האפשרויות|האופציות)|ת(ראה|ראי|ציג|ציגי)\s+(לי\s+)?(את\s+)?הכל|להציע\s+לי|זה\s+הכל\??|זה\s+כל\s+מה|רק\s+\d+\s*(טיולים|יעדים|אפשרויות|הצעות)\??|other\s+(trips|destinations|offers|options)|trips\s+abroad|show\s+me\s+(everything|all)|list\s+(all\s+)?(trips|offers|options)|what\s+else\s+(do\s+you|you\s+have)|what\s+do\s+you\s+(have|offer))/i;
 
 // Challenge-the-count: the user is doubting the size/completeness of the
 // catalog ("רק 3 טיולים?", "זה הכל?", "באמת רק 3?"). Treat as a browse
@@ -76,6 +76,26 @@ const CATALOG_CHALLENGE_RE =
 function isCatalogBrowseIntent(message: string): boolean {
   if (!message) return false;
   return CATALOG_BROWSE_RE.test(message) || CATALOG_CHALLENGE_RE.test(message);
+}
+
+function catalogPriceForCustomer(o: any): string {
+  const cur = (o?.currency || "ILS").toUpperCase();
+  const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
+  if (o?.pricing_status === "published" && o?.base_price_per_person != null) {
+    return ` — ${sym}${o.base_price_per_person} לאדם${o.single_supplement != null ? `, תוספת יחיד ${sym}${o.single_supplement}` : ""}`;
+  }
+  if (o?.price != null && o.price !== "") return ` — ${sym}${o.price}`;
+  return " — מחיר יפורסם בהמשך";
+}
+
+function buildHardBrowseCatalogReply(ready: any[], pending: any[]): string {
+  const readyLines = ready.map((o, index) => `${index + 1}. ${o.title}${catalogPriceForCustomer(o)}`);
+  const pendingLines = pending.map((o, index) => `${ready.length + index + 1}. ${o.title} — פרטים בהכנה`);
+  const listed = [...readyLines, ...pendingLines];
+  const intro = ready.length
+    ? "כן — אלו הטיולים שזמינים אצלנו כרגע:"
+    : "כרגע אלה הטיולים שמופיעים אצלנו במערכת:";
+  return `${intro}\n${listed.join("\n")}\n\nעל איזה מהם תרצה שאפרט?`;
 }
 
 // B1 — opener / re-entry detection. A bare greeting or restart should NEVER
@@ -842,8 +862,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // not surface any intake question. This is what prevents the
         // resumed-thread "what's your budget?" leak.
         const suppressIntakeForOpenerOrBrowse =
-          (openerTurnDetected || browseIntentDetected) &&
-          conversationMode === "generic_intake";
+          openerTurnDetected || browseIntentDetected;
         const effectiveNextIntakeField =
           suppressBudgetForPriceQuery ||
           suppressIntakeForHigherPriority ||
@@ -864,7 +883,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const replyHardRules: string[] = [];
         if (suppressIntakeForOpenerOrBrowse) {
           replyHardRules.push(
-            "Opener / browse / re-entry turn. ABSOLUTELY DO NOT ask about budget, price range, affordability, investment, השקעה, תקציב, or any qualification field. Greet briefly and invite them to share what they're looking for.",
+            browseIntentDetected
+              ? "HARD BROWSE RULE: the user is asking what trips exist / what we have. In this same turn, answer with the actual catalog-ready offers by title. Do NOT ask a preference question first, do NOT say you can tell them about some options, do NOT soft-deflect, and do NOT hand off unless the user explicitly asked for a human. Only after listing may you ask which trip to expand on."
+              : "Opener / re-entry turn. ABSOLUTELY DO NOT ask about budget, price range, affordability, investment, השקעה, תקציב, or any qualification field. Greet briefly and invite them to share what they're looking for.",
           );
         }
         if (suppressBudgetForPriceQuery) {
@@ -1084,6 +1105,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           browseIntentDetected || weakResolution || destinationMismatch;
         let catalogInjected = false;
         let catalogOfferIds: string[] = [];
+        let hardBrowseCatalogReply: string | null = null;
         let catalogMeta: {
           total_active: number;
           listed: number;
@@ -1135,6 +1157,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           const pendingLines = pending.map(
             (o: any) => `- ${o.title} — (פרטים בהכנה, ניתן לציין שעדיין בעיבוד)${o.offer_url ? ` | link: ${o.offer_url}` : ""}`,
           );
+          if (browseIntentDetected && ready.length) {
+            hardBrowseCatalogReply = buildHardBrowseCatalogReply(ready, []);
+          }
           catalogMeta = {
             total_active: active.length,
             listed: readyLines.length + pendingLines.length,
@@ -1260,10 +1285,14 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         let runtimeError: string | null = null;
         let outboundInteractionId: string | null = null;
         try {
-          replyText = await callModel([
-            { role: "system", content: systemContent },
-            { role: "user", content: message },
-          ]);
+          if (hardBrowseCatalogReply) {
+            replyText = hardBrowseCatalogReply;
+          } else {
+            replyText = await callModel([
+              { role: "system", content: systemContent },
+              { role: "user", content: message },
+            ]);
+          }
         } catch (e: any) {
           runtimeError = String(e?.message ?? e);
         }
@@ -1308,6 +1337,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           resolved_campaign_id: campaign?.id ?? null,
           conversation_mode: conversationMode,
           conversation_mode_reasons: conversationModeReasons,
+          hard_browse_catalog_reply: !!hardBrowseCatalogReply,
           offer_intelligence_effective: !!offer,
           active_context_layers: activeContextLayers,
           intake_snapshot_before: intakeSnapshot,
@@ -1388,8 +1418,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           conversationMode,
           conversationModeReasons,
           interactions,
-          llmDecision,
-          recovery,
+          llmDecision: browseIntentDetected && !USER_HUMAN_REQUEST_RE.test(message) ? null : llmDecision,
+          recovery: browseIntentDetected && !USER_HUMAN_REQUEST_RE.test(message) ? null : recovery,
         });
         const handoffRequested = handoffDecision.handoff;
 
@@ -1797,8 +1827,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // sees the handoff in the conversation (not only in backend state).
         if (handoffRequested && handoffId && managerNotified) {
           const receiptLine =
-            "\n\nהעברתי את הפנייה שלך לנציג אנושי מהצוות שלנו — הוא יחזור אליך בקרוב כאן בוואטסאפ. 🙌";
-          if (!replyText || !replyText.includes("נציג אנושי מהצוות")) {
+            "\n\nעדכון: שלחתי עכשיו התראה לנציג אנושי מהצוות שלנו, והפנייה שלך מסומנת לטיפול. יחזרו אליך כאן בוואטסאפ. 🙌";
+          if (!replyText || !replyText.includes("הפנייה שלך מסומנת לטיפול")) {
             replyText = `${replyText ?? ""}${receiptLine}`.trim();
             if (outboundInteractionId) {
               try {
@@ -1808,6 +1838,16 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                   .eq("id", outboundInteractionId);
               } catch (e) {
                 console.error("[handoff-receipt] update_failed", e);
+              }
+            }
+            if ((trace as any)?.id) {
+              try {
+                await supabaseAdmin
+                  .from("tamar_runtime_executions" as any)
+                  .update({ outbound_reply: replyText } as any)
+                  .eq("id", (trace as any).id);
+              } catch (e) {
+                console.error("[handoff-receipt] trace_update_failed", e);
               }
             }
           }
