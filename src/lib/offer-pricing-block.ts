@@ -73,16 +73,14 @@ export function buildPricingStateBlock(offer: any): string | null {
  * possibly contain offer-specific pricing, or null when the URL is ok.
  */
 export function validateOfferUrl(rawUrl: string): string | null {
-  let u: URL;
   try {
-    u = new URL(rawUrl);
+    new URL(rawUrl);
   } catch {
     return "קישור לא תקין";
   }
-  const path = u.pathname.replace(/\/+$/, "");
-  const isBareRoot = path === "" || path === "/home" || path === "/index";
-  if (isBareRoot) {
-    return "צריך קישור עמוק לדף ההצעה (לא דף הבית). הכנס/י URL של עמוד הטיול/המוצר עצמו.";
-  }
+  // NOTE: We intentionally do NOT reject bare-root URLs. Some sites
+  // (e.g. zooga.co) keep all offer-specific facts — pricing, single
+  // supplement, itinerary — on the root page. The AI extractor is
+  // responsible for scoping facts to the current offer row.
   return null;
 }
