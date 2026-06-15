@@ -1827,8 +1827,8 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // sees the handoff in the conversation (not only in backend state).
         if (handoffRequested && handoffId && managerNotified) {
           const receiptLine =
-            "\n\nהעברתי את הפנייה שלך לנציג אנושי מהצוות שלנו — הוא יחזור אליך בקרוב כאן בוואטסאפ. 🙌";
-          if (!replyText || !replyText.includes("נציג אנושי מהצוות")) {
+            "\n\nעדכון: שלחתי עכשיו התראה לנציג אנושי מהצוות שלנו, והפנייה שלך מסומנת לטיפול. יחזרו אליך כאן בוואטסאפ. 🙌";
+          if (!replyText || !replyText.includes("הפנייה שלך מסומנת לטיפול")) {
             replyText = `${replyText ?? ""}${receiptLine}`.trim();
             if (outboundInteractionId) {
               try {
