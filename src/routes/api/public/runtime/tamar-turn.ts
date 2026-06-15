@@ -862,8 +862,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         // not surface any intake question. This is what prevents the
         // resumed-thread "what's your budget?" leak.
         const suppressIntakeForOpenerOrBrowse =
-          (openerTurnDetected || browseIntentDetected) &&
-          conversationMode === "generic_intake";
+          openerTurnDetected || browseIntentDetected;
         const effectiveNextIntakeField =
           suppressBudgetForPriceQuery ||
           suppressIntakeForHigherPriority ||
@@ -884,7 +883,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
         const replyHardRules: string[] = [];
         if (suppressIntakeForOpenerOrBrowse) {
           replyHardRules.push(
-            "Opener / browse / re-entry turn. ABSOLUTELY DO NOT ask about budget, price range, affordability, investment, השקעה, תקציב, or any qualification field. Greet briefly and invite them to share what they're looking for.",
+            browseIntentDetected
+              ? "HARD BROWSE RULE: the user is asking what trips exist / what we have. In this same turn, answer with the actual catalog-ready offers by title. Do NOT ask a preference question first, do NOT say you can tell them about some options, do NOT soft-deflect, and do NOT hand off unless the user explicitly asked for a human. Only after listing may you ask which trip to expand on."
+              : "Opener / re-entry turn. ABSOLUTELY DO NOT ask about budget, price range, affordability, investment, השקעה, תקציב, or any qualification field. Greet briefly and invite them to share what they're looking for.",
           );
         }
         if (suppressBudgetForPriceQuery) {
@@ -1104,6 +1105,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           browseIntentDetected || weakResolution || destinationMismatch;
         let catalogInjected = false;
         let catalogOfferIds: string[] = [];
+        let hardBrowseCatalogReply: string | null = null;
         let catalogMeta: {
           total_active: number;
           listed: number;
@@ -1155,6 +1157,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           const pendingLines = pending.map(
             (o: any) => `- ${o.title} — (פרטים בהכנה, ניתן לציין שעדיין בעיבוד)${o.offer_url ? ` | link: ${o.offer_url}` : ""}`,
           );
+          if (browseIntentDetected && ready.length) {
+            hardBrowseCatalogReply = buildHardBrowseCatalogReply(ready, []);
+          }
           catalogMeta = {
             total_active: active.length,
             listed: readyLines.length + pendingLines.length,
