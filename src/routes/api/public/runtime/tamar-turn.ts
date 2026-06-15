@@ -65,11 +65,17 @@ const AFFIRMATIVE_RE =
 // NOT pin to a sticky prior-interaction offer; we must broaden context and
 // inject the full active catalog so Tamar can name new trips.
 const CATALOG_BROWSE_RE =
-  /(יעדים\s*נוספים|יעדים\s*אחרים|טיולים\s*נוספים|טיולים\s*אחרים|אירועים\s*נוספים|הצעות\s*נוספות|אפשרויות\s*נוספות|אופציות\s*נוספות|משהו\s*אחר|יש\s+עוד|מה\s+(יש|עוד)\s+(לכם|אצלכם)|איזה\s+(טיולים|יעדים|הצעות|אפשרויות)|other\s+(trips|destinations|offers|options)|what\s+else\s+(do\s+you|you\s+have))/i;
+  /(יעדים\s*נוספים|יעדים\s*אחרים|טיולים\s*נוספים|טיולים\s*אחרים|אירועים\s*נוספים|הצעות\s*נוספות|אפשרויות\s*נוספות|אופציות\s*נוספות|משהו\s*אחר|יש\s+עוד|מה\s+(יש|עוד)\s+(לך|לכם|אצלך|אצלכם)(\s+(להציע|להראות|בקטלוג|בארגז|במלאי))?|מה\s+(אתה|אתם)\s+מציע(ים)?|מה\s+ההצעות|איזה\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)|אילו\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)|להציע\s+לי|זה\s+הכל\??|זה\s+כל\s+מה|רק\s+\d+\s*(טיולים|יעדים|אפשרויות|הצעות)\??|other\s+(trips|destinations|offers|options)|what\s+else\s+(do\s+you|you\s+have)|what\s+do\s+you\s+(have|offer))/i;
+
+// Challenge-the-count: the user is doubting the size/completeness of the
+// catalog ("רק 3 טיולים?", "זה הכל?", "באמת רק 3?"). Treat as a browse
+// trigger so we re-inject the full catalog and correct the record.
+const CATALOG_CHALLENGE_RE =
+  /(רק\s*\d+\s*(טיולים|יעדים|הצעות|אפשרויות|אופציות)?\s*\??|באמת\s+רק\s*\d+|זה\s+הכל\??|זה\s+כל\s+מה\s+שיש|אין\s+(עוד|יותר)\s*\??|זהו\??)/i;
 
 function isCatalogBrowseIntent(message: string): boolean {
   if (!message) return false;
-  return CATALOG_BROWSE_RE.test(message);
+  return CATALOG_BROWSE_RE.test(message) || CATALOG_CHALLENGE_RE.test(message);
 }
 
 // B1 — opener / re-entry detection. A bare greeting or restart should NEVER
@@ -1252,6 +1258,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
 
         let replyText = "";
         let runtimeError: string | null = null;
+        let outboundInteractionId: string | null = null;
         try {
           replyText = await callModel([
             { role: "system", content: systemContent },
@@ -1272,14 +1279,15 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             related_offer_id: offer?.id ?? null,
           } as any);
           if (replyText) {
-            await supabaseAdmin.from("interactions").insert({
+            const { data: outboundRow } = await supabaseAdmin.from("interactions").insert({
               contact_id: contactId,
               type: "whatsapp_message",
               source: "tamar_outbound",
               content: replyText,
               campaign_id: campaign?.id ?? null,
               related_offer_id: offer?.id ?? null,
-            } as any);
+            } as any).select("id").single();
+            outboundInteractionId = (outboundRow as any)?.id ?? null;
           }
         }
 
@@ -1781,6 +1789,27 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           } catch (e) {
             // Never block the customer reply on alert failure.
             console.error("[manager-handoff] failed", e);
+          }
+        }
+
+        // B4 — customer-facing handoff receipt. When the manager alert was
+        // actually delivered, append a short confirmation so the customer
+        // sees the handoff in the conversation (not only in backend state).
+        if (handoffRequested && handoffId && managerNotified) {
+          const receiptLine =
+            "\n\nהעברתי את הפנייה שלך לנציג אנושי מהצוות שלנו — הוא יחזור אליך בקרוב כאן בוואטסאפ. 🙌";
+          if (!replyText || !replyText.includes("נציג אנושי מהצוות")) {
+            replyText = `${replyText ?? ""}${receiptLine}`.trim();
+            if (outboundInteractionId) {
+              try {
+                await supabaseAdmin
+                  .from("interactions")
+                  .update({ content: replyText } as any)
+                  .eq("id", outboundInteractionId);
+              } catch (e) {
+                console.error("[handoff-receipt] update_failed", e);
+              }
+            }
           }
         }
 
