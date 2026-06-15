@@ -65,7 +65,7 @@ const AFFIRMATIVE_RE =
 // NOT pin to a sticky prior-interaction offer; we must broaden context and
 // inject the full active catalog so Tamar can name new trips.
 const CATALOG_BROWSE_RE =
-  /(יעדים\s*נוספים|יעדים\s*אחרים|טיולים\s*נוספים|טיולים\s*אחרים|אירועים\s*נוספים|הצעות\s*נוספות|אפשרויות\s*נוספות|אופציות\s*נוספות|משהו\s*אחר|יש\s+עוד|מה\s+(יש|עוד)\s+(לך|לכם|אצלך|אצלכם)(\s+(להציע|להראות|בקטלוג|בארגז|במלאי))?|מה\s+(אתה|אתם)\s+מציע(ים)?|מה\s+ההצעות|איזה\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)|אילו\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)|להציע\s+לי|זה\s+הכל\??|זה\s+כל\s+מה|רק\s+\d+\s*(טיולים|יעדים|אפשרויות|הצעות)\??|other\s+(trips|destinations|offers|options)|what\s+else\s+(do\s+you|you\s+have)|what\s+do\s+you\s+(have|offer))/i;
+  /(יעדים\s*נוספים|יעדים\s*אחרים|טיולים\s*נוספים|טיולים\s*אחרים|טיולים?\s+ל?(חו["׳״']?ל|חול|חוץ\s+לארץ)|טיולי\s+(חו["׳״']?ל|חול|חוץ\s+לארץ)|יש\s+(לך|לכם)\s+טיולים?|אירועים\s*נוספים|הצעות\s*נוספות|אפשרויות\s*נוספות|אופציות\s*נוספות|משהו\s*אחר|יש\s+עוד|מה\s+(יש|עוד|קיים)\s+(לך|לכם|אצלך|אצלכם)?(\s+(להציע|להראות|בקטלוג|בארגז|במלאי))?|מה\s+(אתה|אתם)\s+מציע(ים)?|מה\s+ההצעות|איזה\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)(\s+יש|\s+קיימים)?|אילו\s+(טיולים|יעדים|הצעות|אפשרויות|אופציות)(\s+יש|\s+קיימים)?|כל\s+(הטיולים|היעדים|האפשרויות|האופציות)|ת(ראה|ראי|ציג|ציגי)\s+(לי\s+)?(את\s+)?הכל|להציע\s+לי|זה\s+הכל\??|זה\s+כל\s+מה|רק\s+\d+\s*(טיולים|יעדים|אפשרויות|הצעות)\??|other\s+(trips|destinations|offers|options)|trips\s+abroad|show\s+me\s+(everything|all)|list\s+(all\s+)?(trips|offers|options)|what\s+else\s+(do\s+you|you\s+have)|what\s+do\s+you\s+(have|offer))/i;
 
 // Challenge-the-count: the user is doubting the size/completeness of the
 // catalog ("רק 3 טיולים?", "זה הכל?", "באמת רק 3?"). Treat as a browse
@@ -76,6 +76,26 @@ const CATALOG_CHALLENGE_RE =
 function isCatalogBrowseIntent(message: string): boolean {
   if (!message) return false;
   return CATALOG_BROWSE_RE.test(message) || CATALOG_CHALLENGE_RE.test(message);
+}
+
+function catalogPriceForCustomer(o: any): string {
+  const cur = (o?.currency || "ILS").toUpperCase();
+  const sym = cur === "USD" ? "$" : cur === "EUR" ? "€" : "₪";
+  if (o?.pricing_status === "published" && o?.base_price_per_person != null) {
+    return ` — ${sym}${o.base_price_per_person} לאדם${o.single_supplement != null ? `, תוספת יחיד ${sym}${o.single_supplement}` : ""}`;
+  }
+  if (o?.price != null && o.price !== "") return ` — ${sym}${o.price}`;
+  return " — מחיר יפורסם בהמשך";
+}
+
+function buildHardBrowseCatalogReply(ready: any[], pending: any[]): string {
+  const readyLines = ready.map((o, index) => `${index + 1}. ${o.title}${catalogPriceForCustomer(o)}`);
+  const pendingLines = pending.map((o, index) => `${ready.length + index + 1}. ${o.title} — פרטים בהכנה`);
+  const listed = [...readyLines, ...pendingLines];
+  const intro = ready.length
+    ? "כן — אלו הטיולים שזמינים אצלנו כרגע:"
+    : "כרגע אלה הטיולים שמופיעים אצלנו במערכת:";
+  return `${intro}\n${listed.join("\n")}\n\nעל איזה מהם תרצה שאפרט?`;
 }
 
 // B1 — opener / re-entry detection. A bare greeting or restart should NEVER
