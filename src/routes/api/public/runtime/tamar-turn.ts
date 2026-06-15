@@ -1840,6 +1840,16 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
                 console.error("[handoff-receipt] update_failed", e);
               }
             }
+            if ((trace as any)?.id) {
+              try {
+                await supabaseAdmin
+                  .from("tamar_runtime_executions" as any)
+                  .update({ outbound_reply: replyText } as any)
+                  .eq("id", (trace as any).id);
+              } catch (e) {
+                console.error("[handoff-receipt] trace_update_failed", e);
+              }
+            }
           }
         }
 
