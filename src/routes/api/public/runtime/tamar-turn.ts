@@ -1258,6 +1258,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
 
         let replyText = "";
         let runtimeError: string | null = null;
+        let outboundInteractionId: string | null = null;
         try {
           replyText = await callModel([
             { role: "system", content: systemContent },
@@ -1286,7 +1287,7 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
               campaign_id: campaign?.id ?? null,
               related_offer_id: offer?.id ?? null,
             } as any).select("id").single();
-            (globalThis as any).__lastOutboundInteractionId = (outboundRow as any)?.id ?? null;
+            outboundInteractionId = (outboundRow as any)?.id ?? null;
           }
         }
 
