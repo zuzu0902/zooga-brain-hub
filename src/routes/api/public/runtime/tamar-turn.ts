@@ -1278,14 +1278,15 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
             related_offer_id: offer?.id ?? null,
           } as any);
           if (replyText) {
-            await supabaseAdmin.from("interactions").insert({
+            const { data: outboundRow } = await supabaseAdmin.from("interactions").insert({
               contact_id: contactId,
               type: "whatsapp_message",
               source: "tamar_outbound",
               content: replyText,
               campaign_id: campaign?.id ?? null,
               related_offer_id: offer?.id ?? null,
-            } as any);
+            } as any).select("id").single();
+            (globalThis as any).__lastOutboundInteractionId = (outboundRow as any)?.id ?? null;
           }
         }
 
