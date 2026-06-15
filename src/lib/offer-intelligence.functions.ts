@@ -110,24 +110,73 @@ export const analyzeOfferIntelligence = createServerFn({ method: "POST" })
     await sb.from("offers").update({ ingestion_status: "running" }).eq("id", offerId);
 
     try {
-      // 1. Fetch the page
-      const res = await fetch(offer.offer_url, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,*/*",
-          "Accept-Language": "he-IL,he;q=0.9,en;q=0.7",
-        },
-        redirect: "follow",
-      });
-      if (!res.ok) throw new Error(`fetch failed: HTTP ${res.status}`);
-      const html = await res.text();
-      const metaBlock = extractMeta(html);
-      const bodyText = stripHtml(html);
-      const combined = [metaBlock, bodyText].filter(Boolean).join("\n\n").slice(0, 18000);
-      if (combined.replace(/\s+/g, "").length < 20) {
-        throw new Error("לא הצלחנו לחלץ תוכן מהדף (יתכן דף JS דינמי או חסום). ודאו שה-URL נגיש ציבורית.");
+      // 1. Fetch the page. Firecrawl renders JS so SPA/React offer pages
+      // (zooga.co etc.) yield real pricing in the markdown. We fall back
+      // to a plain HTML fetch only when Firecrawl is not configured or
+      // returns nothing usable — this preserves behavior for static pages.
+      let combined = "";
+      let fetchSource: "firecrawl" | "html" = "html";
+      const firecrawlKey = process.env.FIRECRAWL_API_KEY;
+      if (firecrawlKey) {
+        try {
+          const fcRes = await fetch("https://api.firecrawl.dev/v2/scrape", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${firecrawlKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              url: offer.offer_url,
+              formats: ["markdown"],
+              onlyMainContent: true,
+            }),
+          });
+          if (fcRes.ok) {
+            const fcJson: any = await fcRes.json();
+            const md: string =
+              fcJson?.data?.markdown ??
+              fcJson?.markdown ??
+              "";
+            const meta = fcJson?.data?.metadata ?? fcJson?.metadata ?? {};
+            const metaLines = [
+              meta?.title ? `TITLE: ${meta.title}` : "",
+              meta?.description ? `description: ${meta.description}` : "",
+              meta?.ogTitle ? `og:title: ${meta.ogTitle}` : "",
+              meta?.ogDescription ? `og:description: ${meta.ogDescription}` : "",
+            ].filter(Boolean).join("\n");
+            const merged = [metaLines, md].filter(Boolean).join("\n\n").slice(0, 18000);
+            if (merged.replace(/\s+/g, "").length >= 20) {
+              combined = merged;
+              fetchSource = "firecrawl";
+            }
+          } else {
+            console.warn(`[analyze] firecrawl HTTP ${fcRes.status} — falling back to plain fetch`);
+          }
+        } catch (e) {
+          console.warn(`[analyze] firecrawl error — falling back to plain fetch:`, e);
+        }
       }
+
+      if (!combined) {
+        const res = await fetch(offer.offer_url, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+            Accept: "text/html,application/xhtml+xml,*/*",
+            "Accept-Language": "he-IL,he;q=0.9,en;q=0.7",
+          },
+          redirect: "follow",
+        });
+        if (!res.ok) throw new Error(`fetch failed: HTTP ${res.status}`);
+        const html = await res.text();
+        const metaBlock = extractMeta(html);
+        const bodyText = stripHtml(html);
+        combined = [metaBlock, bodyText].filter(Boolean).join("\n\n").slice(0, 18000);
+        if (combined.replace(/\s+/g, "").length < 20) {
+          throw new Error("לא הצלחנו לחלץ תוכן מהדף (יתכן דף JS דינמי או חסום). ודאו שה-URL נגיש ציבורית, או חברו את Firecrawl לעיבוד דפי SPA.");
+        }
+      }
+      console.log(`[analyze] offer=${offerId} source=${fetchSource} contentLen=${combined.length}`);
 
       // 2. Call Lovable AI Gateway
       const apiKey = process.env.LOVABLE_API_KEY;
