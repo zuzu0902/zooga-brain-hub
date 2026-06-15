@@ -1792,6 +1792,27 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           }
         }
 
+        // B4 — customer-facing handoff receipt. When the manager alert was
+        // actually delivered, append a short confirmation so the customer
+        // sees the handoff in the conversation (not only in backend state).
+        if (handoffRequested && handoffId && managerNotified) {
+          const receiptLine =
+            "\n\nהעברתי את הפנייה שלך לנציג אנושי מהצוות שלנו — הוא יחזור אליך בקרוב כאן בוואטסאפ. 🙌";
+          if (!replyText || !replyText.includes("נציג אנושי מהצוות")) {
+            replyText = `${replyText ?? ""}${receiptLine}`.trim();
+            if (outboundInteractionId) {
+              try {
+                await supabaseAdmin
+                  .from("interactions")
+                  .update({ content: replyText } as any)
+                  .eq("id", outboundInteractionId);
+              } catch (e) {
+                console.error("[handoff-receipt] update_failed", e);
+              }
+            }
+          }
+        }
+
         return Response.json({
           ok: true,
           reply_text: replyText,
