@@ -61,6 +61,7 @@ import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/publ
 import { Route as ApiPublicRuntimeTamarPackRouteImport } from './routes/api/public/runtime/tamar-pack'
 import { Route as ApiPublicRuntimeLeadContextRouteImport } from './routes/api/public/runtime/lead-context'
 import { Route as ApiPublicRuntimeHandoffRouteImport } from './routes/api/public/runtime/handoff'
+import { Route as ApiPublicRuntimeGenerateReplyRouteImport } from './routes/api/public/runtime/generate-reply'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
@@ -344,6 +345,12 @@ const ApiPublicRuntimeHandoffRoute = ApiPublicRuntimeHandoffRouteImport.update({
   path: '/api/public/runtime/handoff',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRuntimeGenerateReplyRoute =
+  ApiPublicRuntimeGenerateReplyRouteImport.update({
+    id: '/api/public/runtime/generate-reply',
+    path: '/api/public/runtime/generate-reply',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicIntelligenceExtractRoute =
   ApiPublicIntelligenceExtractRouteImport.update({
     id: '/api/public/intelligence/extract',
@@ -416,6 +423,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/generate-reply': typeof ApiPublicRuntimeGenerateReplyRoute
   '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
   '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
@@ -473,6 +481,7 @@ export interface FileRoutesByTo {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/generate-reply': typeof ApiPublicRuntimeGenerateReplyRoute
   '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
   '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
@@ -532,6 +541,7 @@ export interface FileRoutesById {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/generate-reply': typeof ApiPublicRuntimeGenerateReplyRoute
   '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
   '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
@@ -591,6 +601,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/generate-reply'
     | '/api/public/runtime/handoff'
     | '/api/public/runtime/lead-context'
     | '/api/public/runtime/tamar-pack'
@@ -648,6 +659,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/generate-reply'
     | '/api/public/runtime/handoff'
     | '/api/public/runtime/lead-context'
     | '/api/public/runtime/tamar-pack'
@@ -706,6 +718,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/generate-reply'
     | '/api/public/runtime/handoff'
     | '/api/public/runtime/lead-context'
     | '/api/public/runtime/tamar-pack'
@@ -745,6 +758,7 @@ export interface RootRouteChildren {
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
+  ApiPublicRuntimeGenerateReplyRoute: typeof ApiPublicRuntimeGenerateReplyRoute
   ApiPublicRuntimeHandoffRoute: typeof ApiPublicRuntimeHandoffRoute
   ApiPublicRuntimeLeadContextRoute: typeof ApiPublicRuntimeLeadContextRoute
   ApiPublicRuntimeTamarPackRoute: typeof ApiPublicRuntimeTamarPackRoute
@@ -1121,6 +1135,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRuntimeHandoffRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/runtime/generate-reply': {
+      id: '/api/public/runtime/generate-reply'
+      path: '/api/public/runtime/generate-reply'
+      fullPath: '/api/public/runtime/generate-reply'
+      preLoaderRoute: typeof ApiPublicRuntimeGenerateReplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/intelligence/extract': {
       id: '/api/public/intelligence/extract'
       path: '/api/public/intelligence/extract'
@@ -1259,6 +1280,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
+  ApiPublicRuntimeGenerateReplyRoute: ApiPublicRuntimeGenerateReplyRoute,
   ApiPublicRuntimeHandoffRoute: ApiPublicRuntimeHandoffRoute,
   ApiPublicRuntimeLeadContextRoute: ApiPublicRuntimeLeadContextRoute,
   ApiPublicRuntimeTamarPackRoute: ApiPublicRuntimeTamarPackRoute,
@@ -1271,13 +1293,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
