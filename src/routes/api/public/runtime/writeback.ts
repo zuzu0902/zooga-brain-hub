@@ -130,6 +130,11 @@ export const Route = createFileRoute("/api/public/runtime/writeback")({
         }
 
         // Persist numbered-browse memory so the next turn can resolve "2" → offer.
+        // CRITICAL: this list MUST match the numbered items in outbound_text
+        // exactly (same items, order, numbering). If it doesn't, we reject the
+        // write to prevent the next turn from resolving "3" to a stale offer
+        // that the user never actually saw as item 3.
+        let presentedRejected: { reason: string; missing?: string[] } | null = null;
         if (Array.isArray(lastPresentedOffers)) {
           const normalized = lastPresentedOffers
             .map((it: any, i: number) => ({
@@ -137,14 +142,37 @@ export const Route = createFileRoute("/api/public/runtime/writeback")({
               offer_id: it?.offer_id ?? it?.id ?? null,
               title: it?.title ?? null,
             }))
-            .filter((it) => it.offer_id);
-          await supabaseAdmin
-            .from("contacts")
-            .update({
-              last_presented_offers: normalized,
-              last_presented_offers_at: new Date().toISOString(),
-            } as any)
-            .eq("id", contactId);
+            .filter((it) => it.offer_id)
+            .map((it, i) => ({ ...it, index: i + 1 }));
+
+          // Validate against the rendered outbound, in order.
+          if (outboundText && normalized.length) {
+            let cursor = 0;
+            const missing: string[] = [];
+            for (const it of normalized) {
+              if (!it.title) continue;
+              const needle = `${it.index}. ${it.title}`;
+              const found = outboundText.indexOf(needle, cursor);
+              if (found < 0) {
+                missing.push(needle);
+              } else {
+                cursor = found + needle.length;
+              }
+            }
+            if (missing.length) {
+              presentedRejected = { reason: "list_mismatch_with_outbound", missing };
+            }
+          }
+
+          if (!presentedRejected) {
+            await supabaseAdmin
+              .from("contacts")
+              .update({
+                last_presented_offers: normalized,
+                last_presented_offers_at: new Date().toISOString(),
+              } as any)
+              .eq("id", contactId);
+          }
         }
 
         // Persist runtime trace row.
@@ -158,7 +186,7 @@ export const Route = createFileRoute("/api/public/runtime/writeback")({
             inbound_message: inboundText,
             outbound_reply: outboundText,
             runtime_mode: "zooga_pack",
-            raw_payload: { ...body, mode },
+            raw_payload: { ...body, mode, presented_rejected: presentedRejected },
           } as any)
           .select("id")
           .single();
@@ -175,7 +203,11 @@ export const Route = createFileRoute("/api/public/runtime/writeback")({
         } as any);
 
         return new Response(
-          JSON.stringify({ ok: true, trace_id: (traceRow as any)?.id ?? null }),
+          JSON.stringify({
+            ok: true,
+            trace_id: (traceRow as any)?.id ?? null,
+            presented_rejected: presentedRejected,
+          }),
           { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
         );
       },
