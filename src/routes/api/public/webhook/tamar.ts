@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { INTAKE_FLOWS, buildSuggestedOpening, type IntakeFlowType } from "@/lib/intake-flows";
 import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
 import { buildPricingStateBlock } from "@/lib/offer-pricing-block";
+import { claimInbound, extractInboundMessageId } from "@/lib/runtime-inbound-dedupe";
 
 function triggerExtraction(request: Request, contactId: string) {
   try {
@@ -101,6 +102,48 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
         let payload: any = null;
         try {
           payload = await request.json().catch(() => null);
+
+          // ---------- STRICT INBOUND IDEMPOTENCY (wamid) ----------
+          // Meta retries webhook deliveries when it does not see a fast 200.
+          // Before we touch contacts, interactions, runtime traces, or fire
+          // off any reply path, claim this inbound message id. If we've
+          // already seen it, return 200 immediately so Meta stops retrying
+          // and Railway does not regenerate/resend a duplicate Tamar reply.
+          const inboundMessageId = extractInboundMessageId(payload);
+          if (inboundMessageId) {
+            const dedupeClaim = await claimInbound({
+              inboundMessageId,
+              phone:
+                payload?.phone ||
+                payload?.whatsapp_number ||
+                payload?.from?.phone ||
+                null,
+              source: "meta_webhook_tamar",
+            });
+            if (dedupeClaim.duplicate) {
+              await supabaseAdmin.from("webhook_logs").insert({
+                source: "tamar_bot",
+                status: "duplicate_inbound_suppressed",
+                payload: {
+                  inbound_message_id: inboundMessageId,
+                  duplicate_detected: true,
+                  reply_sent: false,
+                  dedupe_source: dedupeClaim.dedupe_source,
+                  hit_count: dedupeClaim.hit_count,
+                  first_seen_at: dedupeClaim.first_seen_at,
+                },
+              });
+              return Response.json({
+                ok: true,
+                inbound_message_id: inboundMessageId,
+                duplicate_detected: true,
+                reply_sent: false,
+                dedupe_source: dedupeClaim.dedupe_source,
+                hit_count: dedupeClaim.hit_count,
+                first_seen_at: dedupeClaim.first_seen_at,
+              });
+            }
+          }
 
           // Optional token check from api_settings or query param
           const url = new URL(request.url);
