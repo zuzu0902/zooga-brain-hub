@@ -60,6 +60,7 @@ import { Route as ApiPublicRuntimeTamarWritebackRouteImport } from './routes/api
 import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
 import { Route as ApiPublicRuntimeTamarPackRouteImport } from './routes/api/public/runtime/tamar-pack'
 import { Route as ApiPublicRuntimeLeadContextRouteImport } from './routes/api/public/runtime/lead-context'
+import { Route as ApiPublicRuntimeHandoffRouteImport } from './routes/api/public/runtime/handoff'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
@@ -338,6 +339,11 @@ const ApiPublicRuntimeLeadContextRoute =
     path: '/api/public/runtime/lead-context',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicRuntimeHandoffRoute = ApiPublicRuntimeHandoffRouteImport.update({
+  id: '/api/public/runtime/handoff',
+  path: '/api/public/runtime/handoff',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicIntelligenceExtractRoute =
   ApiPublicIntelligenceExtractRouteImport.update({
     id: '/api/public/intelligence/extract',
@@ -410,6 +416,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
   '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -466,6 +473,7 @@ export interface FileRoutesByTo {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
   '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -524,6 +532,7 @@ export interface FileRoutesById {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
   '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
   '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -582,6 +591,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/handoff'
     | '/api/public/runtime/lead-context'
     | '/api/public/runtime/tamar-pack'
     | '/api/public/runtime/tamar-turn'
@@ -638,6 +648,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/handoff'
     | '/api/public/runtime/lead-context'
     | '/api/public/runtime/tamar-pack'
     | '/api/public/runtime/tamar-turn'
@@ -695,6 +706,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/handoff'
     | '/api/public/runtime/lead-context'
     | '/api/public/runtime/tamar-pack'
     | '/api/public/runtime/tamar-turn'
@@ -733,6 +745,7 @@ export interface RootRouteChildren {
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
+  ApiPublicRuntimeHandoffRoute: typeof ApiPublicRuntimeHandoffRoute
   ApiPublicRuntimeLeadContextRoute: typeof ApiPublicRuntimeLeadContextRoute
   ApiPublicRuntimeTamarPackRoute: typeof ApiPublicRuntimeTamarPackRoute
   ApiPublicRuntimeTamarTurnRoute: typeof ApiPublicRuntimeTamarTurnRoute
@@ -1101,6 +1114,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRuntimeLeadContextRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/runtime/handoff': {
+      id: '/api/public/runtime/handoff'
+      path: '/api/public/runtime/handoff'
+      fullPath: '/api/public/runtime/handoff'
+      preLoaderRoute: typeof ApiPublicRuntimeHandoffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/intelligence/extract': {
       id: '/api/public/intelligence/extract'
       path: '/api/public/intelligence/extract'
@@ -1239,6 +1259,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
+  ApiPublicRuntimeHandoffRoute: ApiPublicRuntimeHandoffRoute,
   ApiPublicRuntimeLeadContextRoute: ApiPublicRuntimeLeadContextRoute,
   ApiPublicRuntimeTamarPackRoute: ApiPublicRuntimeTamarPackRoute,
   ApiPublicRuntimeTamarTurnRoute: ApiPublicRuntimeTamarTurnRoute,
