@@ -212,6 +212,21 @@ export const Route = createFileRoute("/api/public/runtime/handoff")({
             manager_notified: managerNotified,
             delivery_promise: deliveryPromise,
             alert_error: alertError,
+            // Explicit, honest delivery truth for the Railway brain.
+            // - "delivered": manager service ack'd (2xx)
+            // - "queued":    request accepted but no live ack (reserved; not used today)
+            // - "failed":    no delivery — missing manager/url, non-2xx, or exception
+            // Explicit, honest delivery truth for the Railway brain.
+            // - "delivered": manager service ack'd (2xx)
+            // - "queued":    accepted but no live ack (reserved; not used today)
+            // - "failed":    no delivery — missing manager/url, non-2xx, or exception
+            delivery_status: (managerNotified
+              ? "delivered"
+              : deliveryPromise === "failed"
+                ? "failed"
+                : "queued") as "delivered" | "queued" | "failed",
+            // Wording hint — never "live" unless the manager service ack'd.
+            recommended_wording: (managerNotified ? "live" : "queued") as "live" | "queued",
           }),
           { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
         );

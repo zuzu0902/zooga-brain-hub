@@ -58,6 +58,7 @@ export const Route = createFileRoute("/api/public/runtime/writeback")({
         const outboundText: string | null = body.outbound_text ?? null;
         const mode: string = String(body.mode ?? "unknown");
         const resolvedOfferId: string | null = body.resolved_offer_id ?? null;
+        const lastPresentedOffers: any = body.last_presented_offers ?? null;
 
         // Idempotency: skip if we already logged this exact message_id.
         if (messageId) {
@@ -126,6 +127,24 @@ export const Route = createFileRoute("/api/public/runtime/writeback")({
           if (Object.keys(patch).length) {
             await supabaseAdmin.from("contacts").update(patch as any).eq("id", contactId);
           }
+        }
+
+        // Persist numbered-browse memory so the next turn can resolve "2" → offer.
+        if (Array.isArray(lastPresentedOffers)) {
+          const normalized = lastPresentedOffers
+            .map((it: any, i: number) => ({
+              index: Number(it?.index ?? i + 1),
+              offer_id: it?.offer_id ?? it?.id ?? null,
+              title: it?.title ?? null,
+            }))
+            .filter((it) => it.offer_id);
+          await supabaseAdmin
+            .from("contacts")
+            .update({
+              last_presented_offers: normalized,
+              last_presented_offers_at: new Date().toISOString(),
+            } as any)
+            .eq("id", contactId);
         }
 
         // Persist runtime trace row.

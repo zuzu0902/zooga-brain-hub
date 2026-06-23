@@ -98,7 +98,7 @@ async function handle(request: Request): Promise<Response> {
       .limit(20),
     supabaseAdmin
       .from("offers")
-      .select("id,title,description,category,offer_url,ai_summary,sales_angle,price,currency,base_price_per_person,single_supplement,couple_price,pricing_status,target_region,nights,event_date,status,matching_tags")
+      .select("id,title,description,category,offer_url,ai_summary,sales_angle,price,currency,base_price_per_person,single_supplement,couple_price,pricing_status,target_region,nights,event_date,status,matching_tags,target_min_age,target_max_age,target_interests,target_spending_profile,event_end_date,flights_included")
       .eq("status", "active")
       .order("created_at", { ascending: false })
       .limit(50),
@@ -153,6 +153,16 @@ async function handle(request: Request): Promise<Response> {
         event_date: o.event_date,
         pricing_status: o.pricing_status,
         matching_tags: o.matching_tags,
+        target_min_age: o.target_min_age ?? null,
+        target_max_age: o.target_max_age ?? null,
+        target_interests: o.target_interests ?? [],
+        target_spending_profile: o.target_spending_profile ?? null,
+        event_end_date: o.event_end_date ?? null,
+        flights_included: o.flights_included ?? null,
+        // Qualifier hints derived from structured + textual fields so
+        // the Railway brain can score offers like "וייטנאם 60+" without
+        // re-parsing the whole row.
+        qualifier_hints: deriveQualifierHints(o),
       })),
       runtime_flags: {
         handoff_open: !!openHandoff,
@@ -160,9 +170,76 @@ async function handle(request: Request): Promise<Response> {
         handoff_status: openHandoff?.status ?? null,
         manager_attention_required: !!contact.manager_attention_required,
       },
+      conversation_memory: {
+        last_presented_offers: Array.isArray(contact.last_presented_offers)
+          ? contact.last_presented_offers
+          : [],
+        last_presented_offers_at: contact.last_presented_offers_at ?? null,
+      },
     }),
     { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
   );
+}
+
+function deriveQualifierHints(o: any): {
+  age_min: number | null;
+  age_max: number | null;
+  age_band: string | null;
+  audience_tags: string[];
+} {
+  const text = [o.title, o.description, o.sales_angle, o.ai_summary]
+    .filter(Boolean)
+    .join(" ");
+  const tags = new Set<string>();
+  if (Array.isArray(o.matching_tags)) o.matching_tags.forEach((t: any) => tags.add(String(t).toLowerCase()));
+  if (Array.isArray(o.target_interests)) o.target_interests.forEach((t: any) => tags.add(String(t).toLowerCase()));
+
+  // Hebrew + English age qualifier patterns.
+  let ageMin: number | null = typeof o.target_min_age === "number" ? o.target_min_age : null;
+  let ageMax: number | null = typeof o.target_max_age === "number" ? o.target_max_age : null;
+  let ageBand: string | null = null;
+
+  // "60+", "60 פלוס", "בני 60 ומעלה", "מגיל 60", "55 ומעלה"
+  const plusMatch = text.match(/(\d{2})\s*(?:\+|פלוס|ומעלה|ומעל)/);
+  if (plusMatch) {
+    const n = parseInt(plusMatch[1], 10);
+    if (!Number.isNaN(n)) {
+      ageMin = ageMin ?? n;
+      ageBand = `${n}+`;
+      tags.add(`${n}+`);
+    }
+  }
+  // "בני 60", "מגיל 60"
+  const fromMatch = text.match(/(?:בני|מגיל|מעל גיל)\s*(\d{2})/);
+  if (fromMatch) {
+    const n = parseInt(fromMatch[1], 10);
+    if (!Number.isNaN(n)) {
+      ageMin = ageMin ?? n;
+      ageBand = ageBand ?? `${n}+`;
+      tags.add(`${n}+`);
+    }
+  }
+  // Range "55-70"
+  const rangeMatch = text.match(/(\d{2})\s*[-–]\s*(\d{2})/);
+  if (rangeMatch) {
+    const a = parseInt(rangeMatch[1], 10);
+    const b = parseInt(rangeMatch[2], 10);
+    if (!Number.isNaN(a) && !Number.isNaN(b)) {
+      ageMin = ageMin ?? Math.min(a, b);
+      ageMax = ageMax ?? Math.max(a, b);
+      ageBand = ageBand ?? `${Math.min(a, b)}-${Math.max(a, b)}`;
+    }
+  }
+
+  if (!ageBand && ageMin && ageMax) ageBand = `${ageMin}-${ageMax}`;
+  else if (!ageBand && ageMin) ageBand = `${ageMin}+`;
+
+  return {
+    age_min: ageMin,
+    age_max: ageMax,
+    age_band: ageBand,
+    audience_tags: Array.from(tags),
+  };
 }
 
 export const Route = createFileRoute("/api/public/runtime/lead-context")({

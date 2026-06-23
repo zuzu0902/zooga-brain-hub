@@ -398,6 +398,8 @@ export type Database = {
           last_clicked_offer: string | null
           last_interaction_at: string | null
           last_name: string | null
+          last_presented_offers: Json
+          last_presented_offers_at: string | null
           last_touch_campaign_id: string | null
           lifestyle_tags: string[]
           likely_needs: string[]
@@ -504,6 +506,8 @@ export type Database = {
           last_clicked_offer?: string | null
           last_interaction_at?: string | null
           last_name?: string | null
+          last_presented_offers?: Json
+          last_presented_offers_at?: string | null
           last_touch_campaign_id?: string | null
           lifestyle_tags?: string[]
           likely_needs?: string[]
@@ -610,6 +614,8 @@ export type Database = {
           last_clicked_offer?: string | null
           last_interaction_at?: string | null
           last_name?: string | null
+          last_presented_offers?: Json
+          last_presented_offers_at?: string | null
           last_touch_campaign_id?: string | null
           lifestyle_tags?: string[]
           likely_needs?: string[]
