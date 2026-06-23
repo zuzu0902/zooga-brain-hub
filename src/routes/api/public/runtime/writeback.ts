@@ -10,6 +10,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { authorizeRuntimeBridge, normalizePhone } from "@/lib/runtime-bridge-auth";
+import { claimInbound, recordReply } from "@/lib/runtime-inbound-dedupe";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -59,6 +60,39 @@ export const Route = createFileRoute("/api/public/runtime/writeback")({
         const mode: string = String(body.mode ?? "unknown");
         const resolvedOfferId: string | null = body.resolved_offer_id ?? null;
         const lastPresentedOffers: any = body.last_presented_offers ?? null;
+        const inboundMessageId: string | null =
+          body.inbound_message_id ?? body.wamid ?? null;
+
+        // Strict inbound idempotency at the writeback layer too — so if
+        // Railway retries the same turn we don't double-insert interactions
+        // or double-stamp a trace row.
+        let dedupeMarker: any = null;
+        if (inboundMessageId) {
+          const claim = await claimInbound({
+            inboundMessageId,
+            contactId,
+            phone: normalizePhone(body.phone ?? body.whatsapp_number),
+            source: "runtime_writeback",
+          });
+          dedupeMarker = {
+            inbound_message_id: inboundMessageId,
+            duplicate_detected: claim.duplicate,
+            dedupe_source: claim.dedupe_source,
+          };
+          if (claim.duplicate) {
+            return new Response(
+              JSON.stringify({
+                ok: true,
+                idempotent: true,
+                ...dedupeMarker,
+                reply_sent: false,
+                hit_count: claim.hit_count,
+                first_seen_at: claim.first_seen_at,
+              }),
+              { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
+            );
+          }
+        }
 
         // Idempotency: skip if we already logged this exact message_id.
         if (messageId) {
@@ -199,14 +233,26 @@ export const Route = createFileRoute("/api/public/runtime/writeback")({
             contact_id: contactId,
             mode,
             resolved_offer_id: resolvedOfferId,
+            inbound_message_id: inboundMessageId,
+            duplicate_detected: dedupeMarker?.duplicate_detected ?? false,
+            reply_sent: true,
+            dedupe_source: dedupeMarker?.dedupe_source ?? "no_inbound_id",
           },
         } as any);
+
+        // Cache the final outbound on the dedupe ledger so a future retry
+        // of the same inbound returns the same reply rather than regenerating.
+        if (inboundMessageId && outboundText) {
+          await recordReply(inboundMessageId, outboundText).catch(() => {});
+        }
 
         return new Response(
           JSON.stringify({
             ok: true,
             trace_id: (traceRow as any)?.id ?? null,
             presented_rejected: presentedRejected,
+            ...(dedupeMarker ?? {}),
+            reply_sent: true,
           }),
           { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
         );
