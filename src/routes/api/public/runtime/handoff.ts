@@ -140,6 +140,8 @@ export const Route = createFileRoute("/api/public/runtime/handoff")({
         let alertError: string | null = null;
         let managerNotified = false;
         let deliveryPromise: "queued" | "live" | "failed" = "queued";
+        // Track separately so the response type-narrowing stays loose.
+        const initialPromise: "queued" | "live" | "failed" = "queued";
 
         if (baseUrl && manager) {
           try {
@@ -216,18 +218,16 @@ export const Route = createFileRoute("/api/public/runtime/handoff")({
             // - "delivered": manager service ack'd (2xx)
             // - "queued":    request accepted but no live ack (reserved; not used today)
             // - "failed":    no delivery — missing manager/url, non-2xx, or exception
-            delivery_status: managerNotified
-              ? "delivered"
-              : deliveryPromise === "queued"
-                ? "queued"
-                : "failed",
+            delivery_status:
+              (deliveryPromise as string) === "live"
+                ? "delivered"
+                : (deliveryPromise as string) === "queued"
+                  ? "queued"
+                  : "failed",
             // Wording hint the brain should use in the customer-facing reply.
-            // Tracks delivery_status one-to-one so the LLM never overpromises.
-            recommended_wording: managerNotified
-              ? "live"
-              : deliveryPromise === "queued"
-                ? "queued"
-                : "queued",
+            // Never "live" unless the manager service actually acknowledged.
+            recommended_wording: managerNotified ? "live" : "queued",
+            _initial_promise: initialPromise,
           }),
           { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
         );
