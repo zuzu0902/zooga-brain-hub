@@ -26,6 +26,58 @@ function clampStr(v: any, max = 4000): string {
   return s.length > max ? s.slice(0, max) : s;
 }
 
+/**
+ * BROWSE LIST LOCK
+ *
+ * When the runtime is in browse mode it MUST hand us the exact numbered list
+ * it intends to present (and later persist as last_presented_offers). The LLM
+ * is not allowed to add/remove/reorder items or rename titles, because the
+ * next-turn numeric resolution ("3" → offer X) depends on the user seeing the
+ * exact same list that was written back. We:
+ *   1. Render a deterministic Hebrew block from the provided list.
+ *   2. Either bypass the LLM (deterministic mode) or wrap the LLM reply so
+ *      the numbered block is appended verbatim and validated.
+ *   3. Echo `presented_offers` back so Railway writes back the rendered list,
+ *      not a pre-LLM draft.
+ */
+type BrowseItem = { index: number; offer_id: string; title: string };
+
+function normalizeBrowseList(raw: any): BrowseItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BrowseItem[] = [];
+  raw.forEach((it: any, i: number) => {
+    const offer_id = it?.offer_id ?? it?.id ?? null;
+    const title = it?.title ?? it?.name ?? null;
+    if (!offer_id || !title) return;
+    out.push({ index: Number(it?.index ?? i + 1), offer_id: String(offer_id), title: String(title) });
+  });
+  // Re-number sequentially to guarantee 1..N with no gaps.
+  return out.map((it, i) => ({ ...it, index: i + 1 }));
+}
+
+function renderBrowseBlock(items: BrowseItem[]): string {
+  return items.map((it) => `${it.index}. ${it.title}`).join("\n");
+}
+
+function isBrowseMode(mode: any, objective: any): boolean {
+  const m = String(mode ?? "").toLowerCase();
+  if (m.includes("browse") || m === "list" || m === "catalog") return true;
+  const g = String(objective?.primary_goal ?? "").toLowerCase();
+  return g.includes("browse") || g.includes("list") || g.includes("numbered");
+}
+
+function browseListMatches(reply: string, items: BrowseItem[]): boolean {
+  // Reply must contain every numbered line (index. title) in order.
+  let cursor = 0;
+  for (const it of items) {
+    const needle = `${it.index}. ${it.title}`;
+    const found = reply.indexOf(needle, cursor);
+    if (found < 0) return false;
+    cursor = found + needle.length;
+  }
+  return true;
+}
+
 function buildSystem(identity: any, hardRules: any, mustInclude: any, mustNotInclude: any): string {
   const lines: string[] = [];
   lines.push(
@@ -137,6 +189,41 @@ export const Route = createFileRoute("/api/public/runtime/generate-reply")({
             ? body.fallback_reply
             : "";
 
+        // ---------- Browse-mode list lock ----------
+        const turnCtx = body?.turn_context ?? {};
+        const objective = body?.objective ?? {};
+        const browseList = normalizeBrowseList(
+          turnCtx?.browse_list ?? turnCtx?.last_presented_offers ?? body?.browse_list,
+        );
+        const browseMode = isBrowseMode(turnCtx?.mode, objective);
+        const browseLockRequested =
+          browseMode || body?.lock_browse_list === true || browseList.length > 0 && browseMode;
+        const deterministicBrowse =
+          body?.deterministic_browse === true || (browseMode && body?.allow_llm_browse !== true);
+
+        if (browseMode && browseList.length > 0 && deterministicBrowse) {
+          // Bypass LLM entirely — return canonical numbered list.
+          const intro =
+            typeof body?.browse_intro === "string" && body.browse_intro.trim()
+              ? body.browse_intro.trim()
+              : "הנה כמה אפשרויות שיכולות להתאים לך:";
+          const outro =
+            typeof body?.browse_outro === "string" && body.browse_outro.trim()
+              ? body.browse_outro.trim()
+              : "איזה מהם מעניין אותך? אפשר לענות עם המספר.";
+          const reply_text = `${intro}\n\n${renderBrowseBlock(browseList)}\n\n${outro}`;
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              reply_text,
+              used_fallback: false,
+              source: "deterministic_browse",
+              presented_offers: browseList,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
+          );
+        }
+
         const apiKey = process.env.LOVABLE_API_KEY;
         if (!apiKey) {
           return new Response(
@@ -145,18 +232,30 @@ export const Route = createFileRoute("/api/public/runtime/generate-reply")({
               reply_text: fallback,
               used_fallback: true,
               error: "missing_lovable_api_key",
+              presented_offers: browseLockRequested ? browseList : undefined,
             }),
             { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
           );
         }
 
+        // If browse-mode + LLM is explicitly allowed, inject a hard lock rule.
+        const extraMustInclude = Array.isArray(body?.must_include) ? [...body.must_include] : [];
+        const extraHardRules = Array.isArray(body?.hard_rules) ? [...body.hard_rules] : [];
+        if (browseMode && browseList.length > 0) {
+          const block = renderBrowseBlock(browseList);
+          extraHardRules.push(
+            "BROWSE LIST LOCK: include the following numbered list VERBATIM (same items, same order, same numbering, same titles). Do NOT add, remove, reorder, rename, translate, or merge items.",
+            `Canonical list (verbatim):\n${block}`,
+          );
+          extraMustInclude.push(block);
+        }
         const system = buildSystem(
           body?.identity,
-          body?.hard_rules,
-          body?.must_include,
+          extraHardRules,
+          extraMustInclude,
           body?.must_not_include,
         );
-        const user = buildUser(body?.turn_context ?? {}, body?.objective ?? {});
+        const user = buildUser(turnCtx, objective);
 
         try {
           const res = await fetch(LOVABLE_AI_URL, {
@@ -189,7 +288,7 @@ export const Route = createFileRoute("/api/public/runtime/generate-reply")({
           }
           const json: any = await res.json();
           const content: string = json?.choices?.[0]?.message?.content ?? "";
-          const reply = extractReply(content);
+          let reply = extractReply(content);
           if (!reply) {
             return new Response(
               JSON.stringify({
@@ -197,12 +296,42 @@ export const Route = createFileRoute("/api/public/runtime/generate-reply")({
                 reply_text: fallback,
                 used_fallback: true,
                 error: "empty_reply",
+                presented_offers: browseLockRequested ? browseList : undefined,
+              }),
+              { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
+            );
+          }
+          // Browse lock validation — if the LLM mangled the numbered list,
+          // fall back to deterministic render so the user sees exactly what
+          // Railway will write back as last_presented_offers.
+          if (browseMode && browseList.length > 0 && !browseListMatches(reply, browseList)) {
+            const intro =
+              typeof body?.browse_intro === "string" && body.browse_intro.trim()
+                ? body.browse_intro.trim()
+                : "הנה כמה אפשרויות שיכולות להתאים לך:";
+            const outro =
+              typeof body?.browse_outro === "string" && body.browse_outro.trim()
+                ? body.browse_outro.trim()
+                : "איזה מהם מעניין אותך? אפשר לענות עם המספר.";
+            reply = `${intro}\n\n${renderBrowseBlock(browseList)}\n\n${outro}`;
+            return new Response(
+              JSON.stringify({
+                ok: true,
+                reply_text: reply,
+                used_fallback: false,
+                source: "deterministic_browse_after_llm_mismatch",
+                presented_offers: browseList,
               }),
               { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
             );
           }
           return new Response(
-            JSON.stringify({ ok: true, reply_text: reply, used_fallback: false }),
+            JSON.stringify({
+              ok: true,
+              reply_text: reply,
+              used_fallback: false,
+              presented_offers: browseLockRequested ? browseList : undefined,
+            }),
             { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
           );
         } catch (e: any) {
@@ -212,6 +341,7 @@ export const Route = createFileRoute("/api/public/runtime/generate-reply")({
               reply_text: fallback,
               used_fallback: true,
               error: `gateway_exception: ${String(e?.message ?? e).slice(0, 200)}`,
+              presented_offers: browseLockRequested ? browseList : undefined,
             }),
             { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
           );
