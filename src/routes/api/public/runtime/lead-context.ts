@@ -112,7 +112,7 @@ async function handle(request: Request): Promise<Response> {
   ]);
 
   const dyn = (contact.dynamic_profile_fields ?? {}) as Record<string, any>;
-  const openHandoff = (openHandoffRes.data ?? [])[0] ?? null;
+  const openHandoff = ((openHandoffRes.data ?? []) as any[])[0] ?? null;
 
   return new Response(
     JSON.stringify({
