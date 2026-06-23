@@ -1297,6 +1297,47 @@ export type Database = {
         }
         Relationships: []
       }
+      runtime_inbound_dedupe: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          hit_count: number
+          inbound_message_id: string
+          last_seen_at: string
+          phone: string | null
+          reply_text: string | null
+          source: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          hit_count?: number
+          inbound_message_id: string
+          last_seen_at?: string
+          phone?: string | null
+          reply_text?: string | null
+          source?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          hit_count?: number
+          inbound_message_id?: string
+          last_seen_at?: string
+          phone?: string | null
+          reply_text?: string | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runtime_inbound_dedupe_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tamar_behavior_settings: {
         Row: {
           confidence_auto_apply_min: number

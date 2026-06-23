@@ -10,6 +10,11 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { authorizeRuntimeBridge } from "@/lib/runtime-bridge-auth";
+import {
+  claimInbound,
+  extractInboundMessageId,
+  recordReply,
+} from "@/lib/runtime-inbound-dedupe";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -189,6 +194,61 @@ export const Route = createFileRoute("/api/public/runtime/generate-reply")({
             ? body.fallback_reply
             : "";
 
+        // ---------- Strict inbound-message idempotency ----------
+        // If Railway tells us the inbound wamid, we MUST short-circuit any
+        // duplicate so the same Tamar reply is never generated/sent twice
+        // for the same user turn. Cached reply is returned verbatim.
+        const inboundMessageId =
+          extractInboundMessageId(body) ??
+          extractInboundMessageId(body?.turn_context) ??
+          null;
+        let dedupeClaim: Awaited<ReturnType<typeof claimInbound>> | null = null;
+        if (inboundMessageId) {
+          dedupeClaim = await claimInbound({
+            inboundMessageId,
+            contactId: body?.contact_id ?? body?.turn_context?.contact_id ?? null,
+            phone: body?.phone ?? body?.turn_context?.phone ?? null,
+            source: "runtime_generate_reply",
+          });
+          if (dedupeClaim.duplicate) {
+            return new Response(
+              JSON.stringify({
+                ok: true,
+                reply_text: dedupeClaim.cached_reply_text ?? fallback,
+                used_fallback: !dedupeClaim.cached_reply_text,
+                inbound_message_id: inboundMessageId,
+                duplicate_detected: true,
+                reply_sent: false,
+                dedupe_source: dedupeClaim.dedupe_source,
+                hit_count: dedupeClaim.hit_count,
+                first_seen_at: dedupeClaim.first_seen_at,
+              }),
+              { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
+            );
+          }
+        }
+
+        const traceMarker = {
+          inbound_message_id: inboundMessageId,
+          duplicate_detected: false,
+          dedupe_source: dedupeClaim?.dedupe_source ?? (inboundMessageId ? "first_seen" : "no_inbound_id"),
+        };
+        const finalize = async (reply: string | null, extra: Record<string, any>) => {
+          if (inboundMessageId && typeof reply === "string") {
+            await recordReply(inboundMessageId, reply).catch(() => {});
+          }
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              reply_text: reply ?? fallback,
+              ...traceMarker,
+              reply_sent: true,
+              ...extra,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
+          );
+        };
+
         // ---------- Browse-mode list lock ----------
         const turnCtx = body?.turn_context ?? {};
         const objective = body?.objective ?? {};
@@ -212,30 +272,20 @@ export const Route = createFileRoute("/api/public/runtime/generate-reply")({
               ? body.browse_outro.trim()
               : "איזה מהם מעניין אותך? אפשר לענות עם המספר.";
           const reply_text = `${intro}\n\n${renderBrowseBlock(browseList)}\n\n${outro}`;
-          return new Response(
-            JSON.stringify({
-              ok: true,
-              reply_text,
-              used_fallback: false,
-              source: "deterministic_browse",
-              presented_offers: browseList,
-            }),
-            { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
-          );
+          return finalize(reply_text, {
+            used_fallback: false,
+            source: "deterministic_browse",
+            presented_offers: browseList,
+          });
         }
 
         const apiKey = process.env.LOVABLE_API_KEY;
         if (!apiKey) {
-          return new Response(
-            JSON.stringify({
-              ok: true,
-              reply_text: fallback,
-              used_fallback: true,
-              error: "missing_lovable_api_key",
-              presented_offers: browseLockRequested ? browseList : undefined,
-            }),
-            { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
-          );
+          return finalize(fallback, {
+            used_fallback: true,
+            error: "missing_lovable_api_key",
+            presented_offers: browseLockRequested ? browseList : undefined,
+          });
         }
 
         // If browse-mode + LLM is explicitly allowed, inject a hard lock rule.
@@ -275,31 +325,21 @@ export const Route = createFileRoute("/api/public/runtime/generate-reply")({
           });
           if (!res.ok) {
             const txt = await res.text().catch(() => "");
-            return new Response(
-              JSON.stringify({
-                ok: true,
-                reply_text: fallback,
-                used_fallback: true,
-                error: `gateway_${res.status}`,
-                detail: txt.slice(0, 400),
-              }),
-              { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
-            );
+            return finalize(fallback, {
+              used_fallback: true,
+              error: `gateway_${res.status}`,
+              detail: txt.slice(0, 400),
+            });
           }
           const json: any = await res.json();
           const content: string = json?.choices?.[0]?.message?.content ?? "";
           let reply = extractReply(content);
           if (!reply) {
-            return new Response(
-              JSON.stringify({
-                ok: true,
-                reply_text: fallback,
-                used_fallback: true,
-                error: "empty_reply",
-                presented_offers: browseLockRequested ? browseList : undefined,
-              }),
-              { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
-            );
+            return finalize(fallback, {
+              used_fallback: true,
+              error: "empty_reply",
+              presented_offers: browseLockRequested ? browseList : undefined,
+            });
           }
           // Browse lock validation — if the LLM mangled the numbered list,
           // fall back to deterministic render so the user sees exactly what
@@ -314,37 +354,22 @@ export const Route = createFileRoute("/api/public/runtime/generate-reply")({
                 ? body.browse_outro.trim()
                 : "איזה מהם מעניין אותך? אפשר לענות עם המספר.";
             reply = `${intro}\n\n${renderBrowseBlock(browseList)}\n\n${outro}`;
-            return new Response(
-              JSON.stringify({
-                ok: true,
-                reply_text: reply,
-                used_fallback: false,
-                source: "deterministic_browse_after_llm_mismatch",
-                presented_offers: browseList,
-              }),
-              { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
-            );
-          }
-          return new Response(
-            JSON.stringify({
-              ok: true,
-              reply_text: reply,
+            return finalize(reply, {
               used_fallback: false,
-              presented_offers: browseLockRequested ? browseList : undefined,
-            }),
-            { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
-          );
+              source: "deterministic_browse_after_llm_mismatch",
+              presented_offers: browseList,
+            });
+          }
+          return finalize(reply, {
+            used_fallback: false,
+            presented_offers: browseLockRequested ? browseList : undefined,
+          });
         } catch (e: any) {
-          return new Response(
-            JSON.stringify({
-              ok: true,
-              reply_text: fallback,
-              used_fallback: true,
-              error: `gateway_exception: ${String(e?.message ?? e).slice(0, 200)}`,
-              presented_offers: browseLockRequested ? browseList : undefined,
-            }),
-            { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
-          );
+          return finalize(fallback, {
+            used_fallback: true,
+            error: `gateway_exception: ${String(e?.message ?? e).slice(0, 200)}`,
+            presented_offers: browseLockRequested ? browseList : undefined,
+          });
         }
       },
     },
