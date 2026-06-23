@@ -62,6 +62,7 @@ import { Route as ApiPublicRuntimeTamarPackRouteImport } from './routes/api/publ
 import { Route as ApiPublicRuntimeLeadContextRouteImport } from './routes/api/public/runtime/lead-context'
 import { Route as ApiPublicRuntimeHandoffRouteImport } from './routes/api/public/runtime/handoff'
 import { Route as ApiPublicRuntimeGenerateReplyRouteImport } from './routes/api/public/runtime/generate-reply'
+import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
@@ -351,6 +352,12 @@ const ApiPublicRuntimeGenerateReplyRoute =
     path: '/api/public/runtime/generate-reply',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicRuntimeConversationDebugRoute =
+  ApiPublicRuntimeConversationDebugRouteImport.update({
+    id: '/api/public/runtime/conversation-debug',
+    path: '/api/public/runtime/conversation-debug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicIntelligenceExtractRoute =
   ApiPublicIntelligenceExtractRouteImport.update({
     id: '/api/public/intelligence/extract',
@@ -423,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/generate-reply': typeof ApiPublicRuntimeGenerateReplyRoute
   '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
   '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
@@ -481,6 +489,7 @@ export interface FileRoutesByTo {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/generate-reply': typeof ApiPublicRuntimeGenerateReplyRoute
   '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
   '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
@@ -541,6 +550,7 @@ export interface FileRoutesById {
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/generate-reply': typeof ApiPublicRuntimeGenerateReplyRoute
   '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
   '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
@@ -601,6 +611,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/generate-reply'
     | '/api/public/runtime/handoff'
     | '/api/public/runtime/lead-context'
@@ -659,6 +670,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/generate-reply'
     | '/api/public/runtime/handoff'
     | '/api/public/runtime/lead-context'
@@ -718,6 +730,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/generate-reply'
     | '/api/public/runtime/handoff'
     | '/api/public/runtime/lead-context'
@@ -758,6 +771,7 @@ export interface RootRouteChildren {
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
+  ApiPublicRuntimeConversationDebugRoute: typeof ApiPublicRuntimeConversationDebugRoute
   ApiPublicRuntimeGenerateReplyRoute: typeof ApiPublicRuntimeGenerateReplyRoute
   ApiPublicRuntimeHandoffRoute: typeof ApiPublicRuntimeHandoffRoute
   ApiPublicRuntimeLeadContextRoute: typeof ApiPublicRuntimeLeadContextRoute
@@ -1142,6 +1156,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRuntimeGenerateReplyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/runtime/conversation-debug': {
+      id: '/api/public/runtime/conversation-debug'
+      path: '/api/public/runtime/conversation-debug'
+      fullPath: '/api/public/runtime/conversation-debug'
+      preLoaderRoute: typeof ApiPublicRuntimeConversationDebugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/intelligence/extract': {
       id: '/api/public/intelligence/extract'
       path: '/api/public/intelligence/extract'
@@ -1280,6 +1301,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
+  ApiPublicRuntimeConversationDebugRoute:
+    ApiPublicRuntimeConversationDebugRoute,
   ApiPublicRuntimeGenerateReplyRoute: ApiPublicRuntimeGenerateReplyRoute,
   ApiPublicRuntimeHandoffRoute: ApiPublicRuntimeHandoffRoute,
   ApiPublicRuntimeLeadContextRoute: ApiPublicRuntimeLeadContextRoute,
