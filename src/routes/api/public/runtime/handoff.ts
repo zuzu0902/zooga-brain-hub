@@ -140,8 +140,6 @@ export const Route = createFileRoute("/api/public/runtime/handoff")({
         let alertError: string | null = null;
         let managerNotified = false;
         let deliveryPromise: "queued" | "live" | "failed" = "queued";
-        // Track separately so the response type-narrowing stays loose.
-        const initialPromise: "queued" | "live" | "failed" = "queued";
 
         if (baseUrl && manager) {
           try {
@@ -218,16 +216,17 @@ export const Route = createFileRoute("/api/public/runtime/handoff")({
             // - "delivered": manager service ack'd (2xx)
             // - "queued":    request accepted but no live ack (reserved; not used today)
             // - "failed":    no delivery — missing manager/url, non-2xx, or exception
-            delivery_status:
-              (deliveryPromise as string) === "live"
-                ? "delivered"
-                : (deliveryPromise as string) === "queued"
-                  ? "queued"
-                  : "failed",
-            // Wording hint the brain should use in the customer-facing reply.
-            // Never "live" unless the manager service actually acknowledged.
-            recommended_wording: managerNotified ? "live" : "queued",
-            _initial_promise: initialPromise,
+            // Explicit, honest delivery truth for the Railway brain.
+            // - "delivered": manager service ack'd (2xx)
+            // - "queued":    accepted but no live ack (reserved; not used today)
+            // - "failed":    no delivery — missing manager/url, non-2xx, or exception
+            delivery_status: (managerNotified
+              ? "delivered"
+              : deliveryPromise === "failed"
+                ? "failed"
+                : "queued") as "delivered" | "queued" | "failed",
+            // Wording hint — never "live" unless the manager service ack'd.
+            recommended_wording: (managerNotified ? "live" : "queued") as "live" | "queued",
           }),
           { status: 200, headers: { "Content-Type": "application/json", ...CORS } },
         );
