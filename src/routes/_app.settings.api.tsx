@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { SOURCE_LABELS } from "@/lib/i18n";
 import { Copy, RefreshCw } from "lucide-react";
+import { getApiSettingsSafe, updateApiSettings } from "@/lib/api-settings.functions";
 
 export const Route = createFileRoute("/_app/settings/api")({
   head: () => ({ meta: [{ title: "הגדרות API — Zooga CRM" }] }),
@@ -23,10 +24,12 @@ function genToken() {
 
 function ApiSettingsPage() {
   const [token, setToken] = useState("");
+  const [hasToken, setHasToken] = useState(false);
   const [pageId, setPageId] = useState("");
   const [defaultSource, setDefaultSource] = useState("Tamar Bot");
   const [tamarUrl, setTamarUrl] = useState("");
   const [tamarToken, setTamarToken] = useState("");
+  const [hasTamarToken, setHasTamarToken] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -36,17 +39,15 @@ function ApiSettingsPage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("api_settings")
-        .select("*")
-        .eq("id", 1)
-        .maybeSingle();
-      if (data) {
-        setToken(data.webhook_token ?? "");
+      try {
+        const data = await getApiSettingsSafe();
         setPageId(data.facebook_page_id ?? "");
         setDefaultSource(data.default_source ?? "Tamar Bot");
-        setTamarUrl(((data as any).tamar_backend_url ?? "").trim());
-        setTamarToken(((data as any).tamar_backend_api_token ?? "").trim());
+        setTamarUrl((data.tamar_backend_url ?? "").trim());
+        setHasToken(!!data.has_webhook_token);
+        setHasTamarToken(!!data.has_tamar_backend_api_token);
+      } catch (e: any) {
+        toast.error("שגיאה בטעינת ההגדרות");
       }
       setLoading(false);
     })();
@@ -54,19 +55,26 @@ function ApiSettingsPage() {
 
   async function save() {
     setSaving(true);
-    const { error } = await supabase
-      .from("api_settings")
-      .upsert({
-        id: 1,
-        webhook_token: token || null,
-        facebook_page_id: pageId || null,
-        default_source: defaultSource as any,
-        tamar_backend_url: tamarUrl.trim() || null,
-        tamar_backend_api_token: tamarToken.trim() || null,
+    try {
+      await updateApiSettings({
+        data: {
+          facebook_page_id: pageId || null,
+          default_source: defaultSource,
+          tamar_backend_url: tamarUrl.trim() || null,
+          webhook_token: token || "",
+          tamar_backend_api_token: tamarToken.trim() || "",
+        },
       });
-    setSaving(false);
-    if (error) toast.error("שגיאה: " + error.message);
-    else toast.success("ההגדרות נשמרו");
+      if (token) setHasToken(true);
+      if (tamarToken.trim()) setHasTamarToken(true);
+      setToken("");
+      setTamarToken("");
+      toast.success("ההגדרות נשמרו");
+    } catch (e: any) {
+      toast.error("שגיאה בשמירה");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function copy(text: string) {
@@ -214,7 +222,8 @@ function ApiSettingsPage() {
               value={token}
               onChange={(e) => setToken(e.target.value)}
               dir="ltr"
-              placeholder="ייווצר אוטומטית"
+              placeholder={hasToken ? "••••••• (מוגדר) — הזן ערך חדש כדי לעדכן" : "ייווצר אוטומטית"}
+              type="password"
             />
             <Button variant="outline" size="icon" onClick={() => setToken(genToken())}>
               <RefreshCw className="h-4 w-4" />
@@ -224,7 +233,7 @@ function ApiSettingsPage() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            הבוט חייב לשלוח ערך זה בכותרת <code dir="ltr">x-api-token</code> או בפרמטר <code dir="ltr">?token=</code>.
+            הבוט חייב לשלוח ערך זה בכותרת <code dir="ltr">x-api-token</code> או בפרמטר <code dir="ltr">?token=</code>. הערך הנוכחי אינו מוצג — הזן ערך חדש כדי להחליף.
           </p>
         </div>
 
@@ -300,11 +309,11 @@ Body:
             value={tamarToken}
             onChange={(e) => setTamarToken(e.target.value)}
             dir="ltr"
-            placeholder="bearer token"
+            placeholder={hasTamarToken ? "••••••• (מוגדר) — הזן ערך חדש כדי לעדכן" : "bearer token"}
             type="password"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            יישלח כ-<code dir="ltr">Authorization: Bearer ...</code>. תמר תוכל לאמת את אותו token כשהיא קוראת בחזרה ל-<code dir="ltr">/api/public/webhook/tamar-status</code> לעדכוני סטטוס.
+            יישלח כ-<code dir="ltr">Authorization: Bearer ...</code>. הערך הנוכחי אינו מוצג — הזן ערך חדש כדי להחליף.
           </p>
         </div>
         <div className="flex justify-end">
