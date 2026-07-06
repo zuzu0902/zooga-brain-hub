@@ -57,6 +57,7 @@ import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
 import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new'
 import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 import { Route as ApiPublicRuntimeWritebackRouteImport } from './routes/api/public/runtime/writeback'
@@ -327,6 +328,11 @@ const Char91DotmcpChar93InvokeToolToolRoute =
     path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWebhookTamarStatusRoute =
   ApiPublicWebhookTamarStatusRouteImport.update({
     id: '/api/public/webhook/tamar-status',
@@ -427,6 +433,7 @@ export interface FileRoutesByFullPath {
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
@@ -490,6 +497,7 @@ export interface FileRoutesByTo {
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
@@ -555,6 +563,7 @@ export interface FileRoutesById {
   '/_app/send-offer': typeof AppSendOfferRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_app/campaigns/$id': typeof AppCampaignsIdRoute
   '/_app/campaigns/new': typeof AppCampaignsNewRoute
@@ -620,6 +629,7 @@ export interface FileRouteTypes {
     | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/campaigns/$id'
     | '/campaigns/new'
@@ -683,6 +693,7 @@ export interface FileRouteTypes {
     | '/send-offer'
     | '/tasks'
     | '/'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/campaigns/$id'
     | '/campaigns/new'
@@ -747,6 +758,7 @@ export interface FileRouteTypes {
     | '/_app/send-offer'
     | '/_app/tasks'
     | '/_app/'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_app/campaigns/$id'
     | '/_app/campaigns/new'
@@ -799,6 +811,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiDebugAgentsSummaryRoute: typeof ApiDebugAgentsSummaryRoute
   ApiDebugFrontendMapRoute: typeof ApiDebugFrontendMapRoute
@@ -1176,6 +1189,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhook/tamar-status': {
       id: '/api/public/webhook/tamar-status'
       path: '/api/public/webhook/tamar-status'
@@ -1362,6 +1382,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiDebugAgentsSummaryRoute: ApiDebugAgentsSummaryRoute,
   ApiDebugFrontendMapRoute: ApiDebugFrontendMapRoute,
