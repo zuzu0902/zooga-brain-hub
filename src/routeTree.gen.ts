@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
@@ -24,6 +25,8 @@ import { Route as AppHandoffRouteImport } from './routes/_app.handoff'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
 import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as ApiIntrospectUiGapsRouteImport } from './routes/api/introspect/ui-gaps'
 import { Route as ApiIntrospectTamarRoutingRouteImport } from './routes/api/introspect/tamar-routing'
 import { Route as ApiIntrospectTamarConfigRouteImport } from './routes/api/introspect/tamar-config'
@@ -53,6 +56,7 @@ import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
 import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new'
 import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 import { Route as ApiPublicRuntimeWritebackRouteImport } from './routes/api/public/runtime/writeback'
@@ -68,6 +72,11 @@ import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/pub
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
 import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
 
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -142,6 +151,18 @@ const AppAiAssistantRoute = AppAiAssistantRouteImport.update({
   path: '/ai-assistant',
   getParentRoute: () => AppRoute,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiIntrospectUiGapsRoute = ApiIntrospectUiGapsRouteImport.update({
   id: '/api/introspect/ui-gaps',
   path: '/api/introspect/ui-gaps',
@@ -300,6 +321,12 @@ const AppCampaignsIdRoute = AppCampaignsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppCampaignsRoute,
 } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhookTamarStatusRoute =
   ApiPublicWebhookTamarStatusRouteImport.update({
     id: '/api/public/webhook/tamar-status',
@@ -385,6 +412,9 @@ const ApiPublicAdminBackfillMemoriesRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/ai-assistant': typeof AppAiAssistantRoute
   '/campaigns': typeof AppCampaignsRouteWithChildren
   '/contacts': typeof AppContactsRouteWithChildren
@@ -397,6 +427,7 @@ export interface FileRoutesByFullPath {
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/contacts/$id': typeof AppContactsIdRoute
@@ -443,6 +474,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/ai-assistant': typeof AppAiAssistantRoute
   '/campaigns': typeof AppCampaignsRouteWithChildren
   '/contacts': typeof AppContactsRouteWithChildren
@@ -456,6 +490,7 @@ export interface FileRoutesByTo {
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
   '/': typeof AppIndexRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/contacts/$id': typeof AppContactsIdRoute
@@ -504,6 +539,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/ai-assistant': typeof AppAiAssistantRoute
   '/_app/campaigns': typeof AppCampaignsRouteWithChildren
   '/_app/contacts': typeof AppContactsRouteWithChildren
@@ -517,6 +555,7 @@ export interface FileRoutesById {
   '/_app/send-offer': typeof AppSendOfferRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/': typeof AppIndexRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_app/campaigns/$id': typeof AppCampaignsIdRoute
   '/_app/campaigns/new': typeof AppCampaignsNewRoute
   '/_app/contacts/$id': typeof AppContactsIdRoute
@@ -566,6 +605,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/mcp'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/ai-assistant'
     | '/campaigns'
     | '/contacts'
@@ -578,6 +620,7 @@ export interface FileRouteTypes {
     | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
+    | '/.mcp/invoke-tool/$tool'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/contacts/$id'
@@ -624,6 +667,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/mcp'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/ai-assistant'
     | '/campaigns'
     | '/contacts'
@@ -637,6 +683,7 @@ export interface FileRouteTypes {
     | '/send-offer'
     | '/tasks'
     | '/'
+    | '/.mcp/invoke-tool/$tool'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/contacts/$id'
@@ -684,6 +731,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
+    | '/mcp'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_app/ai-assistant'
     | '/_app/campaigns'
     | '/_app/contacts'
@@ -697,6 +747,7 @@ export interface FileRouteTypes {
     | '/_app/send-offer'
     | '/_app/tasks'
     | '/_app/'
+    | '/.mcp/invoke-tool/$tool'
     | '/_app/campaigns/$id'
     | '/_app/campaigns/new'
     | '/_app/contacts/$id'
@@ -745,6 +796,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  McpRoute: typeof McpRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiDebugAgentsSummaryRoute: typeof ApiDebugAgentsSummaryRoute
   ApiDebugFrontendMapRoute: typeof ApiDebugFrontendMapRoute
   ApiDebugIntegrationsStatusRoute: typeof ApiDebugIntegrationsStatusRoute
@@ -785,6 +840,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -889,6 +951,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/ai-assistant'
       preLoaderRoute: typeof AppAiAssistantRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/introspect/ui-gaps': {
       id: '/api/introspect/ui-gaps'
@@ -1093,6 +1169,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCampaignsIdRouteImport
       parentRoute: typeof AppCampaignsRoute
     }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhook/tamar-status': {
       id: '/api/public/webhook/tamar-status'
       path: '/api/public/webhook/tamar-status'
@@ -1275,6 +1358,11 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  McpRoute: McpRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiDebugAgentsSummaryRoute: ApiDebugAgentsSummaryRoute,
   ApiDebugFrontendMapRoute: ApiDebugFrontendMapRoute,
   ApiDebugIntegrationsStatusRoute: ApiDebugIntegrationsStatusRoute,
