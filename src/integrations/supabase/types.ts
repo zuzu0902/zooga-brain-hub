@@ -1115,6 +1115,13 @@ export type Database = {
             referencedRelation: "offers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "messages_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       offers: {
@@ -1657,7 +1664,57 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      offers_public: {
+        Row: {
+          category: Database["public"]["Enums"]["offer_category"] | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          event_date: string | null
+          event_end_date: string | null
+          flights_included: boolean | null
+          id: string | null
+          nights: number | null
+          offer_url: string | null
+          price: number | null
+          status: Database["public"]["Enums"]["offer_status"] | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["offer_category"] | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          event_date?: string | null
+          event_end_date?: string | null
+          flights_included?: boolean | null
+          id?: string | null
+          nights?: number | null
+          offer_url?: string | null
+          price?: number | null
+          status?: Database["public"]["Enums"]["offer_status"] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["offer_category"] | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          event_date?: string | null
+          event_end_date?: string | null
+          flights_included?: boolean | null
+          id?: string | null
+          nights?: number | null
+          offer_url?: string | null
+          price?: number | null
+          status?: Database["public"]["Enums"]["offer_status"] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
