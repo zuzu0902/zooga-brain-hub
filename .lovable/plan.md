@@ -1,26 +1,33 @@
-## Why you can't see the token
+# Enable Agent Integrations (Protected OAuth) — verification + minimal tool set
 
-Lovable's secret store is one-way: once a value is saved (whether you typed it, or I generated it), the UI and tools can only show the **name**, never the value. Deleting and re-adding doesn't change that — if the recreate flow didn't show you the value at the moment of creation, it's no longer retrievable from Lovable.
+## Current state (verified)
 
-`generate_secret` (what I used originally) writes a random value straight to the vault without ever surfacing it in chat, which is why you never saw it. That was the wrong tool for a token you also need to paste into Railway.
+- MCP server already wired at `/mcp` with Supabase OAuth 2.1 (`auth.oauth.issuer`, audience `authenticated`) — no public/no-auth path.
+- `supabase--configure_oauth_server` already active: DCR enabled, consent path `/.lovable/oauth/consent`, Site URL + redirect allow-list correct, no MCP config issues reported.
+- Hebrew consent screen exists at `src/routes/[.]lovable.oauth.consent.tsx`.
+- Manifest `.lovable/mcp/manifest.json` up-to-date with 5 tools.
 
-## Fix: you choose the value, you keep the copy
+So OAuth-only mode is already what's shipped — no code changes needed to enforce it.
 
-1. Delete the current `RUNTIME_BRIDGE_TOKEN` from the vault (it's unknown to both of us, so it's useless).
-2. Generate a strong token on your side — e.g. run `openssl rand -hex 32` locally, or use any password manager's generator (32+ chars, alphanumeric).
-3. I trigger the Lovable "add secret" prompt for `RUNTIME_BRIDGE_TOKEN`. You paste your token into the secure form. Because you generated it, you already have the plaintext to paste into Railway too.
-4. Paste the same value into Railway as `LOVABLE_BRIDGE_TOKEN` (or whatever the Railway side calls it). Railway sends it as `Authorization: Bearer <token>` to `/api/public/runtime/lead-context`, `/writeback`, `/handoff`.
-5. Verify with a quick curl from your machine:
-   ```
-   curl -H "Authorization: Bearer <token>" \
-     "https://zooga-brain-hub.lovable.app/api/public/runtime/lead-context?phone=+972500000000"
-   ```
-   200 with JSON = wired correctly. 401 = token mismatch.
+## What this plan does
 
-## Fallback already in place
+1. Run `supabase--migrate_signing_keys` to ensure the project uses asymmetric (ES256) JWT signing keys. MCP OAuth ID token signing fails on legacy HS256 with "HS256 is not supported for ID token signing"; the tool is idempotent and a no-op if already ES256.
+2. Re-run `app_mcp_server--extract_mcp_manifest` to confirm the manifest still builds cleanly against the current entry.
+3. Keep the current small, trip-sales-focused tool set as the "first tool set":
+   - `list_contacts` (read)
+   - `get_contact` (read)
+   - `list_offers` (read)
+   - `list_tasks` (read)
+   - `create_task` (write, non-destructive)
 
-The bridge auth helper also accepts `api_settings.webhook_token`. If Railway is already configured with that token, the endpoints will authorize today without any new secret — useful as a stopgap if you want to unblock Railway before doing the steps above.
+No new tools, no removed tools, no schema changes. All tools already scope to the signed-in user via `requireSupabaseAuth`-equivalent bearer forwarding + RLS.
 
-## No code changes
+## Not doing
 
-This is purely a secret-rotation flow. No files in the repo change.
+- Not adding a public/no-auth MCP path — user explicitly asked OAuth-only.
+- Not changing consent UI, redirect allow-list, or Site URL — debug tool reports clean.
+- Not touching Railway bridge endpoints.
+
+## After apply
+
+User enables the server from More → Agent integrations; connecting clients (Claude/ChatGPT/Cursor) go through the Hebrew consent page and receive user-scoped tokens.
