@@ -1,3 +1,5 @@
+import { getCurrentLang } from "@/lib/locale-state";
+
 export const STATUS_LABELS: Record<string, string> = {
   new_lead: "ליד חדש",
   active_member: "חבר פעיל",
@@ -113,7 +115,8 @@ export const TASK_PRIORITY_LABELS: Record<string, string> = {
 
 export function formatDate(d: string | Date | null | undefined): string {
   if (!d) return "—";
-  return new Intl.DateTimeFormat("he-IL", {
+  const locale = getCurrentLang() === "en" ? "en-US" : "he-IL";
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(d));
@@ -123,9 +126,19 @@ export function formatRelative(d: string | Date | null | undefined): string {
   if (!d) return "—";
   const date = new Date(d);
   const diff = (Date.now() - date.getTime()) / 1000;
-  if (diff < 60) return "כעת";
-  if (diff < 3600) return `לפני ${Math.floor(diff / 60)} דק׳`;
-  if (diff < 86400) return `לפני ${Math.floor(diff / 3600)} שעות`;
-  if (diff < 604800) return `לפני ${Math.floor(diff / 86400)} ימים`;
+  const en = getCurrentLang() === "en";
+  if (diff < 60) return en ? "just now" : "כעת";
+  if (diff < 3600) {
+    const n = Math.floor(diff / 60);
+    return en ? `${n}m ago` : `לפני ${n} דק׳`;
+  }
+  if (diff < 86400) {
+    const n = Math.floor(diff / 3600);
+    return en ? `${n}h ago` : `לפני ${n} שעות`;
+  }
+  if (diff < 604800) {
+    const n = Math.floor(diff / 86400);
+    return en ? `${n}d ago` : `לפני ${n} ימים`;
+  }
   return formatDate(d);
 }

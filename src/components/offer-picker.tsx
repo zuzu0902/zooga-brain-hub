@@ -15,8 +15,11 @@ import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/i18n";
 import { toast } from "sonner";
 import { CURRENCIES, formatPrice } from "@/lib/currency";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export function OfferPicker({ value, onChange }: { value?: string | null; onChange: (offerId: string | null) => void }) {
+  const t = useT();
+  const { dir } = useLanguage();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -44,28 +47,28 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
                   {selected.price && <span className="text-muted-foreground text-xs">· {formatPrice(selected.price, selected.currency)}</span>}
                 </span>
               ) : (
-                <span className="text-muted-foreground">בחר הצעה קיימת...</span>
+                <span className="text-muted-foreground">{t("בחר הצעה קיימת...")}</span>
               )}
               <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start" dir="rtl">
+          <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start" dir={dir}>
             <Command>
-              <CommandInput placeholder="חיפוש לפי שם או קטגוריה..." />
+              <CommandInput placeholder={t("חיפוש לפי שם או קטגוריה...")} />
               <CommandList>
-                <CommandEmpty>לא נמצאו הצעות</CommandEmpty>
+                <CommandEmpty>{t("לא נמצאו הצעות")}</CommandEmpty>
                 <CommandGroup>
                   {offers?.map((o: any) => (
                     <CommandItem
                       key={o.id}
-                      value={`${o.title} ${CATEGORY_LABELS[o.category] || o.category}`}
+                      value={`${o.title} ${t(CATEGORY_LABELS[o.category] ?? o.category)}`}
                       onSelect={() => { onChange(o.id); setOpen(false); }}
                     >
                       <Check className={cn("ml-2 h-4 w-4", value === o.id ? "opacity-100" : "opacity-0")} />
                       <div className="flex flex-col flex-1 min-w-0">
                         <span className="truncate">{o.title}</span>
                         <span className="text-xs text-muted-foreground truncate">
-                          {CATEGORY_LABELS[o.category] || o.category}{o.price ? ` · ${formatPrice(o.price, o.currency)}` : ""}
+                          {t(CATEGORY_LABELS[o.category] ?? o.category)}{o.price ? ` · ${formatPrice(o.price, o.currency)}` : ""}
                         </span>
                       </div>
                     </CommandItem>
@@ -76,10 +79,10 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
           </PopoverContent>
         </Popover>
         <Button type="button" variant="outline" onClick={() => setCreateOpen(true)} className="gap-1 shrink-0">
-          <Plus className="h-4 w-4" /> חדשה
+          <Plus className="h-4 w-4" /> {t("חדשה")}
         </Button>
         {selected && (
-          <Button type="button" variant="ghost" size="icon" onClick={() => onChange(null)} aria-label="נקה">
+          <Button type="button" variant="ghost" size="icon" onClick={() => onChange(null)} aria-label={t("נקה")}>
             <X className="h-4 w-4" />
           </Button>
         )}
@@ -93,14 +96,14 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="font-semibold truncate">{selected.title}</div>
-              {selected.category && <Badge variant="outline">{CATEGORY_LABELS[selected.category] || selected.category}</Badge>}
+              {selected.category && <Badge variant="outline">{t(CATEGORY_LABELS[selected.category] ?? selected.category)}</Badge>}
               {selected.price && <Badge variant="secondary">{formatPrice(selected.price, selected.currency)}</Badge>}
-              <Badge variant="outline" className="text-xs">{selected.status}</Badge>
+              <Badge variant="outline" className="text-xs">{t(selected.status)}</Badge>
             </div>
             {selected.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{selected.description}</p>}
             {(selected.target_min_age || selected.target_max_age) && (
               <div className="text-xs text-muted-foreground mt-1">
-                גילאי יעד: {selected.target_min_age || "—"}-{selected.target_max_age || "—"}
+                {t("גילאי יעד: ")}{selected.target_min_age || "—"}-{selected.target_max_age || "—"}
               </div>
             )}
           </div>
@@ -117,11 +120,13 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
 }
 
 function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
+  const t = useT();
+  const { dir } = useLanguage();
   const [s, setS] = useState<any>({ title: "", description: "", category: "event", price: "", currency: "ILS", status: "active" });
   const [saving, setSaving] = useState(false);
 
   async function save() {
-    if (!s.title.trim()) { toast.error("שם חובה"); return; }
+    if (!s.title.trim()) { toast.error(t("שם חובה")); return; }
     setSaving(true);
     const { data, error } = await supabase.from("offers").insert({
       title: s.title, description: s.description || null, category: s.category, status: s.status,
@@ -130,7 +135,7 @@ function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
     }).select("id").single();
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("הצעה נוצרה ושויכה");
+    toast.success(t("הצעה נוצרה ושויכה"));
     onOpenChange(false);
     setS({ title: "", description: "", category: "event", price: "", currency: "ILS", status: "active" });
     onCreated?.(data!.id);
@@ -138,23 +143,23 @@ function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-lg">
-        <DialogHeader><DialogTitle>הצעה חדשה</DialogTitle></DialogHeader>
+      <DialogContent dir={dir} className="max-w-lg">
+        <DialogHeader><DialogTitle>{t("הצעה חדשה")}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div><Label>שם *</Label><Input value={s.title} onChange={(e) => setS({ ...s, title: e.target.value })} /></div>
-          <div><Label>תיאור קצר</Label><Textarea rows={3} value={s.description} onChange={(e) => setS({ ...s, description: e.target.value })} /></div>
+          <div><Label>{t("שם *")}</Label><Input value={s.title} onChange={(e) => setS({ ...s, title: e.target.value })} /></div>
+          <div><Label>{t("תיאור קצר")}</Label><Textarea rows={3} value={s.description} onChange={(e) => setS({ ...s, description: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>קטגוריה</Label>
+              <Label>{t("קטגוריה")}</Label>
               <Select value={s.category} onValueChange={(v) => setS({ ...s, category: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{t(v)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>מחיר</Label>
+              <Label>{t("מחיר")}</Label>
               <div className="flex gap-2">
                 <Input type="number" className="flex-1" value={s.price} onChange={(e) => setS({ ...s, price: e.target.value })} />
                 <Select value={s.currency} onValueChange={(v) => setS({ ...s, currency: v })}>
@@ -166,11 +171,11 @@ function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
               </div>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">תוכל לערוך פרטים נוספים (קהל יעד, תחומי עניין) במסך ההצעות.</p>
+          <p className="text-xs text-muted-foreground">{t("תוכל לערוך פרטים נוספים (קהל יעד, תחומי עניין) במסך ההצעות.")}</p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>ביטול</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "שומר..." : "צור ושייך"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("ביטול")}</Button>
+          <Button onClick={save} disabled={saving}>{saving ? t("שומר...") : t("צור ושייך")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

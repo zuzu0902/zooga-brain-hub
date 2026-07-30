@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { Upload, FileText } from "lucide-react";
 import { normalizePhone, splitName } from "@/lib/phone";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/import-leads")({
   head: () => ({ meta: [{ title: "ייבוא לידים — Zooga CRM" }] }),
@@ -39,6 +40,8 @@ type ImportSummary = {
 };
 
 function ImportLeadsPage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
@@ -151,10 +154,10 @@ function ImportLeadsPage() {
       }
 
       setSummary(sum);
-      toast.success(`יובאו ${sum.imported} לידים, ${sum.duplicates} כפולים, ${sum.invalid} לא תקינים`);
+      toast.success(`${t("יובאו ")}${sum.imported}${t(" לידים, ")}${sum.duplicates}${t(" כפולים, ")}${sum.invalid}${t(" לא תקינים")}`);
       refetch();
     } catch (err: any) {
-      toast.error("שגיאת ייבוא: " + (err?.message || String(err)));
+      toast.error(t("שגיאת ייבוא: ") + (err?.message || String(err)));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -169,19 +172,19 @@ function ImportLeadsPage() {
       .update({ import_status: "ready_for_intake" })
       .in("id", ids);
     if (error) {
-      toast.error("שגיאה: " + error.message);
+      toast.error(t("שגיאה: ") + error.message);
       return;
     }
-    toast.success(`${ids.length} לידים סומנו כמוכנים לאינטייק`);
+    toast.success(`${ids.length}${t(" לידים סומנו כמוכנים לאינטייק")}`);
     setSelected(new Set());
     refetch();
   }
 
   return (
-    <div className="p-6 space-y-5" dir="rtl">
+    <div className="p-6 space-y-5" dir={dir}>
       <header>
-        <h1 className="text-3xl font-bold">ייבוא לידים</h1>
-        <p className="text-muted-foreground mt-1">העלאת קובץ CSV של לידים והכנתם לקמפיין אינטייק</p>
+        <h1 className="text-3xl font-bold">{t("ייבוא לידים")}</h1>
+        <p className="text-muted-foreground mt-1">{t("העלאת קובץ CSV של לידים והכנתם לקמפיין אינטייק")}</p>
       </header>
 
       <Card className="p-5 space-y-3">
@@ -195,21 +198,21 @@ function ImportLeadsPage() {
           />
           <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="gap-2">
             <Upload className="h-4 w-4" />
-            {uploading ? "מעלה..." : "העלה CSV"}
+            {uploading ? t("מעלה...") : t("העלה CSV")}
           </Button>
           <div className="text-xs text-muted-foreground flex items-center gap-2">
             <FileText className="h-3.5 w-3.5" />
-            עמודות חובה: <code dir="ltr">full_name, phone</code> · אופציונלי:{" "}
+            {t("עמודות חובה: ")}<code dir="ltr">full_name, phone</code>{t(" · אופציונלי: ")}{" "}
             <code dir="ltr">email, city, region, source_campaign, notes</code>
           </div>
         </div>
         {summary && (
           <div className="flex gap-2 flex-wrap text-sm">
-            <Badge variant="secondary">סה"כ שורות: {summary.total}</Badge>
-            <Badge>יובאו: {summary.imported}</Badge>
-            <Badge variant="outline">כפולים: {summary.duplicates}</Badge>
-            <Badge variant="outline">לא תקינים: {summary.invalid}</Badge>
-            <Badge variant="outline">דולגו: {summary.skipped}</Badge>
+            <Badge variant="secondary">{t("סה\"כ שורות: ")}{summary.total}</Badge>
+            <Badge>{t("יובאו: ")}{summary.imported}</Badge>
+            <Badge variant="outline">{t("כפולים: ")}{summary.duplicates}</Badge>
+            <Badge variant="outline">{t("לא תקינים: ")}{summary.invalid}</Badge>
+            <Badge variant="outline">{t("דולגו: ")}{summary.skipped}</Badge>
           </div>
         )}
       </Card>
@@ -218,16 +221,16 @@ function ImportLeadsPage() {
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setSelected(new Set()); }}>
           <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">כל הסטטוסים</SelectItem>
+            <SelectItem value="all">{t("כל הסטטוסים")}</SelectItem>
             {Object.entries(STATUS_LABELS).map(([k, v]) => (
-              <SelectItem key={k} value={k}>{v}</SelectItem>
+              <SelectItem key={k} value={k}>{t(v)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         <div className="flex-1" />
-        <div className="text-sm text-muted-foreground">נבחרו {selected.size}</div>
+        <div className="text-sm text-muted-foreground">{t("נבחרו ")}{selected.size}</div>
         <Button onClick={markReady} disabled={selected.size === 0} variant="default">
-          סמן כמוכן לאינטייק
+          {t("סמן כמוכן לאינטייק")}
         </Button>
       </Card>
 
@@ -242,20 +245,20 @@ function ImportLeadsPage() {
                     onCheckedChange={toggleAll}
                   />
                 </th>
-                <th className="p-3 font-medium">שם</th>
-                <th className="p-3 font-medium">טלפון</th>
-                <th className="p-3 font-medium">סטטוס</th>
-                <th className="p-3 font-medium">וואטסאפ</th>
-                <th className="p-3 font-medium">קמפיין</th>
-                <th className="p-3 font-medium">קובץ מקור</th>
+                <th className="p-3 font-medium">{t("שם")}</th>
+                <th className="p-3 font-medium">{t("טלפון")}</th>
+                <th className="p-3 font-medium">{t("סטטוס")}</th>
+                <th className="p-3 font-medium">{t("וואטסאפ")}</th>
+                <th className="p-3 font-medium">{t("קמפיין")}</th>
+                <th className="p-3 font-medium">{t("קובץ מקור")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">טוען...</td></tr>
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">{t("טוען...")}</td></tr>
               )}
               {!isLoading && leads?.length === 0 && (
-                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">אין לידים</td></tr>
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">{t("אין לידים")}</td></tr>
               )}
               {leads?.map((l: any) => (
                 <tr key={l.id} className="border-t hover:bg-muted/30">
@@ -267,7 +270,7 @@ function ImportLeadsPage() {
                   </td>
                   <td className="p-3 font-medium">{l.full_name || "—"}</td>
                   <td className="p-3 text-muted-foreground" dir="ltr">{l.phone}</td>
-                  <td className="p-3"><Badge variant="secondary">{STATUS_LABELS[l.import_status] ?? l.import_status}</Badge></td>
+                  <td className="p-3"><Badge variant="secondary">{t(STATUS_LABELS[l.import_status] ?? l.import_status)}</Badge></td>
                   <td className="p-3 text-muted-foreground">{l.whatsapp_template_status}</td>
                   <td className="p-3 text-muted-foreground">{l.source_campaign || "—"}</td>
                   <td className="p-3 text-muted-foreground text-xs">{l.source_file_name || "—"}</td>

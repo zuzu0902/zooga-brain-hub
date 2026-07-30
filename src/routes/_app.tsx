@@ -1,5 +1,7 @@
 import { createFileRoute, Outlet, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
+import { useT, useLanguage } from "@/lib/language-context";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { useEffect } from "react";
 import {
   LayoutDashboard,
@@ -60,6 +62,8 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
 
 function AppLayout() {
   const { user, isAdmin, loading, signOut } = useAuth();
+  const t = useT();
+  const { dir } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -72,15 +76,15 @@ function AppLayout() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground text-sm">
-        טוען…
+        {t("טוען…")}
       </div>
     );
   }
   if (!user) return null;
 
   return (
-    <div className="min-h-screen flex bg-background" dir="rtl">
-      <aside className="w-64 bg-sidebar text-sidebar-foreground border-l border-sidebar-border flex flex-col">
+    <div className="min-h-screen flex bg-background" dir={dir}>
+      <aside className="w-64 bg-sidebar text-sidebar-foreground border-l border-r border-sidebar-border flex flex-col">
         <div className="p-5 border-b border-sidebar-border flex items-center gap-3">
           <div
             className="h-10 w-10 rounded-xl flex items-center justify-center text-primary-foreground font-bold shadow-lg"
@@ -90,14 +94,14 @@ function AppLayout() {
           </div>
           <div>
             <div className="font-bold tracking-tight">Zooga CRM</div>
-            <div className="text-[11px] text-sidebar-foreground/60">מערכת ניהול קהילה</div>
+            <div className="text-[11px] text-sidebar-foreground/60">{t("מערכת ניהול קהילה")}</div>
           </div>
         </div>
         <nav className="flex-1 p-3 space-y-5 overflow-auto">
           {NAV_GROUPS.map((group) => (
             <div key={group.label}>
               <div className="px-3 mb-2 text-[10px] uppercase tracking-wider text-sidebar-foreground/50 font-semibold">
-                {group.label}
+                {t(group.label)}
               </div>
               <div className="space-y-1">
                 {group.items.map((item) => {
@@ -117,7 +121,7 @@ function AppLayout() {
                       }`}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
+                      <span className="truncate">{t(item.label)}</span>
                     </Link>
                   );
                 })}
@@ -135,23 +139,26 @@ function AppLayout() {
                 className="w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               >
                 <LogOut className="h-4 w-4" />
-                התנתק
+                {t("התנתק")}
               </Button>
             </>
           ) : (
             <div className="text-[11px] text-sidebar-foreground/70 px-2 py-1.5 rounded bg-sidebar-accent/40 text-center">
-              מצב פיתוח · ללא התחברות
+              {t("מצב פיתוח · ללא התחברות")}
             </div>
           )}
         </div>
       </aside>
       <main className="flex-1 overflow-auto">
+        <header className="sticky top-0 z-20 flex items-center justify-end gap-3 border-b border-border bg-background/85 backdrop-blur px-4 py-2">
+          <LanguageSwitcher />
+        </header>
         {!isAdmin && (
           <div className="m-4 p-4 rounded-md border border-warning/40 bg-warning/10 text-sm">
-            <div className="font-semibold mb-1">חשבון ללא הרשאות מנהל</div>
+            <div className="font-semibold mb-1">{t("חשבון ללא הרשאות מנהל")}</div>
             <div className="text-muted-foreground">
-              המשתמש <span className="font-mono">{user.email}</span> מחובר אך אינו מוגדר כ-admin, לכן כל הנתונים מסוננים על ידי RLS ויופיעו ריקים.
-              המשתמש הראשון שנרשם הופך אוטומטית ל-admin. אם זה אינו המקרה, יש להוסיף שורה בטבלת <span className="font-mono">user_roles</span> עם role=admin עבור user_id זה.
+              {t("המשתמש")} <span className="font-mono">{user.email}</span>{" "}
+              {t("מחובר אך אינו מוגדר כ-admin, לכן כל הנתונים מסוננים על ידי RLS ויופיעו ריקים. המשתמש הראשון שנרשם הופך אוטומטית ל-admin. אם זה אינו המקרה, יש להוסיף שורה בטבלת user_roles עם role=admin עבור user_id זה.")}
             </div>
           </div>
         )}

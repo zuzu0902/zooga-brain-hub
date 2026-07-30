@@ -20,6 +20,8 @@ import {
   SALES_TEMP_LABELS, SALES_TEMP_TONE, formatRelative,
 } from "@/lib/i18n";
 import { ContactCreateDialog } from "@/components/contact-create-dialog";
+import { useT } from "@/lib/language-context";
+import { useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/contacts")({
   head: () => ({ meta: [{ title: "אנשי קשר — Zooga CRM" }] }),
@@ -43,6 +45,8 @@ function ContactsRoute() {
 }
 
 function ContactsPage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
@@ -62,10 +66,10 @@ function ContactsPage() {
     const { error } = await supabase.from("contacts").delete().eq("id", toDelete.id);
     setDeleting(false);
     if (error) {
-      toast.error("שגיאה במחיקה: " + error.message);
+      toast.error(t("שגיאה במחיקה: ") + error.message);
       return;
     }
-    toast.success("איש הקשר נמחק");
+    toast.success(t("איש הקשר נמחק"));
     setToDelete(null);
     refetch();
   }
@@ -134,13 +138,13 @@ function ContactsPage() {
     <div className="p-6 space-y-5 max-w-[1600px] mx-auto">
       <header className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">אנשי קשר</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("אנשי קשר")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {filtered.length.toLocaleString("he-IL")} מתוך {(contacts?.length ?? 0).toLocaleString("he-IL")}
+            {filtered.length.toLocaleString("he-IL")} {t("מתוך")} {(contacts?.length ?? 0).toLocaleString("he-IL")}
           </p>
         </div>
         <Button onClick={() => setOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> הוסף איש קשר
+          <Plus className="h-4 w-4" /> {t("הוסף איש קשר")}
         </Button>
       </header>
 
@@ -149,7 +153,7 @@ function ContactsPage() {
           <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="חיפוש לפי שם, טלפון, עיר או תחום עניין"
+              placeholder={t("חיפוש לפי שם, טלפון, עיר או תחום עניין")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pr-9 bg-background"
@@ -157,22 +161,22 @@ function ContactsPage() {
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Filter className="h-3.5 w-3.5" />
-            {filterCount > 0 ? `${filterCount} סינונים פעילים` : "ללא סינון"}
+            {filterCount > 0 ? `${filterCount} ${t("סינונים פעילים")}` : t("ללא סינון")}
             {filterCount > 0 && (
               <Button size="sm" variant="ghost" className="h-7 px-2" onClick={clearFilters}>
-                <X className="h-3.5 w-3.5 ml-1" /> איפוס
+                <X className="h-3.5 w-3.5 ml-1" /> {t("איפוס")}
               </Button>
             )}
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-          <FilterSelect value={status} onChange={setStatus} placeholder="סטטוס" options={STATUS_LABELS} />
-          <FilterSelect value={source} onChange={setSource} placeholder="מקור" options={SOURCE_LABELS} />
-          <FilterSelect value={region} onChange={setRegion} placeholder="אזור" options={Object.fromEntries(regions.map((r) => [r, r]))} />
-          <FilterSelect value={interest} onChange={setInterest} placeholder="תחום עניין" options={Object.fromEntries(ALL_INTERESTS.map((k) => [k, INTEREST_LABELS[k]]))} />
-          <FilterSelect value={temperature} onChange={setTemperature} placeholder="טמפרטורה" options={SALES_TEMP_LABELS} />
-          <FilterSelect value={activity} onChange={setActivity} placeholder="פעילות" options={{ low: "נמוכה", med: "בינונית", high: "גבוהה" }} />
-          <FilterSelect value={consent} onChange={setConsent} placeholder="הסכמה" options={{ yes: "אישרו", no: "לא אישרו" }} />
+          <FilterSelect value={status} onChange={setStatus} placeholder={t("סטטוס")} options={STATUS_LABELS} />
+          <FilterSelect value={source} onChange={setSource} placeholder={t("מקור")} options={SOURCE_LABELS} />
+          <FilterSelect value={region} onChange={setRegion} placeholder={t("אזור")} options={Object.fromEntries(regions.map((r) => [r, r]))} />
+          <FilterSelect value={interest} onChange={setInterest} placeholder={t("תחום עניין")} options={Object.fromEntries(ALL_INTERESTS.map((k) => [k, INTEREST_LABELS[k]]))} />
+          <FilterSelect value={temperature} onChange={setTemperature} placeholder={t("טמפרטורה")} options={SALES_TEMP_LABELS} />
+          <FilterSelect value={activity} onChange={setActivity} placeholder={t("פעילות")} options={{ low: t("נמוכה"), med: t("בינונית"), high: t("גבוהה") }} />
+          <FilterSelect value={consent} onChange={setConsent} placeholder={t("הסכמה")} options={{ yes: t("אישרו"), no: t("לא אישרו") }} />
         </div>
       </Card>
 
@@ -181,28 +185,28 @@ function ContactsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-right text-xs uppercase tracking-wider text-muted-foreground bg-muted/40 border-b">
-                <th className="px-4 py-3 font-medium">שם</th>
-                <th className="px-4 py-3 font-medium">טלפון</th>
-                <th className="px-4 py-3 font-medium">מקור</th>
-                <th className="px-4 py-3 font-medium">סטטוס</th>
-                <th className="px-4 py-3 font-medium">אזור / עיר</th>
-                <th className="px-4 py-3 font-medium">גיל / מגדר</th>
-                <th className="px-4 py-3 font-medium">סטטוס משפחתי</th>
-                <th className="px-4 py-3 font-medium">תחומי עניין</th>
-                <th className="px-4 py-3 font-medium">פעילות</th>
-                <th className="px-4 py-3 font-medium">טמפ׳</th>
-                <th className="px-4 py-3 font-medium">אינטר׳</th>
-                <th className="px-4 py-3 font-medium">הסכמה</th>
-                <th className="px-4 py-3 font-medium">אחרון</th>
+                <th className="px-4 py-3 font-medium">{t("שם")}</th>
+                <th className="px-4 py-3 font-medium">{t("טלפון")}</th>
+                <th className="px-4 py-3 font-medium">{t("מקור")}</th>
+                <th className="px-4 py-3 font-medium">{t("סטטוס")}</th>
+                <th className="px-4 py-3 font-medium">{t("אזור / עיר")}</th>
+                <th className="px-4 py-3 font-medium">{t("גיל / מגדר")}</th>
+                <th className="px-4 py-3 font-medium">{t("סטטוס משפחתי")}</th>
+                <th className="px-4 py-3 font-medium">{t("תחומי עניין")}</th>
+                <th className="px-4 py-3 font-medium">{t("פעילות")}</th>
+                <th className="px-4 py-3 font-medium">{t("טמפ׳")}</th>
+                <th className="px-4 py-3 font-medium">{t("אינטר׳")}</th>
+                <th className="px-4 py-3 font-medium">{t("הסכמה")}</th>
+                <th className="px-4 py-3 font-medium">{t("אחרון")}</th>
                 <th className="px-4 py-3 font-medium w-10"></th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">טוען...</td></tr>
+                <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("טוען...")}</td></tr>
               )}
               {!isLoading && filtered.length === 0 && (
-                <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">אין אנשי קשר התואמים לסינון</td></tr>
+                <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("אין אנשי קשר התואמים לסינון")}</td></tr>
               )}
               {filtered.map((c: any) => {
                 const initials = (c.full_name || c.first_name || "?").trim().slice(0, 1);
@@ -225,7 +229,7 @@ function ContactsPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="font-medium truncate flex items-center gap-1.5">
-                            {c.full_name || "ללא שם"}
+                            {c.full_name || t("ללא שם")}
                             {c.manager_attention_required && (
                               <AlertCircle className="h-3.5 w-3.5 text-destructive" />
                             )}
@@ -286,7 +290,7 @@ function ContactsPage() {
                           e.stopPropagation();
                           setToDelete({ id: c.id, name: c.full_name || "ללא שם" });
                         }}
-                        aria-label="מחק"
+                        aria-label={t("מחק")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -301,17 +305,17 @@ function ContactsPage() {
 
       <ContactCreateDialog open={open} onOpenChange={setOpen} onCreated={() => refetch()} />
       <AlertDialog open={!!toDelete} onOpenChange={(v) => !v && setToDelete(null)}>
-        <AlertDialogContent dir="rtl">
+        <AlertDialogContent dir={dir}>
           <AlertDialogHeader>
-            <AlertDialogTitle>למחוק את איש הקשר?</AlertDialogTitle>
+            <AlertDialogTitle>{t("למחוק את איש הקשר?")}</AlertDialogTitle>
             <AlertDialogDescription>
-              פעולה זו תמחק לצמיתות את {toDelete?.name} ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.
+              {t("פעולה זו תמחק לצמיתות את")} {toDelete?.name} {t("ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>ביטול</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t("ביטול")}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleting ? "מוחק..." : "מחק"}
+              {deleting ? t("מוחק...") : t("מחק")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -323,13 +327,14 @@ function ContactsPage() {
 function FilterSelect({ value, onChange, placeholder, options }: {
   value: string; onChange: (v: string) => void; placeholder: string; options: Record<string, string>;
 }) {
+  const t = useT();
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="bg-background h-9 text-xs"><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">{placeholder} — הכל</SelectItem>
+        <SelectItem value="all">{placeholder} — {t("הכל")}</SelectItem>
         {Object.entries(options).map(([k, v]) => (
-          <SelectItem key={k} value={k}>{v}</SelectItem>
+          <SelectItem key={k} value={k}>{t(v)}</SelectItem>
         ))}
       </SelectContent>
     </Select>

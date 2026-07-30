@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/runtime-trace")({
   component: RuntimeTracePage,
@@ -68,6 +69,8 @@ function conversationModeBadge(mode: string | null) {
 }
 
 function RuntimeTracePage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const [modeFilter, setModeFilter] = useState<string>("");
   const [convModeFilter, setConvModeFilter] = useState<string>("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -89,12 +92,12 @@ function RuntimeTracePage() {
   });
 
   return (
-    <div className="p-6 space-y-4" dir="rtl">
+    <div className="p-6 space-y-4" dir={dir}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Runtime Trace</h1>
           <p className="text-sm text-muted-foreground">
-            אמת הריצה של Tamar. זרימת ייצור (zooga_direct): Railway מקבל webhook → קורא ל-<span className="font-mono">POST /api/public/runtime/tamar-turn</span> → Zooga מייצר את <span className="font-mono">reply_text</span> → Railway שולח ל-WhatsApp. כל שורה כאן מייצגת תור שיחה אחד.
+            {t("אמת הריצה של Tamar. זרימת ייצור (zooga_direct): Railway מקבל webhook → קורא ל-")}<span className="font-mono">POST /api/public/runtime/tamar-turn</span>{t(" → Zooga מייצר את ")}<span className="font-mono">reply_text</span>{t(" → Railway שולח ל-WhatsApp. כל שורה כאן מייצגת תור שיחה אחד.")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -105,11 +108,11 @@ function RuntimeTracePage() {
               variant={modeFilter === m ? "default" : "outline"}
               onClick={() => setModeFilter(m)}
             >
-              {m || "הכל"}
+              {m || t("הכל")}
             </Button>
           ))}
           <Button size="sm" variant="ghost" onClick={() => refetch()}>
-            רענן
+            {t("רענן")}
           </Button>
         </div>
       </div>
@@ -128,13 +131,13 @@ function RuntimeTracePage() {
         ))}
       </div>
 
-      {isLoading && <div className="text-sm text-muted-foreground">טוען…</div>}
+      {isLoading && <div className="text-sm text-muted-foreground">{t("טוען…")}</div>}
       {error && (
-        <div className="text-sm text-destructive">שגיאה: {(error as Error).message}</div>
+        <div className="text-sm text-destructive">{t("שגיאה: ")}{(error as Error).message}</div>
       )}
       {!isLoading && !error && (data ?? []).length === 0 && (
         <Card className="p-6 text-sm text-muted-foreground">
-          עוד אין רשומות. Railway צריך להפעיל את <span className="font-mono">POST /api/public/runtime/tamar-turn</span> עבור כל הודעה נכנסת.
+          {t("עוד אין רשומות. Railway צריך להפעיל את ")}<span className="font-mono">POST /api/public/runtime/tamar-turn</span>{t(" עבור כל הודעה נכנסת.")}
         </Card>
       )}
 
@@ -207,13 +210,13 @@ function RuntimeTracePage() {
                   )}
                   {r.inbound_message && (
                     <div className="text-sm">
-                      <span className="text-muted-foreground">נכנס: </span>
+                      <span className="text-muted-foreground">{t("נכנס: ")}</span>
                       <span className="whitespace-pre-wrap">{r.inbound_message}</span>
                     </div>
                   )}
                   {r.outbound_reply && (
                     <div className="text-sm">
-                      <span className="text-muted-foreground">תשובה: </span>
+                      <span className="text-muted-foreground">{t("תשובה: ")}</span>
                       <span className="whitespace-pre-wrap">{r.outbound_reply}</span>
                     </div>
                   )}
@@ -259,7 +262,7 @@ function RuntimeTracePage() {
                   variant="ghost"
                   onClick={() => setExpandedId(expanded ? null : r.id)}
                 >
-                  {expanded ? "הסתר" : "raw"}
+                  {expanded ? t("הסתר") : "raw"}
                 </Button>
               </div>
               {expanded && (

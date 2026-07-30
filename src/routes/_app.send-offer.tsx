@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { INTEREST_LABELS, CATEGORY_LABELS } from "@/lib/i18n";
 import { z } from "zod";
+import { useT } from "@/lib/language-context";
 
 const search = z.object({ offerId: z.string().optional(), contactId: z.string().optional() });
 
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_app/send-offer")({
 });
 
 function SendOfferPage() {
+  const t = useT();
   const sp = Route.useSearch();
   const [offerId, setOfferId] = useState<string>(sp.offerId || "");
   const [selected, setSelected] = useState<Set<string>>(new Set(sp.contactId ? [sp.contactId] : []));
@@ -55,23 +57,23 @@ function SendOfferPage() {
             (c.interests || []).includes(i)
           );
           if (matchedInterests.length > 0) {
-            reasons.push(`מתעניין ב${matchedInterests.map((i: string) => INTEREST_LABELS[i] || i).join(", ")}`);
+            reasons.push(`${t("מתעניין ב")}${matchedInterests.map((i: string) => t(INTEREST_LABELS[i] ?? i)).join(", ")}`);
             score += matchedInterests.length * 10;
           }
           if (offer!.target_region && c.region === offer!.target_region) {
-            reasons.push(`מאזור ${c.region}`);
+            reasons.push(`${t("מאזור ")}${c.region}`);
             score += 15;
           }
           if (c.last_interaction_at) {
             const days = (Date.now() - new Date(c.last_interaction_at).getTime()) / 86400000;
-            if (days < 30) { reasons.push("פעיל לאחרונה"); score += 5; }
+            if (days < 30) { reasons.push(t("פעיל לאחרונה")); score += 5; }
           }
           return { ...c, reasons, _score: score };
         })
         .filter((c: any) =>
           (offer!.target_interests?.length ?? 0) === 0
             ? true
-            : c.reasons.some((r: string) => r.startsWith("מתעניין"))
+            : c.reasons.some((r: string) => r.startsWith(t("מתעניין ב")))
         )
         .sort((a: any, b: any) => b._score - a._score);
     },
@@ -93,14 +95,14 @@ function SendOfferPage() {
         contact_id: c.id,
         offer_id: offer.id,
         channel: "Facebook",
-        message_text: template.replaceAll("{first_name}", c.first_name || c.full_name || "חבר"),
+        message_text: template.replaceAll("{first_name}", c.first_name || c.full_name || t("חבר")),
         status: "draft",
       });
     });
     const { error } = await supabase.from("messages").insert(rows);
     if (error) toast.error(error.message);
     else {
-      toast.success(`נוצרו ${rows.length} טיוטות הודעה. מוכן לשליחה דרך בוט תמר.`);
+      toast.success(`${t("נוצרו ")}${rows.length}${t(" טיוטות הודעה. מוכן לשליחה דרך בוט תמר.")}`);
       setSelected(new Set());
     }
   }
@@ -108,17 +110,17 @@ function SendOfferPage() {
   return (
     <div className="p-6 space-y-5 max-w-6xl">
       <header>
-        <h1 className="text-3xl font-bold">שליחת הצעה</h1>
-        <p className="text-muted-foreground mt-1">בחר הצעה, סמן אנשי קשר, צור טיוטות מותאמות</p>
+        <h1 className="text-3xl font-bold">{t("שליחת הצעה")}</h1>
+        <p className="text-muted-foreground mt-1">{t("בחר הצעה, סמן אנשי קשר, צור טיוטות מותאמות")}</p>
       </header>
 
       <Card className="p-5">
-        <label className="text-sm font-medium">הצעה</label>
+        <label className="text-sm font-medium">{t("הצעה")}</label>
         <Select value={offerId} onValueChange={setOfferId}>
-          <SelectTrigger><SelectValue placeholder="בחר הצעה פעילה" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder={t("בחר הצעה פעילה")} /></SelectTrigger>
           <SelectContent>
             {offers?.map((o: any) => (
-              <SelectItem key={o.id} value={o.id}>{CATEGORY_LABELS[o.category]} · {o.title}</SelectItem>
+              <SelectItem key={o.id} value={o.id}>{t(CATEGORY_LABELS[o.category] ?? o.category)} · {o.title}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -127,7 +129,7 @@ function SendOfferPage() {
       {offer && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Card className="p-5 lg:col-span-2 space-y-3">
-            <h3 className="font-semibold">אנשי קשר מומלצים ({candidates?.length ?? 0})</h3>
+            <h3 className="font-semibold">{t("אנשי קשר מומלצים")} ({candidates?.length ?? 0})</h3>
             <div className="space-y-2 max-h-[500px] overflow-y-auto">
               {(candidates ?? []).map((c: any) => (
                 <div key={c.id} className="flex items-start gap-3 p-3 rounded-lg border">
@@ -140,7 +142,7 @@ function SendOfferPage() {
                     }}
                   />
                   <div className="flex-1">
-                    <div className="font-medium">{c.full_name || "ללא שם"}</div>
+                    <div className="font-medium">{c.full_name || t("ללא שם")}</div>
                     <div className="flex gap-1 flex-wrap mt-1">
                       {c.reasons.map((r: string, i: number) => (
                         <Badge key={i} variant="secondary" className="text-xs">{r}</Badge>
@@ -151,17 +153,17 @@ function SendOfferPage() {
                 </div>
               ))}
               {candidates?.length === 0 && (
-                <div className="text-sm text-muted-foreground p-4 text-center">לא נמצאו אנשי קשר מתאימים</div>
+                <div className="text-sm text-muted-foreground p-4 text-center">{t("לא נמצאו אנשי קשר מתאימים")}</div>
               )}
             </div>
           </Card>
 
           <Card className="p-5 space-y-3">
-            <h3 className="font-semibold">תבנית הודעה</h3>
-            <p className="text-xs text-muted-foreground">השתמש ב-{`{first_name}`} להתאמה אישית</p>
+            <h3 className="font-semibold">{t("תבנית הודעה")}</h3>
+            <p className="text-xs text-muted-foreground">{t("השתמש ב-")}{`{first_name}`}{t(" להתאמה אישית")}</p>
             <Textarea rows={10} value={template} onChange={(e) => setTemplate(e.target.value)} />
             <Button className="w-full" disabled={selected.size === 0} onClick={send}>
-              צור {selected.size} טיוטות הודעה
+              {t("צור ")}{selected.size}{t(" טיוטות הודעה")}
             </Button>
           </Card>
         </div>

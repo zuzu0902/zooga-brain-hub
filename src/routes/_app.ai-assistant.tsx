@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Sparkles, Send, CheckSquare, Loader2, History, Repeat2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/ai-assistant")({
   head: () => ({ meta: [{ title: "AI Assistant — Zooga CRM" }] }),
@@ -29,6 +30,8 @@ const KIND_OPTIONS = [
 type Turn = { id?: string; kind: string; prompt: string; response: string; ts: string; context_used?: any; status?: string };
 
 function AIAssistantPage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const [kind, setKind] = useState("summarize_hot_leads_week");
   const [prompt, setPrompt] = useState("");
   const [contactId, setContactId] = useState("");
@@ -59,8 +62,8 @@ function AIAssistantPage() {
   useEffect(() => { loadHistory(); }, []);
 
   async function run() {
-    if (!prompt.trim()) return toast.error("נדרשת בקשה");
-    if (kind === "summarize_contact" && !contactId.trim()) return toast.error("נדרש מזהה איש קשר");
+    if (!prompt.trim()) return toast.error(t("נדרשת בקשה"));
+    if (kind === "summarize_contact" && !contactId.trim()) return toast.error(t("נדרש מזהה איש קשר"));
     setBusy(true);
     try {
       const resp = await fetch("/api/public/ai-assistant/run", {
@@ -88,23 +91,23 @@ function AIAssistantPage() {
       source_ref_id: turn.id ?? null,
     } as any);
     if (error) return toast.error(error.message);
-    toast.success("נשמר כמשימה");
+    toast.success(t("נשמר כמשימה"));
   }
 
   function reuse(turn: Turn) {
     setKind(turn.kind);
     setPrompt(turn.prompt);
-    toast.info("הבקשה נטענה לעריכה");
+    toast.info(t("הבקשה נטענה לעריכה"));
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-[1100px] mx-auto" dir="rtl">
+    <div className="p-6 space-y-6 max-w-[1100px] mx-auto" dir={dir}>
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Sparkles className="h-6 w-6 text-primary" /> AI Assistant
         </h1>
         <p className="text-sm text-muted-foreground">
-          עוזר פנימי בגישת proposal-first. אינו מבצע פעולות אוטומטיות; כל פלט הוא הצעה לאישור מנהל. ההיסטוריה נשמרת בצד שרת.
+          {t("עוזר פנימי בגישת proposal-first. אינו מבצע פעולות אוטומטיות; כל פלט הוא הצעה לאישור מנהל. ההיסטוריה נשמרת בצד שרת.")}
         </p>
       </div>
 
@@ -121,21 +124,21 @@ function AIAssistantPage() {
         {kind === "summarize_contact" && (
           <input
             className="w-full px-3 py-2 text-sm rounded-md border bg-background"
-            placeholder="מזהה איש קשר (contact_id, UUID)"
+            placeholder={t("מזהה איש קשר (contact_id, UUID)")}
             value={contactId}
             onChange={(e) => setContactId(e.target.value)}
           />
         )}
         <Textarea
           rows={5}
-          placeholder="תאר את הבקשה (לדוגמה: סכם את כל הלידים החמים מהשבוע, או הצע סגמנטים לטיול בוגרי 60+)"
+          placeholder={t("תאר את הבקשה (לדוגמה: סכם את כל הלידים החמים מהשבוע, או הצע סגמנטים לטיול בוגרי 60+)")}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
         />
         <div className="flex justify-end">
           <Button onClick={run} disabled={busy} className="gap-1.5">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            הרץ
+            {t("הרץ")}
           </Button>
         </div>
       </Card>
@@ -143,37 +146,37 @@ function AIAssistantPage() {
       <div className="space-y-4">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <History className="h-3.5 w-3.5" />
-          היסטוריה (נשמרת בשרת) {loadingHistory ? "· טוען…" : `· ${history.length} פריטים`}
+          {t("היסטוריה (נשמרת בשרת)")} {loadingHistory ? `· ${t("טוען…")}` : `· ${history.length} ${t("פריטים")}`}
         </div>
-        {history.map((t, i) => (
-          <Card key={t.id ?? i} className="p-4">
+        {history.map((turn, i) => (
+          <Card key={turn.id ?? i} className="p-4">
             <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="text-[10px]">
-                  {KIND_OPTIONS.find((o) => o.value === t.kind)?.label ?? t.kind}
+                  {KIND_OPTIONS.find((o) => o.value === turn.kind)?.label ?? turn.kind}
                 </Badge>
-                {t.status && t.status !== "completed" && (
-                  <Badge variant="outline" className="text-[10px]">{t.status}</Badge>
+                {turn.status && turn.status !== "completed" && (
+                  <Badge variant="outline" className="text-[10px]">{turn.status}</Badge>
                 )}
-                <span className="text-xs text-muted-foreground">{new Date(t.ts).toLocaleString("he-IL")}</span>
+                <span className="text-xs text-muted-foreground">{new Date(turn.ts).toLocaleString("he-IL")}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => reuse(t)}>
-                  <Repeat2 className="h-3.5 w-3.5" /> השתמש שוב
+                <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => reuse(turn)}>
+                  <Repeat2 className="h-3.5 w-3.5" /> {t("השתמש שוב")}
                 </Button>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => saveAsTask(t)}>
-                  <CheckSquare className="h-3.5 w-3.5" /> שמור כמשימה
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => saveAsTask(turn)}>
+                  <CheckSquare className="h-3.5 w-3.5" /> {t("שמור כמשימה")}
                 </Button>
               </div>
             </div>
-            <div className="text-xs text-muted-foreground mb-2 whitespace-pre-wrap border-r-2 border-primary/40 pr-3">{t.prompt}</div>
+            <div className="text-xs text-muted-foreground mb-2 whitespace-pre-wrap border-r-2 border-primary/40 pr-3">{turn.prompt}</div>
             <div className="prose prose-sm dark:prose-invert max-w-none">
-              <ReactMarkdown>{t.response}</ReactMarkdown>
+              <ReactMarkdown>{turn.response}</ReactMarkdown>
             </div>
-            {t.context_used && (
+            {turn.context_used && (
               <details className="mt-3 text-xs text-muted-foreground border-t pt-2">
                 <summary className="cursor-pointer font-semibold">Grounded in (Zooga source-of-truth)</summary>
-                <pre className="mt-2 p-2 bg-muted/50 rounded overflow-x-auto" dir="ltr">{JSON.stringify(t.context_used, null, 2)}</pre>
+                <pre className="mt-2 p-2 bg-muted/50 rounded overflow-x-auto" dir="ltr">{JSON.stringify(turn.context_used, null, 2)}</pre>
               </details>
             )}
           </Card>

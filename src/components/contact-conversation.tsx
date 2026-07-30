@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare } from "lucide-react";
 import { formatRelative } from "@/lib/i18n";
+import { useT } from "@/lib/language-context";
 
 const MESSAGE_TYPES = new Set([
   "whatsapp_message",
@@ -16,6 +17,7 @@ const MESSAGE_TYPES = new Set([
 ]);
 
 export function ContactConversation({ contactId }: { contactId: string }) {
+  const t = useT();
   const qc = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -57,13 +59,13 @@ export function ContactConversation({ contactId }: { contactId: string }) {
     <Card className="p-4">
       <div className="flex items-center gap-2 mb-3">
         <MessageSquare className="h-4 w-4 text-primary" />
-        <h3 className="font-semibold">שיחת Tamar</h3>
+        <h3 className="font-semibold">{t("שיחת Tamar")}</h3>
         <Badge variant="outline" className="text-[10px]">{rows?.length ?? 0}</Badge>
       </div>
       <div ref={scrollRef} className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
         {(rows?.length ?? 0) === 0 ? (
           <div className="text-sm text-muted-foreground py-6 text-center">
-            אין הודעות עדיין בשיחה.
+            {t("אין הודעות עדיין בשיחה.")}
           </div>
         ) : (
           rows!.map((m: any) => {

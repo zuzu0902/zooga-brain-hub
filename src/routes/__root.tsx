@@ -10,23 +10,26 @@ import {
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth-context";
+import { LanguageProvider, useT, useLanguage } from "@/lib/language-context";
 import { Toaster } from "sonner";
 
 function NotFoundComponent() {
+  const t = useT();
+  const { dir } = useLanguage();
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4" dir="rtl">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4" dir={dir}>
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">העמוד לא נמצא</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">{t("העמוד לא נמצא")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          העמוד שחיפשת לא קיים או הועבר.
+          {t("העמוד שחיפשת לא קיים או הועבר.")}
         </p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            חזרה לדשבורד
+            {t("חזרה לדשבורד")}
           </Link>
         </div>
       </div>
@@ -37,15 +40,17 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const t = useT();
+  const { dir } = useLanguage();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4" dir="rtl">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4" dir={dir}>
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          העמוד לא נטען
+          {t("העמוד לא נטען")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          משהו השתבש. אפשר לרענן או לחזור לדשבורד.
+          {t("משהו השתבש. אפשר לרענן או לחזור לדשבורד.")}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -55,13 +60,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            נסה שוב
+            {t("נסה שוב")}
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            חזרה לדשבורד
+            {t("חזרה לדשבורד")}
           </a>
         </div>
       </div>
@@ -124,10 +129,17 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster richColors position="top-center" dir="rtl" />
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <Outlet />
+          <AppToaster />
+        </AuthProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
+}
+
+function AppToaster() {
+  const { dir } = useLanguage();
+  return <Toaster richColors position="top-center" dir={dir} />;
 }

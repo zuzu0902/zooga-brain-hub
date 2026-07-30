@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { SOURCE_LABELS } from "@/lib/i18n";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export function ContactCreateDialog({
   open, onOpenChange, onCreated,
@@ -17,6 +18,8 @@ export function ContactCreateDialog({
   onOpenChange: (v: boolean) => void;
   onCreated?: (id: string) => void;
 }) {
+  const t = useT();
+  const { dir } = useLanguage();
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
   const [phone, setPhone] = useState("");
@@ -28,7 +31,7 @@ export function ContactCreateDialog({
 
   async function save() {
     if (!first && !last && !phone) {
-      toast.error("יש למלא לפחות שם או טלפון");
+      toast.error(t("יש למלא לפחות שם או טלפון"));
       return;
     }
     setSaving(true);
@@ -47,10 +50,10 @@ export function ContactCreateDialog({
       .single();
     setSaving(false);
     if (error) {
-      toast.error("שגיאה: " + error.message);
+      toast.error(t("שגיאה: ") + error.message);
       return;
     }
-    toast.success("איש הקשר נוצר");
+    toast.success(t("איש הקשר נוצר"));
     setFirst(""); setLast(""); setPhone(""); setEmail(""); setCity(""); setRegion("");
     onOpenChange(false);
     onCreated?.(data!.id);
@@ -58,17 +61,17 @@ export function ContactCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl">
-        <DialogHeader><DialogTitle>איש קשר חדש</DialogTitle></DialogHeader>
+      <DialogContent dir={dir}>
+        <DialogHeader><DialogTitle>{t("איש קשר חדש")}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>שם פרטי</Label><Input value={first} onChange={(e) => setFirst(e.target.value)} /></div>
-          <div><Label>שם משפחה</Label><Input value={last} onChange={(e) => setLast(e.target.value)} /></div>
-          <div><Label>טלפון</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" /></div>
-          <div><Label>אימייל</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" /></div>
-          <div><Label>עיר</Label><Input value={city} onChange={(e) => setCity(e.target.value)} /></div>
-          <div><Label>אזור</Label><Input value={region} onChange={(e) => setRegion(e.target.value)} /></div>
+          <div><Label>{t("שם פרטי")}</Label><Input value={first} onChange={(e) => setFirst(e.target.value)} /></div>
+          <div><Label>{t("שם משפחה")}</Label><Input value={last} onChange={(e) => setLast(e.target.value)} /></div>
+          <div><Label>{t("טלפון")}</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" /></div>
+          <div><Label>{t("אימייל")}</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr" /></div>
+          <div><Label>{t("עיר")}</Label><Input value={city} onChange={(e) => setCity(e.target.value)} /></div>
+          <div><Label>{t("אזור")}</Label><Input value={region} onChange={(e) => setRegion(e.target.value)} /></div>
           <div className="col-span-2">
-            <Label>מקור</Label>
+            <Label>{t("מקור")}</Label>
             <Select value={source} onValueChange={setSource}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -80,8 +83,8 @@ export function ContactCreateDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>ביטול</Button>
-          <Button onClick={save} disabled={saving}>{saving ? "שומר..." : "צור"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("ביטול")}</Button>
+          <Button onClick={save} disabled={saving}>{saving ? t("שומר...") : t("צור")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
