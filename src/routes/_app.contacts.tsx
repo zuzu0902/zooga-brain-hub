@@ -256,7 +256,7 @@ function ContactsPage() {
                       <div className="flex flex-wrap gap-1 max-w-[220px]">
                         {(c.interests || []).slice(0, 3).map((i: string) => (
                           <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
-                            {INTEREST_LABELS[i] || i}
+                            {t(INTEREST_LABELS[i] || i)}
                           </Badge>
                         ))}
                         {(c.interests || []).length > 3 && (
@@ -288,7 +288,7 @@ function ContactsPage() {
                         className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setToDelete({ id: c.id, name: c.full_name || "ללא שם" });
+                          setToDelete({ id: c.id, name: c.full_name || t("ללא שם") });
                         }}
                         aria-label={t("מחק")}
                       >
