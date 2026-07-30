@@ -40,9 +40,9 @@ export const EN_SETTINGS: Record<string, string> = {
   "שומר...": "Saving...",
   "שמור הגדרות": "Save Settings",
   "דוגמת Payload": "Payload Example",
-  "Tamar Backend (Railway)": "Tamar Backend (Railway)",
-  "כאן מוגדרת כתובת ה-backend של בוט תמר ב-Railway. Lovable שולחת לכאן את הלידים שנבחרו לקמפיין אינטייק. שליחת WhatsApp עצמה מתבצעת בצד תמר, לא ב-Lovable.":
-    "This is where the Tamar bot's Railway backend URL is configured. Lovable sends the leads selected for an intake campaign here. Sending WhatsApp messages itself happens on Tamar's side, not in Lovable.",
+  "ערוץ WhatsApp (Meta ישיר)": "WhatsApp channel (Meta direct)",
+  "Zooga מקבלת הודעות ישירות מ-Meta ושולחת תשובות ישירות דרך Meta Graph API. אין backend חיצוני. ה-secrets נשמרים בסביבת השרת בלבד ולא בטבלאות המערכת.":
+    "Zooga receives messages directly from Meta and sends replies directly through the Meta Graph API. There is no external backend. Secrets live only in the server environment, never in app tables.",
   "הקריאה תבוצע ל-": "The call will be made to ",
   "יישלח כ-": "Will be sent as ",
 

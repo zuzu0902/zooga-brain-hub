@@ -554,7 +554,7 @@ function TamarBehaviorPage() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          {t("זרימת ייצור:")} Railway → <span className="font-mono">POST /api/public/runtime/tamar-turn</span> → Zooga {t("מייצר")} reply_text → Railway {t("שולח ל-WhatsApp. כל קריאה כותבת trace עם: גרסת settings, גרסאות prompt_blocks שהוזרקו, האם הוזרקה אינטליגנציית מוצר, האם הוזרק קמפיין, ושימוש ב-fallback/escalation.")}
+          {t("זרימת ייצור:")} Meta WhatsApp → <span className="font-mono">POST /api/public/webhook/tamar</span> → Zooga {t("מייצר")} reply_text → Meta Graph API. {t("כל קריאה כותבת trace עם: גרסת settings, גרסאות prompt_blocks שהוזרקו, האם הוזרקה אינטליגנציית מוצר, האם הוזרק קמפיין, ושימוש ב-fallback/escalation.")}
         </p>
         {traces.length === 0 ? (
           <div className="text-sm text-muted-foreground">{t("אין traces עדיין.")}</div>

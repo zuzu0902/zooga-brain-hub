@@ -6,12 +6,33 @@
  *   - recent_interactions (chronological)
  *   - recent runtime traces (tamar_runtime_executions)
  *
- * Auth: Authorization: Bearer <RUNTIME_BRIDGE_TOKEN>
+ * Auth: x-api-token header (api_settings.webhook_token).
  * Read-only. No writes.
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { authorizeRuntimeBridge, normalizePhone } from "@/lib/runtime-bridge-auth";
+function normalizePhone(raw: unknown): string | null {
+  if (!raw) return null;
+  const digits = String(raw).replace(/[^\d+]/g, "");
+  if (!digits) return null;
+  return digits.startsWith("+") ? digits.slice(1) : digits;
+}
+
+async function authorizeRuntimeBridge(request: Request): Promise<Response | null> {
+  const provided = request.headers.get("x-api-token");
+  const { data: settings } = await supabaseAdmin
+    .from("api_settings")
+    .select("webhook_token")
+    .eq("id", 1)
+    .maybeSingle();
+  if (!settings?.webhook_token || settings.webhook_token !== provided) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  return null;
+}
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",

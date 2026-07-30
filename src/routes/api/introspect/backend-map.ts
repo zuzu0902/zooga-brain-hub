@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/introspect/backend-map")({
         { module: "intelligence-extractor.server", purpose: "AI conversation intelligence extraction" },
       ],
       outbound_integrations: [
-        { name: "tamar_backend", direction: "outbound", purpose: "Send leads/campaigns to Tamar" },
+        { name: "meta_whatsapp", direction: "inbound+outbound", purpose: "Receive WhatsApp webhooks and send replies/templates" },
         { name: "lovable_ai_gateway", direction: "outbound", purpose: "LLM inference for extraction" },
         { name: "supabase", direction: "outbound", purpose: "Database + auth" },
       ],

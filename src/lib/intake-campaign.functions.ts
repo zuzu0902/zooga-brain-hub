@@ -1,100 +1,97 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const SendSchema = z.object({
   campaign_name: z.string().trim().min(1).max(200),
   template_name: z.string().trim().min(1).max(100),
+  language_code: z.string().trim().min(2).max(10).optional(),
   lead_ids: z.array(z.string().uuid()).min(1).max(1000),
 });
 
+/**
+ * Intake campaign — sends an APPROVED WhatsApp template directly through the
+ * Meta Graph API, one lead at a time, with per-lead status in Supabase.
+ * No external brain, no Railway. Safe to re-run: leads already marked as
+ * sent/delivered/read/replied are skipped.
+ */
 export const sendIntakeCampaign = createServerFn({ method: "POST" })
   .inputValidator((input) => SendSchema.parse(input))
   .handler(async ({ data }) => {
-    const { data: settings } = await supabaseAdmin
-      .from("api_settings")
-      .select("tamar_backend_url, tamar_backend_api_token")
-      .eq("id", 1)
-      .maybeSingle();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { sendWhatsAppTemplate, recordDelivery, metaConfigPresence } = await import(
+      "@/lib/whatsapp-meta.server"
+    );
 
-    if (!settings?.tamar_backend_url) {
-      return { ok: false, error: "Tamar backend URL is not configured" };
+    const presence = metaConfigPresence();
+    if (!presence.whatsapp_access_token || !presence.whatsapp_phone_number_id) {
+      return { ok: false, error: "WhatsApp sending is not configured" };
     }
 
     const { data: leads, error: leadsErr } = await supabaseAdmin
       .from("imported_leads")
-      .select("id, full_name, phone")
+      .select("id, full_name, phone, whatsapp_template_status")
       .in("id", data.lead_ids);
     if (leadsErr) return { ok: false, error: leadsErr.message };
-    if (!leads || leads.length === 0) return { ok: false, error: "No leads found" };
+    if (!leads?.length) return { ok: false, error: "No leads found" };
 
-    const payload = {
-      campaign_name: data.campaign_name,
-      template_name: data.template_name,
-      leads: leads.map((l) => ({
-        lead_id: l.id,
-        full_name: l.full_name,
-        phone: l.phone,
-      })),
-    };
+    const SKIP = new Set(["sent", "delivered", "read", "replied"]);
+    const lang = data.language_code ?? "he";
 
-    const url = settings.tamar_backend_url.replace(/\/$/, "") + "/campaigns/intake";
-    let tamarResponse: any = null;
-    let httpStatus = 0;
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(settings.tamar_backend_api_token
-            ? { Authorization: `Bearer ${settings.tamar_backend_api_token}` }
-            : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-      httpStatus = res.status;
-      tamarResponse = await res.json().catch(() => ({ raw: "non-json response" }));
-      if (!res.ok) {
-        await supabaseAdmin.from("intake_campaigns").insert({
-          campaign_name: data.campaign_name,
-          template_name: data.template_name,
-          status: "failed",
-          sent_count: 0,
-          tamar_response: { http_status: httpStatus, body: tamarResponse },
-        });
-        return { ok: false, error: `Tamar backend returned ${httpStatus}`, response: tamarResponse };
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
+    const results: any[] = [];
+
+    for (const lead of leads) {
+      if (SKIP.has(String(lead.whatsapp_template_status))) {
+        skipped++;
+        results.push({ lead_id: lead.id, skipped: true });
+        continue;
       }
-    } catch (e: any) {
-      await supabaseAdmin.from("intake_campaigns").insert({
-        campaign_name: data.campaign_name,
-        template_name: data.template_name,
-        status: "failed",
-        sent_count: 0,
-        tamar_response: { error: String(e?.message || e) },
-      });
-      return { ok: false, error: "Network error: " + (e?.message || String(e)) };
-    }
+      if (!lead.phone) {
+        failed++;
+        await supabaseAdmin
+          .from("imported_leads")
+          .update({ whatsapp_template_status: "failed", notes: "missing phone" } as any)
+          .eq("id", lead.id);
+        results.push({ lead_id: lead.id, ok: false, error: "missing_phone" });
+        continue;
+      }
 
-    await supabaseAdmin
-      .from("imported_leads")
-      .update({
-        import_status: "sent_to_tamar",
-        whatsapp_template_status: "sent",
-        last_message_at: new Date().toISOString(),
-      })
-      .in("id", data.lead_ids);
+      const res = await sendWhatsAppTemplate(lead.phone, data.template_name, lang);
+      await recordDelivery({
+        contactId: null,
+        text: `[template] ${data.template_name}`,
+        result: res,
+        kind: "intake_template",
+      });
+
+      await supabaseAdmin
+        .from("imported_leads")
+        .update({
+          whatsapp_template_status: res.ok ? "sent" : "failed",
+          import_status: res.ok ? "sent_to_tamar" : "failed",
+          last_message_at: res.ok ? new Date().toISOString() : null,
+          ...(res.ok ? {} : { notes: res.error?.slice(0, 300) ?? "send failed" }),
+        } as any)
+        .eq("id", lead.id);
+
+      if (res.ok) sent++;
+      else failed++;
+      results.push({ lead_id: lead.id, ok: res.ok, error: res.error });
+    }
 
     const { data: campaign } = await supabaseAdmin
       .from("intake_campaigns")
       .insert({
         campaign_name: data.campaign_name,
         template_name: data.template_name,
-        status: "sent",
-        sent_count: leads.length,
-        tamar_response: { http_status: httpStatus, body: tamarResponse },
+        status: failed && !sent ? "failed" : "sent",
+        sent_count: sent,
+        tamar_response: { transport: "meta_direct", sent, failed, skipped },
       })
       .select("id")
       .single();
 
-    return { ok: true, campaign_id: campaign?.id, sent_count: leads.length };
+    return { ok: sent > 0, campaign_id: campaign?.id, sent_count: sent, failed, skipped, results };
   });

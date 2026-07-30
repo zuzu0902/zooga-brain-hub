@@ -48,7 +48,7 @@ const handler = async ({ request }: { request: Request }) => {
 
   const { data: settings } = await supabaseAdmin
     .from("api_settings")
-    .select("tamar_backend_url, tamar_backend_api_token, webhook_token")
+    .select("webhook_token")
     .eq("id", 1)
     .maybeSingle();
 
@@ -71,8 +71,8 @@ const handler = async ({ request }: { request: Request }) => {
     },
     whatsapp: {
       mode: "tamar-managed",
-      backend_url_configured: !!settings?.tamar_backend_url,
-      backend_token_configured: presence(settings?.tamar_backend_api_token ?? null).present,
+      whatsapp_transport: "meta_direct",
+      outbound_configured: !!process.env.WHATSAPP_ACCESS_TOKEN && !!process.env.WHATSAPP_PHONE_NUMBER_ID,
       last_interaction_at: lastInteraction?.timestamp ?? null,
       note: "WhatsApp delivery happens on Tamar's side; Lovable only receives webhooks.",
     },

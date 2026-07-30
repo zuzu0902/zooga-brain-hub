@@ -1,5 +1,5 @@
 /**
- * Strict inbound-message idempotency for Railway runtime + Meta webhook.
+ * Strict inbound-message idempotency for the Meta WhatsApp webhook.
  *
  * Single source of truth: `public.runtime_inbound_dedupe` keyed by the
  * inbound WhatsApp message id (wamid...). The Meta Cloud API retries a
@@ -42,7 +42,7 @@ function pickInboundMessageId(...candidates: any[]): string | null {
 
 /**
  * Extract a wamid / message id from any common payload shape Meta or
- * Railway might send.
+ * Meta might send.
  */
 export function extractInboundMessageId(payload: any): string | null {
   if (!payload || typeof payload !== "object") return null;

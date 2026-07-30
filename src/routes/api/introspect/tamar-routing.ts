@@ -9,7 +9,7 @@ export const Route = createFileRoute("/api/introspect/tamar-routing")({
         conversation: "zooga",
         memory: "zooga",
         routing_state: "zooga",
-        tamar_backend_role: "channel_runtime_only",
+        tamar_backend_role: "none_zooga_direct",
       },
       conversation_modes: [
         { key: "intake", description: "Scripted intake questions by flow type" },

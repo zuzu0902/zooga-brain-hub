@@ -79,8 +79,8 @@ export const EN_OPS: Record<string, string> = {
   "נוצרה משימה": "Task created",
 
   // ── Manager alerts (_app.manager-alerts.tsx) ──
-  "התראות handoff חיות מ-Tamar. Zooga מחליטה על escalation ושולחת ל-Railway לצורך שליחת WhatsApp למנהל.":
-    "Live handoff alerts from Tamar. Zooga decides on escalation and sends to Railway to deliver a WhatsApp message to the manager.",
+  "פניות handoff מתמר. Zooga מחליטה על escalation ומסמנת את הפנייה בתור (queued) עם משימה למנהל — אין העברה חיה.":
+    "Handoff requests from Tamar. Zooga decides on escalation and queues the request with a task for a manager — there is no live transfer.",
   "מנהלים מוגדרים": "Configured managers",
   "השבת": "Disable",
   "הפעל": "Enable",
@@ -98,14 +98,14 @@ export const EN_OPS: Record<string, string> = {
   "הסתר": "Hide",
 
   // ── Runtime trace (_app.runtime-trace.tsx) ──
-  "אמת הריצה של Tamar. זרימת ייצור (zooga_direct): Railway מקבל webhook → קורא ל-":
-    "Tamar's runtime truth. Production flow (zooga_direct): Railway receives a webhook → calls",
-  " → Zooga מייצר את ": " → Zooga generates the ",
-  " → Railway שולח ל-WhatsApp. כל שורה כאן מייצגת תור שיחה אחד.":
-    " → Railway sends to WhatsApp. Each row here represents one conversation turn.",
+  "אמת הריצה של Tamar. זרימת ייצור (zooga_direct): Meta WhatsApp שולח webhook ל-":
+    "Tamar's runtime truth. Production flow (zooga_direct): Meta WhatsApp posts a webhook to",
+  " → מנוע Tamar ב-Zooga מייצר את ": " → Zooga generates the ",
+  " → Zooga שולחת ישירות דרך Meta Graph API. כל שורה כאן מייצגת תור שיחה אחד.":
+    " → Zooga sends it directly through the Meta Graph API. Each row here represents one conversation turn.",
   "טוען…": "Loading…",
   "שגיאה: ": "Error: ",
-  "עוד אין רשומות. Railway צריך להפעיל את ": "No records yet. Railway needs to call ",
+  "עוד אין רשומות. כל הודעה נכנסת מ-Meta WhatsApp תיצור כאן שורה.": "No records yet. Every inbound Meta WhatsApp message will create a row here.",
   " עבור כל הודעה נכנסת.": " for every incoming message.",
   "נכנס: ": "Inbound: ",
   "תשובה: ": "Reply: ",

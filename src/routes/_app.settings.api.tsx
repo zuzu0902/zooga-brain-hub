@@ -30,15 +30,13 @@ function ApiSettingsPage() {
   const [hasToken, setHasToken] = useState(false);
   const [pageId, setPageId] = useState("");
   const [defaultSource, setDefaultSource] = useState("Tamar Bot");
-  const [tamarUrl, setTamarUrl] = useState("");
-  const [tamarToken, setTamarToken] = useState("");
-  const [hasTamarToken, setHasTamarToken] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testingWa, setTestingWa] = useState(false);
 
   const webhookUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/api/public/webhook/tamar`;
+  const engineUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/api/public/runtime/tamar-turn`;
 
   useEffect(() => {
     (async () => {
@@ -46,9 +44,7 @@ function ApiSettingsPage() {
         const data = await getApiSettingsSafe();
         setPageId(data.facebook_page_id ?? "");
         setDefaultSource(data.default_source ?? "Tamar Bot");
-        setTamarUrl((data.tamar_backend_url ?? "").trim());
         setHasToken(!!data.has_webhook_token);
-        setHasTamarToken(!!data.has_tamar_backend_api_token);
       } catch (e: any) {
         toast.error(t("שגיאה בטעינת ההגדרות"));
       }
@@ -63,15 +59,11 @@ function ApiSettingsPage() {
         data: {
           facebook_page_id: pageId || null,
           default_source: defaultSource,
-          tamar_backend_url: tamarUrl.trim() || null,
           webhook_token: token || "",
-          tamar_backend_api_token: tamarToken.trim() || "",
         },
       });
       if (token) setHasToken(true);
-      if (tamarToken.trim()) setHasTamarToken(true);
       setToken("");
-      setTamarToken("");
       toast.success(t("ההגדרות נשמרו"));
     } catch (e: any) {
       toast.error(t("שגיאה בשמירה"));
@@ -88,7 +80,7 @@ function ApiSettingsPage() {
   async function testWebhook() {
     setTesting(true);
     try {
-      const res = await fetch(webhookUrl, {
+      const res = await fetch(engineUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -135,7 +127,7 @@ function ApiSettingsPage() {
     setTestingWa(true);
     try {
       const phone = "+972547702620";
-      const res = await fetch(webhookUrl, {
+      const res = await fetch(engineUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -289,39 +281,17 @@ Body:
         </pre>
       </Card>
 
-      <Card className="p-6 space-y-4">
-        <h2 className="font-semibold">{t("Tamar Backend (Railway)")}</h2>
+      <Card className="p-6 space-y-3">
+        <h2 className="font-semibold">{t("ערוץ WhatsApp (Meta ישיר)")}</h2>
         <p className="text-xs text-muted-foreground">
-          {t("כאן מוגדרת כתובת ה-backend של בוט תמר ב-Railway. Lovable שולחת לכאן את הלידים שנבחרו לקמפיין אינטייק. שליחת WhatsApp עצמה מתבצעת בצד תמר, לא ב-Lovable.")}
+          {t("Zooga מקבלת הודעות ישירות מ-Meta ושולחת תשובות ישירות דרך Meta Graph API. אין backend חיצוני. ה-secrets נשמרים בסביבת השרת בלבד ולא בטבלאות המערכת.")}
         </p>
-        <div>
-          <Label>Tamar Backend URL</Label>
-          <Input
-            value={tamarUrl}
-            onChange={(e) => setTamarUrl(e.target.value)}
-            dir="ltr"
-            placeholder="https://tamar-bot.up.railway.app"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {t("הקריאה תבוצע ל-")}<code dir="ltr">{tamarUrl ? tamarUrl.replace(/\/$/, "") + "/campaigns/intake" : "<URL>/campaigns/intake"}</code>
-          </p>
-        </div>
-        <div>
-          <Label>Tamar API Token</Label>
-          <Input
-            value={tamarToken}
-            onChange={(e) => setTamarToken(e.target.value)}
-            dir="ltr"
-            placeholder={hasTamarToken ? t("••••••• (מוגדר) — הזן ערך חדש כדי לעדכן") : "bearer token"}
-            type="password"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            {t("יישלח כ-")}<code dir="ltr">Authorization: Bearer ...</code>. {t("הערך הנוכחי אינו מוצג — הזן ערך חדש כדי להחליף.")}
-          </p>
-        </div>
-        <div className="flex justify-end">
-          <Button onClick={save} disabled={saving}>{saving ? t("שומר...") : t("שמור הגדרות")}</Button>
-        </div>
+        <pre className="bg-muted p-3 rounded-md text-xs overflow-auto" dir="ltr">
+{`Callback URL:  ${webhookUrl}
+Verify token:  META_VERIFY_TOKEN (server secret)
+Signature:     X-Hub-Signature-256 via META_APP_SECRET
+Send:          WHATSAPP_ACCESS_TOKEN + WHATSAPP_PHONE_NUMBER_ID`}
+        </pre>
       </Card>
     </div>
   );
