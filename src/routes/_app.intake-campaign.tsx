@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { Megaphone } from "lucide-react";
 import { sendIntakeCampaign } from "@/lib/intake-campaign.functions";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/intake-campaign")({
   head: () => ({ meta: [{ title: "קמפיין אינטייק — Zooga CRM" }] }),
@@ -35,6 +36,8 @@ const PREVIEWS: Record<string, string> = {
 };
 
 function IntakeCampaignPage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const [campaignName, setCampaignName] = useState("Zooga Intake " + new Date().toLocaleDateString("he-IL"));
   const [template, setTemplate] = useState("zooga_intro_intake");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -71,7 +74,7 @@ function IntakeCampaignPage() {
 
   async function send() {
     if (selected.size === 0) {
-      toast.error("בחר לפחות ליד אחד");
+      toast.error(t("בחר לפחות ליד אחד"));
       return;
     }
     setSending(true);
@@ -84,36 +87,36 @@ function IntakeCampaignPage() {
         },
       });
       if (result.ok) {
-        toast.success(`נשלחו ${result.sent_count} לידים לתמר`);
+        toast.success(`${t("נשלחו ")}${result.sent_count}${t(" לידים לתמר")}`);
         setSelected(new Set());
         refetch();
       } else {
-        toast.error("שגיאה: " + (result.error || "לא ידוע"));
+        toast.error(t("שגיאה: ") + (result.error || t("לא ידוע")));
       }
     } catch (e: any) {
-      toast.error("שגיאת רשת: " + (e?.message || String(e)));
+      toast.error(t("שגיאת רשת: ") + (e?.message || String(e)));
     } finally {
       setSending(false);
     }
   }
 
   return (
-    <div className="p-6 space-y-5" dir="rtl">
+    <div className="p-6 space-y-5" dir={dir}>
       <header>
-        <h1 className="text-3xl font-bold">קמפיין אינטייק</h1>
+        <h1 className="text-3xl font-bold">{t("קמפיין אינטייק")}</h1>
         <p className="text-muted-foreground mt-1">
-          שליחת לידים מוכנים לבוט תמר לצורך תחילת שיחת אינטייק בוואטסאפ
+          {t("שליחת לידים מוכנים לבוט תמר לצורך תחילת שיחת אינטייק בוואטסאפ")}
         </p>
       </header>
 
       <Card className="p-5 space-y-4 max-w-3xl">
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <Label>שם קמפיין</Label>
+            <Label>{t("שם קמפיין")}</Label>
             <Input value={campaignName} onChange={(e) => setCampaignName(e.target.value)} />
           </div>
           <div>
-            <Label>תבנית WhatsApp</Label>
+            <Label>{t("תבנית WhatsApp")}</Label>
             <Select value={template} onValueChange={setTemplate}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -125,14 +128,14 @@ function IntakeCampaignPage() {
           </div>
         </div>
         <div>
-          <Label>תצוגה מקדימה של ההודעה</Label>
+          <Label>{t("תצוגה מקדימה של ההודעה")}</Label>
           <Textarea value={PREVIEWS[template] || ""} readOnly rows={4} />
         </div>
         <div className="flex items-center justify-end gap-3">
-          <div className="text-sm text-muted-foreground">נבחרו {selected.size} מתוך {readyLeads.length} מוכנים</div>
+          <div className="text-sm text-muted-foreground">{t("נבחרו ")}{selected.size}{t(" מתוך ")}{readyLeads.length}{t(" מוכנים")}</div>
           <Button onClick={send} disabled={sending || selected.size === 0} className="gap-2">
             <Megaphone className="h-4 w-4" />
-            {sending ? "שולח..." : "שלח לתמר"}
+            {sending ? t("שולח...") : t("שלח לתמר")}
           </Button>
         </div>
       </Card>
@@ -148,20 +151,20 @@ function IntakeCampaignPage() {
                     onCheckedChange={toggleAll}
                   />
                 </th>
-                <th className="p-3 font-medium">שם</th>
-                <th className="p-3 font-medium">טלפון</th>
-                <th className="p-3 font-medium">סטטוס ייבוא</th>
-                <th className="p-3 font-medium">סטטוס וואטסאפ</th>
-                <th className="p-3 font-medium">קמפיין מקור</th>
-                <th className="p-3 font-medium">הודעה אחרונה</th>
+                <th className="p-3 font-medium">{t("שם")}</th>
+                <th className="p-3 font-medium">{t("טלפון")}</th>
+                <th className="p-3 font-medium">{t("סטטוס ייבוא")}</th>
+                <th className="p-3 font-medium">{t("סטטוס וואטסאפ")}</th>
+                <th className="p-3 font-medium">{t("קמפיין מקור")}</th>
+                <th className="p-3 font-medium">{t("הודעה אחרונה")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">טוען...</td></tr>
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">{t("טוען...")}</td></tr>
               )}
               {!isLoading && (leads?.length ?? 0) === 0 && (
-                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">אין לידים להצגה</td></tr>
+                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">{t("אין לידים להצגה")}</td></tr>
               )}
               {leads?.map((l: any) => {
                 const isReady = l.import_status === "ready_for_intake";

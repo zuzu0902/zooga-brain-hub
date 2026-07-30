@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatDate, SOURCE_LABELS } from "@/lib/i18n";
+import { useT } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/inbox")({
   head: () => ({ meta: [{ title: "תיבת קליטה — Zooga CRM" }] }),
@@ -13,6 +14,7 @@ export const Route = createFileRoute("/_app/inbox")({
 });
 
 function InboxPage() {
+  const t = useT();
   const qc = useQueryClient();
   const { data: items, isLoading } = useQuery({
     queryKey: ["intake"],
@@ -52,7 +54,7 @@ function InboxPage() {
       await supabase.from("intake_inbox").update({
         status: "merged", matched_contact_id: existing.id, processed_at: new Date().toISOString(),
       }).eq("id", item.id);
-      toast.success("מוזג עם איש קשר קיים");
+      toast.success(t("מוזג עם איש קשר קיים"));
     } else {
       const nameParts = (item.parsed_name || "").split(" ");
       const { data: contact, error } = await supabase.from("contacts").insert({
@@ -64,7 +66,7 @@ function InboxPage() {
         source: item.source,
         status: "new_lead",
       }).select("id").single();
-      if (error) { toast.error("שגיאה: " + error.message); return; }
+      if (error) { toast.error(t("שגיאה: ") + error.message); return; }
       if (item.parsed_message) {
         await supabase.from("interactions").insert({
           contact_id: contact!.id,
@@ -76,7 +78,7 @@ function InboxPage() {
       await supabase.from("intake_inbox").update({
         status: "approved", matched_contact_id: contact!.id, processed_at: new Date().toISOString(),
       }).eq("id", item.id);
-      toast.success("איש הקשר נוצר");
+      toast.success(t("איש הקשר נוצר"));
     }
     qc.invalidateQueries({ queryKey: ["intake"] });
   }
@@ -89,15 +91,15 @@ function InboxPage() {
   return (
     <div className="p-6 space-y-5">
       <header>
-        <h1 className="text-3xl font-bold">תיבת קליטה</h1>
-        <p className="text-muted-foreground mt-1">לידים נכנסים מבוט תמר וערוצי פייסבוק</p>
+        <h1 className="text-3xl font-bold">{t("תיבת קליטה")}</h1>
+        <p className="text-muted-foreground mt-1">{t("לידים נכנסים מבוט תמר וערוצי פייסבוק")}</p>
       </header>
 
-      {isLoading ? <div className="text-muted-foreground">טוען...</div> : (
+      {isLoading ? <div className="text-muted-foreground">{t("טוען...")}</div> : (
         <div className="space-y-3">
           {items?.length === 0 && (
             <Card className="p-8 text-center text-muted-foreground">
-              אין פריטים בתיבת הקליטה. כשהוובהוק יקבל ליד חדש, הוא יופיע כאן.
+              {t("אין פריטים בתיבת הקליטה. כשהוובהוק יקבל ליד חדש, הוא יופיע כאן.")}
             </Card>
           )}
           {items?.map((it: any) => (
@@ -105,8 +107,8 @@ function InboxPage() {
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold">{it.parsed_name || "ללא שם"}</span>
-                    <Badge variant="outline">{SOURCE_LABELS[it.source] || it.source}</Badge>
+                    <span className="font-semibold">{it.parsed_name || t("ללא שם")}</span>
+                    <Badge variant="outline">{t(SOURCE_LABELS[it.source] || it.source)}</Badge>
                     <Badge variant={it.status === "pending" ? "default" : "secondary"}>{it.status}</Badge>
                     <span className="text-xs text-muted-foreground">{formatDate(it.created_at)}</span>
                   </div>
@@ -121,8 +123,8 @@ function InboxPage() {
                 </div>
                 {it.status === "pending" && (
                   <div className="flex gap-2">
-                    <Button onClick={() => approve(it)}>אישור</Button>
-                    <Button variant="outline" onClick={() => reject(it)}>דחה</Button>
+                    <Button onClick={() => approve(it)}>{t("אישור")}</Button>
+                    <Button variant="outline" onClick={() => reject(it)}>{t("דחה")}</Button>
                   </div>
                 )}
               </div>

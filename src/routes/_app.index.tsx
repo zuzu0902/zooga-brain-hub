@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Users, Sparkles, UserCheck, Heart, Crown, Pause, TrendingUp, Activity } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { STATUS_LABELS, INTEREST_LABELS, INTERACTION_TYPE_LABELS, formatDate } from "@/lib/i18n";
+import { useT } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({ meta: [{ title: "דשבורד — Zooga CRM" }] }),
@@ -38,6 +39,7 @@ function Stat({
 }
 
 function Dashboard() {
+  const t = useT();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -95,38 +97,38 @@ function Dashboard() {
   return (
     <div className="p-6 space-y-6">
       <header>
-        <h1 className="text-3xl font-bold">דשבורד</h1>
-        <p className="text-muted-foreground mt-1">מבט חי על קהילת זוגה</p>
+        <h1 className="text-3xl font-bold">{t("דשבורד")}</h1>
+        <p className="text-muted-foreground mt-1">{t("מבט חי על קהילת זוגה")}</p>
       </header>
 
       {isLoading ? (
-        <div className="text-muted-foreground">טוען נתונים...</div>
+        <div className="text-muted-foreground">{t("טוען נתונים...")}</div>
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <Stat label="סה״כ אנשי קשר" value={data!.total} icon={Users} tint="var(--gradient-warm)" />
-            <Stat label="לידים חדשים היום" value={data!.newToday} icon={Sparkles} tint="oklch(0.78 0.13 85)" />
-            <Stat label="חברים פעילים" value={data!.counts.active_member} icon={UserCheck} tint="oklch(0.7 0.09 160)" />
-            <Stat label="מתעניינים" value={data!.counts.interested} icon={Heart} tint="oklch(0.65 0.18 320)" />
-            <Stat label="לקוחות + VIP" value={data!.counts.customer + data!.counts.VIP} icon={Crown} tint="oklch(0.55 0.12 250)" />
-            <Stat label="לא פעילים" value={data!.counts.inactive} icon={Pause} tint="oklch(0.5 0.025 50)" />
+            <Stat label={t("סה״כ אנשי קשר")} value={data!.total} icon={Users} tint="var(--gradient-warm)" />
+            <Stat label={t("לידים חדשים היום")} value={data!.newToday} icon={Sparkles} tint="oklch(0.78 0.13 85)" />
+            <Stat label={t("חברים פעילים")} value={data!.counts.active_member} icon={UserCheck} tint="oklch(0.7 0.09 160)" />
+            <Stat label={t("מתעניינים")} value={data!.counts.interested} icon={Heart} tint="oklch(0.65 0.18 320)" />
+            <Stat label={t("לקוחות + VIP")} value={data!.counts.customer + data!.counts.VIP} icon={Crown} tint="oklch(0.55 0.12 250)" />
+            <Stat label={t("לא פעילים")} value={data!.counts.inactive} icon={Pause} tint="oklch(0.5 0.025 50)" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="p-5 lg:col-span-1">
               <h3 className="font-semibold flex items-center gap-2 mb-4">
-                <TrendingUp className="h-4 w-4 text-primary" /> תחומי עניין מובילים
+                <TrendingUp className="h-4 w-4 text-primary" /> {t("תחומי עניין מובילים")}
               </h3>
               <div className="space-y-3">
                 {data!.topInterests.length === 0 && (
-                  <div className="text-sm text-muted-foreground">אין נתונים עדיין</div>
+                  <div className="text-sm text-muted-foreground">{t("אין נתונים עדיין")}</div>
                 )}
                 {data!.topInterests.map(([k, v]) => {
                   const max = data!.topInterests[0][1];
                   return (
                     <div key={k}>
                       <div className="flex justify-between text-sm mb-1">
-                        <span>{INTEREST_LABELS[k] || k}</span>
+                        <span>{t(INTEREST_LABELS[k] || k)}</span>
                         <span className="text-muted-foreground">{v}</span>
                       </div>
                       <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -146,11 +148,11 @@ function Dashboard() {
 
             <Card className="p-5 lg:col-span-2">
               <h3 className="font-semibold flex items-center gap-2 mb-4">
-                <Activity className="h-4 w-4 text-primary" /> אינטראקציות אחרונות
+                <Activity className="h-4 w-4 text-primary" /> {t("אינטראקציות אחרונות")}
               </h3>
               <div className="space-y-2">
                 {data!.recent.length === 0 && (
-                  <div className="text-sm text-muted-foreground">אין אינטראקציות עדיין</div>
+                  <div className="text-sm text-muted-foreground">{t("אין אינטראקציות עדיין")}</div>
                 )}
                 {data!.recent.map((r: any) => (
                   <Link
@@ -163,9 +165,9 @@ function Dashboard() {
                       {(r.contacts?.full_name || "?").slice(0, 1)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{r.contacts?.full_name || "ללא שם"}</div>
+                      <div className="text-sm font-medium truncate">{r.contacts?.full_name || t("ללא שם")}</div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {INTERACTION_TYPE_LABELS[r.type] || r.type} · {r.content || ""}
+                        {t(INTERACTION_TYPE_LABELS[r.type] || r.type)} · {r.content || ""}
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground">{formatDate(r.timestamp)}</div>
@@ -176,7 +178,7 @@ function Dashboard() {
           </div>
 
           <Card className="p-5">
-            <h3 className="font-semibold mb-4">אנשי קשר במעורבות גבוהה</h3>
+            <h3 className="font-semibold mb-4">{t("אנשי קשר במעורבות גבוהה")}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {data!.topEngaged.map((c: any) => (
                 <Link
@@ -186,8 +188,8 @@ function Dashboard() {
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted transition-colors"
                 >
                   <div className="min-w-0">
-                    <div className="font-medium truncate">{c.full_name || "ללא שם"}</div>
-                    <div className="text-xs text-muted-foreground">{STATUS_LABELS[c.status]}</div>
+                    <div className="font-medium truncate">{c.full_name || t("ללא שם")}</div>
+                    <div className="text-xs text-muted-foreground">{t(STATUS_LABELS[c.status])}</div>
                   </div>
                   <div className="text-sm font-bold text-primary">{c.engagement_score}</div>
                 </Link>

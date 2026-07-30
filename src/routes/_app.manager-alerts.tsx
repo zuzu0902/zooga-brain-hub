@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/manager-alerts")({
   head: () => ({ meta: [{ title: "Manager Alerts — Zooga CRM" }] }),
@@ -27,6 +28,8 @@ function statusBadge(s: string | null) {
 }
 
 function ManagerAlertsPage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -63,7 +66,7 @@ function ManagerAlertsPage() {
       .update(patch)
       .eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("עודכן");
+    toast.success(t("עודכן"));
     qc.invalidateQueries({ queryKey: ["manager-handoffs"] });
   }
 
@@ -89,16 +92,16 @@ function ManagerAlertsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto" dir="rtl">
+    <div className="p-6 space-y-6 max-w-[1400px] mx-auto" dir={dir}>
       <div>
         <h1 className="text-2xl font-bold">Manager Alerts</h1>
         <p className="text-sm text-muted-foreground">
-          התראות handoff חיות מ-Tamar. Zooga מחליטה על escalation ושולחת ל-Railway לצורך שליחת WhatsApp למנהל.
+          {t("התראות handoff חיות מ-Tamar. Zooga מחליטה על escalation ושולחת ל-Railway לצורך שליחת WhatsApp למנהל.")}
         </p>
       </div>
 
       <Card className="p-4 space-y-3">
-        <h3 className="font-semibold">מנהלים מוגדרים</h3>
+        <h3 className="font-semibold">{t("מנהלים מוגדרים")}</h3>
         <div className="space-y-2">
           {(managers ?? []).map((m) => (
             <div key={m.id} className="flex items-center gap-3 text-sm">
@@ -106,34 +109,34 @@ function ManagerAlertsPage() {
               <span className="font-mono text-xs text-muted-foreground" dir="ltr">{m.phone}</span>
               <Badge variant={m.active ? "default" : "outline"}>{m.active ? "active" : "inactive"}</Badge>
               <Button size="sm" variant="ghost" onClick={() => toggleActive(m.id, m.active)}>
-                {m.active ? "השבת" : "הפעל"}
+                {m.active ? t("השבת") : t("הפעל")}
               </Button>
             </div>
           ))}
         </div>
         <div className="flex gap-2 items-end pt-2 border-t">
           <div className="flex-1">
-            <Label className="text-xs">שם</Label>
+            <Label className="text-xs">{t("שם")}</Label>
             <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
           </div>
           <div className="flex-1">
-            <Label className="text-xs">טלפון WhatsApp</Label>
+            <Label className="text-xs">{t("טלפון WhatsApp")}</Label>
             <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} dir="ltr" placeholder="+972..." />
           </div>
-          <Button onClick={addManager}>הוסף מנהל</Button>
+          <Button onClick={addManager}>{t("הוסף מנהל")}</Button>
         </div>
       </Card>
 
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold">Handoffs</h3>
+            <h3 className="font-semibold">{t("Handoffs")}</h3>
             <Badge variant="outline">{handoffs?.length ?? 0}</Badge>
           </div>
-          <Button size="sm" variant="ghost" onClick={() => refetch()}>רענן</Button>
+          <Button size="sm" variant="ghost" onClick={() => refetch()}>{t("רענן")}</Button>
         </div>
         {(handoffs?.length ?? 0) === 0 ? (
-          <div className="text-sm text-muted-foreground py-6 text-center">אין handoffs פעילים</div>
+          <div className="text-sm text-muted-foreground py-6 text-center">{t("אין handoffs פעילים")}</div>
         ) : (
           <div className="divide-y">
             {handoffs!.map((h) => {
@@ -149,24 +152,24 @@ function ManagerAlertsPage() {
                         ) : (
                           <Badge variant="destructive">not notified</Badge>
                         )}
-                        <span className="font-medium">{h.customer_name || "ללא שם"}</span>
+                        <span className="font-medium">{h.customer_name || t("ללא שם")}</span>
                         <span className="font-mono text-xs text-muted-foreground" dir="ltr">{h.customer_phone}</span>
                         <span className="text-xs text-muted-foreground">
                           {new Date(h.created_at).toLocaleString()}
                         </span>
                         {h.notified_at && (
                           <span className="text-xs text-muted-foreground">
-                            · נשלח: {new Date(h.notified_at).toLocaleString()}
+                            · {t("נשלח:")} {new Date(h.notified_at).toLocaleString()}
                           </span>
                         )}
                       </div>
                       <div className="text-sm">
-                        <span className="text-muted-foreground">סיבה: </span>
+                        <span className="text-muted-foreground">{t("סיבה: ")}</span>
                         <span className="font-mono">{h.handoff_reason}</span>
                       </div>
                       {h.latest_inbound_message && (
                         <div className="text-sm">
-                          <span className="text-muted-foreground">הודעה: </span>
+                          <span className="text-muted-foreground">{t("הודעה: ")}</span>
                           {h.latest_inbound_message}
                         </div>
                       )}
@@ -176,7 +179,7 @@ function ManagerAlertsPage() {
                       <div className="text-xs text-muted-foreground space-x-2 space-x-reverse">
                         {h.contact_id && (
                           <Link to="/contacts/$id" params={{ id: h.contact_id }} className="text-primary hover:underline">
-                            איש קשר →
+                            {t("איש קשר →")}
                           </Link>
                         )}
                         {h.runtime_trace_id && (
@@ -187,10 +190,10 @@ function ManagerAlertsPage() {
                       </div>
                     </div>
                     <div className="flex gap-1 shrink-0 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={() => setStatus(h.id, "claimed")}>סמן claimed</Button>
-                      <Button size="sm" variant="outline" onClick={() => setStatus(h.id, "resolved")}>סמן resolved</Button>
+                      <Button size="sm" variant="outline" onClick={() => setStatus(h.id, "claimed")}>{t("סמן claimed")}</Button>
+                      <Button size="sm" variant="outline" onClick={() => setStatus(h.id, "resolved")}>{t("סמן resolved")}</Button>
                       <Button size="sm" variant="ghost" onClick={() => setExpanded(open ? null : h.id)}>
-                        {open ? "הסתר" : "raw"}
+                        {open ? t("הסתר") : "raw"}
                       </Button>
                     </div>
                   </div>

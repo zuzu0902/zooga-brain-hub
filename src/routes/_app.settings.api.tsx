@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { SOURCE_LABELS } from "@/lib/i18n";
 import { Copy, RefreshCw } from "lucide-react";
 import { getApiSettingsSafe, updateApiSettings } from "@/lib/api-settings.functions";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/settings/api")({
   head: () => ({ meta: [{ title: "הגדרות API — Zooga CRM" }] }),
@@ -23,6 +24,8 @@ function genToken() {
 }
 
 function ApiSettingsPage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const [token, setToken] = useState("");
   const [hasToken, setHasToken] = useState(false);
   const [pageId, setPageId] = useState("");
@@ -47,7 +50,7 @@ function ApiSettingsPage() {
         setHasToken(!!data.has_webhook_token);
         setHasTamarToken(!!data.has_tamar_backend_api_token);
       } catch (e: any) {
-        toast.error("שגיאה בטעינת ההגדרות");
+        toast.error(t("שגיאה בטעינת ההגדרות"));
       }
       setLoading(false);
     })();
@@ -69,9 +72,9 @@ function ApiSettingsPage() {
       if (tamarToken.trim()) setHasTamarToken(true);
       setToken("");
       setTamarToken("");
-      toast.success("ההגדרות נשמרו");
+      toast.success(t("ההגדרות נשמרו"));
     } catch (e: any) {
-      toast.error("שגיאה בשמירה");
+      toast.error(t("שגיאה בשמירה"));
     } finally {
       setSaving(false);
     }
@@ -79,7 +82,7 @@ function ApiSettingsPage() {
 
   function copy(text: string) {
     navigator.clipboard.writeText(text);
-    toast.success("הועתק");
+    toast.success(t("הועתק"));
   }
 
   async function testWebhook() {
@@ -101,11 +104,11 @@ function ApiSettingsPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(`שגיאה (${res.status}): ${json?.error || "כשל בקריאה"}`);
+        toast.error(`${t("שגיאה")} (${res.status}): ${json?.error || t("כשל בקריאה")}`);
         return;
       }
       if (json?.matched) {
-        toast.success(`נמצא איש קשר קיים והאינטראקציה נרשמה (${json.contact_id})`);
+        toast.success(`${t("נמצא איש קשר קיים והאינטראקציה נרשמה")} (${json.contact_id})`);
       } else if (json?.intake_id) {
         // Confirm intake item exists
         const { data } = await supabase
@@ -114,15 +117,15 @@ function ApiSettingsPage() {
           .eq("id", json.intake_id)
           .maybeSingle();
         if (data) {
-          toast.success(`נוצר פריט בתיבת קליטה: ${data.parsed_name} (${data.status})`);
+          toast.success(`${t("נוצר פריט בתיבת קליטה")}: ${data.parsed_name} (${data.status})`);
         } else {
-          toast.warning("הוובהוק החזיר הצלחה אך לא נמצא פריט בתיבת הקליטה");
+          toast.warning(t("הוובהוק החזיר הצלחה אך לא נמצא פריט בתיבת הקליטה"));
         }
       } else {
-        toast.success("הוובהוק התקבל");
+        toast.success(t("הוובהוק התקבל"));
       }
     } catch (e: any) {
-      toast.error("שגיאת רשת: " + (e?.message || String(e)));
+      toast.error(t("שגיאת רשת") + ": " + (e?.message || String(e)));
     } finally {
       setTesting(false);
     }
@@ -149,7 +152,7 @@ function ApiSettingsPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(`שגיאה (${res.status}): ${json?.error || "כשל"}`);
+        toast.error(`${t("שגיאה")} (${res.status}): ${json?.error || t("כשל")}`);
         return;
       }
       if (json?.matched) {
@@ -162,7 +165,7 @@ function ApiSettingsPage() {
           .limit(1)
           .maybeSingle();
         toast.success(
-          `איש קשר עודכן (${json.contact_id.slice(0, 8)}). אינטראקציה: ${inter?.id ? "נשמרה" : "לא נמצאה"}`,
+          `${t("איש קשר עודכן")} (${json.contact_id.slice(0, 8)}). ${t("אינטראקציה")}: ${inter?.id ? t("נשמרה") : t("לא נמצאה")}`,
         );
       } else if (json?.intake_id) {
         const { data } = await supabase
@@ -172,38 +175,38 @@ function ApiSettingsPage() {
           .maybeSingle();
         if (data) {
           toast.success(
-            `${json.updated ? "עודכן" : "נוצר"} פריט אינטייק: ${data.parsed_phone} — "${data.parsed_message}"`,
+            `${json.updated ? t("עודכן") : t("נוצר")} ${t("פריט אינטייק")}: ${data.parsed_phone} — "${data.parsed_message}"`,
           );
         } else {
-          toast.warning("הצלחה אך לא נמצא פריט אינטייק");
+          toast.warning(t("הצלחה אך לא נמצא פריט אינטייק"));
         }
       } else {
-        toast.success("הוובהוק התקבל");
+        toast.success(t("הוובהוק התקבל"));
       }
     } catch (e: any) {
-      toast.error("שגיאת רשת: " + (e?.message || String(e)));
+      toast.error(t("שגיאת רשת") + ": " + (e?.message || String(e)));
     } finally {
       setTestingWa(false);
     }
   }
 
   if (loading) {
-    return <div className="p-8 text-muted-foreground">טוען...</div>;
+    return <div className="p-8 text-muted-foreground">{t("טוען...")}</div>;
   }
 
   return (
-    <div className="p-8 max-w-3xl space-y-6" dir="rtl">
+    <div className="p-8 max-w-3xl space-y-6" dir={dir}>
       <div>
-        <h1 className="text-2xl font-bold">הגדרות API</h1>
+        <h1 className="text-2xl font-bold">{t("הגדרות API")}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          חיבור בוט תמר וערוצים נוספים למערכת
+          {t("חיבור בוט תמר וערוצים נוספים למערכת")}
         </p>
       </div>
 
       <Card className="p-6 space-y-4">
-        <h2 className="font-semibold">Webhook של בוט תמר</h2>
+        <h2 className="font-semibold">{t("Webhook של בוט תמר")}</h2>
         <div>
-          <Label>כתובת ה־Webhook</Label>
+          <Label>{t("כתובת ה־Webhook")}</Label>
           <div className="flex gap-2 mt-1">
             <Input value={webhookUrl} readOnly dir="ltr" />
             <Button variant="outline" size="icon" onClick={() => copy(webhookUrl)}>
@@ -211,18 +214,18 @@ function ApiSettingsPage() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            הדבק כתובת זו בהגדרות בוט תמר. הבוט ישלח לכאן POST עם נתוני הליד.
+            {t("הדבק כתובת זו בהגדרות בוט תמר. הבוט ישלח לכאן POST עם נתוני הליד.")}
           </p>
         </div>
 
         <div>
-          <Label>Webhook Token (אבטחה)</Label>
+          <Label>{t("Webhook Token (אבטחה)")}</Label>
           <div className="flex gap-2 mt-1">
             <Input
               value={token}
               onChange={(e) => setToken(e.target.value)}
               dir="ltr"
-              placeholder={hasToken ? "••••••• (מוגדר) — הזן ערך חדש כדי לעדכן" : "ייווצר אוטומטית"}
+              placeholder={hasToken ? t("••••••• (מוגדר) — הזן ערך חדש כדי לעדכן") : t("ייווצר אוטומטית")}
               type="password"
             />
             <Button variant="outline" size="icon" onClick={() => setToken(genToken())}>
@@ -233,17 +236,17 @@ function ApiSettingsPage() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            הבוט חייב לשלוח ערך זה בכותרת <code dir="ltr">x-api-token</code> או בפרמטר <code dir="ltr">?token=</code>. הערך הנוכחי אינו מוצג — הזן ערך חדש כדי להחליף.
+            {t("הבוט חייב לשלוח ערך זה בכותרת")} <code dir="ltr">x-api-token</code> {t("או בפרמטר")} <code dir="ltr">?token=</code>. {t("הערך הנוכחי אינו מוצג — הזן ערך חדש כדי להחליף.")}
           </p>
         </div>
 
         <div>
-          <Label>מזהה דף פייסבוק (אופציונלי)</Label>
+          <Label>{t("מזהה דף פייסבוק (אופציונלי)")}</Label>
           <Input value={pageId} onChange={(e) => setPageId(e.target.value)} dir="ltr" />
         </div>
 
         <div>
-          <Label>מקור ברירת מחדל</Label>
+          <Label>{t("מקור ברירת מחדל")}</Label>
           <Select value={defaultSource} onValueChange={setDefaultSource}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -257,20 +260,20 @@ function ApiSettingsPage() {
         <div className="flex justify-end">
           <div className="flex gap-2">
             <Button variant="outline" onClick={testWebhook} disabled={testing}>
-              {testing ? "בודק..." : "בדיקת Webhook"}
+              {testing ? t("בודק...") : t("בדיקת Webhook")}
             </Button>
             <Button variant="outline" onClick={testTamarWhatsApp} disabled={testingWa}>
-              {testingWa ? "בודק..." : "בדיקת תמר וואטסאפ"}
+              {testingWa ? t("בודק...") : t("בדיקת תמר וואטסאפ")}
             </Button>
             <Button onClick={save} disabled={saving}>
-              {saving ? "שומר..." : "שמור הגדרות"}
+              {saving ? t("שומר...") : t("שמור הגדרות")}
             </Button>
           </div>
         </div>
       </Card>
 
       <Card className="p-6 space-y-3">
-        <h2 className="font-semibold">דוגמת Payload</h2>
+        <h2 className="font-semibold">{t("דוגמת Payload")}</h2>
         <pre className="bg-muted p-3 rounded-md text-xs overflow-auto" dir="ltr">
 {`POST ${webhookUrl}
 Headers: x-api-token: <TOKEN>
@@ -287,9 +290,9 @@ Body:
       </Card>
 
       <Card className="p-6 space-y-4">
-        <h2 className="font-semibold">Tamar Backend (Railway)</h2>
+        <h2 className="font-semibold">{t("Tamar Backend (Railway)")}</h2>
         <p className="text-xs text-muted-foreground">
-          כאן מוגדרת כתובת ה-backend של בוט תמר ב-Railway. Lovable שולחת לכאן את הלידים שנבחרו לקמפיין אינטייק. שליחת WhatsApp עצמה מתבצעת בצד תמר, לא ב-Lovable.
+          {t("כאן מוגדרת כתובת ה-backend של בוט תמר ב-Railway. Lovable שולחת לכאן את הלידים שנבחרו לקמפיין אינטייק. שליחת WhatsApp עצמה מתבצעת בצד תמר, לא ב-Lovable.")}
         </p>
         <div>
           <Label>Tamar Backend URL</Label>
@@ -300,7 +303,7 @@ Body:
             placeholder="https://tamar-bot.up.railway.app"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            הקריאה תבוצע ל-<code dir="ltr">{tamarUrl ? tamarUrl.replace(/\/$/, "") + "/campaigns/intake" : "<URL>/campaigns/intake"}</code>
+            {t("הקריאה תבוצע ל-")}<code dir="ltr">{tamarUrl ? tamarUrl.replace(/\/$/, "") + "/campaigns/intake" : "<URL>/campaigns/intake"}</code>
           </p>
         </div>
         <div>
@@ -309,15 +312,15 @@ Body:
             value={tamarToken}
             onChange={(e) => setTamarToken(e.target.value)}
             dir="ltr"
-            placeholder={hasTamarToken ? "••••••• (מוגדר) — הזן ערך חדש כדי לעדכן" : "bearer token"}
+            placeholder={hasTamarToken ? t("••••••• (מוגדר) — הזן ערך חדש כדי לעדכן") : "bearer token"}
             type="password"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            יישלח כ-<code dir="ltr">Authorization: Bearer ...</code>. הערך הנוכחי אינו מוצג — הזן ערך חדש כדי להחליף.
+            {t("יישלח כ-")}<code dir="ltr">Authorization: Bearer ...</code>. {t("הערך הנוכחי אינו מוצג — הזן ערך חדש כדי להחליף.")}
           </p>
         </div>
         <div className="flex justify-end">
-          <Button onClick={save} disabled={saving}>{saving ? "שומר..." : "שמור הגדרות"}</Button>
+          <Button onClick={save} disabled={saving}>{saving ? t("שומר...") : t("שמור הגדרות")}</Button>
         </div>
       </Card>
     </div>

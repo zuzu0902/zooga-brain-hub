@@ -37,13 +37,16 @@ import {
 import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
 import { TamarDecisionStrip } from "@/components/tamar-decision-strip";
 import { ContactConversation } from "@/components/contact-conversation";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
-  head: () => ({ meta: [{ title: "פרופיל איש קשר — Zooga CRM" }] }),
+  head: () => ({ meta: [{ title: "Contact Profile — Zooga CRM" }] }),
   component: ContactProfile,
 });
 
 function ContactProfile() {
+  const t = useT();
+  const { dir } = useLanguage();
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -113,13 +116,13 @@ function ContactProfile() {
 
   async function update(patch: any) {
     const { error } = await supabase.from("contacts").update(patch).eq("id", id);
-    if (error) { toast.error("שגיאה: " + error.message); return; }
-    toast.success("עודכן");
+    if (error) { toast.error(t("שגיאה: ") + error.message); return; }
+    toast.success(t("עודכן"));
     qc.invalidateQueries({ queryKey: ["contact", id] });
   }
 
-  if (isLoading) return <div className="p-6 text-muted-foreground">טוען...</div>;
-  if (!contact) return <div className="p-6">איש קשר לא נמצא</div>;
+  if (isLoading) return <div className="p-6 text-muted-foreground">{t("טוען...")}</div>;
+  if (!contact) return <div className="p-6">{t("איש קשר לא נמצא")}</div>;
 
   const initials = (contact.full_name || contact.first_name || "?").trim().slice(0, 1);
 
@@ -128,10 +131,10 @@ function ContactProfile() {
     const { error } = await supabase.from("contacts").delete().eq("id", id);
     setDeleting(false);
     if (error) {
-      toast.error("שגיאה במחיקה: " + error.message);
+      toast.error(t("שגיאה במחיקה: ") + error.message);
       return;
     }
-    toast.success("איש הקשר נמחק");
+    toast.success(t("איש הקשר נמחק"));
     setDeleteOpen(false);
     qc.invalidateQueries({ queryKey: ["contacts-rich"] });
     navigate({ to: "/contacts" });
@@ -141,7 +144,7 @@ function ContactProfile() {
     <div className="min-h-screen" style={{ background: "var(--gradient-soft)" }}>
       <div className="p-6 space-y-6 max-w-[1500px] mx-auto">
         <Link to="/contacts" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-          <ArrowRight className="h-4 w-4" /> חזרה לרשימה
+          <ArrowRight className="h-4 w-4" /> {t("חזרה לרשימה")}
         </Link>
 
         {/* === IDENTITY HEADER === */}
@@ -194,17 +197,17 @@ function ContactProfile() {
             )}
             {activeSection === "edit" && (
               <div className="space-y-6">
-                <SectionHeading>סקירה כללית</SectionHeading>
+                <SectionHeading>{t("סקירה כללית")}</SectionHeading>
                 <OverviewTab contact={contact} update={update} />
-                <SectionHeading>תובנות AI</SectionHeading>
+                <SectionHeading>{t("תובנות AI")}</SectionHeading>
                 <AITab contact={contact} update={update} />
-                <SectionHeading>פרופיל אישי</SectionHeading>
+                <SectionHeading>{t("פרופיל אישי")}</SectionHeading>
                 <PersonalTab contact={contact} update={update} />
-                <SectionHeading>שיחות ואינטראקציות</SectionHeading>
+                <SectionHeading>{t("שיחות ואינטראקציות")}</SectionHeading>
                 <ConversationsTab interactions={interactions ?? []} onAdd={() => setInteractionOpen(true)} />
-                <SectionHeading>פעילות ומכירות</SectionHeading>
+                <SectionHeading>{t("פעילות ומכירות")}</SectionHeading>
                 <SalesTab contact={contact} update={update} />
-                <SectionHeading>הערות ומשימות</SectionHeading>
+                <SectionHeading>{t("הערות ומשימות")}</SectionHeading>
                 <NotesTasksTab
                   contact={contact}
                   update={update}
@@ -213,7 +216,7 @@ function ContactProfile() {
                   contactId={id}
                   openTask={() => setTaskOpen(true)}
                 />
-                <SectionHeading>נתונים גולמיים</SectionHeading>
+                <SectionHeading>{t("נתונים גולמיים")}</SectionHeading>
                 <RawTab contact={contact} webhookLogs={webhookLogs ?? []} />
               </div>
             )}
@@ -236,17 +239,17 @@ function ContactProfile() {
           onAdded={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
         />
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <AlertDialogContent dir="rtl">
+          <AlertDialogContent dir={dir}>
             <AlertDialogHeader>
-              <AlertDialogTitle>למחוק את איש הקשר?</AlertDialogTitle>
+              <AlertDialogTitle>{t("למחוק את איש הקשר?")}</AlertDialogTitle>
               <AlertDialogDescription>
-                פעולה זו תמחק לצמיתות את {contact.full_name || "איש הקשר"} ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.
+                {t("פעולה זו תמחק לצמיתות את")} {contact.full_name || t("איש הקשר")} {t("ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleting}>ביטול</AlertDialogCancel>
+              <AlertDialogCancel disabled={deleting}>{t("ביטול")}</AlertDialogCancel>
               <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                {deleting ? "מוחק..." : "מחק"}
+                {deleting ? t("מוחק...") : t("מחק")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -271,6 +274,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
  * ============================================================ */
 
 function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDelete }: any) {
+  const t = useT();
   return (
     <Card className="p-6 shadow-[var(--shadow-elevated)] border-border/60 overflow-hidden relative">
       <div
@@ -287,9 +291,9 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDe
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-3xl font-bold tracking-tight">{contact.full_name || "ללא שם"}</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{contact.full_name || t("ללא שם")}</h1>
               {contact.manager_attention_required && (
-                <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" /> דורש טיפול מנהל</Badge>
+                <Badge variant="destructive" className="gap-1"><AlertCircle className="h-3 w-3" /> {t("דורש טיפול מנהל")}</Badge>
               )}
               {contact.vip_potential && (
                 <Badge className="gap-1 bg-gradient-to-r from-[var(--gold)] to-[var(--primary-glow)] text-primary-foreground border-0">
@@ -304,20 +308,20 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDe
                 <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{[contact.region, contact.city].filter(Boolean).join(" · ")}</span>
               )}
               {contact.age && <span className="inline-flex items-center gap-1.5"><User className="h-3.5 w-3.5" />{contact.age}</span>}
-              <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{contact.last_interaction_at ? formatRelative(contact.last_interaction_at) : "ללא אינטראקציות"}</span>
+              <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{contact.last_interaction_at ? formatRelative(contact.last_interaction_at) : t("ללא אינטראקציות")}</span>
             </div>
             <div className="flex items-center gap-1.5 mt-3 flex-wrap">
               <Badge variant="outline">{SOURCE_LABELS[contact.source] || contact.source}</Badge>
               <Badge variant="secondary">{STATUS_LABELS[contact.status] || contact.status}</Badge>
               {contact.sales_temperature && (
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${SALES_TEMP_TONE[contact.sales_temperature] || "border-border"}`}>
-                  טמפ׳: {SALES_TEMP_LABELS[contact.sales_temperature]}
+                  {t("טמפ׳")}: {t(SALES_TEMP_LABELS[contact.sales_temperature])}
                 </span>
               )}
               {contact.relationship_status && <Badge variant="outline" className="text-[10px]">{contact.relationship_status}</Badge>}
               {contact.consent_marketing
-                ? <Badge className="gap-1 bg-success text-success-foreground hover:bg-success"><ShieldCheck className="h-3 w-3" /> הסכמה</Badge>
-                : <Badge variant="outline" className="text-muted-foreground">ללא הסכמה</Badge>}
+                ? <Badge className="gap-1 bg-success text-success-foreground hover:bg-success"><ShieldCheck className="h-3 w-3" /> {t("הסכמה")}</Badge>
+                : <Badge variant="outline" className="text-muted-foreground">{t("ללא הסכמה")}</Badge>}
               {(contact.tags || []).slice(0, 6).map((t: string) => (
                 <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>
               ))}
@@ -336,10 +340,10 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDe
           </Select>
           <div className="grid grid-cols-2 gap-2">
             <Button size="sm" variant="outline" className="gap-1.5" onClick={onMessage}>
-              <MessageSquare className="h-3.5 w-3.5" /> שלח
+              <MessageSquare className="h-3.5 w-3.5" /> {t("שלח")}
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5" onClick={onTask}>
-              <CheckSquare className="h-3.5 w-3.5" /> משימה
+              <CheckSquare className="h-3.5 w-3.5" /> {t("משימה")}
             </Button>
             <Button
               size="sm"
@@ -347,7 +351,7 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDe
               className="gap-1.5 col-span-2"
               onClick={() => update({ manager_attention_required: !contact.manager_attention_required })}
             >
-              <Flag className="h-3.5 w-3.5" /> {contact.manager_attention_required ? "בטל סימון מנהל" : "סמן לטיפול מנהל"}
+              <Flag className="h-3.5 w-3.5" /> {contact.manager_attention_required ? t("בטל סימון מנהל") : t("סמן לטיפול מנהל")}
             </Button>
             <Button
               size="sm"
@@ -355,7 +359,7 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDe
               className="gap-1.5 col-span-2 text-muted-foreground"
               onClick={() => window.open(`/contacts/${id}`, "_blank", "noopener,noreferrer")}
             >
-              <ExternalLink className="h-3.5 w-3.5" /> פתח להדפסה / PDF
+              <ExternalLink className="h-3.5 w-3.5" /> {t("פתח להדפסה / PDF")}
             </Button>
             <Button
               size="sm"
@@ -363,7 +367,7 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDe
               className="gap-1.5 col-span-2 text-destructive hover:text-destructive hover:bg-destructive/10"
               onClick={onDelete}
             >
-              <Trash2 className="h-3.5 w-3.5" /> מחק איש קשר
+              <Trash2 className="h-3.5 w-3.5" /> {t("מחק איש קשר")}
             </Button>
           </div>
         </div>
@@ -371,12 +375,12 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDe
 
       {/* Score row */}
       <div className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 pt-5 border-t border-border/60">
-        <ScorePill icon={Activity} label="פעילות" value={contact.activity_score ?? 0} />
-        <ScorePill icon={Heart} label="מעורבות" value={contact.engagement_score ?? 0} />
-        <ScorePill icon={Zap} label="פתיחות רגשית" value={contact.openness_score ?? 0} />
-        <ScorePill icon={User} label="התאמה לקהילה" value={contact.community_fit_score ?? 0} />
-        <ScorePill icon={TrendingUp} label="ביטחון AI" value={contact.ai_confidence_score ?? 0} />
-        <ScorePill icon={Target} label="הכנסות" value={Number(contact.total_revenue) || 0} suffix="" raw />
+        <ScorePill icon={Activity} label={t("פעילות")} value={contact.activity_score ?? 0} />
+        <ScorePill icon={Heart} label={t("מעורבות")} value={contact.engagement_score ?? 0} />
+        <ScorePill icon={Zap} label={t("פתיחות רגשית")} value={contact.openness_score ?? 0} />
+        <ScorePill icon={User} label={t("התאמה לקהילה")} value={contact.community_fit_score ?? 0} />
+        <ScorePill icon={TrendingUp} label={t("ביטחון AI")} value={contact.ai_confidence_score ?? 0} />
+        <ScorePill icon={Target} label={t("הכנסות")} value={Number(contact.total_revenue) || 0} suffix="" raw />
       </div>
 
       <QuickFacts contact={contact} />
@@ -385,31 +389,32 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDe
 }
 
 function QuickFacts({ contact }: any) {
+  const t = useT();
   const genderLabel: Record<string, string> = { male: "גבר", female: "אישה", other: "אחר", unknown: "לא ידוע" };
   const demographics: Array<[string, string | null | undefined]> = [
-    ["מגדר", contact.gender ? genderLabel[contact.gender] || contact.gender : null],
-    ["גיל", contact.age ? String(contact.age) : contact.age_range || null],
-    ["סטטוס", contact.relationship_status],
-    ["אזור", contact.region],
-    ["עיר", contact.city],
-    ["יום הולדת", contact.birthday_day && contact.birthday_month ? `${contact.birthday_day}/${contact.birthday_month}` : null],
+    [t("מגדר"), contact.gender ? genderLabel[contact.gender] || contact.gender : null],
+    [t("גיל"), contact.age ? String(contact.age) : contact.age_range || null],
+    [t("סטטוס"), contact.relationship_status],
+    [t("אזור"), contact.region],
+    [t("עיר"), contact.city],
+    [t("יום הולדת"), contact.birthday_day && contact.birthday_month ? `${contact.birthday_day}/${contact.birthday_month}` : null],
   ].filter(([, v]) => v) as Array<[string, string]>;
 
   const interestGroups: Array<{ label: string; items: string[]; tone: string }> = [
-    { label: "תחומי עניין", items: contact.interests || [], tone: "bg-primary/10 text-primary border-primary/20" },
-    { label: "תחביבים", items: contact.hobbies || [], tone: "bg-accent/10 text-accent-foreground border-accent/20" },
-    { label: "אופי", items: contact.personality_tags || [], tone: "bg-secondary/60 text-secondary-foreground border-border" },
-    { label: "סגנון חיים", items: contact.lifestyle_tags || [], tone: "bg-muted text-foreground border-border" },
+    { label: t("תחומי עניין"), items: contact.interests || [], tone: "bg-primary/10 text-primary border-primary/20" },
+    { label: t("תחביבים"), items: contact.hobbies || [], tone: "bg-accent/10 text-accent-foreground border-accent/20" },
+    { label: t("אופי"), items: contact.personality_tags || [], tone: "bg-secondary/60 text-secondary-foreground border-border" },
+    { label: t("סגנון חיים"), items: contact.lifestyle_tags || [], tone: "bg-muted text-foreground border-border" },
   ].filter((g) => g.items && g.items.length > 0);
 
   const profile: Array<[string, string | null | undefined]> = [
-    ["תקשורת", contact.communication_style],
-    ["רגשי", contact.emotional_profile],
-    ["חברתי", contact.preferred_social_style],
-    ["טיולים", contact.preferred_trip_style],
-    ["רגישות מחיר", contact.budget_sensitivity || contact.price_sensitivity],
-    ["כוונת רכישה", contact.purchase_intent],
-    ["שפה", contact.preferred_language_style],
+    [t("תקשורת"), contact.communication_style],
+    [t("רגשי"), contact.emotional_profile],
+    [t("חברתי"), contact.preferred_social_style],
+    [t("טיולים"), contact.preferred_trip_style],
+    [t("רגישות מחיר"), contact.budget_sensitivity || contact.price_sensitivity],
+    [t("כוונת רכישה"), contact.purchase_intent],
+    [t("שפה"), contact.preferred_language_style],
   ].filter(([, v]) => v) as Array<[string, string]>;
 
   const hasAny = demographics.length || interestGroups.length || profile.length;
@@ -419,7 +424,7 @@ function QuickFacts({ contact }: any) {
     <div className="relative mt-5 pt-5 border-t border-border/60 space-y-4">
       {demographics.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">דמוגרפיה</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">{t("דמוגרפיה")}</div>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
             {demographics.map(([k, v]) => (
               <div key={k} className="inline-flex items-center gap-1.5">
@@ -451,7 +456,7 @@ function QuickFacts({ contact }: any) {
 
       {profile.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">פרופיל מכירות ותקשורת</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">{t("פרופיל מכירות ותקשורת")}</div>
           <div className="flex flex-wrap gap-1.5">
             {profile.map(([k, v]) => (
               <Badge key={k} variant="outline" className="text-[11px] font-normal">
@@ -486,6 +491,7 @@ function ScorePill({ icon: Icon, label, value, raw, suffix = "/100" }: any) {
 }
 
 function AIRelationshipSummary({ contact }: any) {
+  const t = useT();
   const summary = contact.ai_summary;
   const next = contact.ai_recommended_next_action;
   return (
@@ -499,21 +505,21 @@ function AIRelationshipSummary({ contact }: any) {
           <div className="flex items-center gap-2 mb-1.5">
             <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">AI Relationship Summary</h2>
             {contact.ai_confidence_score != null && (
-              <Badge variant="outline" className="text-[10px]">ביטחון {contact.ai_confidence_score}%</Badge>
+              <Badge variant="outline" className="text-[10px]">{t("ביטחון")} {contact.ai_confidence_score}%</Badge>
             )}
           </div>
           {summary ? (
             <p className="text-base leading-relaxed text-foreground">{summary}</p>
           ) : (
             <p className="text-sm text-muted-foreground italic">
-              אין עדיין סיכום AI. הוא ייווצר אוטומטית לאחר השיחות הראשונות עם תמר.
+              {t("אין עדיין סיכום AI. הוא ייווצר אוטומטית לאחר השיחות הראשונות עם תמר.")}
             </p>
           )}
           {next && (
             <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-info/10 border border-info/20">
               <Lightbulb className="h-4 w-4 text-info shrink-0 mt-0.5" />
               <div>
-                <div className="text-[11px] uppercase font-semibold text-info mb-0.5">המלצה הבאה</div>
+                <div className="text-[11px] uppercase font-semibold text-info mb-0.5">{t("המלצה הבאה")}</div>
                 <div className="text-sm">{next}</div>
               </div>
             </div>
@@ -605,6 +611,7 @@ function normalizeMemType(t: string | null | undefined): string {
 }
 
 function RelationshipMemorySection({ contactId }: { contactId: string }) {
+  const t = useT();
   const qc = useQueryClient();
   const [running, setRunning] = useState(false);
 
@@ -637,12 +644,12 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
         body: JSON.stringify({ contact_id: contactId }),
       });
       const j = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(j?.error || "שגיאה");
-      toast.success(`הופקו ${j.memories || 0} זיכרונות חדשים`);
+      if (!resp.ok) throw new Error(j?.error || t("שגיאה"));
+      toast.success(`${t("הופקו")} ${j.memories || 0} ${t("זיכרונות חדשים")}`);
       qc.invalidateQueries({ queryKey: ["contact-memories", contactId] });
       qc.invalidateQueries({ queryKey: ["contact", contactId] });
     } catch (e: any) {
-      toast.error("שגיאה: " + (e?.message || e));
+      toast.error(t("שגיאה: ") + (e?.message || e));
     }
     setRunning(false);
   }
@@ -662,23 +669,23 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Brain className="h-5 w-5 text-primary" />
-            זיכרון מערכת היחסים
+            {t("זיכרון מערכת היחסים")}
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            זיכרון רגשי מובנה — נצבר אוטומטית מכל שיחה ב-WhatsApp
+            {t("זיכרון רגשי מובנה — נצבר אוטומטית מכל שיחה ב-WhatsApp")}
           </p>
         </div>
         <Button size="sm" onClick={runNow} disabled={running} className="gap-2">
           {running ? <Sparkles className="h-4 w-4 animate-pulse" /> : <Sparkles className="h-4 w-4" />}
-          {running ? "מחלץ..." : "חלץ זיכרונות עכשיו"}
+          {running ? t("מחלץ...") : t("חלץ זיכרונות עכשיו")}
         </Button>
       </div>
 
       {(memories?.length ?? 0) === 0 ? (
         <div className="py-12 text-center text-muted-foreground">
           <Brain className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <div className="text-sm">אין עדיין זיכרונות.</div>
-          <div className="text-xs mt-1">הזיכרון ייצבר אוטומטית כשתמר תקיים שיחות.</div>
+          <div className="text-sm">{t("אין עדיין זיכרונות.")}</div>
+          <div className="text-xs mt-1">{t("הזיכרון ייצבר אוטומטית כשתמר תקיים שיחות.")}</div>
         </div>
       ) : (
         <div className="space-y-5">
@@ -686,7 +693,7 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
             <div key={type}>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${MEM_TYPE_TONE[type] || "border-border"}`}>
-                  {MEM_TYPE_LABEL[type] || type}
+                  {t(MEM_TYPE_LABEL[type]) || type}
                 </span>
                 <span className="text-xs text-muted-foreground">{items.length}</span>
               </div>
@@ -721,6 +728,7 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
 /* ---------- Suggested Actions ---------- */
 
 function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskChange, update }: any) {
+  const t = useT();
   const { data: pending } = useQuery({
     queryKey: ["contact-pending", contactId],
     refetchInterval: 15000,
@@ -740,7 +748,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
     aiSuggestions.push({
       type: "next_action",
       title: contact.ai_recommended_next_action,
-      reason: "המלצה מבוססת על פרופיל מצטבר",
+      reason: t("המלצה מבוססת על פרופיל מצטבר"),
       confidence: contact.ai_confidence_score ?? 70,
       urgency: contact.manager_attention_required ? "high" : "normal",
     });
@@ -748,8 +756,8 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
   if (contact.next_best_offer) {
     aiSuggestions.push({
       type: "offer",
-      title: `הצע: ${contact.next_best_offer}`,
-      reason: contact.ai_offer_fit || "מתאים לפרופיל",
+      title: `${t("הצע")}: ${contact.next_best_offer}`,
+      reason: contact.ai_offer_fit || t("מתאים לפרופיל"),
       confidence: contact.ai_confidence_score ?? 70,
       urgency: "normal",
     });
@@ -757,8 +765,8 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
   if (contact.recommended_campaign) {
     aiSuggestions.push({
       type: "campaign",
-      title: `שייך לקמפיין: ${contact.recommended_campaign}`,
-      reason: "התאמה דמוגרפית/רגשית",
+      title: `${t("שייך לקמפיין")}: ${contact.recommended_campaign}`,
+      reason: t("התאמה דמוגרפית/רגשית"),
       confidence: 75,
       urgency: "normal",
     });
@@ -766,8 +774,8 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
   if (contact.manager_attention_required) {
     aiSuggestions.push({
       type: "escalate",
-      title: "העבר למנהל אנושי",
-      reason: contact.ai_risk_flags || "תמר זיהתה צורך בליווי אנושי",
+      title: t("העבר למנהל אנושי"),
+      reason: contact.ai_risk_flags || t("תמר זיהתה צורך בליווי אנושי"),
       confidence: 90,
       urgency: "high",
     });
@@ -788,13 +796,13 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
     await supabase.from("pending_ai_insights")
       .update({ status: "approved", reviewed_at: new Date().toISOString() })
       .eq("id", p.id);
-    toast.success("יושם בפרופיל");
+    toast.success(t("יושם בפרופיל"));
   }
   async function reject(p: any) {
     await supabase.from("pending_ai_insights")
       .update({ status: "rejected", reviewed_at: new Date().toISOString() })
       .eq("id", p.id);
-    toast.success("נדחה");
+    toast.success(t("נדחה"));
   }
 
   return (
@@ -804,10 +812,10 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-primary" />
-              פעולות מומלצות AI
+              {t("פעולות מומלצות AI")}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              מנוע ההמלצות מבוסס על פרופיל מצטבר ושיחות אחרונות
+              {t("מנוע ההמלצות מבוסס על פרופיל מצטבר ושיחות אחרונות")}
             </p>
           </div>
         </div>
@@ -815,7 +823,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
         {aiSuggestions.length === 0 ? (
           <div className="py-10 text-center text-muted-foreground">
             <Lightbulb className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <div className="text-sm">אין עדיין המלצות פעולה.</div>
+            <div className="text-sm">{t("אין עדיין המלצות פעולה.")}</div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -825,17 +833,17 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Badge variant={s.urgency === "high" ? "destructive" : "outline"} className="text-[10px]">
-                        {s.urgency === "high" ? "דחוף" : "רגיל"}
+                        {s.urgency === "high" ? t("דחוף") : t("רגיל")}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground tabular-nums">ביטחון {s.confidence}%</span>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">{t("ביטחון")} {s.confidence}%</span>
                     </div>
                     <div className="text-base font-semibold">{s.title}</div>
                     <div className="text-xs text-muted-foreground mt-1">{s.reason}</div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <Button size="sm" variant="outline" onClick={openTask}>צור משימה</Button>
+                    <Button size="sm" variant="outline" onClick={openTask}>{t("צור משימה")}</Button>
                     {s.type === "escalate" && (
-                      <Button size="sm" onClick={() => update({ manager_attention_required: false })}>טופל</Button>
+                      <Button size="sm" onClick={() => update({ manager_attention_required: false })}>{t("טופל")}</Button>
                     )}
                   </div>
                 </div>
@@ -849,7 +857,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
         <Card className="p-6 border-warning/30 bg-warning/[0.03] shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-2 mb-4">
             <AlertCircle className="h-5 w-5 text-warning-foreground" />
-            <h3 className="text-base font-bold">תובנות AI ממתינות לאישור ({pending!.length})</h3>
+            <h3 className="text-base font-bold">{t("תובנות AI ממתינות לאישור")} ({pending!.length})</h3>
           </div>
           <div className="space-y-2.5">
             {pending!.map((p: any) => (
@@ -860,7 +868,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
                     <Badge variant="outline" className="text-[10px]">{p.confidence_score ?? 0}%</Badge>
                   </div>
                   <div className="text-sm mt-1 break-words">
-                    <span className="text-muted-foreground">ערך מוצע: </span>
+                    <span className="text-muted-foreground">{t("ערך מוצע")}: </span>
                     <span className="font-medium">{JSON.stringify(p.proposed_value?.value)}</span>
                   </div>
                   {p.reasoning && <div className="text-xs text-muted-foreground mt-1">{p.reasoning}</div>}
@@ -879,32 +887,32 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold flex items-center gap-2">
             <CheckSquare className="h-5 w-5 text-primary" />
-            משימות פתוחות ({openTasks.length})
+            {t("משימות פתוחות")} ({openTasks.length})
           </h3>
           <Button size="sm" variant="outline" onClick={openTask} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" /> משימה חדשה
+            <Plus className="h-3.5 w-3.5" /> {t("משימה חדשה")}
           </Button>
         </div>
         {openTasks.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-6 text-center">אין משימות פתוחות</div>
+          <div className="text-sm text-muted-foreground py-6 text-center">{t("אין משימות פתוחות")}</div>
         ) : (
           <div className="space-y-2">
-            {openTasks.map((t: any) => (
-              <div key={t.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+            {openTasks.map((tk: any) => (
+              <div key={tk.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
                 <input
                   type="checkbox"
                   className="mt-1"
                   onChange={async () => {
-                    await supabase.from("tasks").update({ status: "done" }).eq("id", t.id);
+                    await supabase.from("tasks").update({ status: "done" }).eq("id", tk.id);
                     onTaskChange();
                   }}
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium">{t.title}</div>
-                  {t.description && <div className="text-xs text-muted-foreground mt-0.5">{t.description}</div>}
+                  <div className="font-medium">{tk.title}</div>
+                  {tk.description && <div className="text-xs text-muted-foreground mt-0.5">{tk.description}</div>}
                   <div className="text-[10px] text-muted-foreground mt-1 flex gap-2">
-                    <Badge variant="outline" className="text-[10px]">{TASK_PRIORITY_LABELS[t.priority]}</Badge>
-                    {t.due_date && <span>יעד: {formatDate(t.due_date)}</span>}
+                    <Badge variant="outline" className="text-[10px]">{t(TASK_PRIORITY_LABELS[tk.priority])}</Badge>
+                    {tk.due_date && <span>{t("יעד")}: {formatDate(tk.due_date)}</span>}
                   </div>
                 </div>
               </div>
@@ -1584,6 +1592,7 @@ function Meter({ label, value }: { label: string; value: number }) {
 }
 
 function NotesTasksTab({ contact, update, tasks, onTaskChange, contactId, openTask }: any) {
+  const tr = useT();
   const [notes, setNotes] = useState(contact.notes || "");
   useEffect(() => { setNotes(contact.notes || ""); }, [contact.notes]);
   return (
@@ -1627,7 +1636,7 @@ function NotesTasksTab({ contact, update, tasks, onTaskChange, contactId, openTa
                 {t.description && <div className="text-sm text-muted-foreground mt-1">{t.description}</div>}
                 <div className="text-[11px] text-muted-foreground mt-1.5 flex gap-3">
                   {t.assigned_to && <span>אחראי: {t.assigned_to}</span>}
-                  {t.due_date && <span>יעד: {formatDate(t.due_date)}</span>}
+                  {t.due_date && <span>{tr("יעד")}: {formatDate(t.due_date)}</span>}
                   <span>נוצר: {formatRelative(t.created_at)}</span>
                 </div>
               </div>

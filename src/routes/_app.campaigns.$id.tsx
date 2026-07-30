@@ -14,6 +14,7 @@ import { INTAKE_FLOW_LABELS, INTAKE_FLOWS } from "@/lib/intake-flows";
 import { formatRelative } from "@/lib/i18n";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/campaigns/$id")({
   head: () => ({ meta: [{ title: "פרופיל קמפיין — Zooga CRM" }] }),
@@ -67,6 +68,8 @@ function Field({ label, value }: { label: string; value: any }) {
 }
 
 function CampaignDetailPage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
@@ -114,11 +117,11 @@ function CampaignDetailPage() {
     },
   });
 
-  if (isLoading) return <div className="p-10 text-center text-muted-foreground" dir="rtl">טוען...</div>;
+  if (isLoading) return <div className="p-10 text-center text-muted-foreground" dir={dir}>{t("טוען...")}</div>;
   if (!campaign) return (
-    <div className="p-10 text-center" dir="rtl">
-      <p className="text-muted-foreground mb-4">קמפיין לא נמצא</p>
-      <Link to="/campaigns"><Button variant="outline">חזרה לרשימה</Button></Link>
+    <div className="p-10 text-center" dir={dir}>
+      <p className="text-muted-foreground mb-4">{t("קמפיין לא נמצא")}</p>
+      <Link to="/campaigns"><Button variant="outline">{t("חזרה לרשימה")}</Button></Link>
     </div>
   );
 
@@ -134,17 +137,17 @@ function CampaignDetailPage() {
   };
 
   async function remove() {
-    if (!confirm("למחוק את הקמפיין?")) return;
+    if (!confirm(t("למחוק את הקמפיין?"))) return;
     const { error } = await supabase.from("campaigns").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("נמחק");
+    toast.success(t("נמחק"));
     navigate({ to: "/campaigns" });
   }
 
   if (editing) {
     return (
-      <div className="p-6 space-y-4" dir="rtl">
-        <h1 className="text-3xl font-bold">עריכת קמפיין</h1>
+      <div className="p-6 space-y-4" dir={dir}>
+        <h1 className="text-3xl font-bold">{t("עריכת קמפיין")}</h1>
         <CampaignForm initial={campaign} onSaved={() => { setEditing(false); refetch(); }} />
       </div>
     );
@@ -154,9 +157,9 @@ function CampaignDetailPage() {
   const flowDef = INTAKE_FLOWS[flow];
 
   return (
-    <div className="p-6 space-y-2 max-w-6xl" dir="rtl">
+    <div className="p-6 space-y-2 max-w-6xl" dir={dir}>
       <nav className="text-sm text-muted-foreground flex items-center gap-1 mb-2">
-        <Link to="/campaigns" className="hover:text-foreground">קמפיינים</Link>
+        <Link to="/campaigns" className="hover:text-foreground">{t("קמפיינים")}</Link>
         <ChevronRight className="h-3 w-3 rotate-180" />
         <span className="text-foreground truncate">{campaign.name}</span>
       </nav>
@@ -171,35 +174,35 @@ function CampaignDetailPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold tracking-tight">{campaign.name}</h1>
-                <Badge variant="outline" className={STATUS_TONE[campaign.status]}>{STATUS_LABELS[campaign.status]}</Badge>
+                <Badge variant="outline" className={STATUS_TONE[campaign.status]}>{t(STATUS_LABELS[campaign.status])}</Badge>
               </div>
               {campaign.objective && <p className="text-muted-foreground mt-1">{campaign.objective}</p>}
               <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
                 {campaign.source_platform && <Badge variant="secondary">{campaign.source_platform}</Badge>}
                 {campaign.category && <Badge variant="secondary">{campaign.category}</Badge>}
-                <Badge variant="secondary">{INTAKE_FLOW_LABELS[flow]}</Badge>
-                <span>· עודכן {formatRelative(campaign.updated_at)}</span>
+                <Badge variant="secondary">{t(INTAKE_FLOW_LABELS[flow])}</Badge>
+                <span>{t("· עודכן ")}{formatRelative(campaign.updated_at)}</span>
               </div>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-1" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> ערוך</Button>
-            <Button variant="outline" className="gap-1 text-destructive" onClick={remove}><Trash2 className="h-4 w-4" /> מחק</Button>
+            <Button variant="outline" className="gap-1" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> {t("ערוך")}</Button>
+            <Button variant="outline" className="gap-1 text-destructive" onClick={remove}><Trash2 className="h-4 w-4" /> {t("מחק")}</Button>
           </div>
         </div>
       </Card>
 
-      <SectionHeading icon={Activity}>ביצועים</SectionHeading>
+      <SectionHeading icon={Activity}>{t("ביצועים")}</SectionHeading>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard icon={Users} label="אנשי קשר" value={stats.contacts} />
-        <StatCard icon={Activity} label="שיחות פעילות" value={stats.active} tone="bg-emerald-500/10 text-emerald-700" />
-        <StatCard icon={Flame} label="לידים חמים" value={stats.hot} tone="bg-red-500/10 text-red-700" />
-        <StatCard icon={Trophy} label="המרות" value={stats.conversions} tone="bg-amber-500/10 text-amber-700" />
-        <StatCard icon={AlertTriangle} label="הסלמות" value={stats.escalations} tone="bg-orange-500/10 text-orange-700" />
-        <StatCard icon={Target} label="ציון התאמה ממוצע" value={stats.fitAvg} tone="bg-blue-500/10 text-blue-700" />
+        <StatCard icon={Users} label={t("אנשי קשר")} value={stats.contacts} />
+        <StatCard icon={Activity} label={t("שיחות פעילות")} value={stats.active} tone="bg-emerald-500/10 text-emerald-700" />
+        <StatCard icon={Flame} label={t("לידים חמים")} value={stats.hot} tone="bg-red-500/10 text-red-700" />
+        <StatCard icon={Trophy} label={t("המרות")} value={stats.conversions} tone="bg-amber-500/10 text-amber-700" />
+        <StatCard icon={AlertTriangle} label={t("הסלמות")} value={stats.escalations} tone="bg-orange-500/10 text-orange-700" />
+        <StatCard icon={Target} label={t("ציון התאמה ממוצע")} value={stats.fitAvg} tone="bg-blue-500/10 text-blue-700" />
       </div>
 
-      <SectionHeading icon={Tag}>הצעה מקושרת</SectionHeading>
+      <SectionHeading icon={Tag}>{t("הצעה מקושרת")}</SectionHeading>
       <Card className="p-5">
         {offer ? (
           <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -219,42 +222,42 @@ function CampaignDetailPage() {
               </div>
             </div>
             <Link to="/offers/$id" params={{ id: offer.id }}>
-              <Button variant="outline" size="sm">פתח הצעה</Button>
+              <Button variant="outline" size="sm">{t("פתח הצעה")}</Button>
             </Link>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 text-sm">
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">לא משויך להצעה</Badge>
-              <span className="text-muted-foreground">קמפיין ללא הצעה לא יוכל להציע מוצר ספציפי בשיחה.</span>
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30">{t("לא משויך להצעה")}</Badge>
+              <span className="text-muted-foreground">{t("קמפיין ללא הצעה לא יוכל להציע מוצר ספציפי בשיחה.")}</span>
             </div>
-            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>שייך עכשיו</Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>{t("שייך עכשיו")}</Button>
           </div>
         )}
       </Card>
 
-      <SectionHeading icon={Megaphone}>סקירה כללית</SectionHeading>
+      <SectionHeading icon={Megaphone}>{t("סקירה כללית")}</SectionHeading>
       <Card className="p-5 grid sm:grid-cols-2 gap-4">
-        <Field label="תיאור" value={campaign.description} />
-        <Field label="סוג" value={campaign.campaign_type} />
-        <Field label="מספר WhatsApp" value={campaign.whatsapp_number} />
-        <Field label="פעולת המרה" value={campaign.desired_conversion_action} />
-        <Field label="פעיל מ" value={campaign.active_from ? new Date(campaign.active_from).toLocaleDateString("he-IL") : null} />
-        <Field label="פעיל עד" value={campaign.active_until ? new Date(campaign.active_until).toLocaleDateString("he-IL") : null} />
-        <Field label="טקסט מודעה" value={campaign.ad_copy} />
-        <Field label="טקסט נחיתה" value={campaign.landing_text} />
+        <Field label={t("תיאור")} value={campaign.description} />
+        <Field label={t("סוג")} value={campaign.campaign_type} />
+        <Field label={t("מספר WhatsApp")} value={campaign.whatsapp_number} />
+        <Field label={t("פעולת המרה")} value={campaign.desired_conversion_action} />
+        <Field label={t("פעיל מ")} value={campaign.active_from ? new Date(campaign.active_from).toLocaleDateString("he-IL") : null} />
+        <Field label={t("פעיל עד")} value={campaign.active_until ? new Date(campaign.active_until).toLocaleDateString("he-IL") : null} />
+        <Field label={t("טקסט מודעה")} value={campaign.ad_copy} />
+        <Field label={t("טקסט נחיתה")} value={campaign.landing_text} />
       </Card>
 
-      <SectionHeading icon={Sparkles}>התנהגות AI</SectionHeading>
+      <SectionHeading icon={Sparkles}>{t("התנהגות AI")}</SectionHeading>
       <Card className="p-5 grid sm:grid-cols-2 gap-4">
-        <Field label="יעד AI" value={campaign.ai_goal} />
-        <Field label="זווית רגשית" value={campaign.emotional_angle} />
-        <Field label="סגנון טון" value={campaign.tone_style} />
-        <Field label="התנגדויות" value={campaign.objections} />
-        <Field label="אסור להבטיח" value={campaign.prohibited_promises} />
+        <Field label={t("יעד AI")} value={campaign.ai_goal} />
+        <Field label={t("זווית רגשית")} value={campaign.emotional_angle} />
+        <Field label={t("סגנון טון")} value={campaign.tone_style} />
+        <Field label={t("התנגדויות")} value={campaign.objections} />
+        <Field label={t("אסור להבטיח")} value={campaign.prohibited_promises} />
         {Array.isArray(campaign.ai_behavior_rules) && campaign.ai_behavior_rules.length > 0 && (
           <div className="sm:col-span-2">
-            <div className="text-xs text-muted-foreground mb-1">חוקי התנהגות</div>
+            <div className="text-xs text-muted-foreground mb-1">{t("חוקי התנהגות")}</div>
             <ul className="list-disc pr-5 space-y-1 text-sm">
               {campaign.ai_behavior_rules.map((r: any, i: number) => (<li key={i}>{typeof r === "string" ? r : JSON.stringify(r)}</li>))}
             </ul>
@@ -262,46 +265,46 @@ function CampaignDetailPage() {
         )}
       </Card>
 
-      <SectionHeading icon={MessageCircle}>זרימת אינטייק — {INTAKE_FLOW_LABELS[flow]}</SectionHeading>
+      <SectionHeading icon={MessageCircle}>{t("זרימת אינטייק — ")}{t(INTAKE_FLOW_LABELS[flow])}</SectionHeading>
       <Card className="p-5 space-y-3">
         <div className="text-sm text-muted-foreground">{flowDef.system_addendum}</div>
         <div>
-          <div className="text-xs font-semibold mb-2">שאלות שתמר תשאל:</div>
+          <div className="text-xs font-semibold mb-2">{t("שאלות שתמר תשאל:")}</div>
           <ol className="list-decimal pr-5 space-y-1 text-sm">
             {flowDef.questions.map((q, i) => <li key={i}>{q}</li>)}
           </ol>
         </div>
       </Card>
 
-      <SectionHeading icon={Target}>קהל יעד</SectionHeading>
+      <SectionHeading icon={Target}>{t("קהל יעד")}</SectionHeading>
       <Card className="p-5 grid sm:grid-cols-2 gap-4">
-        <Field label="קהל" value={campaign.target_audience} />
-        <Field label="טווחי גיל" value={campaign.target_age_ranges} />
-        <Field label="אזורים" value={campaign.target_regions} />
-        <Field label="סוגי אישיות" value={campaign.target_personality_types} />
+        <Field label={t("קהל")} value={campaign.target_audience} />
+        <Field label={t("טווחי גיל")} value={campaign.target_age_ranges} />
+        <Field label={t("אזורים")} value={campaign.target_regions} />
+        <Field label={t("סוגי אישיות")} value={campaign.target_personality_types} />
       </Card>
 
-      <SectionHeading icon={Users}>אנשי קשר מקושרים ({list.length})</SectionHeading>
+      <SectionHeading icon={Users}>{t("אנשי קשר מקושרים (")}{list.length})</SectionHeading>
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-right">
-                <th className="p-3 font-medium">שם</th>
-                <th className="p-3 font-medium">ציון התאמה</th>
-                <th className="p-3 font-medium">רמת כוונה</th>
-                <th className="p-3 font-medium">שלב</th>
-                <th className="p-3 font-medium">פעילות אחרונה</th>
+                <th className="p-3 font-medium">{t("שם")}</th>
+                <th className="p-3 font-medium">{t("ציון התאמה")}</th>
+                <th className="p-3 font-medium">{t("רמת כוונה")}</th>
+                <th className="p-3 font-medium">{t("שלב")}</th>
+                <th className="p-3 font-medium">{t("פעילות אחרונה")}</th>
               </tr>
             </thead>
             <tbody>
-              {list.length === 0 && (<tr><td colSpan={5} className="p-8 text-center text-muted-foreground">עדיין אין אנשי קשר בקמפיין הזה</td></tr>)}
+              {list.length === 0 && (<tr><td colSpan={5} className="p-8 text-center text-muted-foreground">{t("עדיין אין אנשי קשר בקמפיין הזה")}</td></tr>)}
               {list.map((r: any) => (
                 <tr key={r.id} className="border-t hover:bg-muted/30">
                   <td className="p-3">
                     {r.contacts?.id ? (
                       <Link to="/contacts/$id" params={{ id: r.contacts.id }} className="font-medium hover:text-primary">
-                        {r.contacts.full_name || `${r.contacts.first_name || ""} ${r.contacts.last_name || ""}`.trim() || "ללא שם"}
+                        {r.contacts.full_name || `${r.contacts.first_name || ""} ${r.contacts.last_name || ""}`.trim() || t("ללא שם")}
                       </Link>
                     ) : "—"}
                   </td>
@@ -316,9 +319,9 @@ function CampaignDetailPage() {
         </div>
       </Card>
 
-      <SectionHeading icon={MessageCircle}>שיחות אחרונות</SectionHeading>
+      <SectionHeading icon={MessageCircle}>{t("שיחות אחרונות")}</SectionHeading>
       <Card className="p-5 space-y-2">
-        {(!interactions || interactions.length === 0) && <div className="text-sm text-muted-foreground text-center py-4">אין שיחות מקושרות</div>}
+        {(!interactions || interactions.length === 0) && <div className="text-sm text-muted-foreground text-center py-4">{t("אין שיחות מקושרות")}</div>}
         {interactions?.map((i: any) => (
           <div key={i.id} className="flex items-start gap-3 p-3 rounded-lg border border-border/50">
             <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -332,16 +335,16 @@ function CampaignDetailPage() {
         ))}
       </Card>
 
-      <SectionHeading icon={AlertTriangle}>הסלמות</SectionHeading>
+      <SectionHeading icon={AlertTriangle}>{t("הסלמות")}</SectionHeading>
       <Card className="p-5">
         {stats.escalations === 0 ? (
-          <div className="text-sm text-muted-foreground text-center py-2">אין הסלמות פעילות</div>
+          <div className="text-sm text-muted-foreground text-center py-2">{t("אין הסלמות פעילות")}</div>
         ) : (
           <ul className="space-y-2">
             {list.filter((r: any) => r.contacts?.manager_attention_required).map((r: any) => (
               <li key={r.id} className="flex items-center justify-between p-3 rounded-md bg-orange-500/5 border border-orange-500/20">
-                <Link to="/contacts/$id" params={{ id: r.contacts.id }} className="font-medium hover:text-primary">{r.contacts.full_name || "ללא שם"}</Link>
-                <Badge variant="outline" className="bg-orange-500/10 text-orange-700 border-orange-500/30">דורש מנהל</Badge>
+                <Link to="/contacts/$id" params={{ id: r.contacts.id }} className="font-medium hover:text-primary">{r.contacts.full_name || t("ללא שם")}</Link>
+                <Badge variant="outline" className="bg-orange-500/10 text-orange-700 border-orange-500/30">{t("דורש מנהל")}</Badge>
               </li>
             ))}
           </ul>

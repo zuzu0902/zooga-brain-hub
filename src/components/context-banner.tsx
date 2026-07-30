@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { X, Lightbulb } from "lucide-react";
+import { useT } from "@/lib/language-context";
 
 export function ContextBanner({ id, children }: { id: string; children: React.ReactNode }) {
+  const t = useT();
   const key = `ctx-banner-dismissed:${id}`;
   const [show, setShow] = useState(false);
   useEffect(() => { setShow(typeof window !== "undefined" && !localStorage.getItem(key)); }, [key]);
@@ -13,7 +15,7 @@ export function ContextBanner({ id, children }: { id: string; children: React.Re
       <button
         onClick={() => { localStorage.setItem(key, "1"); setShow(false); }}
         className="text-muted-foreground hover:text-foreground shrink-0"
-        aria-label="סגור"
+        aria-label={t("סגור")}
       ><X className="h-4 w-4" /></button>
     </div>
   );

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Bot, Loader2, Save, RotateCw, Sparkles, FileText, Activity, Send } from "lucide-react";
+import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/settings/tamar")({
   head: () => ({ meta: [{ title: "Tamar Behavior — Zooga CRM" }] }),
@@ -51,6 +52,8 @@ type Settings = {
 const ALL_KINDS = ["fact","preference","warning","observation","relationship_signal","offer_signal"];
 
 function TamarBehaviorPage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const [s, setS] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,8 +75,8 @@ function TamarBehaviorPage() {
     setSimResponse(null);
     const phone = simPhone.trim();
     const message = simMessage.trim();
-    if (!phone || !message) { setSimError("phone ו-message חובה"); return; }
-    if (phone.length > 32 || message.length > 2000) { setSimError("phone עד 32 תווים, message עד 2000"); return; }
+    if (!phone || !message) { setSimError(t("phone ו-message חובה")); return; }
+    if (phone.length > 32 || message.length > 2000) { setSimError(t("phone עד 32 תווים, message עד 2000")); return; }
     setSimSending(true);
     try {
       const body: any = {
@@ -92,7 +95,7 @@ function TamarBehaviorPage() {
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || `HTTP ${resp.status}`);
       setSimResponse(j);
-      toast.success("סימולציה הצליחה");
+      toast.success(t("סימולציה הצליחה"));
       // Refresh traces so the new entry appears
       await loadTraces();
     } catch (e: any) {
@@ -140,13 +143,13 @@ function TamarBehaviorPage() {
       .eq("id", 1);
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("נשמר");
+    toast.success(t("נשמר"));
   }
 
   async function runBackfill() {
     setRunning(true);
     try {
-      const tokenInput = window.prompt("הזן DEBUG_READ_ONLY_TOKEN להפעלת backfill (פעולה אדמיניסטרטיבית)");
+      const tokenInput = window.prompt(t("הזן DEBUG_READ_ONLY_TOKEN להפעלת backfill (פעולה אדמיניסטרטיבית)"));
       if (!tokenInput) return;
       const resp = await fetch("/api/public/admin/backfill-memories", {
         method: "POST",
@@ -155,40 +158,40 @@ function TamarBehaviorPage() {
       });
       const j = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(j?.error || `HTTP ${resp.status}`);
-      toast.success(`Backfill הסתיים. נוספו ${j.inserted_total} זיכרונות (W:${j.inserted_by_kind?.warning ?? 0} O:${j.inserted_by_kind?.observation ?? 0} R:${j.inserted_by_kind?.relationship_signal ?? 0} S:${j.inserted_by_kind?.offer_signal ?? 0})`);
+      toast.success(`${t("Backfill הסתיים. נוספו")} ${j.inserted_total} ${t("זיכרונות")} (W:${j.inserted_by_kind?.warning ?? 0} O:${j.inserted_by_kind?.observation ?? 0} R:${j.inserted_by_kind?.relationship_signal ?? 0} S:${j.inserted_by_kind?.offer_signal ?? 0})`);
     } catch (e: any) {
       toast.error(String(e?.message || e));
     } finally { setRunning(false); }
   }
 
-  if (loading) return <div className="p-6" dir="rtl">טוען…</div>;
-  if (!s) return <div className="p-6" dir="rtl">לא נמצאו הגדרות.</div>;
+  if (loading) return <div className="p-6" dir={dir}>{t("טוען…")}</div>;
+  if (!s) return <div className="p-6" dir={dir}>{t("לא נמצאו הגדרות.")}</div>;
 
   const u = (patch: Partial<Settings>) => setS({ ...s, ...patch });
 
   return (
-    <div className="p-6 space-y-6 max-w-[1100px] mx-auto" dir="rtl">
+    <div className="p-6 space-y-6 max-w-[1100px] mx-auto" dir={dir}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Bot className="h-6 w-6 text-primary" /> Tamar Behavior Settings
           </h1>
           <p className="text-sm text-muted-foreground">
-            מדיניות התנהגות מבצעית של Tamar. זוגה היא ה-source-of-truth; שינויים כאן משפיעים על routing, memory writes, handoff ו-AI proposals.
+            {t("מדיניות התנהגות מבצעית של Tamar. זוגה היא ה-source-of-truth; שינויים כאן משפיעים על routing, memory writes, handoff ו-AI proposals.")}
           </p>
         </div>
         <Button onClick={save} disabled={saving} className="gap-1.5">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          שמור שינויים
+          {t("שמור שינויים")}
         </Button>
       </div>
 
       <Card className="p-4 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-sm">
           <FileText className="h-4 w-4 text-primary" />
-          <span>עורך בלוקי פרומפט מודולריים (first_response, handoff_language, sales_behavior וכו׳)</span>
+          <span>{t("עורך בלוקי פרומפט מודולריים (first_response, handoff_language, sales_behavior וכו׳)")}</span>
         </div>
-        <Link to="/settings/tamar-blocks" className="text-sm underline text-primary">פתח עורך Prompt Blocks →</Link>
+        <Link to="/settings/tamar-blocks" className="text-sm underline text-primary">{t("פתח עורך Prompt Blocks →")}</Link>
       </Card>
 
       <Card className="p-4 space-y-3">
@@ -196,30 +199,30 @@ function TamarBehaviorPage() {
           <h2 className="font-semibold flex items-center gap-2">
             <Send className="h-4 w-4" /> Simulate Tamar webhook
           </h2>
-          <span className="text-xs text-muted-foreground">בודק שינויי settings/blocks ללא שליחת WhatsApp אמיתי</span>
+          <span className="text-xs text-muted-foreground">{t("בודק שינויי settings/blocks ללא שליחת WhatsApp אמיתי")}</span>
         </div>
         <div className="grid md:grid-cols-2 gap-3">
           <div>
-            <Label>טלפון *</Label>
+            <Label>{t("טלפון *")}</Label>
             <Input value={simPhone} onChange={(e) => setSimPhone(e.target.value)} placeholder="972501234567" maxLength={32} />
           </div>
           <div>
-            <Label>campaign_id (אופציונלי)</Label>
+            <Label>{t("campaign_id (אופציונלי)")}</Label>
             <Input value={simCampaignId} onChange={(e) => setSimCampaignId(e.target.value)} placeholder="uuid" />
           </div>
           <div className="md:col-span-2">
-            <Label>offer_id (אופציונלי)</Label>
+            <Label>{t("offer_id (אופציונלי)")}</Label>
             <Input value={simOfferId} onChange={(e) => setSimOfferId(e.target.value)} placeholder="uuid" />
           </div>
           <div className="md:col-span-2">
-            <Label>הודעה *</Label>
+            <Label>{t("הודעה *")}</Label>
             <Textarea rows={3} value={simMessage} onChange={(e) => setSimMessage(e.target.value)} maxLength={2000} />
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={runSimulation} disabled={simSending} className="gap-1.5">
             {simSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            שלח סימולציה
+            {t("שלח סימולציה")}
           </Button>
           {simError && <span className="text-xs text-destructive">{simError}</span>}
         </div>
@@ -233,7 +236,7 @@ function TamarBehaviorPage() {
               {simResponse._observability?.escalation_due_to_grounding && <Badge variant="destructive">escalate</Badge>}
               <span className="text-muted-foreground">
                 settings @ {simResponse._observability?.tamar_settings_version_at
-                  ? new Date(simResponse._observability.tamar_settings_version_at).toLocaleString("he-IL")
+                  ? new Date(simResponse._observability.tamar_settings_version_at).toLocaleString(dir === "rtl" ? "he-IL" : "en-US")
                   : "—"}
                 {" · "}blocks: {simResponse._observability?.prompt_blocks_count ?? 0}
               </span>
@@ -378,11 +381,11 @@ function TamarBehaviorPage() {
         </div>
         <div className="border-t pt-3 flex items-center justify-between gap-3 flex-wrap">
           <div className="text-sm text-muted-foreground">
-            Backfill v2 — מילוי קטגוריות warning/observation/relationship_signal/offer_signal על אינטראקציות היסטוריות (heuristic, idempotent).
+            {t("Backfill v2 — מילוי קטגוריות warning/observation/relationship_signal/offer_signal על אינטראקציות היסטוריות (heuristic, idempotent).")}
           </div>
           <Button variant="outline" disabled={running} onClick={runBackfill} className="gap-1.5">
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
-            הרץ Backfill
+            {t("הרץ Backfill")}
           </Button>
         </div>
       </Card>
@@ -403,7 +406,7 @@ function TamarBehaviorPage() {
             <Switch checked={s.handoff_on_factual_doubt} onCheckedChange={(v) => u({ handoff_on_factual_doubt: v })} />
           </div>
           <div className="md:col-span-2">
-            <Label>Handoff keywords (one per line — Hebrew)</Label>
+            <Label>{t("Handoff keywords (one per line — Hebrew)")}</Label>
             <Textarea rows={4} value={(s.handoff_keywords ?? []).join("\n")}
               onChange={(e) => u({ handoff_keywords: e.target.value.split("\n").map((x) => x.trim()).filter(Boolean) })} />
           </div>
@@ -537,39 +540,39 @@ function TamarBehaviorPage() {
       </Card>
 
       <div className="text-xs text-muted-foreground">
-        עודכן לאחרונה: {s.updated_at ? new Date(s.updated_at).toLocaleString("he-IL") : "—"}
+        {t("עודכן לאחרונה:")} {s.updated_at ? new Date(s.updated_at).toLocaleString(dir === "rtl" ? "he-IL" : "en-US") : "—"}
       </div>
 
       <Card className="p-4 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h2 className="font-semibold flex items-center gap-2">
-            <Activity className="h-4 w-4" /> Runtime traces (15 אחרונים)
+            <Activity className="h-4 w-4" /> Runtime traces ({t("15 אחרונים")})
           </h2>
           <Button size="sm" variant="outline" onClick={loadTraces} disabled={tracesLoading} className="gap-1.5">
             {tracesLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
-            רענן
+            {t("רענן")}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          זרימת ייצור: Railway → <span className="font-mono">POST /api/public/runtime/tamar-turn</span> → Zooga מייצר reply_text → Railway שולח ל-WhatsApp. כל קריאה כותבת trace עם: גרסת settings, גרסאות prompt_blocks שהוזרקו, האם הוזרקה אינטליגנציית מוצר, האם הוזרק קמפיין, ושימוש ב-fallback/escalation.
+          {t("זרימת ייצור:")} Railway → <span className="font-mono">POST /api/public/runtime/tamar-turn</span> → Zooga {t("מייצר")} reply_text → Railway {t("שולח ל-WhatsApp. כל קריאה כותבת trace עם: גרסת settings, גרסאות prompt_blocks שהוזרקו, האם הוזרקה אינטליגנציית מוצר, האם הוזרק קמפיין, ושימוש ב-fallback/escalation.")}
         </p>
         {traces.length === 0 ? (
-          <div className="text-sm text-muted-foreground">אין traces עדיין.</div>
+          <div className="text-sm text-muted-foreground">{t("אין traces עדיין.")}</div>
         ) : (
           <div className="space-y-2">
-            {traces.map((t) => {
-              const p = t.payload || {};
+            {traces.map((tr) => {
+              const p = tr.payload || {};
               return (
-                <details key={t.id} className="border rounded-md p-2 text-xs">
+                <details key={tr.id} className="border rounded-md p-2 text-xs">
                   <summary className="cursor-pointer flex items-center gap-2 flex-wrap">
-                    <span className="text-muted-foreground">{new Date(t.created_at).toLocaleString("he-IL")}</span>
-                    <Badge variant="outline">{t.source}</Badge>
+                    <span className="text-muted-foreground">{new Date(tr.created_at).toLocaleString(dir === "rtl" ? "he-IL" : "en-US")}</span>
+                    <Badge variant="outline">{tr.source}</Badge>
                     {p.campaign_injected && <Badge>campaign</Badge>}
                     {p.offer_intelligence_injected && <Badge>offer</Badge>}
                     {p.fallback_default_prompt_behavior && <Badge variant="outline">fallback</Badge>}
                     {p.escalation_due_to_grounding && <Badge variant="destructive">escalate</Badge>}
                     <span className="text-muted-foreground">
-                      settings @ {p.tamar_settings_version_at ? new Date(p.tamar_settings_version_at).toLocaleTimeString("he-IL") : "—"}
+                      settings @ {p.tamar_settings_version_at ? new Date(p.tamar_settings_version_at).toLocaleTimeString(dir === "rtl" ? "he-IL" : "en-US") : "—"}
                       {" · "}blocks: {p.prompt_blocks_count ?? (p.prompt_blocks_injected?.length ?? 0)}
                     </span>
                   </summary>

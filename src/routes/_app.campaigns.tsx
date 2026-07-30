@@ -13,6 +13,8 @@ import { formatRelative } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
 import { Tag } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { useT } from "@/lib/language-context";
+import { useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/campaigns")({
   head: () => ({ meta: [{ title: "קמפיינים — Zooga CRM" }] }),
@@ -53,6 +55,8 @@ function KpiCard({ icon: Icon, label, value, tone }: { icon: any; label: string;
 }
 
 function CampaignsListPage() {
+  const t = useT();
+  const { dir } = useLanguage();
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -101,38 +105,38 @@ function CampaignsListPage() {
   const activeCount = (campaigns || []).filter((c: any) => c.status === "active").length;
 
   return (
-    <div className="p-6 space-y-5" dir="rtl">
+    <div className="p-6 space-y-5" dir={dir}>
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">קמפיינים</h1>
-          <p className="text-muted-foreground mt-1">מערכת בינת-קמפיינים המאפשרת לתמר להבין את ההקשר של כל פנייה</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("קמפיינים")}</h1>
+          <p className="text-muted-foreground mt-1">{t("מערכת בינת-קמפיינים המאפשרת לתמר להבין את ההקשר של כל פנייה")}</p>
         </div>
         <Link to="/campaigns/new">
-          <Button className="gap-2"><Plus className="h-4 w-4" /> קמפיין חדש</Button>
+          <Button className="gap-2"><Plus className="h-4 w-4" /> {t("קמפיין חדש")}</Button>
         </Link>
       </header>
 
       <ContextBanner id="campaigns-list">
-        <strong>קמפיינים</strong> = ערוץ השיווק שמביא אנשים אל <strong>הצעה</strong> מסוימת. כל קמפיין צריך להיות מקושר להצעה אחת.
+        <strong>{t("קמפיינים")}</strong> = {t("ערוץ השיווק שמביא אנשים אל")} <strong>{t("הצעה")}</strong>. {t("כל קמפיין צריך להיות מקושר להצעה אחת.")}
       </ContextBanner>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard icon={Megaphone} label="קמפיינים פעילים" value={activeCount} />
-        <KpiCard icon={Users} label="אנשי קשר שנרכשו" value={stats?.acquired ?? 0} tone="bg-blue-500/10 text-blue-700" />
-        <KpiCard icon={Activity} label="שיחות פעילות (7ימים)" value={stats?.active ?? 0} tone="bg-emerald-500/10 text-emerald-700" />
-        <KpiCard icon={Flame} label="לידים חמים" value={stats?.hot ?? 0} tone="bg-red-500/10 text-red-700" />
+        <KpiCard icon={Megaphone} label={t("קמפיינים פעילים")} value={activeCount} />
+        <KpiCard icon={Users} label={t("אנשי קשר שנרכשו")} value={stats?.acquired ?? 0} tone="bg-blue-500/10 text-blue-700" />
+        <KpiCard icon={Activity} label={t("שיחות פעילות (7ימים)")} value={stats?.active ?? 0} tone="bg-emerald-500/10 text-emerald-700" />
+        <KpiCard icon={Flame} label={t("לידים חמים")} value={stats?.hot ?? 0} tone="bg-red-500/10 text-red-700" />
       </div>
 
       <Card className="p-4 flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="חיפוש קמפיין..." className="pr-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("חיפוש קמפיין...")} className="pr-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">כל הסטטוסים</SelectItem>
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (<SelectItem key={k} value={k}>{v}</SelectItem>))}
+            <SelectItem value="all">{t("כל הסטטוסים")}</SelectItem>
+            {Object.entries(STATUS_LABELS).map(([k, v]) => (<SelectItem key={k} value={k}>{t(v)}</SelectItem>))}
           </SelectContent>
         </Select>
       </Card>
@@ -142,20 +146,20 @@ function CampaignsListPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-right">
-                <th className="p-3 font-medium">שם</th>
-                <th className="p-3 font-medium">סטטוס</th>
-                <th className="p-3 font-medium">הצעה</th>
-                <th className="p-3 font-medium">פלטפורמה</th>
-                <th className="p-3 font-medium">זרימת אינטייק</th>
-                <th className="p-3 font-medium">זווית רגשית</th>
-                <th className="p-3 font-medium">עודכן</th>
+                <th className="p-3 font-medium">{t("שם")}</th>
+                <th className="p-3 font-medium">{t("סטטוס")}</th>
+                <th className="p-3 font-medium">{t("הצעה")}</th>
+                <th className="p-3 font-medium">{t("פלטפורמה")}</th>
+                <th className="p-3 font-medium">{t("זרימת אינטייק")}</th>
+                <th className="p-3 font-medium">{t("זווית רגשית")}</th>
+                <th className="p-3 font-medium">{t("עודכן")}</th>
               </tr>
             </thead>
             <tbody>
-              {isLoading && (<tr><td colSpan={7} className="p-6 text-center text-muted-foreground">טוען...</td></tr>)}
+              {isLoading && (<tr><td colSpan={7} className="p-6 text-center text-muted-foreground">{t("טוען...")}</td></tr>)}
               {!isLoading && filtered.length === 0 && (
                 <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">
-                  אין קמפיינים. <Link to="/campaigns/new" className="text-primary hover:underline">צור את הראשון</Link>
+                  {t("אין קמפיינים. ")}<Link to="/campaigns/new" className="text-primary hover:underline">{t("צור את הראשון")}</Link>
                 </td></tr>
               )}
               {filtered.map((c: any) => (
@@ -167,7 +171,7 @@ function CampaignsListPage() {
                     {c.objective && <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{c.objective}</div>}
                   </td>
                   <td className="p-3">
-                    <Badge variant="outline" className={STATUS_TONE[c.status]}>{STATUS_LABELS[c.status]}</Badge>
+                    <Badge variant="outline" className={STATUS_TONE[c.status]}>{t(STATUS_LABELS[c.status])}</Badge>
                   </td>
                   <td className="p-3">
                     {(() => {
@@ -179,7 +183,7 @@ function CampaignsListPage() {
                           {o.price && <span className="text-muted-foreground">· {formatPrice(o.price, o.currency)}</span>}
                         </Link>
                       );
-                      return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30 text-xs">לא משויך</Badge>;
+                      return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 border-amber-500/30 text-xs">{t("לא משויך")}</Badge>;
                     })()}
                   </td>
                   <td className="p-3 text-muted-foreground">{c.source_platform || "—"}</td>

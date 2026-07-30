@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Sparkles, RefreshCw, Check, X, Brain, History, AlertCircle } from "lucide-react";
 import { formatRelative } from "@/lib/i18n";
+import { useT } from "@/lib/language-context";
 
 const MEMORY_TYPE_LABELS: Record<string, string> = {
   fact: "עובדה",
@@ -54,6 +55,7 @@ function ConfidenceDot({ score }: { score: number | null | undefined }) {
 }
 
 export function AIIntelligencePanel({ contactId }: { contactId: string }) {
+  const t = useT();
   const qc = useQueryClient();
   const [running, setRunning] = useState(false);
 
@@ -117,15 +119,15 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
         body: JSON.stringify({ contact_id: contactId }),
       });
       const j = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(j?.error || "שגיאה");
+      if (!resp.ok) throw new Error(j?.error || t("שגיאה"));
       const applied = (j.applied || []).length;
-      toast.success(`חילוץ הסתיים — ${applied} שדות עודכנו, ${j.pending || 0} ממתינים, ${j.memories || 0} זיכרונות`);
+      toast.success(`${t("חילוץ הסתיים —")} ${applied} ${t("שדות עודכנו,")} ${j.pending || 0} ${t("ממתינים,")} ${j.memories || 0} ${t("זיכרונות")}`);
       qc.invalidateQueries({ queryKey: ["contact", contactId] });
       qc.invalidateQueries({ queryKey: ["contact-memories", contactId] });
       qc.invalidateQueries({ queryKey: ["contact-history", contactId] });
       qc.invalidateQueries({ queryKey: ["contact-pending", contactId] });
     } catch (e: any) {
-      toast.error("שגיאה: " + (e?.message || e));
+      toast.error(t("שגיאה: ") + (e?.message || e));
     }
     setRunning(false);
   }
@@ -141,7 +143,7 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
       ? Array.from(new Set([...oldVal, ...value]))
       : value;
     const { error } = await supabase.from("contacts").update({ [field]: newVal } as any).eq("id", contactId);
-    if (error) { toast.error("שגיאה: " + error.message); return; }
+    if (error) { toast.error(t("שגיאה: ") + error.message); return; }
     await supabase.from("contact_profile_history").insert({
       contact_id: contactId, field_name: field,
       old_value: oldVal == null ? null : JSON.stringify(oldVal),
@@ -153,7 +155,7 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
     await supabase.from("pending_ai_insights")
       .update({ status: "approved", reviewed_at: new Date().toISOString() })
       .eq("id", row.id);
-    toast.success("אושר ויושם");
+    toast.success(t("אושר ויושם"));
     qc.invalidateQueries({ queryKey: ["contact", contactId] });
   }
 
@@ -161,7 +163,7 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
     await supabase.from("pending_ai_insights")
       .update({ status: "rejected", reviewed_at: new Date().toISOString() })
       .eq("id", row.id);
-    toast.success("נדחה");
+    toast.success(t("נדחה"));
   }
 
   return (
@@ -172,15 +174,15 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
             <Brain className="h-5 w-5" />
           </div>
           <div>
-            <div className="font-semibold">מנוע מודיעין שיחה</div>
+            <div className="font-semibold">{t("מנוע מודיעין שיחה")}</div>
             <div className="text-xs text-muted-foreground">
-              רץ אוטומטית אחרי כל הודעת WhatsApp. ניתן להריץ ידנית.
+              {t("רץ אוטומטית אחרי כל הודעת WhatsApp. ניתן להריץ ידנית.")}
             </div>
           </div>
         </div>
         <Button size="sm" onClick={runNow} disabled={running} className="gap-2">
           {running ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {running ? "מחלץ..." : "הרץ חילוץ עכשיו"}
+          {running ? t("מחלץ...") : t("הרץ חילוץ עכשיו")}
         </Button>
       </Card>
 
@@ -188,7 +190,7 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
         <Card className="p-4 border-warning/40 bg-warning/5">
           <div className="flex items-center gap-2 mb-3">
             <AlertCircle className="h-4 w-4 text-warning-foreground" />
-            <h3 className="font-semibold">תובנות ממתינות לאישור ({pending!.length})</h3>
+            <h3 className="font-semibold">{t("תובנות ממתינות לאישור")} ({pending!.length})</h3>
           </div>
           <div className="space-y-2">
             {pending!.map((p: any) => (
@@ -200,7 +202,7 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
                     <ConfidenceDot score={p.confidence_score} />
                   </div>
                   <div className="text-sm mt-1 break-words">
-                    ערך מוצע: <span className="font-medium">{JSON.stringify(p.proposed_value?.value)}</span>
+                    {t("ערך מוצע:")} <span className="font-medium">{JSON.stringify(p.proposed_value?.value)}</span>
                   </div>
                   {p.reasoning && <div className="text-xs text-muted-foreground mt-1">{p.reasoning}</div>}
                   {p.source_message && (
@@ -208,10 +210,10 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
                   )}
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button size="icon" variant="outline" onClick={() => approvePending(p)} title="אישור">
+                  <Button size="icon" variant="outline" onClick={() => approvePending(p)} title={t("אישור")}>
                     <Check className="h-4 w-4 text-success" />
                   </Button>
-                  <Button size="icon" variant="outline" onClick={() => rejectPending(p)} title="דחייה">
+                  <Button size="icon" variant="outline" onClick={() => rejectPending(p)} title={t("דחייה")}>
                     <X className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
@@ -225,12 +227,12 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold">זיכרונות AI</h3>
+            <h3 className="font-semibold">{t("זיכרונות AI")}</h3>
             <Badge variant="outline" className="text-[10px]">{memories?.length ?? 0}</Badge>
           </div>
           {(memories?.length ?? 0) === 0 ? (
             <div className="text-sm text-muted-foreground py-6 text-center">
-              עדיין אין זיכרונות. הרץ חילוץ או המתן להודעה הבאה.
+              {t("עדיין אין זיכרונות. הרץ חילוץ או המתן להודעה הבאה.")}
             </div>
           ) : (
             <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
@@ -254,12 +256,12 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-3">
             <History className="h-4 w-4 text-primary" />
-            <h3 className="font-semibold">היסטוריית שינויי פרופיל</h3>
+            <h3 className="font-semibold">{t("היסטוריית שינויי פרופיל")}</h3>
             <Badge variant="outline" className="text-[10px]">{history?.length ?? 0}</Badge>
           </div>
           {(history?.length ?? 0) === 0 ? (
             <div className="text-sm text-muted-foreground py-6 text-center">
-              אין שינויים שתועדו עדיין.
+              {t("אין שינויים שתועדו עדיין.")}
             </div>
           ) : (
             <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
@@ -269,13 +271,13 @@ export function AIIntelligencePanel({ contactId }: { contactId: string }) {
                     <span className="text-sm font-medium">{h.field_name}</span>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px]">
-                        {h.changed_by === "ai_extraction" ? "AI" : h.changed_by === "manager_approval" ? "מנהל" : h.changed_by}
+                        {h.changed_by === "ai_extraction" ? "AI" : h.changed_by === "manager_approval" ? t("מנהל") : h.changed_by}
                       </Badge>
                       <ConfidenceDot score={h.confidence_score} />
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    <span className="line-through opacity-60">{h.old_value || "ריק"}</span>
+                    <span className="line-through opacity-60">{h.old_value || t("ריק")}</span>
                     {" → "}
                     <span className="text-foreground font-medium">{h.new_value}</span>
                   </div>
