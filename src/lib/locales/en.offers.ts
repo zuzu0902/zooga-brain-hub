@@ -110,13 +110,4 @@ export const EN_OFFERS: Record<string, string> = {
   "צור ושייך": "Create and assign",
   "הצעה נוצרה ושויכה": "Offer created and assigned",
   "גילאי יעד: ": "Target ages: ",
-  "אין קמפיינים מקושרים. ": "No linked campaigns. ",
-  "נותח לאחרונה: ": "Last analyzed: ",
-  "מאזור ": "from region ",
-  "נוצרו ": "Created ",
-  " טיוטות הודעה. מוכן לשליחה דרך בוט תמר.": " message drafts. Ready to send via the Tamar bot.",
-  " להתאמה אישית": " for personalization",
-  "צור ": "Create ",
-  " טיוטות הודעה": " message drafts",
-  "גילאי יעד: ": "Target ages: ",
 };

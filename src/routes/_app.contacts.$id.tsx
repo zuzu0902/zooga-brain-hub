@@ -40,7 +40,7 @@ import { ContactConversation } from "@/components/contact-conversation";
 import { useT, useLanguage } from "@/lib/language-context";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
-  head: () => ({ meta: [{ title: "פרופיל איש קשר — Zooga CRM" }] }),
+  head: () => ({ meta: [{ title: "Contact Profile — Zooga CRM" }] }),
   component: ContactProfile,
 });
 
@@ -611,6 +611,7 @@ function normalizeMemType(t: string | null | undefined): string {
 }
 
 function RelationshipMemorySection({ contactId }: { contactId: string }) {
+  const t = useT();
   const qc = useQueryClient();
   const [running, setRunning] = useState(false);
 
@@ -643,12 +644,12 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
         body: JSON.stringify({ contact_id: contactId }),
       });
       const j = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(j?.error || "שגיאה");
-      toast.success(`הופקו ${j.memories || 0} זיכרונות חדשים`);
+      if (!resp.ok) throw new Error(j?.error || t("שגיאה"));
+      toast.success(`${t("הופקו")} ${j.memories || 0} ${t("זיכרונות חדשים")}`);
       qc.invalidateQueries({ queryKey: ["contact-memories", contactId] });
       qc.invalidateQueries({ queryKey: ["contact", contactId] });
     } catch (e: any) {
-      toast.error("שגיאה: " + (e?.message || e));
+      toast.error(t("שגיאה: ") + (e?.message || e));
     }
     setRunning(false);
   }
@@ -668,23 +669,23 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Brain className="h-5 w-5 text-primary" />
-            זיכרון מערכת היחסים
+            {t("זיכרון מערכת היחסים")}
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            זיכרון רגשי מובנה — נצבר אוטומטית מכל שיחה ב-WhatsApp
+            {t("זיכרון רגשי מובנה — נצבר אוטומטית מכל שיחה ב-WhatsApp")}
           </p>
         </div>
         <Button size="sm" onClick={runNow} disabled={running} className="gap-2">
           {running ? <Sparkles className="h-4 w-4 animate-pulse" /> : <Sparkles className="h-4 w-4" />}
-          {running ? "מחלץ..." : "חלץ זיכרונות עכשיו"}
+          {running ? t("מחלץ...") : t("חלץ זיכרונות עכשיו")}
         </Button>
       </div>
 
       {(memories?.length ?? 0) === 0 ? (
         <div className="py-12 text-center text-muted-foreground">
           <Brain className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <div className="text-sm">אין עדיין זיכרונות.</div>
-          <div className="text-xs mt-1">הזיכרון ייצבר אוטומטית כשתמר תקיים שיחות.</div>
+          <div className="text-sm">{t("אין עדיין זיכרונות.")}</div>
+          <div className="text-xs mt-1">{t("הזיכרון ייצבר אוטומטית כשתמר תקיים שיחות.")}</div>
         </div>
       ) : (
         <div className="space-y-5">
@@ -692,7 +693,7 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
             <div key={type}>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${MEM_TYPE_TONE[type] || "border-border"}`}>
-                  {MEM_TYPE_LABEL[type] || type}
+                  {t(MEM_TYPE_LABEL[type]) || type}
                 </span>
                 <span className="text-xs text-muted-foreground">{items.length}</span>
               </div>
