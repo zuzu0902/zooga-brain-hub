@@ -728,6 +728,7 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
 /* ---------- Suggested Actions ---------- */
 
 function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskChange, update }: any) {
+  const t = useT();
   const { data: pending } = useQuery({
     queryKey: ["contact-pending", contactId],
     refetchInterval: 15000,
@@ -747,7 +748,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
     aiSuggestions.push({
       type: "next_action",
       title: contact.ai_recommended_next_action,
-      reason: "המלצה מבוססת על פרופיל מצטבר",
+      reason: t("המלצה מבוססת על פרופיל מצטבר"),
       confidence: contact.ai_confidence_score ?? 70,
       urgency: contact.manager_attention_required ? "high" : "normal",
     });
@@ -755,8 +756,8 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
   if (contact.next_best_offer) {
     aiSuggestions.push({
       type: "offer",
-      title: `הצע: ${contact.next_best_offer}`,
-      reason: contact.ai_offer_fit || "מתאים לפרופיל",
+      title: `${t("הצע")}: ${contact.next_best_offer}`,
+      reason: contact.ai_offer_fit || t("מתאים לפרופיל"),
       confidence: contact.ai_confidence_score ?? 70,
       urgency: "normal",
     });
@@ -764,8 +765,8 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
   if (contact.recommended_campaign) {
     aiSuggestions.push({
       type: "campaign",
-      title: `שייך לקמפיין: ${contact.recommended_campaign}`,
-      reason: "התאמה דמוגרפית/רגשית",
+      title: `${t("שייך לקמפיין")}: ${contact.recommended_campaign}`,
+      reason: t("התאמה דמוגרפית/רגשית"),
       confidence: 75,
       urgency: "normal",
     });
@@ -773,8 +774,8 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
   if (contact.manager_attention_required) {
     aiSuggestions.push({
       type: "escalate",
-      title: "העבר למנהל אנושי",
-      reason: contact.ai_risk_flags || "תמר זיהתה צורך בליווי אנושי",
+      title: t("העבר למנהל אנושי"),
+      reason: contact.ai_risk_flags || t("תמר זיהתה צורך בליווי אנושי"),
       confidence: 90,
       urgency: "high",
     });
@@ -795,13 +796,13 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
     await supabase.from("pending_ai_insights")
       .update({ status: "approved", reviewed_at: new Date().toISOString() })
       .eq("id", p.id);
-    toast.success("יושם בפרופיל");
+    toast.success(t("יושם בפרופיל"));
   }
   async function reject(p: any) {
     await supabase.from("pending_ai_insights")
       .update({ status: "rejected", reviewed_at: new Date().toISOString() })
       .eq("id", p.id);
-    toast.success("נדחה");
+    toast.success(t("נדחה"));
   }
 
   return (
@@ -811,10 +812,10 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-primary" />
-              פעולות מומלצות AI
+              {t("פעולות מומלצות AI")}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              מנוע ההמלצות מבוסס על פרופיל מצטבר ושיחות אחרונות
+              {t("מנוע ההמלצות מבוסס על פרופיל מצטבר ושיחות אחרונות")}
             </p>
           </div>
         </div>
@@ -822,7 +823,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
         {aiSuggestions.length === 0 ? (
           <div className="py-10 text-center text-muted-foreground">
             <Lightbulb className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <div className="text-sm">אין עדיין המלצות פעולה.</div>
+            <div className="text-sm">{t("אין עדיין המלצות פעולה.")}</div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -832,17 +833,17 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Badge variant={s.urgency === "high" ? "destructive" : "outline"} className="text-[10px]">
-                        {s.urgency === "high" ? "דחוף" : "רגיל"}
+                        {s.urgency === "high" ? t("דחוף") : t("רגיל")}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground tabular-nums">ביטחון {s.confidence}%</span>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">{t("ביטחון")} {s.confidence}%</span>
                     </div>
                     <div className="text-base font-semibold">{s.title}</div>
                     <div className="text-xs text-muted-foreground mt-1">{s.reason}</div>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <Button size="sm" variant="outline" onClick={openTask}>צור משימה</Button>
+                    <Button size="sm" variant="outline" onClick={openTask}>{t("צור משימה")}</Button>
                     {s.type === "escalate" && (
-                      <Button size="sm" onClick={() => update({ manager_attention_required: false })}>טופל</Button>
+                      <Button size="sm" onClick={() => update({ manager_attention_required: false })}>{t("טופל")}</Button>
                     )}
                   </div>
                 </div>
@@ -856,7 +857,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
         <Card className="p-6 border-warning/30 bg-warning/[0.03] shadow-[var(--shadow-card)]">
           <div className="flex items-center gap-2 mb-4">
             <AlertCircle className="h-5 w-5 text-warning-foreground" />
-            <h3 className="text-base font-bold">תובנות AI ממתינות לאישור ({pending!.length})</h3>
+            <h3 className="text-base font-bold">{t("תובנות AI ממתינות לאישור")} ({pending!.length})</h3>
           </div>
           <div className="space-y-2.5">
             {pending!.map((p: any) => (
@@ -867,7 +868,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
                     <Badge variant="outline" className="text-[10px]">{p.confidence_score ?? 0}%</Badge>
                   </div>
                   <div className="text-sm mt-1 break-words">
-                    <span className="text-muted-foreground">ערך מוצע: </span>
+                    <span className="text-muted-foreground">{t("ערך מוצע")}: </span>
                     <span className="font-medium">{JSON.stringify(p.proposed_value?.value)}</span>
                   </div>
                   {p.reasoning && <div className="text-xs text-muted-foreground mt-1">{p.reasoning}</div>}
@@ -886,32 +887,32 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-bold flex items-center gap-2">
             <CheckSquare className="h-5 w-5 text-primary" />
-            משימות פתוחות ({openTasks.length})
+            {t("משימות פתוחות")} ({openTasks.length})
           </h3>
           <Button size="sm" variant="outline" onClick={openTask} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" /> משימה חדשה
+            <Plus className="h-3.5 w-3.5" /> {t("משימה חדשה")}
           </Button>
         </div>
         {openTasks.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-6 text-center">אין משימות פתוחות</div>
+          <div className="text-sm text-muted-foreground py-6 text-center">{t("אין משימות פתוחות")}</div>
         ) : (
           <div className="space-y-2">
-            {openTasks.map((t: any) => (
-              <div key={t.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
+            {openTasks.map((tk: any) => (
+              <div key={tk.id} className="flex items-start gap-3 p-3 rounded-lg border bg-card">
                 <input
                   type="checkbox"
                   className="mt-1"
                   onChange={async () => {
-                    await supabase.from("tasks").update({ status: "done" }).eq("id", t.id);
+                    await supabase.from("tasks").update({ status: "done" }).eq("id", tk.id);
                     onTaskChange();
                   }}
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium">{t.title}</div>
-                  {t.description && <div className="text-xs text-muted-foreground mt-0.5">{t.description}</div>}
+                  <div className="font-medium">{tk.title}</div>
+                  {tk.description && <div className="text-xs text-muted-foreground mt-0.5">{tk.description}</div>}
                   <div className="text-[10px] text-muted-foreground mt-1 flex gap-2">
-                    <Badge variant="outline" className="text-[10px]">{TASK_PRIORITY_LABELS[t.priority]}</Badge>
-                    {t.due_date && <span>יעד: {formatDate(t.due_date)}</span>}
+                    <Badge variant="outline" className="text-[10px]">{t(TASK_PRIORITY_LABELS[tk.priority])}</Badge>
+                    {tk.due_date && <span>{t("יעד")}: {formatDate(tk.due_date)}</span>}
                   </div>
                 </div>
               </div>
@@ -1634,7 +1635,7 @@ function NotesTasksTab({ contact, update, tasks, onTaskChange, contactId, openTa
                 {t.description && <div className="text-sm text-muted-foreground mt-1">{t.description}</div>}
                 <div className="text-[11px] text-muted-foreground mt-1.5 flex gap-3">
                   {t.assigned_to && <span>אחראי: {t.assigned_to}</span>}
-                  {t.due_date && <span>יעד: {formatDate(t.due_date)}</span>}
+                  {t.due_date && <span>{tr("יעד")}: {formatDate(t.due_date)}</span>}
                   <span>נוצר: {formatRelative(t.created_at)}</span>
                 </div>
               </div>

@@ -93,7 +93,6 @@ export const EN_OPS: Record<string, string> = {
   "נשלח:": "Sent:",
   "סיבה: ": "Reason: ",
   "הודעה: ": "Message: ",
-  "איש קשר →": "Contact →",
   "סמן claimed": "Mark claimed",
   "סמן resolved": "Mark resolved",
   "הסתר": "Hide",
