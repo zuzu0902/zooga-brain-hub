@@ -1592,6 +1592,7 @@ function Meter({ label, value }: { label: string; value: number }) {
 }
 
 function NotesTasksTab({ contact, update, tasks, onTaskChange, contactId, openTask }: any) {
+  const tr = useT();
   const [notes, setNotes] = useState(contact.notes || "");
   useEffect(() => { setNotes(contact.notes || ""); }, [contact.notes]);
   return (
