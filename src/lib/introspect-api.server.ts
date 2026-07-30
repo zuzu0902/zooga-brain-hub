@@ -37,30 +37,36 @@ export async function countRows(table: string): Promise<number | null> {
 export async function getApiSettings() {
   const { data } = await supabaseAdmin
     .from("api_settings")
-    .select("default_source, facebook_page_id, webhook_token, tamar_backend_url, tamar_backend_api_token")
+    .select("default_source, facebook_page_id, webhook_token")
     .eq("id", 1)
     .maybeSingle();
   return data ?? null;
 }
 
 /**
- * Resolved Tamar outbound config.
- * Prefers TAMAR_API_URL / TAMAR_API_TOKEN environment variables (operational truth).
- * Falls back to api_settings table values for backwards compatibility.
+ * WhatsApp transport truth: Meta Cloud API, direct from Zooga.
+ * Presence only — never returns secret values.
  */
-export function getTamarOutboundConfig(settings: { tamar_backend_url?: string | null; tamar_backend_api_token?: string | null } | null) {
-  const envUrl = process.env.TAMAR_API_URL?.trim();
-  const envToken = process.env.TAMAR_API_TOKEN?.trim();
-  const url = envUrl || settings?.tamar_backend_url || null;
-  const tokenPresent = !!envToken || !!settings?.tamar_backend_api_token;
-  const source = envUrl
-    ? "env"
-    : settings?.tamar_backend_url
-      ? "db"
-      : "unconfigured";
-  let host: string | null = null;
-  try { if (url) host = new URL(url).host; } catch { host = null; }
-  return { url, host, token_present: tokenPresent, source, env_url_present: !!envUrl, env_token_present: !!envToken };
+export function getWhatsAppTransportStatus() {
+  const access = !!process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneId = !!process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const appSecret = !!process.env.META_APP_SECRET;
+  const verifyToken = !!process.env.META_VERIFY_TOKEN;
+  return {
+    transport: "meta_direct" as const,
+    architecture_owner: "zooga_direct" as const,
+    model_call_owner: "zooga" as const,
+    railway: false as const,
+    inbound_ready: appSecret && verifyToken,
+    outbound_ready: access && phoneId,
+    secrets_present: {
+      META_APP_SECRET: appSecret,
+      META_VERIFY_TOKEN: verifyToken,
+      WHATSAPP_ACCESS_TOKEN: access,
+      WHATSAPP_PHONE_NUMBER_ID: phoneId,
+      LOVABLE_API_KEY: !!process.env.LOVABLE_API_KEY,
+    },
+  };
 }
 
 export async function getBehaviorSettings() {
@@ -78,12 +84,13 @@ export const REQUIRED_ENV_VARS = [
   "SUPABASE_SERVICE_ROLE_KEY",
   "LOVABLE_API_KEY",
   "DEBUG_READ_ONLY_TOKEN",
+  "META_APP_SECRET",
+  "META_VERIFY_TOKEN",
+  "WHATSAPP_ACCESS_TOKEN",
+  "WHATSAPP_PHONE_NUMBER_ID",
 ] as const;
 
-export const OPTIONAL_ENV_VARS = [
-  "TAMAR_API_URL",
-  "TAMAR_API_TOKEN",
-] as const;
+export const OPTIONAL_ENV_VARS = [] as const;
 
 export function envPresenceMap() {
   const present: string[] = [];

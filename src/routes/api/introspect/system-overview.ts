@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   checkDebugAuth, jsonResponse, methodGuards, presence,
-  countRows, getApiSettings, envPresenceMap, isVerbose,
+  countRows, getApiSettings, envPresenceMap, isVerbose, getWhatsAppTransportStatus,
 } from "@/lib/introspect-api.server";
 
 const TABLES = [
@@ -34,10 +34,7 @@ export const Route = createFileRoute("/api/introspect/system-overview")({
       integrations: {
         supabase: { configured: !!process.env.SUPABASE_URL },
         lovable_ai_gateway: { configured: presence(process.env.LOVABLE_API_KEY).present },
-        tamar_backend: {
-          configured: !!settings?.tamar_backend_url,
-          token_configured: presence(settings?.tamar_backend_api_token ?? null).present,
-        },
+        whatsapp_meta: getWhatsAppTransportStatus(),
         tamar_webhook: {
           token_configured: presence(settings?.webhook_token ?? null).present,
           default_source: settings?.default_source ?? null,

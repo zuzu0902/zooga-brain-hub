@@ -17,7 +17,7 @@ const TABLES = [
   { name: "messages", key_columns: ["id","contact_id","channel","status","created_at"], purpose: "Message history", relates_to: ["contacts","offers"] },
   { name: "tasks", key_columns: ["id","contact_id","status","priority","due_date"], purpose: "Manager tasks", relates_to: ["contacts"] },
   { name: "webhook_logs", key_columns: ["id","source","status","created_at"], purpose: "Inbound webhook audit log", relates_to: [] },
-  { name: "api_settings", key_columns: ["id","default_source","facebook_page_id","tamar_backend_url"], purpose: "Integration configuration (secrets redacted)", relates_to: [] },
+  { name: "api_settings", key_columns: ["id","default_source","facebook_page_id","webhook_token (redacted)"], purpose: "Integration configuration (secrets redacted)", relates_to: [] },
   { name: "user_roles", key_columns: ["id","user_id","role"], purpose: "RBAC roles (separated from profiles)", relates_to: [] },
 ];
 

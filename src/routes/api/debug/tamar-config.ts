@@ -13,7 +13,7 @@ const handler = async ({ request }: { request: Request }) => {
 
   const { data: settings } = await supabaseAdmin
     .from("api_settings")
-    .select("default_source, facebook_page_id, webhook_token, tamar_backend_url, tamar_backend_api_token")
+    .select("default_source, facebook_page_id, webhook_token")
     .eq("id", 1)
     .maybeSingle();
 
@@ -51,14 +51,13 @@ const handler = async ({ request }: { request: Request }) => {
       dedicated_console_screen: false,
     },
     intake_flows: flows,
-    backend_link: {
-      url_configured: !!settings?.tamar_backend_url,
-      url_host: settings?.tamar_backend_url
-        ? (() => {
-            try { return new URL(settings.tamar_backend_url).host; } catch { return null; }
-          })()
-        : null,
-      api_token: presence(settings?.tamar_backend_api_token ?? null),
+    transport: {
+      architecture_owner: "zooga_direct",
+      model_call_owner: "zooga",
+      whatsapp_transport: "meta_direct",
+      railway: false,
+      inbound_ready: !!process.env.META_APP_SECRET && !!process.env.META_VERIFY_TOKEN,
+      outbound_ready: !!process.env.WHATSAPP_ACCESS_TOKEN && !!process.env.WHATSAPP_PHONE_NUMBER_ID,
       webhook_token: presence(settings?.webhook_token ?? null),
       default_source: settings?.default_source ?? null,
       facebook_page_id_configured: !!settings?.facebook_page_id,

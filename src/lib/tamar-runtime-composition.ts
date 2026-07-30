@@ -203,9 +203,11 @@ export function buildTamarRuntimeComposition(input: RuntimeCompositionInput) {
 
   const runtimePromptContext = {
     composition_version: "zooga-tamar-runtime-composition-v1",
-    model_call_owner: "railway_tamar_runtime",
-    zooga_direct_model_call: false,
-    railway_prompt_consumption_confirmed_by_zooga: false,
+    architecture_owner: "zooga_direct",
+    model_call_owner: "zooga",
+    whatsapp_transport: "meta_direct",
+    railway: false,
+    zooga_direct_model_call: true,
     fallback_default_prompt_path: !input.tamarSettings && blockEntries.length === 0,
     conversation_mode: conversationMode,
     conversation_mode_reasons: conversationModeReasons,

@@ -96,7 +96,7 @@ function ManagerAlertsPage() {
       <div>
         <h1 className="text-2xl font-bold">Manager Alerts</h1>
         <p className="text-sm text-muted-foreground">
-          {t("התראות handoff חיות מ-Tamar. Zooga מחליטה על escalation ושולחת ל-Railway לצורך שליחת WhatsApp למנהל.")}
+          {t("פניות handoff מתמר. Zooga מחליטה על escalation ומסמנת את הפנייה בתור (queued) עם משימה למנהל — אין העברה חיה.")}
         </p>
       </div>
 

@@ -87,7 +87,7 @@ export const Route = createFileRoute("/api/introspect/crm-summary")({
         tasks: "zooga",
         handoff: "zooga",
         ai_assistant_history: "zooga",
-        tamar_backend_role: "channel_runtime_only",
+        tamar_backend_role: "none_zooga_direct",
       },
       note: "Counts only. No contact identities, phone numbers, names, or message content are exposed.",
     });

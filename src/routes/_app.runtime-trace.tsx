@@ -43,7 +43,7 @@ function modeBadge(mode: string) {
   if (mode === "zooga_direct")
     return (
       <Badge className="bg-indigo-600 hover:bg-indigo-600">
-        zooga_direct · Zooga reply · Railway delivery
+        zooga_direct · Zooga reply · Meta WhatsApp delivery
       </Badge>
     );
   if (mode === "fallback")
@@ -97,7 +97,7 @@ function RuntimeTracePage() {
         <div>
           <h1 className="text-2xl font-bold">Runtime Trace</h1>
           <p className="text-sm text-muted-foreground">
-            {t("אמת הריצה של Tamar. זרימת ייצור (zooga_direct): Railway מקבל webhook → קורא ל-")}<span className="font-mono">POST /api/public/runtime/tamar-turn</span>{t(" → Zooga מייצר את ")}<span className="font-mono">reply_text</span>{t(" → Railway שולח ל-WhatsApp. כל שורה כאן מייצגת תור שיחה אחד.")}
+            {t("אמת הריצה של Tamar. זרימת ייצור (zooga_direct): Meta WhatsApp שולח webhook ל-")}<span className="font-mono">POST /api/public/webhook/tamar</span>{t(" → מנוע Tamar ב-Zooga מייצר את ")}<span className="font-mono">reply_text</span>{t(" → Zooga שולחת ישירות דרך Meta Graph API. כל שורה כאן מייצגת תור שיחה אחד.")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -137,7 +137,7 @@ function RuntimeTracePage() {
       )}
       {!isLoading && !error && (data ?? []).length === 0 && (
         <Card className="p-6 text-sm text-muted-foreground">
-          {t("עוד אין רשומות. Railway צריך להפעיל את ")}<span className="font-mono">POST /api/public/runtime/tamar-turn</span>{t(" עבור כל הודעה נכנסת.")}
+          {t("עוד אין רשומות. כל הודעה נכנסת מ-Meta WhatsApp תיצור כאן שורה.")}
         </Card>
       )}
 

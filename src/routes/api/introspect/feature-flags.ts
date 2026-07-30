@@ -8,7 +8,9 @@ export const Route = createFileRoute("/api/introspect/feature-flags")({
     return jsonResponse({
       flags: {
         ai_extraction: { enabled: presence(process.env.LOVABLE_API_KEY).present, source: "env:LOVABLE_API_KEY" },
-        tamar_dispatch: { enabled: !!settings?.tamar_backend_url, source: "api_settings.tamar_backend_url" },
+        whatsapp_meta_send: { enabled: !!process.env.WHATSAPP_ACCESS_TOKEN && !!process.env.WHATSAPP_PHONE_NUMBER_ID, source: "env:WHATSAPP_*" },
+        meta_webhook_signature: { enabled: !!process.env.META_APP_SECRET, source: "env:META_APP_SECRET" },
+        railway_bridge: { enabled: false, source: "removed" },
         tamar_webhook_intake: { enabled: presence(settings?.webhook_token ?? null).present, source: "api_settings.webhook_token" },
         pending_insights_review: { enabled: true, source: "always-on" },
         memory_layer: { enabled: true, source: "always-on" },

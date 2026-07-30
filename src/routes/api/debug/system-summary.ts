@@ -39,7 +39,7 @@ const handler = async ({ request }: { request: Request }) => {
 
   const { data: settings } = await supabaseAdmin
     .from("api_settings")
-    .select("default_source, facebook_page_id, webhook_token, tamar_backend_url, tamar_backend_api_token")
+    .select("default_source, facebook_page_id, webhook_token")
     .eq("id", 1)
     .maybeSingle();
 
@@ -70,9 +70,9 @@ const handler = async ({ request }: { request: Request }) => {
     integrations: {
       supabase: { configured: !!process.env.SUPABASE_URL },
       lovable_ai_gateway: { configured: presence(process.env.LOVABLE_API_KEY).present },
-      tamar_backend: {
-        configured: !!settings?.tamar_backend_url,
-        token_configured: presence(settings?.tamar_backend_api_token ?? null).present,
+      whatsapp_meta: {
+        configured: !!process.env.WHATSAPP_PHONE_NUMBER_ID,
+        token_configured: !!process.env.WHATSAPP_ACCESS_TOKEN,
       },
       tamar_webhook: {
         token_configured: presence(settings?.webhook_token ?? null).present,

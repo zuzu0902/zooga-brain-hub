@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { checkDebugAuth, jsonResponse, methodGuards, presence, getApiSettings, getTamarOutboundConfig, getBehaviorSettings, INTAKE_FLOWS, INTAKE_FLOW_LABELS } from "@/lib/introspect-api.server";
+import { checkDebugAuth, jsonResponse, methodGuards, presence, getApiSettings, getWhatsAppTransportStatus, getBehaviorSettings, INTAKE_FLOWS, INTAKE_FLOW_LABELS } from "@/lib/introspect-api.server";
 
 export const Route = createFileRoute("/api/introspect/tamar-config")({
   server: { handlers: methodGuards(async ({ request }) => {
     const gate = checkDebugAuth(request); if (gate) return gate;
     const [settings, behavior] = await Promise.all([getApiSettings(), getBehaviorSettings()]);
-    const outbound = getTamarOutboundConfig(settings);
+    const transport = getWhatsAppTransportStatus();
     const flows = Object.entries(INTAKE_FLOWS).map(([key, def]) => ({
       key, label: (INTAKE_FLOW_LABELS as any)[key] ?? key,
       question_count: def.questions.length, has_system_addendum: !!def.system_addendum,
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/api/introspect/tamar-config")({
         conversation_authority: "zooga",
         tasks_authority: "zooga",
         handoff_authority: "zooga",
-        tamar_backend_role: "channel_runtime_only",
+        tamar_backend_role: "none_zooga_direct",
       },
       tone_preset: behavior?.tone_preset ?? "warm-professional-hebrew",
       language: "he-IL",
@@ -64,13 +64,14 @@ export const Route = createFileRoute("/api/introspect/tamar-config")({
         max_followups_per_week: behavior?.sales_max_followups_per_week ?? 3,
       },
       intake_flows: flows,
-      backend_link: {
-        url_configured: !!outbound.url,
-        url_host: outbound.host,
-        url_source: outbound.source,
-        api_token: { present: outbound.token_present, source: outbound.env_token_present ? "env" : (settings?.tamar_backend_api_token ? "db" : "unconfigured") },
-        env_url_present: outbound.env_url_present,
-        env_token_present: outbound.env_token_present,
+      transport: {
+        architecture_owner: transport.architecture_owner,
+        model_call_owner: transport.model_call_owner,
+        whatsapp_transport: transport.transport,
+        railway: false,
+        inbound_ready: transport.inbound_ready,
+        outbound_ready: transport.outbound_ready,
+        secrets_present: transport.secrets_present,
         webhook_token: presence(settings?.webhook_token ?? null),
         default_source: settings?.default_source ?? null,
         facebook_page_id_configured: !!settings?.facebook_page_id,

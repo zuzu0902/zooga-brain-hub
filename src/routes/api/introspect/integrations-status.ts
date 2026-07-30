@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { checkDebugAuth, jsonResponse, methodGuards, presence, getApiSettings } from "@/lib/introspect-api.server";
+import { checkDebugAuth, jsonResponse, methodGuards, presence, getApiSettings, getWhatsAppTransportStatus } from "@/lib/introspect-api.server";
 
 export const Route = createFileRoute("/api/introspect/integrations-status")({
   server: { handlers: methodGuards(async ({ request }) => {
@@ -25,19 +25,19 @@ export const Route = createFileRoute("/api/introspect/integrations-status")({
       checked_at: new Date().toISOString(),
       supabase: { status: supabaseStatus, url_configured: !!process.env.SUPABASE_URL, error: supabaseError },
       ai_gateway: { status: presence(process.env.LOVABLE_API_KEY).present ? "configured" : "missing_key", provider: "lovable-ai-gateway" },
-      tamar_backend: {
-        configured: !!settings?.tamar_backend_url,
-        token_configured: presence(settings?.tamar_backend_api_token ?? null).present,
-      },
+      architecture: getWhatsAppTransportStatus(),
       tamar_webhook: {
         endpoint: "/api/public/webhook/tamar",
+        transport: "meta_whatsapp",
+        signature_verification: "x-hub-signature-256",
         token_configured: presence(settings?.webhook_token ?? null).present,
         last_event_at: lastTamar?.created_at ?? null,
         last_event_status: lastTamar?.status ?? null,
       },
       whatsapp: {
-        mode: "tamar-managed",
-        note: "WhatsApp delivery occurs on Tamar's side; Lovable only receives webhooks.",
+        mode: "meta_direct",
+        note: "Zooga sends replies directly through the Meta Graph API.",
+        outbound_ready: getWhatsAppTransportStatus().outbound_ready,
         last_interaction_at: lastInteraction?.timestamp ?? null,
       },
       last_failed_event: lastFailed ?? null,

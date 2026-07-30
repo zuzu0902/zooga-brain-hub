@@ -58,15 +58,8 @@ import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new
 import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as ApiPublicWebhookTamarStatusRouteImport } from './routes/api/public/webhook/tamar-status'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
-import { Route as ApiPublicRuntimeWritebackRouteImport } from './routes/api/public/runtime/writeback'
-import { Route as ApiPublicRuntimeTamarWritebackRouteImport } from './routes/api/public/runtime/tamar-writeback'
 import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
-import { Route as ApiPublicRuntimeTamarPackRouteImport } from './routes/api/public/runtime/tamar-pack'
-import { Route as ApiPublicRuntimeLeadContextRouteImport } from './routes/api/public/runtime/lead-context'
-import { Route as ApiPublicRuntimeHandoffRouteImport } from './routes/api/public/runtime/handoff'
-import { Route as ApiPublicRuntimeGenerateReplyRouteImport } from './routes/api/public/runtime/generate-reply'
 import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
@@ -333,56 +326,15 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWebhookTamarStatusRoute =
-  ApiPublicWebhookTamarStatusRouteImport.update({
-    id: '/api/public/webhook/tamar-status',
-    path: '/api/public/webhook/tamar-status',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
   id: '/api/public/webhook/tamar',
   path: '/api/public/webhook/tamar',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicRuntimeWritebackRoute =
-  ApiPublicRuntimeWritebackRouteImport.update({
-    id: '/api/public/runtime/writeback',
-    path: '/api/public/runtime/writeback',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRuntimeTamarWritebackRoute =
-  ApiPublicRuntimeTamarWritebackRouteImport.update({
-    id: '/api/public/runtime/tamar-writeback',
-    path: '/api/public/runtime/tamar-writeback',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicRuntimeTamarTurnRoute =
   ApiPublicRuntimeTamarTurnRouteImport.update({
     id: '/api/public/runtime/tamar-turn',
     path: '/api/public/runtime/tamar-turn',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRuntimeTamarPackRoute =
-  ApiPublicRuntimeTamarPackRouteImport.update({
-    id: '/api/public/runtime/tamar-pack',
-    path: '/api/public/runtime/tamar-pack',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRuntimeLeadContextRoute =
-  ApiPublicRuntimeLeadContextRouteImport.update({
-    id: '/api/public/runtime/lead-context',
-    path: '/api/public/runtime/lead-context',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRuntimeHandoffRoute = ApiPublicRuntimeHandoffRouteImport.update({
-  id: '/api/public/runtime/handoff',
-  path: '/api/public/runtime/handoff',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicRuntimeGenerateReplyRoute =
-  ApiPublicRuntimeGenerateReplyRouteImport.update({
-    id: '/api/public/runtime/generate-reply',
-    path: '/api/public/runtime/generate-reply',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicRuntimeConversationDebugRoute =
@@ -469,15 +421,8 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
-  '/api/public/runtime/generate-reply': typeof ApiPublicRuntimeGenerateReplyRoute
-  '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
-  '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
-  '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
-  '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
-  '/api/public/runtime/writeback': typeof ApiPublicRuntimeWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
-  '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -533,15 +478,8 @@ export interface FileRoutesByTo {
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
-  '/api/public/runtime/generate-reply': typeof ApiPublicRuntimeGenerateReplyRoute
-  '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
-  '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
-  '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
-  '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
-  '/api/public/runtime/writeback': typeof ApiPublicRuntimeWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
-  '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -599,15 +537,8 @@ export interface FileRoutesById {
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
-  '/api/public/runtime/generate-reply': typeof ApiPublicRuntimeGenerateReplyRoute
-  '/api/public/runtime/handoff': typeof ApiPublicRuntimeHandoffRoute
-  '/api/public/runtime/lead-context': typeof ApiPublicRuntimeLeadContextRoute
-  '/api/public/runtime/tamar-pack': typeof ApiPublicRuntimeTamarPackRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
-  '/api/public/runtime/tamar-writeback': typeof ApiPublicRuntimeTamarWritebackRoute
-  '/api/public/runtime/writeback': typeof ApiPublicRuntimeWritebackRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
-  '/api/public/webhook/tamar-status': typeof ApiPublicWebhookTamarStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -665,15 +596,8 @@ export interface FileRouteTypes {
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
-    | '/api/public/runtime/generate-reply'
-    | '/api/public/runtime/handoff'
-    | '/api/public/runtime/lead-context'
-    | '/api/public/runtime/tamar-pack'
     | '/api/public/runtime/tamar-turn'
-    | '/api/public/runtime/tamar-writeback'
-    | '/api/public/runtime/writeback'
     | '/api/public/webhook/tamar'
-    | '/api/public/webhook/tamar-status'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -729,15 +653,8 @@ export interface FileRouteTypes {
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
-    | '/api/public/runtime/generate-reply'
-    | '/api/public/runtime/handoff'
-    | '/api/public/runtime/lead-context'
-    | '/api/public/runtime/tamar-pack'
     | '/api/public/runtime/tamar-turn'
-    | '/api/public/runtime/tamar-writeback'
-    | '/api/public/runtime/writeback'
     | '/api/public/webhook/tamar'
-    | '/api/public/webhook/tamar-status'
   id:
     | '__root__'
     | '/_app'
@@ -794,15 +711,8 @@ export interface FileRouteTypes {
     | '/api/public/cron/retry-handoffs'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
-    | '/api/public/runtime/generate-reply'
-    | '/api/public/runtime/handoff'
-    | '/api/public/runtime/lead-context'
-    | '/api/public/runtime/tamar-pack'
     | '/api/public/runtime/tamar-turn'
-    | '/api/public/runtime/tamar-writeback'
-    | '/api/public/runtime/writeback'
     | '/api/public/webhook/tamar'
-    | '/api/public/webhook/tamar-status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -840,15 +750,8 @@ export interface RootRouteChildren {
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeConversationDebugRoute: typeof ApiPublicRuntimeConversationDebugRoute
-  ApiPublicRuntimeGenerateReplyRoute: typeof ApiPublicRuntimeGenerateReplyRoute
-  ApiPublicRuntimeHandoffRoute: typeof ApiPublicRuntimeHandoffRoute
-  ApiPublicRuntimeLeadContextRoute: typeof ApiPublicRuntimeLeadContextRoute
-  ApiPublicRuntimeTamarPackRoute: typeof ApiPublicRuntimeTamarPackRoute
   ApiPublicRuntimeTamarTurnRoute: typeof ApiPublicRuntimeTamarTurnRoute
-  ApiPublicRuntimeTamarWritebackRoute: typeof ApiPublicRuntimeTamarWritebackRoute
-  ApiPublicRuntimeWritebackRoute: typeof ApiPublicRuntimeWritebackRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
-  ApiPublicWebhookTamarStatusRoute: typeof ApiPublicWebhookTamarStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1196,13 +1099,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/webhook/tamar-status': {
-      id: '/api/public/webhook/tamar-status'
-      path: '/api/public/webhook/tamar-status'
-      fullPath: '/api/public/webhook/tamar-status'
-      preLoaderRoute: typeof ApiPublicWebhookTamarStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/webhook/tamar': {
       id: '/api/public/webhook/tamar'
       path: '/api/public/webhook/tamar'
@@ -1210,53 +1106,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhookTamarRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/runtime/writeback': {
-      id: '/api/public/runtime/writeback'
-      path: '/api/public/runtime/writeback'
-      fullPath: '/api/public/runtime/writeback'
-      preLoaderRoute: typeof ApiPublicRuntimeWritebackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/runtime/tamar-writeback': {
-      id: '/api/public/runtime/tamar-writeback'
-      path: '/api/public/runtime/tamar-writeback'
-      fullPath: '/api/public/runtime/tamar-writeback'
-      preLoaderRoute: typeof ApiPublicRuntimeTamarWritebackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/runtime/tamar-turn': {
       id: '/api/public/runtime/tamar-turn'
       path: '/api/public/runtime/tamar-turn'
       fullPath: '/api/public/runtime/tamar-turn'
       preLoaderRoute: typeof ApiPublicRuntimeTamarTurnRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/runtime/tamar-pack': {
-      id: '/api/public/runtime/tamar-pack'
-      path: '/api/public/runtime/tamar-pack'
-      fullPath: '/api/public/runtime/tamar-pack'
-      preLoaderRoute: typeof ApiPublicRuntimeTamarPackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/runtime/lead-context': {
-      id: '/api/public/runtime/lead-context'
-      path: '/api/public/runtime/lead-context'
-      fullPath: '/api/public/runtime/lead-context'
-      preLoaderRoute: typeof ApiPublicRuntimeLeadContextRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/runtime/handoff': {
-      id: '/api/public/runtime/handoff'
-      path: '/api/public/runtime/handoff'
-      fullPath: '/api/public/runtime/handoff'
-      preLoaderRoute: typeof ApiPublicRuntimeHandoffRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/runtime/generate-reply': {
-      id: '/api/public/runtime/generate-reply'
-      path: '/api/public/runtime/generate-reply'
-      fullPath: '/api/public/runtime/generate-reply'
-      preLoaderRoute: typeof ApiPublicRuntimeGenerateReplyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/runtime/conversation-debug': {
@@ -1412,15 +1266,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicRuntimeConversationDebugRoute:
     ApiPublicRuntimeConversationDebugRoute,
-  ApiPublicRuntimeGenerateReplyRoute: ApiPublicRuntimeGenerateReplyRoute,
-  ApiPublicRuntimeHandoffRoute: ApiPublicRuntimeHandoffRoute,
-  ApiPublicRuntimeLeadContextRoute: ApiPublicRuntimeLeadContextRoute,
-  ApiPublicRuntimeTamarPackRoute: ApiPublicRuntimeTamarPackRoute,
   ApiPublicRuntimeTamarTurnRoute: ApiPublicRuntimeTamarTurnRoute,
-  ApiPublicRuntimeTamarWritebackRoute: ApiPublicRuntimeTamarWritebackRoute,
-  ApiPublicRuntimeWritebackRoute: ApiPublicRuntimeWritebackRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
-  ApiPublicWebhookTamarStatusRoute: ApiPublicWebhookTamarStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
