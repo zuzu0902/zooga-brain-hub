@@ -97,4 +97,7 @@ export const EN_SETTINGS: Record<string, string> = {
   "כותרת": "Title",
   "הערות (פנימי)": "Notes (internal)",
   "גוף הבלוק (מוזרק ישירות ל-runtime)": "Block body (injected directly into runtime)",
+  "שגיאה בטעינת ההגדרות": "Failed to load settings",
+  "phone ו-message חובה": "phone and message are required",
+  "נשמר — גרסה": "Saved — version",
 };
