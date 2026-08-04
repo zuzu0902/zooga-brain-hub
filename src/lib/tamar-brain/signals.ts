@@ -64,7 +64,7 @@ export function isUserQuestion(message: string | null | undefined): boolean {
 
 /** Natural goodbye — ends the conversation session (not the relationship). */
 const GOODBYE_RE =
-  /^(\s*)(תודה\s*(רבה)?|תודה\s+ולהתראות|להתראות|ביי|יאללה\s+ביי|נדבר|מעולה\s+תודה|thanks|thank\s+you|bye|goodbye)([\s.!?😊🙏]|$)/i;
+  /^(\s*)(תודה\s*(רבה)?|תודה\s+ולהתראות|להתראות|ביי|יאללה\s+ביי|נדבר|מעולה\s+תודה|thanks|thank\s+you|bye|goodbye)([\s,.!?😊🙏]|$)/i;
 export function isGoodbye(message: string | null | undefined): boolean {
   const t = String(message ?? "").trim();
   if (!t || t.length > 40) return false;
