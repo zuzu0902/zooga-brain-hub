@@ -25,6 +25,10 @@ function countVars(body: string): number {
 }
 
 async function resolveWabaId(token: string, phoneId: string): Promise<string | null> {
+  // Preferred: explicit WABA id. Graph v21 removed the `whatsapp_business_account`
+  // field from the phone-number node, so discovery is no longer reliable.
+  const explicit = String(process.env.WHATSAPP_WABA_ID ?? "").trim();
+  if (explicit) return explicit;
   try {
     const res = await fetch(
       `https://graph.facebook.com/${GRAPH_VERSION}/${phoneId}?fields=whatsapp_business_account`,
@@ -44,7 +48,7 @@ export async function listMetaTemplates(): Promise<TemplateLookup> {
   if (!token || !phoneId) return { ok: false, error: "whatsapp_credentials_missing", templates: [] };
 
   const wabaId = await resolveWabaId(token, phoneId);
-  if (!wabaId) return { ok: false, error: "waba_id_unavailable", templates: [] };
+  if (!wabaId) return { ok: false, error: "waba_id_unavailable_set_WHATSAPP_WABA_ID", templates: [] };
 
   try {
     const res = await fetch(

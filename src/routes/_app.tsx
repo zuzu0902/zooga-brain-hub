@@ -71,7 +71,7 @@ function AppLayout() {
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate({ to: "/login", replace: true });
+      navigate({ to: "/login", search: { next: undefined }, replace: true });
     }
   }, [loading, user, navigate]);
 
