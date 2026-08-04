@@ -26,7 +26,7 @@ describe("18 scenarios", () => {
   for (const [name, state, msg] of S) {
     it(name, async () => {
       const r = await simulateTurn({ message: msg, state: state as any });
-      console.log(JSON.stringify({ name, state: r.state, frozen: r.automation_frozen, consent: r.consent_classification, handoff: r.handoff_signal, q: r.user_question, bye: r.goodbye, allowed: r.allowed_actions, hits: r.knowledge_hits, action: (r.plan as any)?.action ?? null, reply: (r.plan as any)?.reply ?? null }));
+      console.log(JSON.stringify({ name, state: r.state, frozen: r.automation_frozen, consent: r.consent_classification, handoff: r.handoff_signal, q: r.user_question, bye: r.goodbye, allowed: r.allowed_actions, hits: r.knowledge_hits, action: (r.plan as any)?.selected_action ?? null, reply: (r.plan as any)?.directive ?? null }));
     }, 60000);
   }
 });
