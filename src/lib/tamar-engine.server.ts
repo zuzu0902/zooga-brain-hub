@@ -22,6 +22,11 @@ import {
 import { fieldValueToColumnUpdates } from "@/lib/intake-workflow";
 import { requestRuntimeDecision, type RuntimeDecision } from "@/lib/runtime-decision";
 import { decideRecovery, summarizeKnownIntake, type RecoveryDecision } from "@/lib/intake-recovery";
+import { runBrainGate, recordDecisionTrace, applyTransition, type BrainGate } from "@/lib/tamar-brain/brain.server";
+import { retrieveKnowledge, knowledgeBlock } from "@/lib/tamar-brain/knowledge.server";
+import { allowedActionsForState, planNextAction, type ActionPlan } from "@/lib/tamar-brain/action-planner.server";
+import { rankOffers, hasRelevantMatch, ZOOGA_SITE_URL } from "@/lib/tamar-brain/recommend";
+import { loadBrainPolicy } from "@/lib/tamar-brain/copy.server";
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -644,6 +649,7 @@ async function resolveCampaignAndOffer(
 }
 
 async function callModel(messages: Array<{ role: string; content: string }>) {
+
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
   const res = await fetch(LOVABLE_AI_URL, {
@@ -672,6 +678,95 @@ export type TamarTurnResult = { status: number; payload: any };
  * -> inbound/outbound persistence -> structured decision -> intake capture
  * -> handoff -> runtime trace. No external brain, no Railway.
  */
+/**
+ * Persist and return the outcome of a deterministic Brain-gate turn
+ * (consent flow, opt-out, handoff ack, or frozen automation). No model call
+ * happens on this path.
+ */
+async function finalizeGateOutcome(args: {
+  gate: Exclude<BrainGate, { kind: "pass" }>;
+  body: any;
+  message: string;
+  channel: string;
+  contactId: string | null;
+  metaMessageId: string | null;
+  startedAt: number;
+}): Promise<TamarTurnResult> {
+  const { gate, body, message, channel, contactId, metaMessageId, startedAt } = args;
+  const replyText = gate.kind === "reply" ? gate.text : "";
+
+  if (contactId) {
+    await supabaseAdmin.from("interactions").insert({
+      contact_id: contactId,
+      type: "whatsapp_message",
+      source: channel,
+      content: message,
+    } as any);
+    if (replyText) {
+      await supabaseAdmin.from("interactions").insert({
+        contact_id: contactId,
+        type: "whatsapp_message",
+        source: "tamar_outbound",
+        content: replyText,
+      } as any);
+    }
+  }
+
+  const { data: trace } = await supabaseAdmin
+    .from("tamar_runtime_executions" as any)
+    .insert({
+      contact_id: contactId,
+      channel,
+      source: "tamar_brain_gate",
+      inbound_message: message,
+      outbound_reply: replyText || null,
+      runtime_mode: "brain_gate",
+      conversation_mode: gate.state,
+      conversation_mode_reasons: [gate.reason],
+      runtime_pack_fetch_ok: true,
+      composition_version: "tamar-brain-v1",
+      prompt_blocks_injected: [],
+      offer_intelligence_injected: false,
+      campaign_injected: false,
+      latency_ms: Date.now() - startedAt,
+      raw_payload: {
+        request: { ...body, message },
+        meta_message_id: metaMessageId,
+        brain_gate: { kind: gate.kind, state: gate.state, reason: gate.reason },
+      },
+    } as any)
+    .select("id")
+    .maybeSingle();
+
+  await recordDecisionTrace({
+    contactId,
+    runtimeExecutionId: (trace as any)?.id ?? null,
+    state: gate.state,
+    consideredActions: [],
+    selectedAction: gate.kind === "reply" ? `deterministic:${gate.reason}` : `silent:${gate.reason}`,
+    confidence: 100,
+    reasonCodes: [gate.reason],
+    latencyMs: Date.now() - startedAt,
+    model: null,
+  });
+
+  return {
+    status: 200,
+    payload: {
+      ok: true,
+      reply_text: replyText,
+      contact_id: contactId,
+      runtime_mode: "brain_gate",
+      brain_state: gate.state,
+      brain_reason: gate.reason,
+      suppressed: gate.kind === "silent",
+      trace_id: (trace as any)?.id ?? null,
+      handoff_requested: gate.state === "human_handoff_queued",
+      meta: { offer_id: null, campaign_id: null },
+    },
+  };
+}
+
 export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
   const startedAt = Date.now();
 
@@ -714,6 +809,27 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
   const { behavior, blocks, interactions: contactInteractions, memories } = await loadContext(contactId);
   const runtimeHistoryFallback = await loadRecentRuntimeHistoryByPhone(body);
   const interactions = mergeRecentInteractions(contactInteractions, runtimeHistoryFallback);
+
+  // ---------------------------------------------------------------
+  // TAMAR BRAIN v1 — deterministic gate. Safety, consent, opt-out and
+  // human ownership are decided here; the agent only runs on "pass".
+  // ---------------------------------------------------------------
+  const gatePhone = String(body.phone ?? body.whatsapp_number ?? body.from ?? "").trim() || null;
+  const brainGate = await runBrainGate({ contact, message, interactions, phone: gatePhone });
+  if (brainGate.kind !== "pass") {
+    return finalizeGateOutcome({
+      gate: brainGate,
+      body,
+      message,
+      channel,
+      contactId,
+      metaMessageId,
+      startedAt,
+    });
+  }
+  const brainState = brainGate.state;
+  const knowledgeHits = await retrieveKnowledge(message, 3);
+
   const browseIntentDetected = isCatalogBrowseIntent(message);
   const openerTurnDetected = isOpenerTurn(message);
   const {
@@ -1199,6 +1315,93 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
     conversation_priority_reasons: conversationModeReasons,
   };
 
+  // ---------------------------------------------------------------
+  // TAMAR BRAIN v1 — dynamic action planning inside state boundaries.
+  // The planner never overrides L0 safety rules; it only chooses which
+  // of the legal actions is the best next move for this specific turn.
+  // ---------------------------------------------------------------
+  const brainPolicy = await loadBrainPolicy();
+  const brainAllowedActions = allowedActionsForState(brainState);
+  const brainTurnCount = (interactions ?? []).filter(
+    (i: any) => i?.source === "tamar_outbound",
+  ).length;
+  const brainAnsweredCount = (intakeSnapshot?.completed?.length ?? 0) as number;
+  const brainKnownFields: Record<string, any> = {};
+  for (const key of intakeSnapshot?.completed ?? []) {
+    brainKnownFields[key] = {
+      value: "known",
+      confidence: 90,
+      source: "crm",
+      last_verified_at: contact?.intake_last_captured_at ?? null,
+    };
+  }
+  const brainSellableOffers = (resolverActiveOffers ?? []) as any[];
+  const brainRanked = rankOffers(
+    brainSellableOffers,
+    {
+      age: contact?.age ?? null,
+      region: contact?.region ?? null,
+      city: contact?.city ?? null,
+      interests: contact?.interests ?? [],
+      budget_sensitivity: contact?.budget_sensitivity ?? null,
+      preferred_trip_style: contact?.preferred_trip_style ?? null,
+      goal_text: message,
+    },
+    brainPolicy.recommendation_max_offers ?? 3,
+  );
+  const brainPlan: ActionPlan = await planNextAction({
+    state: brainState,
+    message,
+    knownFields: brainKnownFields,
+    unknownFields: intakeSnapshot?.missing ?? [],
+    allowedActions: brainAllowedActions,
+    turnCount: brainTurnCount,
+    answeredCount: brainAnsweredCount,
+    userAskedQuestion: brainGate.user_question,
+    offerTitles: brainRanked.map((r) => r.title),
+    knowledgeSnippets: knowledgeHits.map((h) => h.content),
+    campaignSource: contact?.campaign_source ?? null,
+    emotionalTone: contact?.emotional_profile ?? null,
+  });
+
+  const kBlock = knowledgeBlock(knowledgeHits);
+  if (kBlock) replyHardRules.push(kBlock);
+  if (brainPolicy.knowledge_grounding_required && !kBlock) {
+    replyHardRules.push(
+      "No approved community knowledge matched this turn. Do NOT state community facts, events, promises or statistics you cannot ground in the offer data. If the answer is missing, say so plainly and offer a human.",
+    );
+  }
+  replyHardRules.push(
+    `BRAIN PLAN — selected action: ${brainPlan.selected_action}${brainPlan.secondary_action ? ` (then ${brainPlan.secondary_action})` : ""}. ${brainPlan.directive}`,
+  );
+  if (brainPlan.selected_action === "answer_user") {
+    replyHardRules.push("Answer the user's question first and completely. Ask at most one follow-up, only if it clearly advances.");
+  }
+  if (brainPlan.selected_action === "recommend_offer") {
+    if (hasRelevantMatch(brainRanked)) {
+      replyHardRules.push(
+        `Recommend ONLY from these sellable offers, with a one-line why: ${brainRanked
+          .map((r) => `${r.title} — ${r.why_this}`)
+          .join(" | ")}.`,
+      );
+    } else {
+      replyHardRules.push(
+        `No sellable offer is a good fit right now. Do NOT force a trip link. Point to ${ZOOGA_SITE_URL} or offer to update when something fitting opens.`,
+      );
+    }
+  }
+  if (brainPlan.selected_action === "send_site_link") {
+    replyHardRules.push(`Close this turn with the Zooga site link: ${ZOOGA_SITE_URL}.`);
+  }
+  if (brainPlan.selected_action === "close" || brainGate.goodbye) {
+    replyHardRules.push(
+      "The user is wrapping up. Close warmly with ONE clear next step and leave a natural opening to come back. Do not ask another intake question.",
+    );
+  }
+  if (brainPlan.selected_action !== "ask_next_field") {
+    replyHardRules.push("Do NOT ask an intake/qualification question this turn.");
+  }
+
   const composition = buildTamarRuntimeComposition({
     inboundMessage: message,
     source: "tamar_turn",
@@ -1286,6 +1489,14 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
     intake_snapshot_before: intakeSnapshot,
     intake_next_target_field: effectiveNextIntakeField,
     intake_directive: intakeDirective,
+    brain: {
+      state: brainState,
+      allowed_actions: brainAllowedActions,
+      plan: brainPlan,
+      knowledge_source_ids: knowledgeHits.map((h) => h.source_id),
+      ranked_offers: brainRanked,
+      prompt_version: brainPolicy.prompt_version,
+    },
     recovery: {
       mode: recovery.mode,
       reasons: recovery.reasons,
@@ -1334,6 +1545,40 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
         trace_id: (trace as any)?.id ?? null,
       },
     };
+  }
+
+  // Brain decision trace + state advance (no unnecessary PII).
+  await recordDecisionTrace({
+    contactId,
+    runtimeExecutionId: (trace as any)?.id ?? null,
+    state: brainState,
+    consideredActions: brainPlan.considered_actions,
+    selectedAction: brainPlan.selected_action,
+    confidence: brainPlan.confidence,
+    reasonCodes: [...brainPlan.reason_codes, `planner:${brainPlan.source}`],
+    fieldsUsed: Object.keys(brainKnownFields),
+    offerIds: brainRanked.map((r) => r.id),
+    knowledgeSourceIds: knowledgeHits.map((h) => h.source_id),
+    promptVersion: brainPolicy.prompt_version,
+    model: MODEL,
+    latencyMs: Date.now() - startedAt,
+  });
+  if (contactId) {
+    const nextState =
+      brainPlan.selected_action === "recommend_offer"
+        ? "offer_recommended"
+        : brainPlan.selected_action === "ask_next_field"
+        ? "intake_active"
+        : brainPlan.selected_action === "close"
+        ? "closed"
+        : "value_delivery";
+    await applyTransition({
+      contactId,
+      from: brainState,
+      to: nextState,
+      trigger: `action:${brainPlan.selected_action}`,
+      reasonCodes: brainPlan.reason_codes,
+    });
   }
 
   // --- Hybrid LLM decision layer ---

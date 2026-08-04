@@ -312,6 +312,92 @@ export type Database = {
         }
         Relationships: []
       }
+      community_knowledge_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          id: string
+          source_id: string
+          status: string
+          tags: string[]
+        }
+        Insert: {
+          chunk_index?: number
+          content: string
+          created_at?: string
+          id?: string
+          source_id: string
+          status?: string
+          tags?: string[]
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          id?: string
+          source_id?: string
+          status?: string
+          tags?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_knowledge_chunks_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "community_knowledge_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_knowledge_sources: {
+        Row: {
+          created_at: string
+          fetched_at: string | null
+          id: string
+          notes: string | null
+          public_or_authorized: string
+          source_type: string
+          source_url: string | null
+          status: string
+          title: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          fetched_at?: string | null
+          id?: string
+          notes?: string | null
+          public_or_authorized?: string
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          fetched_at?: string | null
+          id?: string
+          notes?: string | null
+          public_or_authorized?: string
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       contact_memories: {
         Row: {
           confidence_score: number | null
@@ -410,10 +496,18 @@ export type Database = {
           city: string | null
           communication_style: string | null
           community_fit_score: number | null
+          consent_asked_at: string | null
           consent_date: string | null
           consent_marketing: boolean
+          consent_message_id: string | null
+          consent_responded_at: string | null
           consent_source: string | null
+          consent_wording_version: string | null
           conversation_intent: string | null
+          conversation_state:
+            | Database["public"]["Enums"]["tamar_conversation_state"]
+            | null
+          conversation_state_at: string | null
           conversion_stage: string | null
           created_at: string
           decision_triggers: string[]
@@ -433,6 +527,9 @@ export type Database = {
           full_name: string | null
           gender: Database["public"]["Enums"]["gender"] | null
           hobbies: string[]
+          human_owned: boolean
+          human_owned_at: string | null
+          human_owned_by: string | null
           id: string
           income_range: Database["public"]["Enums"]["income_range"] | null
           intake_completed_fields: string[] | null
@@ -520,10 +617,18 @@ export type Database = {
           city?: string | null
           communication_style?: string | null
           community_fit_score?: number | null
+          consent_asked_at?: string | null
           consent_date?: string | null
           consent_marketing?: boolean
+          consent_message_id?: string | null
+          consent_responded_at?: string | null
           consent_source?: string | null
+          consent_wording_version?: string | null
           conversation_intent?: string | null
+          conversation_state?:
+            | Database["public"]["Enums"]["tamar_conversation_state"]
+            | null
+          conversation_state_at?: string | null
           conversion_stage?: string | null
           created_at?: string
           decision_triggers?: string[]
@@ -543,6 +648,9 @@ export type Database = {
           full_name?: string | null
           gender?: Database["public"]["Enums"]["gender"] | null
           hobbies?: string[]
+          human_owned?: boolean
+          human_owned_at?: string | null
+          human_owned_by?: string | null
           id?: string
           income_range?: Database["public"]["Enums"]["income_range"] | null
           intake_completed_fields?: string[] | null
@@ -630,10 +738,18 @@ export type Database = {
           city?: string | null
           communication_style?: string | null
           community_fit_score?: number | null
+          consent_asked_at?: string | null
           consent_date?: string | null
           consent_marketing?: boolean
+          consent_message_id?: string | null
+          consent_responded_at?: string | null
           consent_source?: string | null
+          consent_wording_version?: string | null
           conversation_intent?: string | null
+          conversation_state?:
+            | Database["public"]["Enums"]["tamar_conversation_state"]
+            | null
+          conversation_state_at?: string | null
           conversion_stage?: string | null
           created_at?: string
           decision_triggers?: string[]
@@ -653,6 +769,9 @@ export type Database = {
           full_name?: string | null
           gender?: Database["public"]["Enums"]["gender"] | null
           hobbies?: string[]
+          human_owned?: boolean
+          human_owned_at?: string | null
+          human_owned_by?: string | null
           id?: string
           income_range?: Database["public"]["Enums"]["income_range"] | null
           intake_completed_fields?: string[] | null
@@ -1079,12 +1198,14 @@ export type Database = {
           alert_error: string | null
           alert_payload: Json | null
           alert_response: Json | null
+          alert_state: string
           claimed_at: string | null
           contact_id: string | null
           conversation_excerpt: Json
           conversation_mode: string | null
           conversation_mode_reasons: Json | null
           created_at: string
+          crm_link: string | null
           customer_name: string | null
           customer_phone: string | null
           delivery_attempts: number
@@ -1100,18 +1221,23 @@ export type Database = {
           resolved_offer_id: string | null
           runtime_trace_id: string | null
           status: string
+          suggested_response: string | null
+          transcript_included: boolean
           updated_at: string
+          urgency: string
         }
         Insert: {
           alert_error?: string | null
           alert_payload?: Json | null
           alert_response?: Json | null
+          alert_state?: string
           claimed_at?: string | null
           contact_id?: string | null
           conversation_excerpt?: Json
           conversation_mode?: string | null
           conversation_mode_reasons?: Json | null
           created_at?: string
+          crm_link?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           delivery_attempts?: number
@@ -1127,18 +1253,23 @@ export type Database = {
           resolved_offer_id?: string | null
           runtime_trace_id?: string | null
           status?: string
+          suggested_response?: string | null
+          transcript_included?: boolean
           updated_at?: string
+          urgency?: string
         }
         Update: {
           alert_error?: string | null
           alert_payload?: Json | null
           alert_response?: Json | null
+          alert_state?: string
           claimed_at?: string | null
           contact_id?: string | null
           conversation_excerpt?: Json
           conversation_mode?: string | null
           conversation_mode_reasons?: Json | null
           created_at?: string
+          crm_link?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           delivery_attempts?: number
@@ -1154,7 +1285,10 @@ export type Database = {
           resolved_offer_id?: string | null
           runtime_trace_id?: string | null
           status?: string
+          suggested_response?: string | null
+          transcript_included?: boolean
           updated_at?: string
+          urgency?: string
         }
         Relationships: []
       }
@@ -1477,6 +1611,39 @@ export type Database = {
           },
         ]
       }
+      tamar_admin_audit_log: {
+        Row: {
+          action: string
+          actor: string | null
+          after_value: Json | null
+          area: string
+          before_value: Json | null
+          created_at: string
+          id: string
+          target_id: string | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          after_value?: Json | null
+          area: string
+          before_value?: Json | null
+          created_at?: string
+          id?: string
+          target_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          after_value?: Json | null
+          area?: string
+          before_value?: Json | null
+          created_at?: string
+          id?: string
+          target_id?: string | null
+        }
+        Relationships: []
+      }
       tamar_behavior_settings: {
         Row: {
           confidence_auto_apply_min: number
@@ -1570,6 +1737,165 @@ export type Database = {
           updated_at?: string
           verbosity_level?: string
           warmth_level?: string
+        }
+        Relationships: []
+      }
+      tamar_brain_policy: {
+        Row: {
+          ab_testing_enabled: boolean
+          attach_transcript_to_alert: boolean
+          consent_gate_enabled: boolean
+          handoff_confidence_threshold: number
+          id: number
+          kill_switch_ab: boolean
+          knowledge_grounding_required: boolean
+          manager_alert_enabled: boolean
+          manager_alert_template: string
+          max_questions_per_message: number
+          prompt_version: string
+          recommendation_max_offers: number
+          updated_at: string
+          updated_by: string | null
+          value_before_question_after_answers: number
+        }
+        Insert: {
+          ab_testing_enabled?: boolean
+          attach_transcript_to_alert?: boolean
+          consent_gate_enabled?: boolean
+          handoff_confidence_threshold?: number
+          id?: number
+          kill_switch_ab?: boolean
+          knowledge_grounding_required?: boolean
+          manager_alert_enabled?: boolean
+          manager_alert_template?: string
+          max_questions_per_message?: number
+          prompt_version?: string
+          recommendation_max_offers?: number
+          updated_at?: string
+          updated_by?: string | null
+          value_before_question_after_answers?: number
+        }
+        Update: {
+          ab_testing_enabled?: boolean
+          attach_transcript_to_alert?: boolean
+          consent_gate_enabled?: boolean
+          handoff_confidence_threshold?: number
+          id?: number
+          kill_switch_ab?: boolean
+          knowledge_grounding_required?: boolean
+          manager_alert_enabled?: boolean
+          manager_alert_template?: string
+          max_questions_per_message?: number
+          prompt_version?: string
+          recommendation_max_offers?: number
+          updated_at?: string
+          updated_by?: string | null
+          value_before_question_after_answers?: number
+        }
+        Relationships: []
+      }
+      tamar_copy_versions: {
+        Row: {
+          ab_weight: number
+          body: string
+          copy_key: string
+          created_at: string
+          id: string
+          is_active: boolean
+          kill_switch: boolean
+          language_code: string
+          notes: string | null
+          template_name: string | null
+          updated_at: string
+          updated_by: string | null
+          variant: string
+          version: number
+        }
+        Insert: {
+          ab_weight?: number
+          body: string
+          copy_key: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kill_switch?: boolean
+          language_code?: string
+          notes?: string | null
+          template_name?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          variant?: string
+          version?: number
+        }
+        Update: {
+          ab_weight?: number
+          body?: string
+          copy_key?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kill_switch?: boolean
+          language_code?: string
+          notes?: string | null
+          template_name?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          variant?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      tamar_decision_traces: {
+        Row: {
+          confidence: number | null
+          considered_actions: Json
+          contact_id: string | null
+          created_at: string
+          fields_used: Json
+          id: string
+          knowledge_source_ids: Json
+          latency_ms: number | null
+          model: string | null
+          offer_ids: Json
+          prompt_version: string | null
+          reason_codes: Json
+          runtime_execution_id: string | null
+          selected_action: string
+          state: string
+        }
+        Insert: {
+          confidence?: number | null
+          considered_actions?: Json
+          contact_id?: string | null
+          created_at?: string
+          fields_used?: Json
+          id?: string
+          knowledge_source_ids?: Json
+          latency_ms?: number | null
+          model?: string | null
+          offer_ids?: Json
+          prompt_version?: string | null
+          reason_codes?: Json
+          runtime_execution_id?: string | null
+          selected_action: string
+          state: string
+        }
+        Update: {
+          confidence?: number | null
+          considered_actions?: Json
+          contact_id?: string | null
+          created_at?: string
+          fields_used?: Json
+          id?: string
+          knowledge_source_ids?: Json
+          latency_ms?: number | null
+          model?: string | null
+          offer_ids?: Json
+          prompt_version?: string | null
+          reason_codes?: Json
+          runtime_execution_id?: string | null
+          selected_action?: string
+          state?: string
         }
         Relationships: []
       }
@@ -1689,6 +2015,50 @@ export type Database = {
           tamar_settings_version_at?: string | null
         }
         Relationships: []
+      }
+      tamar_state_transitions: {
+        Row: {
+          actor: string
+          contact_id: string | null
+          created_at: string
+          from_state: string | null
+          id: string
+          reason_codes: Json
+          runtime_execution_id: string | null
+          to_state: string
+          trigger: string
+        }
+        Insert: {
+          actor?: string
+          contact_id?: string | null
+          created_at?: string
+          from_state?: string | null
+          id?: string
+          reason_codes?: Json
+          runtime_execution_id?: string | null
+          to_state: string
+          trigger: string
+        }
+        Update: {
+          actor?: string
+          contact_id?: string | null
+          created_at?: string
+          from_state?: string | null
+          id?: string
+          reason_codes?: Json
+          runtime_execution_id?: string | null
+          to_state?: string
+          trigger?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_state_transitions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
@@ -2052,6 +2422,17 @@ export type Database = {
       offer_status: "draft" | "active" | "archived"
       price_sensitivity: "high" | "medium" | "low"
       spending_profile: "budget" | "standard" | "premium" | "luxury"
+      tamar_conversation_state:
+        | "consent_pending"
+        | "consented"
+        | "opted_out"
+        | "intake_active"
+        | "value_delivery"
+        | "offer_recommended"
+        | "human_handoff_queued"
+        | "human_owned"
+        | "paused"
+        | "closed"
       whatsapp_template_status:
         | "not_sent"
         | "sent"
@@ -2253,6 +2634,18 @@ export const Constants = {
       offer_status: ["draft", "active", "archived"],
       price_sensitivity: ["high", "medium", "low"],
       spending_profile: ["budget", "standard", "premium", "luxury"],
+      tamar_conversation_state: [
+        "consent_pending",
+        "consented",
+        "opted_out",
+        "intake_active",
+        "value_delivery",
+        "offer_recommended",
+        "human_handoff_queued",
+        "human_owned",
+        "paused",
+        "closed",
+      ],
       whatsapp_template_status: [
         "not_sent",
         "sent",

@@ -49,6 +49,7 @@ import { Route as ApiDebugRecentEventsRouteImport } from './routes/api/debug/rec
 import { Route as ApiDebugIntegrationsStatusRouteImport } from './routes/api/debug/integrations-status'
 import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
 import { Route as ApiDebugAgentsSummaryRouteImport } from './routes/api/debug/agents-summary'
+import { Route as AppSettingsTamarBrainRouteImport } from './routes/_app.settings.tamar-brain'
 import { Route as AppSettingsTamarBlocksRouteImport } from './routes/_app.settings.tamar-blocks'
 import { Route as AppSettingsTamarRouteImport } from './routes/_app.settings.tamar'
 import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
@@ -280,6 +281,11 @@ const ApiDebugAgentsSummaryRoute = ApiDebugAgentsSummaryRouteImport.update({
   path: '/api/debug/agents-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSettingsTamarBrainRoute = AppSettingsTamarBrainRouteImport.update({
+  id: '/settings/tamar-brain',
+  path: '/settings/tamar-brain',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsTamarBlocksRoute = AppSettingsTamarBlocksRouteImport.update({
   id: '/settings/tamar-blocks',
   path: '/settings/tamar-blocks',
@@ -394,6 +400,7 @@ export interface FileRoutesByFullPath {
   '/settings/api': typeof AppSettingsApiRoute
   '/settings/tamar': typeof AppSettingsTamarRoute
   '/settings/tamar-blocks': typeof AppSettingsTamarBlocksRoute
+  '/settings/tamar-brain': typeof AppSettingsTamarBrainRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -451,6 +458,7 @@ export interface FileRoutesByTo {
   '/settings/api': typeof AppSettingsApiRoute
   '/settings/tamar': typeof AppSettingsTamarRoute
   '/settings/tamar-blocks': typeof AppSettingsTamarBlocksRoute
+  '/settings/tamar-brain': typeof AppSettingsTamarBrainRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -510,6 +518,7 @@ export interface FileRoutesById {
   '/_app/settings/api': typeof AppSettingsApiRoute
   '/_app/settings/tamar': typeof AppSettingsTamarRoute
   '/_app/settings/tamar-blocks': typeof AppSettingsTamarBlocksRoute
+  '/_app/settings/tamar-brain': typeof AppSettingsTamarBrainRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -569,6 +578,7 @@ export interface FileRouteTypes {
     | '/settings/api'
     | '/settings/tamar'
     | '/settings/tamar-blocks'
+    | '/settings/tamar-brain'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -626,6 +636,7 @@ export interface FileRouteTypes {
     | '/settings/api'
     | '/settings/tamar'
     | '/settings/tamar-blocks'
+    | '/settings/tamar-brain'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -684,6 +695,7 @@ export interface FileRouteTypes {
     | '/_app/settings/api'
     | '/_app/settings/tamar'
     | '/_app/settings/tamar-blocks'
+    | '/_app/settings/tamar-brain'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -1036,6 +1048,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDebugAgentsSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/settings/tamar-brain': {
+      id: '/_app/settings/tamar-brain'
+      path: '/settings/tamar-brain'
+      fullPath: '/settings/tamar-brain'
+      preLoaderRoute: typeof AppSettingsTamarBrainRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/tamar-blocks': {
       id: '/_app/settings/tamar-blocks'
       path: '/settings/tamar-blocks'
@@ -1206,6 +1225,7 @@ interface AppRouteChildren {
   AppSettingsApiRoute: typeof AppSettingsApiRoute
   AppSettingsTamarRoute: typeof AppSettingsTamarRoute
   AppSettingsTamarBlocksRoute: typeof AppSettingsTamarBlocksRoute
+  AppSettingsTamarBrainRoute: typeof AppSettingsTamarBrainRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1225,6 +1245,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsApiRoute: AppSettingsApiRoute,
   AppSettingsTamarRoute: AppSettingsTamarRoute,
   AppSettingsTamarBlocksRoute: AppSettingsTamarBlocksRoute,
+  AppSettingsTamarBrainRoute: AppSettingsTamarBrainRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
