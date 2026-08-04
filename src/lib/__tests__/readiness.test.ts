@@ -31,8 +31,10 @@ describe("lead import dry-run (10 synthetic fixtures, no PII)", () => {
   });
 
   it("only consented fixtures are enrollable", () => {
-    const enrollable = LEAD_FIXTURES.filter((f) => f.consent && normalizePhone(f.raw_phone));
-    expect(enrollable.length).toBe(6);
+    const enrollable = new Set(
+      LEAD_FIXTURES.filter((f) => f.consent).map((f) => normalizePhone(f.raw_phone)).filter(Boolean),
+    );
+    expect(enrollable.size).toBe(6);
   });
 });
 
