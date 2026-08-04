@@ -330,6 +330,11 @@ function IntakeCampaignPage() {
                     <td className="p-3"><Badge variant="secondary">{l.import_status}</Badge></td>
                     <td className="p-3"><Badge variant="outline">{t(SEND_STATE_LABELS[l.send_state] ?? l.send_state ?? "—")}</Badge></td>
                     <td className="p-3"><Badge variant="outline">{l.whatsapp_template_status}</Badge></td>
+                    <td className="p-3 text-muted-foreground text-xs" dir="ltr" title={l.last_error ?? ""}>
+                      {[l.sent_at, l.delivered_at, l.read_at, l.replied_at]
+                        .map((ts: string | null) => (ts ? new Date(ts).toLocaleTimeString("he-IL") : "—"))
+                        .join(" / ")}
+                    </td>
                     <td className="p-3 text-muted-foreground text-xs" dir="ltr">
                       {l.last_message_at ? new Date(l.last_message_at).toLocaleString("he-IL") : "—"}
                     </td>
