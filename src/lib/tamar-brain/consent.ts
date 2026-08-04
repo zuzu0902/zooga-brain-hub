@@ -42,7 +42,7 @@ export function consentClarifyExhausted(interactions: any[]): boolean {
 /** Render the consent template body with the contact's first name. */
 export function renderConsentBody(body: string, firstName: string | null | undefined): string {
   const name = String(firstName ?? "").trim();
-  return body.replace(/\{\{\s*1\s*\}\}/g, name || "שלום");
+  return body.replace(/\{\{\s*(1|first_name)\s*\}\}/g, name || "שלום");
 }
 
 export const CONSENT_QUICK_REPLIES = ["כן, בשמחה", "לא, תודה"];
