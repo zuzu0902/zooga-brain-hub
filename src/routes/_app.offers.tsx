@@ -19,7 +19,7 @@ import { CATEGORY_LABELS, INTEREST_LABELS } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
 import { formatPrice } from "@/lib/currency";
 import { useT, useLanguage } from "@/lib/language-context";
-import { offerBucket, validateOfferDates, type OfferBucket } from "@/lib/offer-sellable";
+import { offerBucket, type OfferBucket } from "@/lib/offer-sellable";
 
 export const Route = createFileRoute("/_app/offers")({
   head: () => ({ meta: [{ title: "הצעות — Zooga CRM" }] }),
