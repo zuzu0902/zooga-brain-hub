@@ -299,10 +299,10 @@ function IntakeCampaignPage() {
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">{t("טוען...")}</td></tr>
+                <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">{t("טוען...")}</td></tr>
               )}
               {!isLoading && (leads?.length ?? 0) === 0 && (
-                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">{t("אין לידים להצגה")}</td></tr>
+                <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">{t("אין לידים להצגה")}</td></tr>
               )}
               {leads?.map((l: any) => {
                 const isEligible =
