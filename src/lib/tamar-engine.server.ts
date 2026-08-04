@@ -22,6 +22,11 @@ import {
 import { fieldValueToColumnUpdates } from "@/lib/intake-workflow";
 import { requestRuntimeDecision, type RuntimeDecision } from "@/lib/runtime-decision";
 import { decideRecovery, summarizeKnownIntake, type RecoveryDecision } from "@/lib/intake-recovery";
+import { runBrainGate, recordDecisionTrace, applyTransition, type BrainGate } from "@/lib/tamar-brain/brain.server";
+import { retrieveKnowledge, knowledgeBlock } from "@/lib/tamar-brain/knowledge.server";
+import { allowedActionsForState, planNextAction, type ActionPlan } from "@/lib/tamar-brain/action-planner.server";
+import { rankOffers, hasRelevantMatch, ZOOGA_SITE_URL } from "@/lib/tamar-brain/recommend";
+import { loadBrainPolicy } from "@/lib/tamar-brain/copy.server";
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
@@ -644,6 +649,7 @@ async function resolveCampaignAndOffer(
 }
 
 async function callModel(messages: Array<{ role: string; content: string }>) {
+
   const apiKey = process.env.LOVABLE_API_KEY;
   if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
   const res = await fetch(LOVABLE_AI_URL, {
