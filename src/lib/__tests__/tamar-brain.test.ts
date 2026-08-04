@@ -30,7 +30,7 @@ describe("consent gate", () => {
     expect(classifyConsentReply("מה יש לכם לאלבניה?")).toBe("ambiguous");
   });
   it("stops clarifying after one attempt", () => {
-    const one = [{ source: "tamar_outbound", content: "רק לוודא — מתאים שנעדכן אותך?" }];
+    const one = [{ source: "tamar_outbound", content: "רק כדי לוודא שהבנתי נכון — מתאים שנעדכן אותך?" }];
     expect(consentClarifyExhausted(one)).toBe(true);
     expect(consentClarifyExhausted([])).toBe(false);
   });
