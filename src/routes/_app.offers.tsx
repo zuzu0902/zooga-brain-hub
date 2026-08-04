@@ -12,12 +12,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORY_LABELS, INTEREST_LABELS } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
 import { formatPrice } from "@/lib/currency";
 import { useT, useLanguage } from "@/lib/language-context";
+import { offerBucket, type OfferBucket } from "@/lib/offer-sellable";
 
 export const Route = createFileRoute("/_app/offers")({
   head: () => ({ meta: [{ title: "הצעות — Zooga CRM" }] }),
@@ -34,6 +36,7 @@ function OffersPage() {
   const t = useT();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<OfferBucket>("active");
   const { data: offers } = useQuery({
     queryKey: ["offers"],
     queryFn: async () => {
@@ -41,6 +44,17 @@ function OffersPage() {
       return data ?? [];
     },
   });
+
+  // Bucketing is computed from event_end_date vs now — it does NOT depend on
+  // anyone opening this screen. The DB view `offers_sellable` applies the same
+  // rule to every customer-facing path.
+  const buckets = {
+    active: [] as any[],
+    needs_date_review: [] as any[],
+    past: [] as any[],
+  };
+  for (const o of offers ?? []) buckets[offerBucket(o as any)].push(o);
+  const shown = buckets[tab];
 
   return (
     <div className="p-6 space-y-5">
@@ -54,8 +68,26 @@ function OffersPage() {
       <ContextBanner id="offers-list">
         <strong>{t("הצעות")}</strong> = מה שאת מוכרת (טיול, סדנה, מסיבה). כל הצעה תוכל להיות מקודמת ב<strong>קמפיין</strong> אחד או יותר.
       </ContextBanner>
+
+      <Tabs value={tab} onValueChange={(v) => setTab(v as OfferBucket)}>
+        <TabsList>
+          <TabsTrigger value="active">{t("פעילים")} ({buckets.active.length})</TabsTrigger>
+          <TabsTrigger value="needs_date_review">{t("דורשים השלמת תאריך")} ({buckets.needs_date_review.length})</TabsTrigger>
+          <TabsTrigger value="past">{t("אירועי עבר")} ({buckets.past.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value={tab} className="mt-4">
+      {tab === "needs_date_review" && (
+        <p className="text-sm text-muted-foreground mb-3">
+          {t("להצעות האלו חסר תאריך התחלה או סיום. הן אינן נשלחות ללקוחות ואינן מוזרקות לתמר עד להשלמה ידנית — המערכת לא מנחשת תאריכים.")}
+        </p>
+      )}
+      {tab === "past" && (
+        <p className="text-sm text-muted-foreground mb-3">
+          {t("אירועים שתאריך הסיום שלהם עבר. הרשומות נשמרות להיסטוריה, ניתן לצפות ולערוך, וניתן להחזיר לפעיל רק עם תאריכים עתידיים תקינים.")}
+        </p>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {offers?.map((o: any) => (
+        {shown.map((o: any) => (
           <Card key={o.id} className="p-5 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -66,7 +98,12 @@ function OffersPage() {
               </div>
               <div className="flex flex-col items-end gap-1">
                 <Badge>{t(o.status)}</Badge>
-                {o.event_date && new Date(o.event_date) < new Date() && (
+                {o.needs_date_review && (
+                  <Badge variant="outline" className="text-amber-700 border-amber-500/40 bg-amber-500/10">
+                    {t("חסר תאריך")}
+                  </Badge>
+                )}
+                {o.event_end_date && new Date(o.event_end_date) < new Date() && (
                   <Badge variant="outline" className="text-amber-700 border-amber-500/40 bg-amber-500/10">
                     {t("תאריך עבר")}
                   </Badge>
@@ -74,6 +111,11 @@ function OffersPage() {
               </div>
             </div>
             {o.description && <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{o.description}</p>}
+            <div className="text-xs text-muted-foreground mt-2" dir="ltr">
+              {o.event_date ? new Date(o.event_date).toLocaleDateString("he-IL") : "—"}
+              {" → "}
+              {o.event_end_date ? new Date(o.event_end_date).toLocaleDateString("he-IL") : "—"}
+            </div>
             <div className="flex gap-2 flex-wrap mt-3">
               {(o.target_interests || []).map((i: string) => (
                 <Badge key={i} variant="secondary">{t(INTEREST_LABELS[i] ?? i)}</Badge>
@@ -85,17 +127,21 @@ function OffersPage() {
                 <Button asChild size="sm" variant="ghost">
                   <Link to="/offers/$id" params={{ id: o.id }}>{t("פתח")}</Link>
                 </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link to="/send-offer" search={{ offerId: o.id } as any}>{t("שלח")}</Link>
-                </Button>
+                {tab === "active" && (
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/send-offer" search={{ offerId: o.id } as any}>{t("שלח")}</Link>
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
         ))}
-        {offers?.length === 0 && (
+        {shown.length === 0 && (
           <Card className="p-8 text-center text-muted-foreground col-span-full">{t("אין הצעות. צור הצעה חדשה.")}</Card>
         )}
       </div>
+        </TabsContent>
+      </Tabs>
 
       <OfferDialog open={open} onOpenChange={setOpen} onCreated={() => qc.invalidateQueries({ queryKey: ["offers"] })} />
     </div>

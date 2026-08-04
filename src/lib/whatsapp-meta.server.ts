@@ -12,6 +12,24 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const GRAPH_VERSION = "v21.0";
 
+/**
+ * Meta returns recipients as bare digits ("972501234567") while the CRM stores
+ * E.164 ("+972501234567"). Every callback match MUST go through these.
+ */
+export function toE164(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const digits = String(raw).replace(/\D/g, "");
+  if (digits.length < 8 || digits.length > 15) return null;
+  return "+" + digits;
+}
+
+/** All spellings a phone may appear as in our own tables. */
+export function phoneVariants(raw: string | null | undefined): string[] {
+  const e164 = toE164(raw);
+  if (!e164) return [];
+  return Array.from(new Set([e164, e164.slice(1)]));
+}
+
 export type InboundWhatsAppMessage = {
   wamid: string;
   from: string;

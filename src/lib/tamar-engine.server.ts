@@ -426,7 +426,8 @@ async function loadCampaignOffer(contact: any, body: any) {
   let offer: any = null;
   const offerId = body.offer_id || campaign?.offer_id || null;
   if (offerId) {
-    const { data } = await supabaseAdmin.from("offers").select("*").eq("id", offerId).maybeSingle();
+    // sellable guard: an expired / date-less offer never enters the prompt
+    const { data } = await supabaseAdmin.from("offers_sellable").select("*").eq("id", offerId).maybeSingle();
     offer = data;
   }
   return { campaign, offer };
@@ -440,7 +441,7 @@ async function fetchCampaign(id: string | null | undefined) {
 
 async function fetchOffer(id: string | null | undefined) {
   if (!id) return null;
-  const { data } = await supabaseAdmin.from("offers").select("*").eq("id", id).maybeSingle();
+  const { data } = await supabaseAdmin.from("offers_sellable").select("*").eq("id", id).maybeSingle();
   return data;
 }
 
@@ -593,10 +594,8 @@ async function resolveCampaignAndOffer(
   //       the latest_interaction_offer is Vietnam).
   if (activeOffersAll === null) {
     const { data: activeOffers } = await supabaseAdmin
-      .from("offers")
-      .select("*")
-      .eq("status", "active")
-      .or(`event_date.is.null,event_date.gte.${new Date().toISOString()}`);
+      .from("offers_sellable")
+      .select("*");
     activeOffersAll = (activeOffers as any[]) ?? [];
   }
 
@@ -1064,10 +1063,8 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
     let catalog = resolverActiveOffers;
     if (!catalog) {
       const { data } = await supabaseAdmin
-        .from("offers")
-        .select("id,title,price,currency,offer_url,ai_summary,matching_tags,target_min_age,target_max_age,ingestion_status,status,event_date,pricing_status,base_price_per_person,single_supplement")
-        .eq("status", "active")
-        .or(`event_date.is.null,event_date.gte.${new Date().toISOString()}`);
+        .from("offers_sellable")
+        .select("id,title,price,currency,offer_url,ai_summary,matching_tags,target_min_age,target_max_age,ingestion_status,status,event_date,event_end_date,pricing_status,base_price_per_person,single_supplement");
       catalog = (data as any[]) ?? [];
     }
     // B3 — catalog completeness. Do NOT silently drop non-ready offers

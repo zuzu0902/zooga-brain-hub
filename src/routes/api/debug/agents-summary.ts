@@ -34,7 +34,7 @@ const AGENTS = [
   {
     key: "campaign_dispatcher",
     enabled: true,
-    source: "src/lib/intake-campaign.functions.ts + src/lib/campaigns.functions.ts",
+    source: "src/lib/campaign-send.server.ts + src/lib/campaign-send.functions.ts",
     description: "Sends selected leads to Tamar backend for campaign-driven outreach.",
   },
   {

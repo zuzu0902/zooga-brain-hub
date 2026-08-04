@@ -14,46 +14,36 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
 import { claimInbound, recordReply } from "@/lib/runtime-inbound-dedupe";
+import { isOptInMessage, isOptOutMessage, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from "@/lib/optout";
+import { applyOptIn, applyOptOut, applyStatusUpdate, markReplied } from "@/lib/whatsapp-status.server";
 import {
   parseInboundMessages,
   parseStatusUpdates,
   recordDelivery,
   sendWhatsAppText,
+  toE164,
   verifyHubChallenge,
   verifyMetaSignature,
 } from "@/lib/whatsapp-meta.server";
 
-const WA_STATUS_MAP: Record<string, string> = {
-  sent: "sent",
-  delivered: "delivered",
-  read: "read",
-  failed: "failed",
-};
-
 async function applyStatusUpdates(payload: any) {
   const statuses = parseStatusUpdates(payload);
   if (!statuses.length) return 0;
-  for (const s of statuses) {
-    await supabaseAdmin.from("webhook_logs").insert({
-      source: "meta_whatsapp_status",
-      status: s.status,
-      error: s.error,
-      payload: { provider_message_id: s.wamid, recipient: s.recipient },
-    } as any);
-    const mapped = WA_STATUS_MAP[s.status];
-    if (mapped && s.recipient) {
-      await supabaseAdmin
-        .from("imported_leads")
-        .update({
-          whatsapp_template_status: mapped as any,
-          last_message_at: new Date().toISOString(),
-          ...(s.status === "failed" ? { import_status: "failed" as any } : {}),
-        } as any)
-        .eq("phone", s.recipient)
-        .eq("whatsapp_template_status", "sent");
-    }
-  }
+  // recipient is normalized to E.164 inside applyStatusUpdate
+  for (const s of statuses) await applyStatusUpdate(s);
   return statuses.length;
+}
+
+async function findContactIdByPhone(phone: string): Promise<string | null> {
+  const e164 = toE164(phone);
+  if (!e164) return null;
+  const { data } = await supabaseAdmin
+    .from("contacts")
+    .select("id")
+    .or(`phone.eq.${e164},whatsapp_number.eq.${e164}`)
+    .limit(1)
+    .maybeSingle();
+  return (data as any)?.id ?? null;
 }
 
 export const Route = createFileRoute("/api/public/webhook/tamar")({
@@ -134,6 +124,26 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             continue;
           }
 
+          // ---- Consent commands short-circuit the engine entirely ----
+          if (isOptOutMessage(msg.text) || isOptInMessage(msg.text)) {
+            const optOut = isOptOutMessage(msg.text);
+            const contactId = await findContactIdByPhone(msg.from);
+            if (optOut) await applyOptOut(msg.from, contactId);
+            else await applyOptIn(msg.from, contactId);
+            const confirmation = optOut ? OPT_OUT_CONFIRMATION : OPT_IN_CONFIRMATION;
+            const ack = await sendWhatsAppText(msg.from, confirmation);
+            await recordDelivery({
+              contactId,
+              text: confirmation,
+              result: ack,
+              inboundMessageId: msg.wamid,
+              kind: optOut ? "opt_out_ack" : "opt_in_ack",
+            });
+            await recordReply(msg.wamid, confirmation).catch(() => {});
+            results.push({ wamid: msg.wamid, consent_command: optOut ? "opt_out" : "opt_in", reply_sent: ack.ok });
+            continue;
+          }
+
           const turn = await runTamarTurn({
             message: msg.text,
             phone: msg.from,
@@ -143,6 +153,9 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             meta_message_id: msg.wamid,
             meta_timestamp: msg.timestamp,
           });
+
+          // inbound = the lead replied; reconcile lead + campaign membership
+          await markReplied(msg.from, turn.payload?.contact_id ?? null).catch(() => {});
 
           const replyText: string = turn.payload?.reply_text ?? "";
           if (turn.status !== 200 || !replyText) {
