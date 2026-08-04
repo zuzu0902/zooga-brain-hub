@@ -63,10 +63,14 @@ export function isUserQuestion(message: string | null | undefined): boolean {
 }
 
 /** Natural goodbye — ends the conversation session (not the relationship). */
-const GOODBYE_RE =
-  /^(\s*)(תודה\s*(רבה)?|תודה\s+ולהתראות|להתראות|ביי|יאללה\s+ביי|נדבר|מעולה\s+תודה|thanks|thank\s+you|bye|goodbye)([\s,.!?😊🙏]|$)/i;
+/** Explicit farewell words — enough on their own (e.g. "תודה, להתראות"). */
+const FAREWELL_RE = /(להתראות|ביי\b|נדבר\s+בהמשך|נדבר\b|bye|goodbye|see\s+you)/i;
+/** A bare thanks with nothing else asked. */
+const BARE_THANKS_RE = /^(תודה\s*(רבה)?|מעולה\s*תודה|thanks|thank\s+you)[\s,.!?😊🙏]*$/i;
 export function isGoodbye(message: string | null | undefined): boolean {
   const t = String(message ?? "").trim();
   if (!t || t.length > 40) return false;
-  return GOODBYE_RE.test(t);
+  // A question is never a goodbye, even when it opens with "תודה".
+  if (/[?？]/.test(t)) return false;
+  return FAREWELL_RE.test(t) || BARE_THANKS_RE.test(t);
 }
