@@ -72,7 +72,7 @@ function IntakeCampaignPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("imported_leads")
-        .select("id, full_name, phone, source_campaign, whatsapp_template_status, import_status, send_state, consent_status, opted_out_at, last_message_at")
+        .select("id, full_name, phone, source_campaign, whatsapp_template_status, import_status, send_state, consent_status, opted_out_at, last_message_at, sent_at, delivered_at, read_at, replied_at, last_error")
         .in("import_status", ["ready_for_intake", "sent_to_tamar", "replied", "failed", "opted_out"])
         .order("created_at", { ascending: false })
         .limit(500);
@@ -293,6 +293,7 @@ function IntakeCampaignPage() {
                 <th className="p-3 font-medium">{t("סטטוס ייבוא")}</th>
                 <th className="p-3 font-medium">{t("מצב שליחה")}</th>
                 <th className="p-3 font-medium">{t("סטטוס וואטסאפ")}</th>
+                <th className="p-3 font-medium">{t("נשלח / נמסר / נקרא / השיב")}</th>
                 <th className="p-3 font-medium">{t("הודעה אחרונה")}</th>
               </tr>
             </thead>
