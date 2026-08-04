@@ -17,6 +17,7 @@ import { ContextBanner } from "@/components/context-banner";
 import { CURRENCIES, formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
 import { useT, useLanguage } from "@/lib/language-context";
+import { validateOfferDates, validateReactivation } from "@/lib/offer-sellable";
 
 export const Route = createFileRoute("/_app/offers/$id")({
   head: () => ({ meta: [{ title: "פרופיל הצעה — Zooga CRM" }] }),
@@ -233,16 +234,30 @@ function OfferDetailPage() {
 
 function OfferEditForm({ offer, onSaved, onCancel }: any) {
   const t = useT();
-  const [s, setS] = useState<any>({ ...offer, price: offer.price ?? "", currency: offer.currency ?? "ILS" });
+  const toInput = (v: string | null) => (v ? new Date(v).toISOString().slice(0, 10) : "");
+  const [s, setS] = useState<any>({
+    ...offer,
+    price: offer.price ?? "",
+    currency: offer.currency ?? "ILS",
+    event_date: toInput(offer.event_date),
+    event_end_date: toInput(offer.event_end_date),
+  });
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!s.title?.trim()) { toast.error(t("שם חובה")); return; }
+    const dateErr =
+      s.status === "active"
+        ? validateReactivation(s.event_date, s.event_end_date)
+        : validateOfferDates(s.event_date, s.event_end_date);
+    if (dateErr) { toast.error(t(dateErr)); return; }
     setSaving(true);
     const { error } = await supabase.from("offers").update({
       title: s.title, description: s.description || null, category: s.category, status: s.status,
       price: s.price ? Number(s.price) : null, offer_url: s.offer_url || null,
       currency: s.currency || "ILS",
+      event_date: new Date(s.event_date).toISOString(),
+      event_end_date: new Date(s.event_end_date).toISOString(),
       target_region: s.target_region || null, target_interests: s.target_interests || [],
       target_spending_profile: s.target_spending_profile || null,
       target_min_age: s.target_min_age ? Number(s.target_min_age) : null,
@@ -259,6 +274,14 @@ function OfferEditForm({ offer, onSaved, onCancel }: any) {
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="sm:col-span-2"><Label>{t("שם *")}</Label><Input value={s.title} onChange={(e) => setS({ ...s, title: e.target.value })} /></div>
         <div className="sm:col-span-2"><Label>{t("תיאור")}</Label><Textarea rows={3} value={s.description || ""} onChange={(e) => setS({ ...s, description: e.target.value })} /></div>
+        <div>
+          <Label>{t("תאריך התחלה *")}</Label>
+          <Input type="date" dir="ltr" value={s.event_date} onChange={(e) => setS({ ...s, event_date: e.target.value })} />
+        </div>
+        <div>
+          <Label>{t("תאריך סיום *")}</Label>
+          <Input type="date" dir="ltr" value={s.event_end_date} onChange={(e) => setS({ ...s, event_end_date: e.target.value })} />
+        </div>
         <div>
           <Label>{t("קטגוריה")}</Label>
           <Select value={s.category} onValueChange={(v) => setS({ ...s, category: v })}>

@@ -30,7 +30,8 @@ function SendOfferPage() {
   const { data: offers } = useQuery({
     queryKey: ["offers-active"],
     queryFn: async () => {
-      const { data } = await supabase.from("offers").select("*").eq("status", "active");
+      // sellable-only: expired / date-less offers can never be sent
+      const { data } = await supabase.from("offers_sellable").select("*");
       return data ?? [];
     },
   });
@@ -45,6 +46,7 @@ function SendOfferPage() {
         .from("contacts")
         .select("id, full_name, first_name, region, interests, engagement_score, status, consent_marketing, last_interaction_at")
         .eq("consent_marketing", true)
+        .is("opted_out_at", null)
         .neq("status", "inactive")
         .order("engagement_score", { ascending: false })
         .limit(200);

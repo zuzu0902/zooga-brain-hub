@@ -89,56 +89,95 @@ export type Database = {
       campaign_contacts: {
         Row: {
           ai_reasoning: string | null
-          campaign_id: string
+          attempts: number
+          campaign_id: string | null
           contact_id: string
           conversation_intent: string | null
           conversion_probability: number | null
           conversion_stage: string | null
           created_at: string
+          delivered_at: string | null
           emotional_engagement: number | null
           first_touch: boolean
           fit_score: number | null
           id: string
+          idempotency_key: string | null
+          imported_lead_id: string | null
+          intake_campaign_id: string | null
           intent_level: string | null
           joined_at: string
           last_activity_at: string
+          last_error: string | null
           last_touch: boolean
+          offer_id: string | null
+          opted_out_at: string | null
+          provider_message_id: string | null
+          read_at: string | null
+          replied_at: string | null
+          send_state: string
+          sent_at: string | null
           updated_at: string
         }
         Insert: {
           ai_reasoning?: string | null
-          campaign_id: string
+          attempts?: number
+          campaign_id?: string | null
           contact_id: string
           conversation_intent?: string | null
           conversion_probability?: number | null
           conversion_stage?: string | null
           created_at?: string
+          delivered_at?: string | null
           emotional_engagement?: number | null
           first_touch?: boolean
           fit_score?: number | null
           id?: string
+          idempotency_key?: string | null
+          imported_lead_id?: string | null
+          intake_campaign_id?: string | null
           intent_level?: string | null
           joined_at?: string
           last_activity_at?: string
+          last_error?: string | null
           last_touch?: boolean
+          offer_id?: string | null
+          opted_out_at?: string | null
+          provider_message_id?: string | null
+          read_at?: string | null
+          replied_at?: string | null
+          send_state?: string
+          sent_at?: string | null
           updated_at?: string
         }
         Update: {
           ai_reasoning?: string | null
-          campaign_id?: string
+          attempts?: number
+          campaign_id?: string | null
           contact_id?: string
           conversation_intent?: string | null
           conversion_probability?: number | null
           conversion_stage?: string | null
           created_at?: string
+          delivered_at?: string | null
           emotional_engagement?: number | null
           first_touch?: boolean
           fit_score?: number | null
           id?: string
+          idempotency_key?: string | null
+          imported_lead_id?: string | null
+          intake_campaign_id?: string | null
           intent_level?: string | null
           joined_at?: string
           last_activity_at?: string
+          last_error?: string | null
           last_touch?: boolean
+          offer_id?: string | null
+          opted_out_at?: string | null
+          provider_message_id?: string | null
+          read_at?: string | null
+          replied_at?: string | null
+          send_state?: string
+          sent_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -147,6 +186,20 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_contacts_imported_lead_id_fkey"
+            columns: ["imported_lead_id"]
+            isOneToOne: false
+            referencedRelation: "imported_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_contacts_intake_campaign_id_fkey"
+            columns: ["intake_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "intake_campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -359,6 +412,7 @@ export type Database = {
           community_fit_score: number | null
           consent_date: string | null
           consent_marketing: boolean
+          consent_source: string | null
           conversation_intent: string | null
           conversion_stage: string | null
           created_at: string
@@ -410,6 +464,7 @@ export type Database = {
           objections: string[]
           offers_sent: string[]
           openness_score: number | null
+          opted_out_at: string | null
           personality_tags: string[]
           phone: string | null
           preferred_events: string[]
@@ -467,6 +522,7 @@ export type Database = {
           community_fit_score?: number | null
           consent_date?: string | null
           consent_marketing?: boolean
+          consent_source?: string | null
           conversation_intent?: string | null
           conversion_stage?: string | null
           created_at?: string
@@ -518,6 +574,7 @@ export type Database = {
           objections?: string[]
           offers_sent?: string[]
           openness_score?: number | null
+          opted_out_at?: string | null
           personality_tags?: string[]
           phone?: string | null
           preferred_events?: string[]
@@ -575,6 +632,7 @@ export type Database = {
           community_fit_score?: number | null
           consent_date?: string | null
           consent_marketing?: boolean
+          consent_source?: string | null
           conversation_intent?: string | null
           conversion_stage?: string | null
           created_at?: string
@@ -626,6 +684,7 @@ export type Database = {
           objections?: string[]
           offers_sent?: string[]
           openness_score?: number | null
+          opted_out_at?: string | null
           personality_tags?: string[]
           phone?: string | null
           preferred_events?: string[]
@@ -726,54 +785,90 @@ export type Database = {
       }
       imported_leads: {
         Row: {
+          attempts: number
+          consent_at: string | null
+          consent_source: string | null
           consent_status: Database["public"]["Enums"]["lead_consent_status"]
           contact_id: string | null
           created_at: string
+          delivered_at: string | null
           first_name: string | null
           full_name: string | null
           id: string
           import_status: Database["public"]["Enums"]["imported_lead_status"]
+          intake_campaign_id: string | null
+          last_error: string | null
           last_message_at: string | null
           last_name: string | null
           notes: string | null
+          opted_out_at: string | null
           phone: string | null
+          provider_message_id: string | null
           raw_row_data: Json | null
+          read_at: string | null
+          replied_at: string | null
+          send_state: string
+          sent_at: string | null
           source_campaign: string | null
           source_file_name: string | null
           updated_at: string
           whatsapp_template_status: Database["public"]["Enums"]["whatsapp_template_status"]
         }
         Insert: {
+          attempts?: number
+          consent_at?: string | null
+          consent_source?: string | null
           consent_status?: Database["public"]["Enums"]["lead_consent_status"]
           contact_id?: string | null
           created_at?: string
+          delivered_at?: string | null
           first_name?: string | null
           full_name?: string | null
           id?: string
           import_status?: Database["public"]["Enums"]["imported_lead_status"]
+          intake_campaign_id?: string | null
+          last_error?: string | null
           last_message_at?: string | null
           last_name?: string | null
           notes?: string | null
+          opted_out_at?: string | null
           phone?: string | null
+          provider_message_id?: string | null
           raw_row_data?: Json | null
+          read_at?: string | null
+          replied_at?: string | null
+          send_state?: string
+          sent_at?: string | null
           source_campaign?: string | null
           source_file_name?: string | null
           updated_at?: string
           whatsapp_template_status?: Database["public"]["Enums"]["whatsapp_template_status"]
         }
         Update: {
+          attempts?: number
+          consent_at?: string | null
+          consent_source?: string | null
           consent_status?: Database["public"]["Enums"]["lead_consent_status"]
           contact_id?: string | null
           created_at?: string
+          delivered_at?: string | null
           first_name?: string | null
           full_name?: string | null
           id?: string
           import_status?: Database["public"]["Enums"]["imported_lead_status"]
+          intake_campaign_id?: string | null
+          last_error?: string | null
           last_message_at?: string | null
           last_name?: string | null
           notes?: string | null
+          opted_out_at?: string | null
           phone?: string | null
+          provider_message_id?: string | null
           raw_row_data?: Json | null
+          read_at?: string | null
+          replied_at?: string | null
+          send_state?: string
+          sent_at?: string | null
           source_campaign?: string | null
           source_file_name?: string | null
           updated_at?: string
@@ -783,31 +878,58 @@ export type Database = {
       }
       intake_campaigns: {
         Row: {
+          batch_size: number
           campaign_name: string
+          control_state: string
           created_at: string
+          created_by: string | null
+          failed_count: number
           id: string
+          language_code: string
+          offer_id: string | null
           sent_count: number
+          skipped_count: number
           status: string
           tamar_response: Json | null
           template_name: string
+          total_count: number
+          updated_at: string
         }
         Insert: {
+          batch_size?: number
           campaign_name: string
+          control_state?: string
           created_at?: string
+          created_by?: string | null
+          failed_count?: number
           id?: string
+          language_code?: string
+          offer_id?: string | null
           sent_count?: number
+          skipped_count?: number
           status?: string
           tamar_response?: Json | null
           template_name: string
+          total_count?: number
+          updated_at?: string
         }
         Update: {
+          batch_size?: number
           campaign_name?: string
+          control_state?: string
           created_at?: string
+          created_by?: string | null
+          failed_count?: number
           id?: string
+          language_code?: string
+          offer_id?: string | null
           sent_count?: number
+          skipped_count?: number
           status?: string
           tamar_response?: Json | null
           template_name?: string
+          total_count?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1122,6 +1244,13 @@ export type Database = {
             referencedRelation: "offers_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "messages_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers_sellable"
+            referencedColumns: ["id"]
+          },
         ]
       }
       offers: {
@@ -1146,6 +1275,7 @@ export type Database = {
           itinerary_summary: string | null
           last_ingested_at: string | null
           matching_tags: string[]
+          needs_date_review: boolean
           nights: number | null
           not_included: Json
           objection_notes: Json
@@ -1188,6 +1318,7 @@ export type Database = {
           itinerary_summary?: string | null
           last_ingested_at?: string | null
           matching_tags?: string[]
+          needs_date_review?: boolean
           nights?: number | null
           not_included?: Json
           objection_notes?: Json
@@ -1230,6 +1361,7 @@ export type Database = {
           itinerary_summary?: string | null
           last_ingested_at?: string | null
           matching_tags?: string[]
+          needs_date_review?: boolean
           nights?: number | null
           not_included?: Json
           objection_notes?: Json
@@ -1710,6 +1842,138 @@ export type Database = {
           offer_url?: string | null
           price?: number | null
           status?: Database["public"]["Enums"]["offer_status"] | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      offers_sellable: {
+        Row: {
+          ai_summary: string | null
+          base_price_per_person: number | null
+          category: Database["public"]["Enums"]["offer_category"] | null
+          couple_price: number | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          escalation_boundary: Json | null
+          event_date: string | null
+          event_end_date: string | null
+          extraction_raw: Json | null
+          faq_bundle: Json | null
+          flights_included: boolean | null
+          grounded_facts: Json | null
+          id: string | null
+          included: Json | null
+          ingestion_status: string | null
+          itinerary_summary: string | null
+          last_ingested_at: string | null
+          matching_tags: string[] | null
+          needs_date_review: boolean | null
+          nights: number | null
+          not_included: Json | null
+          objection_notes: Json | null
+          offer_url: string | null
+          price: number | null
+          price_basis: string | null
+          pricing_status: string | null
+          rooming_policy: string | null
+          sales_angle: string | null
+          single_supplement: number | null
+          status: Database["public"]["Enums"]["offer_status"] | null
+          target_interests: string[] | null
+          target_max_age: number | null
+          target_min_age: number | null
+          target_region: string | null
+          target_spending_profile:
+            | Database["public"]["Enums"]["spending_profile"]
+            | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          base_price_per_person?: number | null
+          category?: Database["public"]["Enums"]["offer_category"] | null
+          couple_price?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          escalation_boundary?: Json | null
+          event_date?: string | null
+          event_end_date?: string | null
+          extraction_raw?: Json | null
+          faq_bundle?: Json | null
+          flights_included?: boolean | null
+          grounded_facts?: Json | null
+          id?: string | null
+          included?: Json | null
+          ingestion_status?: string | null
+          itinerary_summary?: string | null
+          last_ingested_at?: string | null
+          matching_tags?: string[] | null
+          needs_date_review?: boolean | null
+          nights?: number | null
+          not_included?: Json | null
+          objection_notes?: Json | null
+          offer_url?: string | null
+          price?: number | null
+          price_basis?: string | null
+          pricing_status?: string | null
+          rooming_policy?: string | null
+          sales_angle?: string | null
+          single_supplement?: number | null
+          status?: Database["public"]["Enums"]["offer_status"] | null
+          target_interests?: string[] | null
+          target_max_age?: number | null
+          target_min_age?: number | null
+          target_region?: string | null
+          target_spending_profile?:
+            | Database["public"]["Enums"]["spending_profile"]
+            | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_summary?: string | null
+          base_price_per_person?: number | null
+          category?: Database["public"]["Enums"]["offer_category"] | null
+          couple_price?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          escalation_boundary?: Json | null
+          event_date?: string | null
+          event_end_date?: string | null
+          extraction_raw?: Json | null
+          faq_bundle?: Json | null
+          flights_included?: boolean | null
+          grounded_facts?: Json | null
+          id?: string | null
+          included?: Json | null
+          ingestion_status?: string | null
+          itinerary_summary?: string | null
+          last_ingested_at?: string | null
+          matching_tags?: string[] | null
+          needs_date_review?: boolean | null
+          nights?: number | null
+          not_included?: Json | null
+          objection_notes?: Json | null
+          offer_url?: string | null
+          price?: number | null
+          price_basis?: string | null
+          pricing_status?: string | null
+          rooming_policy?: string | null
+          sales_angle?: string | null
+          single_supplement?: number | null
+          status?: Database["public"]["Enums"]["offer_status"] | null
+          target_interests?: string[] | null
+          target_max_age?: number | null
+          target_min_age?: number | null
+          target_region?: string | null
+          target_spending_profile?:
+            | Database["public"]["Enums"]["spending_profile"]
+            | null
           title?: string | null
           updated_at?: string | null
         }

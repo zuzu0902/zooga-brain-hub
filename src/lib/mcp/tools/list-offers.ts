@@ -23,7 +23,8 @@ export default defineTool({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
     const sb = supabaseForUser(ctx);
-    let q = sb.from("offers").select("*").limit(limit ?? 25);
+    // sellable-only: never expose an expired or date-less offer to an agent
+    let q = sb.from("offers_sellable").select("*").limit(limit ?? 25);
     if (search) q = q.ilike("title", `%${search}%`);
     const { data, error } = await q;
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };

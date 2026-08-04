@@ -16,6 +16,7 @@ import { CATEGORY_LABELS } from "@/lib/i18n";
 import { toast } from "sonner";
 import { CURRENCIES, formatPrice } from "@/lib/currency";
 import { useT, useLanguage } from "@/lib/language-context";
+import { validateOfferDates } from "@/lib/offer-sellable";
 
 export function OfferPicker({ value, onChange }: { value?: string | null; onChange: (offerId: string | null) => void }) {
   const t = useT();
@@ -27,7 +28,11 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
   const { data: offers } = useQuery({
     queryKey: ["offers-picker"],
     queryFn: async () => {
-      const { data } = await supabase.from("offers").select("id,title,category,price,currency,status,target_min_age,target_max_age,description").order("created_at", { ascending: false });
+      // sellable-only source: a campaign can only be attached to a live offer
+      const { data } = await supabase
+        .from("offers_sellable")
+        .select("id,title,category,price,currency,status,event_date,event_end_date,target_min_age,target_max_age,description")
+        .order("created_at", { ascending: false });
       return data ?? [];
     },
   });
@@ -98,7 +103,12 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
               <div className="font-semibold truncate">{selected.title}</div>
               {selected.category && <Badge variant="outline">{t(CATEGORY_LABELS[selected.category] ?? selected.category)}</Badge>}
               {selected.price && <Badge variant="secondary">{formatPrice(selected.price, selected.currency)}</Badge>}
-              <Badge variant="outline" className="text-xs">{t(selected.status)}</Badge>
+              <Badge variant="outline" className="text-xs">{t(selected.status ?? "active")}</Badge>
+            </div>
+            <div className="text-xs text-muted-foreground mt-1" dir="ltr">
+              {selected.event_date ? new Date(selected.event_date).toLocaleDateString("he-IL") : "—"}
+              {" → "}
+              {selected.event_end_date ? new Date(selected.event_end_date).toLocaleDateString("he-IL") : "—"}
             </div>
             {selected.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{selected.description}</p>}
             {(selected.target_min_age || selected.target_max_age) && (
@@ -122,22 +132,26 @@ export function OfferPicker({ value, onChange }: { value?: string | null; onChan
 function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
   const t = useT();
   const { dir } = useLanguage();
-  const [s, setS] = useState<any>({ title: "", description: "", category: "event", price: "", currency: "ILS", status: "active" });
+  const [s, setS] = useState<any>({ title: "", description: "", category: "event", price: "", currency: "ILS", status: "active", event_date: "", event_end_date: "" });
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!s.title.trim()) { toast.error(t("שם חובה")); return; }
+    const dateErr = validateOfferDates(s.event_date, s.event_end_date);
+    if (dateErr) { toast.error(t(dateErr)); return; }
     setSaving(true);
     const { data, error } = await supabase.from("offers").insert({
       title: s.title, description: s.description || null, category: s.category, status: s.status,
       price: s.price ? Number(s.price) : null,
       currency: s.currency || "ILS",
+      event_date: new Date(s.event_date).toISOString(),
+      event_end_date: new Date(s.event_end_date).toISOString(),
     }).select("id").single();
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success(t("הצעה נוצרה ושויכה"));
     onOpenChange(false);
-    setS({ title: "", description: "", category: "event", price: "", currency: "ILS", status: "active" });
+    setS({ title: "", description: "", category: "event", price: "", currency: "ILS", status: "active", event_date: "", event_end_date: "" });
     onCreated?.(data!.id);
   }
 
@@ -148,6 +162,16 @@ function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
         <div className="space-y-3">
           <div><Label>{t("שם *")}</Label><Input value={s.title} onChange={(e) => setS({ ...s, title: e.target.value })} /></div>
           <div><Label>{t("תיאור קצר")}</Label><Textarea rows={3} value={s.description} onChange={(e) => setS({ ...s, description: e.target.value })} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>{t("תאריך התחלה *")}</Label>
+              <Input type="date" dir="ltr" value={s.event_date} onChange={(e) => setS({ ...s, event_date: e.target.value })} />
+            </div>
+            <div>
+              <Label>{t("תאריך סיום *")}</Label>
+              <Input type="date" dir="ltr" value={s.event_end_date} onChange={(e) => setS({ ...s, event_end_date: e.target.value })} />
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>{t("קטגוריה")}</Label>
