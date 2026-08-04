@@ -1547,6 +1547,40 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
     };
   }
 
+  // Brain decision trace + state advance (no unnecessary PII).
+  await recordDecisionTrace({
+    contactId,
+    runtimeExecutionId: (trace as any)?.id ?? null,
+    state: brainState,
+    consideredActions: brainPlan.considered_actions,
+    selectedAction: brainPlan.selected_action,
+    confidence: brainPlan.confidence,
+    reasonCodes: [...brainPlan.reason_codes, `planner:${brainPlan.source}`],
+    fieldsUsed: Object.keys(brainKnownFields),
+    offerIds: brainRanked.map((r) => r.id),
+    knowledgeSourceIds: knowledgeHits.map((h) => h.source_id),
+    promptVersion: brainPolicy.prompt_version,
+    model: MODEL,
+    latencyMs: Date.now() - startedAt,
+  });
+  if (contactId) {
+    const nextState =
+      brainPlan.selected_action === "recommend_offer"
+        ? "offer_recommended"
+        : brainPlan.selected_action === "ask_next_field"
+        ? "intake_active"
+        : brainPlan.selected_action === "close"
+        ? "closed"
+        : "value_delivery";
+    await applyTransition({
+      contactId,
+      from: brainState,
+      to: nextState,
+      trigger: `action:${brainPlan.selected_action}`,
+      reasonCodes: brainPlan.reason_codes,
+    });
+  }
+
   // --- Hybrid LLM decision layer ---
   // Ask the model for STRUCTURED runtime signals. Deterministic runtime
   // below decides what to actually do with them.
