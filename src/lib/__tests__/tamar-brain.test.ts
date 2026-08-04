@@ -76,7 +76,8 @@ describe("state machine", () => {
     expect(deriveState({ consent_marketing: true })).not.toBe("consent_pending");
   });
   it("restricts the planner action space per state", () => {
-    expect(allowedActionsForState("human_owned")).toEqual([]);
+    // frozen states expose no productive action — only "wait"
+    expect(allowedActionsForState("human_owned")).toEqual(["wait"]);
     expect(allowedActionsForState("consent_pending")).not.toContain("recommend_offer");
     expect(allowedActionsForState("consented")).toContain("ask_next_field");
   });
