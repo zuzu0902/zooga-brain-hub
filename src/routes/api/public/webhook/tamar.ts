@@ -158,6 +158,26 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           await markReplied(msg.from, turn.payload?.contact_id ?? null).catch(() => {});
 
           const replyText: string = turn.payload?.reply_text ?? "";
+          // Brain gate may deliberately suppress automation (human_owned,
+          // frozen thread, already-clarified ambiguous consent).
+          if (turn.payload?.suppressed) {
+            await supabaseAdmin.from("webhook_logs").insert({
+              source: "tamar_brain",
+              status: "suppressed_no_reply",
+              payload: {
+                inbound_message_id: msg.wamid,
+                brain_state: turn.payload?.brain_state ?? null,
+                brain_reason: turn.payload?.brain_reason ?? null,
+              },
+            } as any);
+            results.push({
+              wamid: msg.wamid,
+              reply_sent: false,
+              suppressed: true,
+              brain_state: turn.payload?.brain_state ?? null,
+            });
+            continue;
+          }
           if (turn.status !== 200 || !replyText) {
             results.push({
               wamid: msg.wamid,
