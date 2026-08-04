@@ -678,6 +678,95 @@ export type TamarTurnResult = { status: number; payload: any };
  * -> inbound/outbound persistence -> structured decision -> intake capture
  * -> handoff -> runtime trace. No external brain, no Railway.
  */
+/**
+ * Persist and return the outcome of a deterministic Brain-gate turn
+ * (consent flow, opt-out, handoff ack, or frozen automation). No model call
+ * happens on this path.
+ */
+async function finalizeGateOutcome(args: {
+  gate: Exclude<BrainGate, { kind: "pass" }>;
+  body: any;
+  message: string;
+  channel: string;
+  contactId: string | null;
+  metaMessageId: string | null;
+  startedAt: number;
+}): Promise<TamarTurnResult> {
+  const { gate, body, message, channel, contactId, metaMessageId, startedAt } = args;
+  const replyText = gate.kind === "reply" ? gate.text : "";
+
+  if (contactId) {
+    await supabaseAdmin.from("interactions").insert({
+      contact_id: contactId,
+      type: "whatsapp_message",
+      source: channel,
+      content: message,
+    } as any);
+    if (replyText) {
+      await supabaseAdmin.from("interactions").insert({
+        contact_id: contactId,
+        type: "whatsapp_message",
+        source: "tamar_outbound",
+        content: replyText,
+      } as any);
+    }
+  }
+
+  const { data: trace } = await supabaseAdmin
+    .from("tamar_runtime_executions" as any)
+    .insert({
+      contact_id: contactId,
+      channel,
+      source: "tamar_brain_gate",
+      inbound_message: message,
+      outbound_reply: replyText || null,
+      runtime_mode: "brain_gate",
+      conversation_mode: gate.state,
+      conversation_mode_reasons: [gate.reason],
+      runtime_pack_fetch_ok: true,
+      composition_version: "tamar-brain-v1",
+      prompt_blocks_injected: [],
+      offer_intelligence_injected: false,
+      campaign_injected: false,
+      latency_ms: Date.now() - startedAt,
+      raw_payload: {
+        request: { ...body, message },
+        meta_message_id: metaMessageId,
+        brain_gate: { kind: gate.kind, state: gate.state, reason: gate.reason },
+      },
+    } as any)
+    .select("id")
+    .maybeSingle();
+
+  await recordDecisionTrace({
+    contactId,
+    runtimeExecutionId: (trace as any)?.id ?? null,
+    state: gate.state,
+    consideredActions: [],
+    selectedAction: gate.kind === "reply" ? `deterministic:${gate.reason}` : `silent:${gate.reason}`,
+    confidence: 100,
+    reasonCodes: [gate.reason],
+    latencyMs: Date.now() - startedAt,
+    model: null,
+  });
+
+  return {
+    status: 200,
+    payload: {
+      ok: true,
+      reply_text: replyText,
+      contact_id: contactId,
+      runtime_mode: "brain_gate",
+      brain_state: gate.state,
+      brain_reason: gate.reason,
+      suppressed: gate.kind === "silent",
+      trace_id: (trace as any)?.id ?? null,
+      handoff_requested: gate.state === "human_handoff_queued",
+      meta: { offer_id: null, campaign_id: null },
+    },
+  };
+}
+
 export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
   const startedAt = Date.now();
 
