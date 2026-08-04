@@ -111,7 +111,7 @@ function CampaignsListPage() {
           <h1 className="text-3xl font-bold tracking-tight">{t("קמפיינים")}</h1>
           <p className="text-muted-foreground mt-1">{t("מערכת בינת-קמפיינים המאפשרת לתמר להבין את ההקשר של כל פנייה")}</p>
         </div>
-        <Link to="/campaigns/new" search={{}}>
+        <Link to="/campaigns/new" search={{ offer_id: undefined }}>
           <Button className="gap-2"><Plus className="h-4 w-4" /> {t("קמפיין חדש")}</Button>
         </Link>
       </header>
@@ -159,7 +159,7 @@ function CampaignsListPage() {
               {isLoading && (<tr><td colSpan={7} className="p-6 text-center text-muted-foreground">{t("טוען...")}</td></tr>)}
               {!isLoading && filtered.length === 0 && (
                 <tr><td colSpan={7} className="p-10 text-center text-muted-foreground">
-                  {t("אין קמפיינים. ")}<Link to="/campaigns/new" search={{}} className="text-primary hover:underline">{t("צור את הראשון")}</Link>
+                  {t("אין קמפיינים. ")}<Link to="/campaigns/new" search={{ offer_id: undefined }} className="text-primary hover:underline">{t("צור את הראשון")}</Link>
                 </td></tr>
               )}
               {filtered.map((c: any) => (
