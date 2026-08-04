@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/introspect/backend-map")({
       ],
       server_functions: [
         { module: "campaigns.functions", purpose: "Campaign CRUD + Tamar dispatch" },
-        { module: "intake-campaign.functions", purpose: "Intake campaign builder + send" },
+        { module: "campaign-send.functions", purpose: "Intake campaign launch, batching, throttle, retries" },
         { module: "intelligence-extractor.server", purpose: "AI conversation intelligence extraction" },
       ],
       outbound_integrations: [
