@@ -8,6 +8,7 @@ import { detectHandoffSignal, isGoodbye, isUserQuestion } from "./signals";
 import { allowedActionsForState, planNextAction } from "./action-planner.server";
 import { retrieveKnowledge } from "./knowledge.server";
 import { automationFrozen, type ConversationState } from "./state-machine";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type SimulationResult = {
   state: ConversationState;
@@ -37,6 +38,13 @@ export async function simulateTurn(args: {
   if (state === "consent_pending") notes.push("consent gate active — no intake, no marketing");
 
   const hits = frozen || handoff.handoff ? [] : await retrieveKnowledge(message, 3);
+  // Ground the simulation in the same sellable catalog production uses,
+  // otherwise the planner hallucinates "no such trip".
+  let offerTitles: string[] = [];
+  if (!frozen && !handoff.handoff && state !== "consent_pending") {
+    const { data } = await supabaseAdmin.from("offers_sellable").select("title").limit(40);
+    offerTitles = ((data as any[]) ?? []).map((o) => String(o?.title ?? "")).filter(Boolean);
+  }
   const plan =
     frozen || handoff.handoff || state === "consent_pending"
       ? null
@@ -49,7 +57,7 @@ export async function simulateTurn(args: {
           turnCount: 1,
           answeredCount: 0,
           userAskedQuestion: isUserQuestion(message),
-          offerTitles: [],
+          offerTitles,
           knowledgeSnippets: hits.map((h) => h.content),
           campaignSource: null,
           emotionalTone: null,
