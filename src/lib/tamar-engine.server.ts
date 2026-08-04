@@ -1489,6 +1489,14 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
     intake_snapshot_before: intakeSnapshot,
     intake_next_target_field: effectiveNextIntakeField,
     intake_directive: intakeDirective,
+    brain: {
+      state: brainState,
+      allowed_actions: brainAllowedActions,
+      plan: brainPlan,
+      knowledge_source_ids: knowledgeHits.map((h) => h.source_id),
+      ranked_offers: brainRanked,
+      prompt_version: brainPolicy.prompt_version,
+    },
     recovery: {
       mode: recovery.mode,
       reasons: recovery.reasons,
