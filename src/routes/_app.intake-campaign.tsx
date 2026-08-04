@@ -72,7 +72,7 @@ function IntakeCampaignPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("imported_leads")
-        .select("id, full_name, phone, source_campaign, whatsapp_template_status, import_status, send_state, consent_status, opted_out_at, last_message_at")
+        .select("id, full_name, phone, source_campaign, whatsapp_template_status, import_status, send_state, consent_status, opted_out_at, last_message_at, sent_at, delivered_at, read_at, replied_at, last_error")
         .in("import_status", ["ready_for_intake", "sent_to_tamar", "replied", "failed", "opted_out"])
         .order("created_at", { ascending: false })
         .limit(500);
@@ -293,15 +293,16 @@ function IntakeCampaignPage() {
                 <th className="p-3 font-medium">{t("סטטוס ייבוא")}</th>
                 <th className="p-3 font-medium">{t("מצב שליחה")}</th>
                 <th className="p-3 font-medium">{t("סטטוס וואטסאפ")}</th>
+                <th className="p-3 font-medium">{t("נשלח / נמסר / נקרא / השיב")}</th>
                 <th className="p-3 font-medium">{t("הודעה אחרונה")}</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">{t("טוען...")}</td></tr>
+                <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">{t("טוען...")}</td></tr>
               )}
               {!isLoading && (leads?.length ?? 0) === 0 && (
-                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">{t("אין לידים להצגה")}</td></tr>
+                <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">{t("אין לידים להצגה")}</td></tr>
               )}
               {leads?.map((l: any) => {
                 const isEligible =
@@ -329,6 +330,11 @@ function IntakeCampaignPage() {
                     <td className="p-3"><Badge variant="secondary">{l.import_status}</Badge></td>
                     <td className="p-3"><Badge variant="outline">{t(SEND_STATE_LABELS[l.send_state] ?? l.send_state ?? "—")}</Badge></td>
                     <td className="p-3"><Badge variant="outline">{l.whatsapp_template_status}</Badge></td>
+                    <td className="p-3 text-muted-foreground text-xs" dir="ltr" title={l.last_error ?? ""}>
+                      {[l.sent_at, l.delivered_at, l.read_at, l.replied_at]
+                        .map((ts: string | null) => (ts ? new Date(ts).toLocaleTimeString("he-IL") : "—"))
+                        .join(" / ")}
+                    </td>
                     <td className="p-3 text-muted-foreground text-xs" dir="ltr">
                       {l.last_message_at ? new Date(l.last_message_at).toLocaleString("he-IL") : "—"}
                     </td>

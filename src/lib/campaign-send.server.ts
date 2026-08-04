@@ -105,6 +105,23 @@ export async function runCampaignBatch(
   const templateName = (campaign as any).template_name as string;
   const language = ((campaign as any).language_code as string) || "he";
 
+  // Resolve the template's real variable count ONCE per batch, so a 0-variable
+  // template is never sent with a body parameter (Meta 132000) and a
+  // 1-variable template is never sent without one (Meta 132012).
+  let templateVars = 1;
+  if (!dryRun) {
+    const { validateTemplateForLaunch } = await import("@/lib/whatsapp-templates.server");
+    const gate = await validateTemplateForLaunch(templateName, language);
+    if (!gate.ok) {
+      await supabaseAdmin
+        .from("intake_campaigns")
+        .update({ control_state: "paused", status: "failed" } as any)
+        .eq("id", campaignId);
+      return { ...base, ok: false, error: gate.reason ?? "template_not_sendable", control_state: "paused" };
+    }
+    templateVars = gate.variable_count;
+  }
+
   const { data: queued } = await supabaseAdmin
     .from("campaign_contacts")
     .select("id, contact_id, imported_lead_id, attempts, send_state")
@@ -164,7 +181,8 @@ export async function runCampaignBatch(
     }
 
     const firstName = (contact as any)?.first_name || String((contact as any)?.full_name ?? "").split(" ")[0] || "חבר";
-    const components = [{ type: "body", parameters: [{ type: "text", text: firstName }] }];
+    const components =
+      templateVars >= 1 ? [{ type: "body", parameters: [{ type: "text", text: firstName }] }] : [];
 
     const res = dryRun
       ? { ok: true, provider_message_id: `dryrun-${member.id}`, status: 200, error: null }
