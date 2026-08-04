@@ -714,6 +714,27 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
   const { behavior, blocks, interactions: contactInteractions, memories } = await loadContext(contactId);
   const runtimeHistoryFallback = await loadRecentRuntimeHistoryByPhone(body);
   const interactions = mergeRecentInteractions(contactInteractions, runtimeHistoryFallback);
+
+  // ---------------------------------------------------------------
+  // TAMAR BRAIN v1 — deterministic gate. Safety, consent, opt-out and
+  // human ownership are decided here; the agent only runs on "pass".
+  // ---------------------------------------------------------------
+  const gatePhone = String(body.phone ?? body.whatsapp_number ?? body.from ?? "").trim() || null;
+  const brainGate = await runBrainGate({ contact, message, interactions, phone: gatePhone });
+  if (brainGate.kind !== "pass") {
+    return finalizeGateOutcome({
+      gate: brainGate,
+      body,
+      message,
+      channel,
+      contactId,
+      metaMessageId,
+      startedAt,
+    });
+  }
+  const brainState = brainGate.state;
+  const knowledgeHits = await retrieveKnowledge(message, 3);
+
   const browseIntentDetected = isCatalogBrowseIntent(message);
   const openerTurnDetected = isOpenerTurn(message);
   const {
