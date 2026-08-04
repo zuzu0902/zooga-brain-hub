@@ -1315,6 +1315,93 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
     conversation_priority_reasons: conversationModeReasons,
   };
 
+  // ---------------------------------------------------------------
+  // TAMAR BRAIN v1 — dynamic action planning inside state boundaries.
+  // The planner never overrides L0 safety rules; it only chooses which
+  // of the legal actions is the best next move for this specific turn.
+  // ---------------------------------------------------------------
+  const brainPolicy = await loadBrainPolicy();
+  const brainAllowedActions = allowedActionsForState(brainState);
+  const brainTurnCount = (interactions ?? []).filter(
+    (i: any) => i?.source === "tamar_outbound",
+  ).length;
+  const brainAnsweredCount = (intakeSnapshot?.completed?.length ?? 0) as number;
+  const brainKnownFields: Record<string, any> = {};
+  for (const key of intakeSnapshot?.completed ?? []) {
+    brainKnownFields[key] = {
+      value: "known",
+      confidence: 90,
+      source: "crm",
+      last_verified_at: contact?.intake_last_captured_at ?? null,
+    };
+  }
+  const brainSellableOffers = (resolverActiveOffers ?? []) as any[];
+  const brainRanked = rankOffers(
+    brainSellableOffers,
+    {
+      age: contact?.age ?? null,
+      region: contact?.region ?? null,
+      city: contact?.city ?? null,
+      interests: contact?.interests ?? [],
+      budget_sensitivity: contact?.budget_sensitivity ?? null,
+      preferred_trip_style: contact?.preferred_trip_style ?? null,
+      goal_text: message,
+    },
+    brainPolicy.recommendation_max_offers ?? 3,
+  );
+  const brainPlan: ActionPlan = await planNextAction({
+    state: brainState,
+    message,
+    knownFields: brainKnownFields,
+    unknownFields: intakeSnapshot?.missing ?? [],
+    allowedActions: brainAllowedActions,
+    turnCount: brainTurnCount,
+    answeredCount: brainAnsweredCount,
+    userAskedQuestion: brainGate.user_question,
+    offerTitles: brainRanked.map((r) => r.title),
+    knowledgeSnippets: knowledgeHits.map((h) => h.content),
+    campaignSource: contact?.campaign_source ?? null,
+    emotionalTone: contact?.emotional_profile ?? null,
+  });
+
+  const kBlock = knowledgeBlock(knowledgeHits);
+  if (kBlock) replyHardRules.push(kBlock);
+  if (brainPolicy.knowledge_grounding_required && !kBlock) {
+    replyHardRules.push(
+      "No approved community knowledge matched this turn. Do NOT state community facts, events, promises or statistics you cannot ground in the offer data. If the answer is missing, say so plainly and offer a human.",
+    );
+  }
+  replyHardRules.push(
+    `BRAIN PLAN — selected action: ${brainPlan.selected_action}${brainPlan.secondary_action ? ` (then ${brainPlan.secondary_action})` : ""}. ${brainPlan.directive}`,
+  );
+  if (brainPlan.selected_action === "answer_user") {
+    replyHardRules.push("Answer the user's question first and completely. Ask at most one follow-up, only if it clearly advances.");
+  }
+  if (brainPlan.selected_action === "recommend_offer") {
+    if (hasRelevantMatch(brainRanked)) {
+      replyHardRules.push(
+        `Recommend ONLY from these sellable offers, with a one-line why: ${brainRanked
+          .map((r) => `${r.title} — ${r.why_this}`)
+          .join(" | ")}.`,
+      );
+    } else {
+      replyHardRules.push(
+        `No sellable offer is a good fit right now. Do NOT force a trip link. Point to ${ZOOGA_SITE_URL} or offer to update when something fitting opens.`,
+      );
+    }
+  }
+  if (brainPlan.selected_action === "send_site_link") {
+    replyHardRules.push(`Close this turn with the Zooga site link: ${ZOOGA_SITE_URL}.`);
+  }
+  if (brainPlan.selected_action === "close" || brainGate.goodbye) {
+    replyHardRules.push(
+      "The user is wrapping up. Close warmly with ONE clear next step and leave a natural opening to come back. Do not ask another intake question.",
+    );
+  }
+  if (brainPlan.selected_action !== "ask_next_field") {
+    replyHardRules.push("Do NOT ask an intake/qualification question this turn.");
+  }
+
   const composition = buildTamarRuntimeComposition({
     inboundMessage: message,
     source: "tamar_turn",
