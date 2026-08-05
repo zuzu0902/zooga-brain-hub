@@ -37,6 +37,8 @@ export type InboundWhatsAppMessage = {
   name: string | null;
   business_phone_number_id: string | null;
   timestamp: string | null;
+  /** stable id that travels back when the user taps a button / list row */
+  option_id: string | null;
 };
 
 export type MetaStatusUpdate = {
@@ -86,6 +88,11 @@ export function parseInboundMessages(payload: any): InboundWhatsAppMessage[] {
           msg?.interactive?.list_reply?.title ??
           msg?.interactive?.button_reply?.title ??
           "";
+        const optionId =
+          msg?.interactive?.button_reply?.id ??
+          msg?.interactive?.list_reply?.id ??
+          msg?.button?.payload ??
+          null;
         if (!msg?.id || !msg?.from) continue;
         const profile = contacts.find((c: any) => c?.wa_id === msg.from);
         out.push({
@@ -95,6 +102,7 @@ export function parseInboundMessages(payload: any): InboundWhatsAppMessage[] {
           name: profile?.profile?.name ?? null,
           business_phone_number_id: phoneId,
           timestamp: msg?.timestamp ? String(msg.timestamp) : null,
+          option_id: optionId ? String(optionId) : null,
         });
       }
     }
@@ -167,6 +175,58 @@ export function sendWhatsAppText(to: string, text: string): Promise<SendResult> 
     to,
     type: "text",
     text: { preview_url: true, body: text },
+  });
+}
+
+export type QuickOption = { id: string; label: string; value?: string };
+
+/** Trim to WhatsApp's hard limits: button title 20 chars, row title 24. */
+function trim(s: string, n: number): string {
+  const t = String(s ?? "").trim();
+  return t.length <= n ? t : t.slice(0, n - 1) + "\u2026";
+}
+
+/** Up to 3 reply buttons (24h session window only, not templates). */
+export function sendWhatsAppButtons(to: string, body: string, options: QuickOption[]): Promise<SendResult> {
+  return graphSend({
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: trim(body, 1024) },
+      action: {
+        buttons: options.slice(0, 3).map((o) => ({
+          type: "reply",
+          reply: { id: trim(o.id, 256), title: trim(o.label, 20) },
+        })),
+      },
+    },
+  });
+}
+
+/** Up to 10 list rows. Used when a question has more than 3 answers. */
+export function sendWhatsAppList(
+  to: string,
+  body: string,
+  options: QuickOption[],
+  opts?: { header?: string | null; button?: string },
+): Promise<SendResult> {
+  return graphSend({
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "list",
+      ...(opts?.header ? { header: { type: "text", text: trim(opts.header, 60) } } : {}),
+      body: { text: trim(body, 1024) },
+      action: {
+        button: trim(opts?.button ?? "בחירה", 20),
+        sections: [{ title: trim(opts?.header ?? "אפשרויות", 24), rows: options.slice(0, 10).map((o) => ({ id: trim(o.id, 200), title: trim(o.label, 24) })) }],
+      },
+    },
   });
 }
 
