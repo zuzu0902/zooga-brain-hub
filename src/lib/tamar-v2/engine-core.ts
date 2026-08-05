@@ -240,11 +240,11 @@ export function decideTurn(input: TurnInput): TurnDecision {
     });
   }
 
-  // 5. First inbound — ALWAYS the full opener + consent question. Never ambiguous.
+  // 5. First inbound — ALWAYS the exact opener, as ONE interactive message.
   if (input.state === "new_inbound") {
     return baseDecision(input, {
       next_state: target(input, "consent_asked"),
-      messages: [text(openerText(input.agent, input.firstName)), consentMessage(input.agent)],
+      messages: [openerMessage()],
       ask_step_key: "consent",
       marketing_allowed: false,
       reason_codes: ["first_inbound_opener"],
