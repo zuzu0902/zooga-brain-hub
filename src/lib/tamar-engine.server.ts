@@ -1813,6 +1813,8 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
   // a handoff phrase. Zooga owns the decision and the queue.
   let handoffId: string | null = null;
   let managerNotified = false;
+  let handoffAlertState: string | null = null;
+  let handoffAlertError: string | null = null;
   if (handoffRequested) {
     try {
       const excerpt = interactions
@@ -1834,140 +1836,30 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
         firstNonEmpty(contact?.phone, contact?.whatsapp_number, body.phone, body.whatsapp_number, body.from, body.sender, body.customer_phone);
       const customerName =
         firstNonEmpty(contact?.full_name, [contact?.first_name, contact?.last_name].filter(Boolean).join(" "), inboundName(body));
-      const customerNameForAlert = customerName ?? "Unknown WhatsApp contact";
-      const recentConversationExcerpt = conversationExcerptText(excerpt);
-      const resolvedOfferTitle = offer?.title ?? null;
-      const resolvedCampaignName = campaign?.name ?? null;
-      const runtimeTraceId = (trace as any)?.id ?? null;
-
-      const { data: handoffRow } = await supabaseAdmin
-        .from("manager_handoffs" as any)
-        .insert({
-          contact_id: contactId,
-          customer_phone: customerPhone,
-          customer_name: customerNameForAlert,
-          handoff_reason: handoffReason,
-          latest_inbound_message: message,
-          conversation_excerpt: excerpt,
-          resolved_offer_id: offer?.id ?? null,
-          resolved_campaign_id: campaign?.id ?? null,
-          runtime_trace_id: runtimeTraceId,
-          conversation_mode: conversationMode,
-          conversation_mode_reasons: [
-            ...conversationModeReasons,
-            ...handoffDecision.triggers.map((t) => `handoff_trigger:${t}`),
-          ],
-          status: "open",
-          delivery_promise: handoffPreCheck.delivery_promise,
-          delivery_attempts: 0,
-        } as any)
-        .select("id")
-        .single();
-      handoffId = (handoffRow as any)?.id ?? null;
-
-      // Resolve active manager (V1: first active row, typically Alex)
-      const { data: manager } = await supabaseAdmin
-        .from("managers" as any)
-        .select("id, name, phone")
-        .eq("active", true)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      const alertPayload = {
-        handoff_id: handoffId,
-        manager_id: manager ? (manager as any).id : null,
-        manager_name: manager ? (manager as any).name : null,
-        manager_phone: manager ? (manager as any).phone : null,
-        manager: manager
-          ? { id: (manager as any).id, name: (manager as any).name, phone: (manager as any).phone }
-          : null,
-        customer_contact_id: contactId,
-        customer_phone: customerPhone,
-        customer_name: customerNameForAlert,
-        customer_name_known: !!customerName,
-        customer: {
-          contact_id: contactId,
-          phone: customerPhone,
-          name: customerNameForAlert,
-          name_known: !!customerName,
-        },
-        handoff_reason: handoffReason,
-        conversation_mode: conversationMode,
-        conversation_mode_reasons: conversationModeReasons,
-        latest_inbound_message: message,
-        recent_conversation_excerpt: recentConversationExcerpt,
-        conversation_excerpt: excerpt,
-        resolved_offer_id: offer?.id ?? null,
-        resolved_offer_title: resolvedOfferTitle,
-        resolved_campaign_id: campaign?.id ?? null,
-        resolved_campaign_name: resolvedCampaignName,
-        resolved: {
-          offer_id: offer?.id ?? null,
-          offer_title: resolvedOfferTitle,
-          campaign_id: campaign?.id ?? null,
-          campaign_name: resolvedCampaignName,
-        },
-        runtime_trace_id: runtimeTraceId,
-        intake_stage: intakeStageAfter,
-        intake_state: intakeStateAfter,
-        intake_completion_score: intakeCompletionAfter,
-        intake_missing_fields: INTAKE_REQUIRED_FIELDS.filter(
-          (k) =>
-            !(Array.isArray(contact?.intake_completed_fields)
-              ? (contact!.intake_completed_fields as string[])
-              : intakeSnapshot.completed
-            ).includes(k) && !capturedFieldsThisTurn.includes(k),
-        ),
-        intake_captured_this_turn: capturedFieldsThisTurn,
-        delivery_channel: "zooga_queue",
-        created_at: new Date().toISOString(),
-      };
-
-      // No external manager channel exists. The handoff is persisted and
-      // queued inside Zooga; managerNotified stays false by design.
-      const alertResponse: any = null;
-      const alertError: string | null = manager ? "queued_no_manager_channel" : "no_active_manager";
-
-      if (handoffId) {
-        await supabaseAdmin
-          .from("manager_handoffs" as any)
-          .update({
-            alert_payload: alertPayload,
-            alert_response: alertResponse,
-            alert_error: alertError,
-            manager_notified: managerNotified,
-            notified_at: managerNotified ? new Date().toISOString() : null,
-            notified_manager_id: manager ? (manager as any).id : null,
-            status: "queued",
-            delivery_attempts: 1,
-          } as any)
-          .eq("id", handoffId);
-      }
-
-      // Queued handoff => always create an ops task so a human picks it up.
-      if (!managerNotified) {
-        try {
-          await supabaseAdmin.from("tasks").insert({
-            contact_id: contactId,
-            title: `Handoff queued — ${customerNameForAlert}`,
-            description: `reason: ${handoffReason} • state: ${alertError} • promise: queued\n\nLatest inbound: ${message}`,
-            status: "open",
-            priority: "high",
-            resolution_state: "pending",
-          } as any);
-        } catch (e) {
-          console.error("[manager-handoff] task_create_failed", e);
-        }
-      }
-
-      // Flag the contact for the existing Handoff Console
-      if (contactId) {
-        await supabaseAdmin
-          .from("contacts")
-          .update({ manager_attention_required: true } as any)
-          .eq("id", contactId);
-      }
+      // A2 — one atomic path for row + task + freeze + real manager alert,
+      // shared with runtime v2. Idempotent per contact, escalates follow-ups.
+      const res = await ensureHandoff({
+        contactId,
+        customerPhone: customerPhone ?? null,
+        customerName: customerName ?? null,
+        reason: handoffReason,
+        reasonCodes: [
+          ...conversationModeReasons,
+          ...handoffDecision.triggers.map((t) => `handoff_trigger:${t}`),
+        ],
+        urgency: "high",
+        latestInbound: message,
+        excerpt,
+        offerId: offer?.id ?? null,
+        campaignId: campaign?.id ?? null,
+        traceId: (trace as any)?.id ?? null,
+        conversationMode,
+        runtime: "v1",
+      });
+      handoffId = res.handoff_id;
+      managerNotified = res.alert_state === "sent";
+      handoffAlertState = res.alert_state;
+      handoffAlertError = res.alert_error;
     } catch (e) {
       // Never block the customer reply on alert failure.
       console.error("[manager-handoff] failed", e);
@@ -1978,9 +1870,8 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
   // actually delivered, append a short confirmation so the customer
   // sees the handoff in the conversation (not only in backend state).
   if (handoffRequested && handoffId) {
-    const receiptLine =
-      "\n\nעדכון: הפנייה שלך מסומנת לטיפול אצל נציג מהצוות שלנו, ויחזרו אליך כאן בוואטסאפ בהקדם. 🙌";
-    if (!replyText || !replyText.includes("הפנייה שלך מסומנת לטיפול")) {
+    const receiptLine = `\n\n${HANDOFF_RECEIPT_TEXT}`;
+    if (!replyText || !replyText.includes("העברתי את הבקשה שלך")) {
       replyText = `${replyText ?? ""}${receiptLine}`.trim();
       if (outboundInteractionId) {
         try {
