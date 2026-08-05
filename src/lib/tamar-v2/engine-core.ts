@@ -48,6 +48,29 @@ export type TurnInput = {
 
 const SITE = "https://www.zooga.co.il";
 
+/**
+ * The EXACT opener of every new conversation. Product-owned copy:
+ * it must never be rephrased, prefixed or split, and it is always sent as
+ * a WhatsApp interactive message with exactly two reply buttons.
+ */
+export const OPENER_TEXT =
+  "שלום, אני תמר, העוזרת הדיגיטלית של קהילת זוגה. אשמח לשוחח איתך - האם את/ה מאשר לשלוח לך הודעות למספר הזה?";
+
+export const CONSENT_BUTTONS = [
+  { id: "consent_yes", label: "כן", value: "yes" },
+  { id: "consent_no", label: "לא", value: "no" },
+] as const;
+
+/** The opener + consent question as ONE interactive button message. */
+export function openerMessage(): OutboundMessage {
+  return {
+    kind: "buttons",
+    body: OPENER_TEXT,
+    header: null,
+    options: CONSENT_BUTTONS.map((b) => ({ id: b.id, label: b.label, value: b.value })),
+  };
+}
+
 function text(body: string): OutboundMessage {
   return { kind: "text", body };
 }
@@ -70,30 +93,17 @@ function stepMessage(step: FlowStep): OutboundMessage {
   };
 }
 
-export function openerText(agent: AgentVersion, firstName?: string | null): string {
-  const name = String(firstName ?? "").trim();
-  const hello = name ? `היי ${name}` : "היי";
-  const id = agent.identity;
-  return `${hello}, אני ${id.name}, ${id.role} 🙂
-אני לא בן אדם — ובכל שלב אפשר לבקש לדבר עם מישהו מהצוות ואעביר מיד.`;
+/** Backwards-compatible export: the opener body text. */
+export function openerText(_agent?: AgentVersion, _firstName?: string | null): string {
+  return OPENER_TEXT;
 }
 
-function consentStep(agent: AgentVersion): FlowStep | null {
-  return agent.steps.find((s) => s.step_key === "consent" && s.enabled) ?? null;
-}
-
-function consentMessage(agent: AgentVersion): OutboundMessage {
-  const step = consentStep(agent);
-  if (step) return stepMessage(step);
-  return {
-    kind: "buttons",
-    body: "אפשר להמשיך לשלוח לך כאן עדכונים והצעות מזוגה?",
-    options: [
-      { id: "consent_yes", label: "כן, בשמחה", value: "yes" },
-      { id: "consent_no", label: "לא, תודה", value: "no" },
-      { id: "consent_explain", label: "רוצה הסבר", value: "explain" },
-    ],
-  };
+/**
+ * The consent question. Always the same two stable buttons so that
+ * button_reply.id is a contract, not a rendering detail.
+ */
+function consentMessage(_agent: AgentVersion): OutboundMessage {
+  return openerMessage();
 }
 
 export const COPY = {
