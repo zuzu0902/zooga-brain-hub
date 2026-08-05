@@ -141,7 +141,14 @@ function resolveOption(agent: AgentVersion, sc: Scenario): { id: string | null; 
     const step = agent.steps.find((s) => s.step_key === stepKey) ?? agent.steps.find((s) => s.step_key === (sc.pendingStepKey ?? ""));
     const opt = step?.options.filter((o) => o.enabled)[idx];
     if (opt) return { id: opt.option_id, value: opt.value };
-    if (stepKey === "consent") return idx === 1 ? { id: "consent_no", value: "no" } : { id: "consent_yes", value: "yes" };
+    if (stepKey === "consent") {
+      const fixed = [
+        { id: "consent_yes", value: "yes" },
+        { id: "consent_no", value: "no" },
+        { id: "consent_explain", value: "explain" },
+      ];
+      return fixed[idx] ?? fixed[0]!;
+    }
   }
   return { id: wanted, value: null };
 }
