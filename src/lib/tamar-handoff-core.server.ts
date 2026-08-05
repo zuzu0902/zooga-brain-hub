@@ -123,11 +123,12 @@ export type NotifyOutcome = {
  * every attempt bumps delivery_attempts and records a truthful state.
  */
 export async function notifyManagerForHandoff(handoffId: string): Promise<NotifyOutcome> {
-  const { data: row } = await supabaseAdmin
+  const { data: rowData } = await supabaseAdmin
     .from("manager_handoffs" as any)
     .select("*")
     .eq("id", handoffId)
     .maybeSingle();
+  const row = rowData as any;
   if (!row) {
     return { alert_state: "failed", alert_error: "handoff_not_found", http_status: null, manager_configured: false, window_open: false };
   }
