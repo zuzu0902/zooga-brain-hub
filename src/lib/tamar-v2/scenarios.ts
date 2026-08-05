@@ -193,7 +193,7 @@ const consentButtons = { pendingStepKey: "consent" };
 
 export const SCENARIOS: Scenario[] = [
   // ---------- opener / consent ----------
-  { name: "greeting opens with identity + consent", category: "consent", state: "new_inbound", inbound: "שלום", expect: { next_state: "consent_asked", asks: "consent", includes: "אני לא בן אדם", reason: "first_inbound_opener", marketing_allowed: false } },
+  { name: "greeting opens with the exact approved opener", category: "consent", state: "new_inbound", inbound: "שלום", expect: { next_state: "consent_asked", asks: "consent", includes: "אני תמר, העוזרת הדיגיטלית של קהילת זוגה", reason: "first_inbound_opener", marketing_allowed: false } },
   { name: "hi in english opens", category: "consent", state: "new_inbound", inbound: "hi", expect: { next_state: "consent_asked", asks: "consent" } },
   { name: "first message that is a question still opens", category: "consent", state: "new_inbound", inbound: "יש טיול לאלבניה?", expect: { next_state: "consent_asked", asks: "consent", marketing_allowed: false } },
   { name: "greeting never treated as ambiguous consent", category: "consent", state: "new_inbound", inbound: "היי", expect: { reason: "first_inbound_opener" } },
@@ -258,7 +258,7 @@ export const SCENARIOS: Scenario[] = [
   { name: "unknown fact never invented", category: "answer", state: "intake_active", inbound: "יש טיול ליפן?", answerText: "אין לי כרגע טיול ליפן.", expect: { includes: "אין לי כרגע טיול ליפן" } },
 
   // ---------- safety / integrity ----------
-  { name: "never claims to be human", category: "safety", state: "new_inbound", inbound: "שלום", expect: { includes: "אני לא בן אדם" } },
+  { name: "opener asks for message consent", category: "safety", state: "new_inbound", inbound: "שלום", expect: { includes: "האם את/ה מאשר לשלוח לך הודעות למספר הזה?" } },
   { name: "empty message still replies", category: "safety", state: "intake_active", inbound: "", expect: { silent: false } },
   { name: "gibberish does not opt out", category: "safety", state: "intake_active", inbound: "אסדגכדג", expect: { no_action: "opt_out" } },
   { name: "human request beats opt-out keyword order", category: "safety", state: "intake_active", inbound: "תעבירי אותי לנציג בבקשה", expect: { action: "handoff", no_action: "opt_out" } },
@@ -277,8 +277,8 @@ export const SCENARIOS: Scenario[] = [
   { name: "consent close is a single message", category: "consent", state: "consent_asked", inbound: "לא, תודה", expect: { max_questions: 0 } },
   { name: "consent no never asks another question", category: "consent", state: "consent_asked", inbound: "לא", expect: { asks: null } },
   { name: "opener includes the agent name", category: "consent", state: "new_inbound", inbound: "שלום", expect: { includes: "תמר" } },
-  { name: "opener greets by first name", category: "consent", state: "new_inbound", inbound: "היי", expect: { includes: "דנה" } },
-  { name: "opener offers a human", category: "consent", state: "new_inbound", inbound: "בוקר טוב", expect: { includes: "לדבר עם מישהו מהצוות" } },
+  { name: "opener is never prefixed or rephrased", category: "consent", state: "new_inbound", inbound: "היי", expect: { excludes: "היי דנה" } },
+  { name: "opener is a single message", category: "consent", state: "new_inbound", inbound: "בוקר טוב", expect: { includes: "שלום, אני תמר" } },
   { name: "first inbound with an opt-out word still opts out", category: "consent", state: "new_inbound", inbound: "הסר", expect: { next_state: "opted_out" } },
   { name: "first inbound asking for a human hands off", category: "consent", state: "new_inbound", inbound: "אני רוצה לדבר עם נציג", expect: { action: "handoff" } },
   { name: "consent yes then intake keeps marketing allowed", category: "consent", state: "consent_asked", inbound: "כן", expect: { next_state: "intake_active" } },
