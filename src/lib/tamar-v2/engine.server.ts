@@ -17,6 +17,8 @@ import {
   sendWhatsAppButtons,
   sendWhatsAppList,
   sendWhatsAppText,
+  sendWhatsAppTemplate,
+  isSessionWindowOpen,
   toE164,
   type SendResult,
 } from "@/lib/whatsapp-meta.server";
@@ -102,9 +104,19 @@ async function createContact(input: V2TurnInput) {
   return (data as any) ?? null;
 }
 
-function optionValueFor(agent: AgentVersion, stepKey: string | null, optionId: string | null): string | null {
+/** Consent button ids are a fixed contract, independent of the flow table. */
+const CONSENT_OPTION_VALUES: Record<string, string> = {
+  consent_yes: "yes",
+  consent_no: "no",
+  consent_explain: "explain",
+};
+
+export function optionValueFor(agent: AgentVersion, stepKey: string | null, optionId: string | null): string | null {
   if (!optionId) return null;
-  const step = agent.steps.find((s) => s.step_key === stepKey) ?? agent.steps.find((s) => s.options.some((o) => o.option_id === optionId));
+  if (CONSENT_OPTION_VALUES[optionId]) return CONSENT_OPTION_VALUES[optionId]!;
+  const step =
+    agent.steps.find((s) => s.step_key === stepKey && s.options.some((o) => o.option_id === optionId)) ??
+    agent.steps.find((s) => s.options.some((o) => o.option_id === optionId));
   const opt = step?.options.find((o) => o.option_id === optionId);
   return opt?.value ?? null;
 }
@@ -113,10 +125,61 @@ function messageText(m: OutboundMessage): string {
   return m.body;
 }
 
-async function sendMessage(to: string, m: OutboundMessage): Promise<SendResult> {
-  if (m.kind === "text") return sendWhatsAppText(to, m.body);
-  if (m.kind === "buttons" && m.options.length <= 3) return sendWhatsAppButtons(to, m.body, m.options.map((o) => ({ id: o.id, label: o.label })));
-  return sendWhatsAppList(to, m.body, m.options.map((o) => ({ id: o.id, label: o.label })), { header: m.header ?? null });
+/**
+ * Dispatch one outbound message.
+ *
+ * Inside the 24h customer-service window an interactive message is sent as
+ * interactive — never downgraded to plain text. Outside the window only an
+ * approved template may be used; with no template configured we FAIL CLOSED
+ * and report the reason instead of pretending something was delivered.
+ */
+async function sendMessage(
+  to: string,
+  m: OutboundMessage,
+  ctx: { windowOpen: boolean; template: string | null },
+): Promise<SendResult> {
+  if (m.kind === "text") {
+    if (ctx.windowOpen) return sendWhatsAppText(to, m.body);
+    if (ctx.template) return sendWhatsAppTemplate(to, ctx.template);
+    return { ok: false, provider_message_id: null, status: 0, error: "outside_24h_window_no_approved_template" };
+  }
+  if (!ctx.windowOpen) {
+    if (!ctx.template) {
+      return { ok: false, provider_message_id: null, status: 0, error: "outside_24h_window_no_approved_template" };
+    }
+    return sendWhatsAppTemplate(to, ctx.template);
+  }
+  const options = m.options.map((o) => ({ id: o.id, label: o.label }));
+  if (m.kind === "buttons" && options.length <= 3) return sendWhatsAppButtons(to, m.body, options);
+  return sendWhatsAppList(to, m.body, options, { header: m.header ?? null });
+}
+
+/** Approved WhatsApp template used to re-open a closed session, if any. */
+async function activeSessionTemplate(): Promise<string | null> {
+  try {
+    const { data } = await supabaseAdmin
+      .from("tamar_copy_versions" as any)
+      .select("template_name")
+      .eq("copy_key", "consent_opener")
+      .eq("is_active", true)
+      .not("template_name", "is", null)
+      .limit(1)
+      .maybeSingle();
+    return (data as any)?.template_name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The consent phase (opener + yes/no) is ALWAYS owned by the v2 engine, even
+ * while v2 is disabled for the rest of the conversation, so every new thread
+ * opens with the exact approved opener and stable buttons.
+ */
+export async function isConsentPhase(input: { phone?: string | null; contact_id?: string | null }): Promise<boolean> {
+  const contact = await findContact(input as V2TurnInput);
+  const state = deriveState(contact);
+  return state === "new_inbound" || state === "consent_asked";
 }
 
 /** Run one WhatsApp turn through the v2 engine. */
@@ -175,8 +238,10 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     await persistTurn({ contact, input, decision, interpretation, agent, message, answeredCount });
     const to = toE164(contact.whatsapp_number ?? contact.phone ?? input.phone) ?? "";
     if (to && !decision.silent) {
+      const windowOpen = !!input.inbound_message_id || (await isSessionWindowOpen(contact.id));
+      const template = windowOpen ? null : await activeSessionTemplate();
       for (const m of decision.messages) {
-        const res = await sendMessage(to, m);
+        const res = await sendMessage(to, m, { windowOpen, template });
         sends.push({ kind: m.kind, ok: res.ok, http: res.status, error: res.error });
         await recordDelivery({
           contactId: contact.id,
