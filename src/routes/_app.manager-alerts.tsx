@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useT, useLanguage } from "@/lib/language-context";
+import { useServerFn } from "@tanstack/react-start";
+import { getHandoffChannelHealth, retryHandoffAlert } from "@/lib/handoff.functions";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/_app/manager-alerts")({
   head: () => ({ meta: [{ title: "Manager Alerts — Zooga CRM" }] }),
@@ -32,6 +35,30 @@ function ManagerAlertsPage() {
   const { dir } = useLanguage();
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
+  const fetchHealth = useServerFn(getHandoffChannelHealth);
+  const doRetry = useServerFn(retryHandoffAlert);
+
+  const { data: health } = useQuery({
+    queryKey: ["handoff-channel-health"],
+    refetchInterval: 60000,
+    queryFn: async () => (await fetchHealth()) as any,
+  });
+
+  async function retryAlert(id: string) {
+    setRetrying(id);
+    try {
+      const res: any = await doRetry({ data: { handoffId: id } });
+      if (res?.alert_state === "sent") toast.success(t("ההתראה נשלחה למנהל"));
+      else toast.error(`${t("ההתראה לא נשלחה")}: ${res?.alert_error ?? res?.alert_state}`);
+      qc.invalidateQueries({ queryKey: ["manager-handoffs"] });
+      qc.invalidateQueries({ queryKey: ["handoff-channel-health"] });
+    } catch (e: any) {
+      toast.error(String(e?.message ?? e));
+    } finally {
+      setRetrying(null);
+    }
+  }
 
   const { data: managers } = useQuery({
     queryKey: ["managers"],
@@ -100,6 +127,30 @@ function ManagerAlertsPage() {
         </p>
       </div>
 
+      {health && !health.deliverable_now && (
+        <Card className="p-4 border-destructive bg-destructive/10">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div className="space-y-1 text-sm">
+              <div className="font-semibold text-destructive">
+                {t("ערוץ ההתראות למנהל אינו זמין — התראות יישארו בתור ולא יישלחו")}
+              </div>
+              <ul className="text-xs space-y-0.5">
+                {!health.manager_configured && <li>• {t("לא מוגדר מנהל פעיל עם מספר WhatsApp")}</li>}
+                {!health.waba_id_present && <li>• {t("חסר WHATSAPP_WABA_ID — לא ניתן לאמת תבניות מול Meta")}</li>}
+                {health.waba_id_present && !health.manager_template_approved && (
+                  <li>• {t("התבנית zooga_manager_handoff אינה מאושרת בעברית")}</li>
+                )}
+                {health.template_lookup_error && (
+                  <li className="font-mono" dir="ltr">• {health.template_lookup_error}</li>
+                )}
+                {!health.manager_window_open && <li>• {t("חלון 24 השעות מול המנהל סגור — נדרשת תבנית מאושרת")}</li>}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card className="p-4 space-y-3">
         <h3 className="font-semibold">{t("מנהלים מוגדרים")}</h3>
         <div className="space-y-2">
@@ -162,6 +213,10 @@ function ManagerAlertsPage() {
                             · {t("נשלח:")} {new Date(h.notified_at).toLocaleString()}
                           </span>
                         )}
+                        {h.escalation_count > 1 && (
+                          <Badge variant="destructive">{t("הסלמות:")} {h.escalation_count}</Badge>
+                        )}
+                        {h.alert_state && <Badge variant="outline">{h.alert_state}</Badge>}
                       </div>
                       <div className="text-sm">
                         <span className="text-muted-foreground">{t("סיבה: ")}</span>
@@ -190,6 +245,18 @@ function ManagerAlertsPage() {
                       </div>
                     </div>
                     <div className="flex gap-1 shrink-0 flex-wrap">
+                      {!h.manager_notified && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="gap-1"
+                          disabled={retrying === h.id}
+                          onClick={() => retryAlert(h.id)}
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          {retrying === h.id ? t("שולח…") : t("שלח שוב למנהל")}
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => setStatus(h.id, "claimed")}>{t("סמן claimed")}</Button>
                       <Button size="sm" variant="outline" onClick={() => setStatus(h.id, "resolved")}>{t("סמן resolved")}</Button>
                       <Button size="sm" variant="ghost" onClick={() => setExpanded(open ? null : h.id)}>
