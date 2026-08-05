@@ -331,7 +331,9 @@ export function decideTurn(input: TurnInput): TurnDecision {
     if (key) {
       const optValue = input.optionValue?.trim();
       const entity = interp.entities?.[key];
-      const value = optValue || entity || (step && step.presentation === "text" && msg ? msg : "");
+      // A tapped button always captures: by resolved value, else by its title.
+      const fromMessage = msg && (step?.presentation === "text" || !!input.optionId) ? msg : "";
+      const value = optValue || entity || fromMessage;
       if (value) captured[key] = String(value).slice(0, 300);
     }
   }
