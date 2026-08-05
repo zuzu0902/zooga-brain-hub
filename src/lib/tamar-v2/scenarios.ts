@@ -195,7 +195,7 @@ export const SCENARIOS: Scenario[] = [
   { name: "opted-out never receives offers", category: "optout", state: "opted_out", inbound: "יש טיולים?", expect: { offers_max: 0, marketing_allowed: false } },
 
   // ---------- handoff ----------
-  { name: "explicit human request hands off", category: "handoff", state: "intake_active", inbound: "אפשר לדבר עם נציג?", expect: { next_state: "human_handoff_queued", action: "handoff", action2: undefined as any } },
+  { name: "explicit human request hands off", category: "handoff", state: "intake_active", inbound: "אפשר לדבר עם נציג?", expect: { next_state: "human_handoff_queued", action: "handoff" } },
   { name: "handoff also freezes automation", category: "handoff", state: "intake_active", inbound: "תעבירי אותי לאדם", expect: { action: "freeze" } },
   { name: "handoff acknowledges the customer", category: "handoff", state: "consented", inbound: "רוצה לדבר עם מישהו מהצוות", expect: { includes: "מעבירה אותך" } },
   { name: "distress hands off at high urgency", category: "handoff", state: "intake_active", inbound: "עברתי משבר קשה מאז שבעלי נפטר", expect: { action: "handoff", reason: "urgency_high" } },
