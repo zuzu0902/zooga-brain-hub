@@ -27,6 +27,7 @@ import { retrieveKnowledge, knowledgeBlock } from "@/lib/tamar-brain/knowledge.s
 import { allowedActionsForState, planNextAction, type ActionPlan } from "@/lib/tamar-brain/action-planner.server";
 import { rankOffers, hasRelevantMatch, ZOOGA_SITE_URL } from "@/lib/tamar-brain/recommend";
 import { loadBrainPolicy } from "@/lib/tamar-brain/copy.server";
+import { ensureHandoff, HANDOFF_RECEIPT_TEXT } from "@/lib/tamar-handoff-core.server";
 
 const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
