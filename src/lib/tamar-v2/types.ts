@@ -79,7 +79,7 @@ export type FlowStep = {
   presentation: "text" | "buttons" | "list";
   required: boolean;
   skippable: boolean;
-  conditions: Record<string, unknown>;
+  conditions: Record<string, any>;
   order_index: number;
   enabled: boolean;
   options: FlowOption[];
