@@ -116,15 +116,15 @@ describe("opener contract", () => {
     expect(OPENER_TEXT).toBe(opener.messages[0]!.body);
   });
   it("is interactive with exactly two stable buttons", () => {
-    const m = opener.messages[0]! as Extract<typeof opener.messages[number], { kind: "buttons" }>;
+    const m = opener.messages[0]! as any;
     expect(m.kind).toBe("buttons");
-    expect(m.options.map((o) => o.id)).toEqual(["consent_yes", "consent_no"]);
-    expect(m.options.map((o) => o.label)).toEqual(["כן", "לא"]);
+    expect(m.options.map((o: any) => o.id)).toEqual(["consent_yes", "consent_no"]);
+    expect(m.options.map((o: any) => o.label)).toEqual(["כן", "לא"]);
   });
 });
 
 describe("Meta interactive payload", () => {
-  const m = openerMessage() as Extract<ReturnType<typeof openerMessage>, { kind: "buttons" }>;
+  const m = openerMessage() as any;
   const payload: any = buildButtonsPayload("972000000000", m.body, m.options);
 
   it("is type=interactive button, never plain text", () => {
