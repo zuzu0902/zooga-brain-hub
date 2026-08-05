@@ -485,6 +485,7 @@ export type Database = {
           ai_recommended_next_action: string | null
           ai_risk_flags: string | null
           ai_summary: string | null
+          ambiguity_turns: number
           availability_preferences: string[]
           birth_date: string | null
           birthday_day: number | null
@@ -588,6 +589,7 @@ export type Database = {
             | null
           status: Database["public"]["Enums"]["contact_status"]
           tags: string[]
+          tamar_agent_version: number | null
           total_revenue: number
           travel_preferences: string[]
           trips_interested: string[]
@@ -606,6 +608,7 @@ export type Database = {
           ai_recommended_next_action?: string | null
           ai_risk_flags?: string | null
           ai_summary?: string | null
+          ambiguity_turns?: number
           availability_preferences?: string[]
           birth_date?: string | null
           birthday_day?: number | null
@@ -709,6 +712,7 @@ export type Database = {
             | null
           status?: Database["public"]["Enums"]["contact_status"]
           tags?: string[]
+          tamar_agent_version?: number | null
           total_revenue?: number
           travel_preferences?: string[]
           trips_interested?: string[]
@@ -727,6 +731,7 @@ export type Database = {
           ai_recommended_next_action?: string | null
           ai_risk_flags?: string | null
           ai_summary?: string | null
+          ambiguity_turns?: number
           availability_preferences?: string[]
           birth_date?: string | null
           birthday_day?: number | null
@@ -830,6 +835,7 @@ export type Database = {
             | null
           status?: Database["public"]["Enums"]["contact_status"]
           tags?: string[]
+          tamar_agent_version?: number | null
           total_revenue?: number
           travel_preferences?: string[]
           trips_interested?: string[]
@@ -1644,6 +1650,45 @@ export type Database = {
         }
         Relationships: []
       }
+      tamar_agent_versions: {
+        Row: {
+          activated_at: string | null
+          change_summary: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          identity: Json
+          safety: Json
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          activated_at?: string | null
+          change_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          identity?: Json
+          safety?: Json
+          status?: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          activated_at?: string | null
+          change_summary?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          identity?: Json
+          safety?: Json
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       tamar_behavior_settings: {
         Row: {
           confidence_auto_apply_min: number
@@ -1896,6 +1941,455 @@ export type Database = {
           runtime_execution_id?: string | null
           selected_action?: string
           state?: string
+        }
+        Relationships: []
+      }
+      tamar_eval_cases: {
+        Row: {
+          context: Json
+          created_at: string
+          expect: Json
+          id: string
+          inbound: string
+          name: string
+          order_index: number
+          state: string
+          suite_id: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          expect?: Json
+          id?: string
+          inbound: string
+          name: string
+          order_index?: number
+          state?: string
+          suite_id: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          expect?: Json
+          id?: string
+          inbound?: string
+          name?: string
+          order_index?: number
+          state?: string
+          suite_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_eval_cases_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "tamar_eval_suites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tamar_eval_results: {
+        Row: {
+          actual: Json
+          case_name: string
+          created_at: string
+          failures: Json
+          id: string
+          passed: boolean
+          run_id: string
+        }
+        Insert: {
+          actual?: Json
+          case_name: string
+          created_at?: string
+          failures?: Json
+          id?: string
+          passed?: boolean
+          run_id: string
+        }
+        Update: {
+          actual?: Json
+          case_name?: string
+          created_at?: string
+          failures?: Json
+          id?: string
+          passed?: boolean
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_eval_results_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "tamar_eval_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tamar_eval_runs: {
+        Row: {
+          agent_version_id: string | null
+          created_at: string
+          created_by: string | null
+          failed: number
+          finished_at: string | null
+          id: string
+          mode: string
+          pass_rate: number
+          passed: number
+          suite_id: string | null
+          total: number
+        }
+        Insert: {
+          agent_version_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          mode?: string
+          pass_rate?: number
+          passed?: number
+          suite_id?: string | null
+          total?: number
+        }
+        Update: {
+          agent_version_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          mode?: string
+          pass_rate?: number
+          passed?: number
+          suite_id?: string | null
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_eval_runs_agent_version_id_fkey"
+            columns: ["agent_version_id"]
+            isOneToOne: false
+            referencedRelation: "tamar_agent_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tamar_eval_runs_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "tamar_eval_suites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tamar_eval_suites: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      tamar_feature_flags: {
+        Row: {
+          allowlist: Json
+          enabled: boolean
+          key: string
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          allowlist?: Json
+          enabled?: boolean
+          key: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          allowlist?: Json
+          enabled?: boolean
+          key?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      tamar_flow_options: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          label: string
+          option_id: string
+          order_index: number
+          step_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label: string
+          option_id: string
+          order_index?: number
+          step_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label?: string
+          option_id?: string
+          order_index?: number
+          step_id?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_flow_options_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "tamar_flow_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tamar_flow_steps: {
+        Row: {
+          agent_version_id: string
+          conditions: Json
+          created_at: string
+          enabled: boolean
+          field_key: string | null
+          help_text: string | null
+          id: string
+          order_index: number
+          presentation: string
+          question_text: string
+          required: boolean
+          skippable: boolean
+          stage: string
+          step_key: string
+          updated_at: string
+        }
+        Insert: {
+          agent_version_id: string
+          conditions?: Json
+          created_at?: string
+          enabled?: boolean
+          field_key?: string | null
+          help_text?: string | null
+          id?: string
+          order_index?: number
+          presentation?: string
+          question_text: string
+          required?: boolean
+          skippable?: boolean
+          stage?: string
+          step_key: string
+          updated_at?: string
+        }
+        Update: {
+          agent_version_id?: string
+          conditions?: Json
+          created_at?: string
+          enabled?: boolean
+          field_key?: string | null
+          help_text?: string | null
+          id?: string
+          order_index?: number
+          presentation?: string
+          question_text?: string
+          required?: boolean
+          skippable?: boolean
+          stage?: string
+          step_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_flow_steps_agent_version_id_fkey"
+            columns: ["agent_version_id"]
+            isOneToOne: false
+            referencedRelation: "tamar_agent_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tamar_manager_window: {
+        Row: {
+          id: string
+          last_inbound_at: string | null
+          manager_phone: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          last_inbound_at?: string | null
+          manager_phone: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          last_inbound_at?: string | null
+          manager_phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tamar_model_allowlist: {
+        Row: {
+          created_at: string
+          label: string
+          model_id: string
+          notes: string | null
+          tier: string
+          verified_at: string | null
+          verified_ok: boolean
+        }
+        Insert: {
+          created_at?: string
+          label?: string
+          model_id: string
+          notes?: string | null
+          tier?: string
+          verified_at?: string | null
+          verified_ok?: boolean
+        }
+        Update: {
+          created_at?: string
+          label?: string
+          model_id?: string
+          notes?: string | null
+          tier?: string
+          verified_at?: string | null
+          verified_ok?: boolean
+        }
+        Relationships: []
+      }
+      tamar_model_calls: {
+        Row: {
+          attempt: number
+          completion_tokens: number | null
+          context: string | null
+          created_at: string
+          error: string | null
+          fallback_used: boolean
+          http_status: number | null
+          id: string
+          latency_ms: number | null
+          model_id: string
+          ok: boolean
+          prompt_tokens: number | null
+          stage: string
+        }
+        Insert: {
+          attempt?: number
+          completion_tokens?: number | null
+          context?: string | null
+          created_at?: string
+          error?: string | null
+          fallback_used?: boolean
+          http_status?: number | null
+          id?: string
+          latency_ms?: number | null
+          model_id: string
+          ok?: boolean
+          prompt_tokens?: number | null
+          stage: string
+        }
+        Update: {
+          attempt?: number
+          completion_tokens?: number | null
+          context?: string | null
+          created_at?: string
+          error?: string | null
+          fallback_used?: boolean
+          http_status?: number | null
+          id?: string
+          latency_ms?: number | null
+          model_id?: string
+          ok?: boolean
+          prompt_tokens?: number | null
+          stage?: string
+        }
+        Relationships: []
+      }
+      tamar_model_registry: {
+        Row: {
+          created_at: string
+          fallback_model: string | null
+          id: string
+          is_active: boolean
+          max_tokens: number
+          model_id: string
+          notes: string | null
+          params: Json
+          reasoning_effort: string | null
+          retries: number
+          stage: string
+          structured_output: boolean
+          temperature: number
+          timeout_ms: number
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          fallback_model?: string | null
+          id?: string
+          is_active?: boolean
+          max_tokens?: number
+          model_id: string
+          notes?: string | null
+          params?: Json
+          reasoning_effort?: string | null
+          retries?: number
+          stage: string
+          structured_output?: boolean
+          temperature?: number
+          timeout_ms?: number
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          fallback_model?: string | null
+          id?: string
+          is_active?: boolean
+          max_tokens?: number
+          model_id?: string
+          notes?: string | null
+          params?: Json
+          reasoning_effort?: string | null
+          retries?: number
+          stage?: string
+          structured_output?: boolean
+          temperature?: number
+          timeout_ms?: number
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
         }
         Relationships: []
       }
@@ -2433,6 +2927,10 @@ export type Database = {
         | "human_owned"
         | "paused"
         | "closed"
+        | "new_inbound"
+        | "consent_asked"
+        | "recommendation_ready"
+        | "value_delivered"
       whatsapp_template_status:
         | "not_sent"
         | "sent"
@@ -2645,6 +3143,10 @@ export const Constants = {
         "human_owned",
         "paused",
         "closed",
+        "new_inbound",
+        "consent_asked",
+        "recommendation_ready",
+        "value_delivered",
       ],
       whatsapp_template_status: [
         "not_sent",

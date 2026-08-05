@@ -13,6 +13,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
+import { runV2Turn } from "@/lib/tamar-v2/engine.server";
+import { v2Enabled } from "@/lib/tamar-v2/flags.server";
 import { claimInbound, recordReply } from "@/lib/runtime-inbound-dedupe";
 import { isOptInMessage, isOptOutMessage, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from "@/lib/optout";
 import { applyOptIn, applyOptOut, applyStatusUpdate, markReplied } from "@/lib/whatsapp-status.server";
@@ -141,6 +143,33 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             });
             await recordReply(msg.wamid, confirmation).catch(() => {});
             results.push({ wamid: msg.wamid, consent_command: optOut ? "opt_out" : "opt_in", reply_sent: ack.ok });
+            continue;
+          }
+
+          // ---- Tamar Brain V2 (deterministic workflow + AI interpreter) ----
+          const flag = await v2Enabled(msg.from);
+          if (flag.enabled) {
+            const v2 = await runV2Turn({
+              phone: msg.from,
+              message: msg.text,
+              option_id: msg.option_id,
+              name: msg.name,
+              inbound_message_id: msg.wamid,
+              source: "meta_webhook",
+            });
+            await markReplied(msg.from, v2.contact_id).catch(() => {});
+            const sentAll = v2.sends.length > 0 && v2.sends.every((s) => s.ok);
+            await recordReply(msg.wamid, v2.decision.messages.map((m) => m.body).join("\n")).catch(() => {});
+            results.push({
+              wamid: msg.wamid,
+              engine: "v2",
+              contact_id: v2.contact_id,
+              state: v2.decision.next_state,
+              reply_sent: sentAll,
+              silent: v2.decision.silent,
+              reason_codes: v2.decision.reason_codes,
+              send_errors: v2.sends.filter((s) => !s.ok).map((s) => s.error),
+            });
             continue;
           }
 
