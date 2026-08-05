@@ -1188,7 +1188,17 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
     // and do NOT exclude the sticky/current resolved offer from the
     // listing. Split into ready vs pending so Tamar can label pending
     // ones honestly ("בהכנה"). Every active row is accounted for.
-    const active = (catalog ?? []) as any[];
+    // C2 — expired products are never eligible and never surfaced, even if
+    // an upstream resolver handed us a stale list.
+    const nowMs = Date.now();
+    const rawActive = (catalog ?? []) as any[];
+    const active = rawActive.filter((o: any) => {
+      const end = o?.event_end_date ?? o?.event_date;
+      if (!end) return true;
+      const ts = Date.parse(String(end));
+      return Number.isNaN(ts) ? true : ts >= nowMs;
+    });
+    const droppedExpired = rawActive.length - active.length;
     const ready = active.filter(
       (o: any) => !o.ingestion_status || o.ingestion_status === "ready",
     );
@@ -1221,10 +1231,10 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
       hardBrowseCatalogReply = buildHardBrowseCatalogReply(ready, []);
     }
     catalogMeta = {
-      total_active: active.length,
+      total_active: rawActive.length,
       listed: readyLines.length + pendingLines.length,
       dropped_ingestion: 0,
-      dropped_event_date: 0,
+      dropped_event_date: droppedExpired,
       ready_ids: ready.map((o: any) => o.id),
       pending_ids: pending.map((o: any) => o.id),
     };
@@ -1244,6 +1254,11 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
       offerFieldsInjected.push("active_catalog");
       replyHardRules.push(
         `Browse-intent listing rule: list ALL ${active.length} active trips by title. Do not say "יש לנו כמה אפשרויות" or "a few options" — enumerate every title.`,
+      );
+      // C1 — every product mentioned as a recommendation must carry a real
+      // link. Never a naked title, never an invented URL.
+      replyHardRules.push(
+        `Link rule: whenever you recommend or name a specific trip as a next step, include its real link from the catalog above. If a trip has no link, use ${ZOOGA_SITE_URL} and say the full details are on the Zooga site. Never invent a URL.`,
       );
     }
   }
