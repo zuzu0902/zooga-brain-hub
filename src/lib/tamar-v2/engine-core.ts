@@ -353,6 +353,17 @@ export function decideTurn(input: TurnInput): TurnDecision {
   const enoughContext = answeredCount >= 2 || Object.keys(known).length >= 3;
   const canMarket = marketingAllowed(input.state) && interp.confidence >= safety.min_confidence_marketing;
 
+  if (canMarket && wantsOffers && !input.offers.length) {
+    messages.push(text(COPY.no_offer_honest));
+    return baseDecision(input, {
+      messages,
+      actions,
+      captured,
+      confidence_gate: "pass",
+      reason_codes: [...reason, "no_sellable_offer"],
+    });
+  }
+
   if (canMarket && (wantsOffers || enoughContext) && input.offers.length) {
     const rec = recommendation(input);
     messages.push(...rec.messages);

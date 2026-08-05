@@ -223,7 +223,7 @@ export const SCENARIOS: Scenario[] = [
   { name: "recommendation includes the sales link", category: "offers", state: "consented", inbound: "אילו טיולים יש?", expect: { includes: "https://www.zooga.co.il/albania" } },
   { name: "no sellable offers = honest answer", category: "offers", state: "consented", inbound: "יש טיולים?", offers: [], expect: { includes: "מעדיפה לא להמציא", offers_max: 0 } },
   { name: "offers only after consent", category: "offers", state: "consent_asked", inbound: "אילו טיולים יש?", expect: { offers_max: 0 } },
-  { name: "enough context triggers a recommendation", category: "offers", state: "intake_active", inbound: "מעניין אותי", answeredCount: 2, known: { relationship_status: "single", goal: "trips", preferred_activity: "abroad" }, expect: { action: "recommend" } },
+  { name: "enough context triggers a recommendation", category: "offers", state: "intake_active", inbound: "מעניין אותי טיול", answeredCount: 2, known: { relationship_status: "single", goal: "trips", preferred_activity: "abroad" }, expect: { action: "recommend" } },
   { name: "recommendation asks a single follow-up", category: "offers", state: "consented", inbound: "אילו טיולים יש?", expect: { max_questions: 1 } },
 
   // ---------- grounded answers ----------

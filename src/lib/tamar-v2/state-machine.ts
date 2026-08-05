@@ -6,7 +6,7 @@ import { normalizeState, type V2State } from "./types";
 
 const ALLOWED: Record<V2State, V2State[]> = {
   new_inbound: ["consent_asked", "human_handoff_queued", "human_owned", "opted_out", "closed", "new_inbound"],
-  consent_asked: ["consented", "opted_out", "human_handoff_queued", "human_owned", "paused", "closed", "consent_asked"],
+  consent_asked: ["consented", "intake_active", "opted_out", "human_handoff_queued", "human_owned", "paused", "closed", "consent_asked"],
   consented: ["intake_active", "recommendation_ready", "value_delivered", "opted_out", "human_handoff_queued", "human_owned", "paused", "closed", "consented"],
   intake_active: ["recommendation_ready", "value_delivered", "opted_out", "human_handoff_queued", "human_owned", "paused", "closed", "intake_active"],
   recommendation_ready: ["value_delivered", "intake_active", "opted_out", "human_handoff_queued", "human_owned", "paused", "closed", "recommendation_ready"],
