@@ -311,3 +311,25 @@ export function metaConfigPresence() {
     lovable_api_key: !!process.env.LOVABLE_API_KEY,
   };
 }
+
+/**
+ * Meta's 24-hour customer service window: interactive messages are only
+ * deliverable while the customer has written to us in the last 24h.
+ * Outside it, only an approved template may be sent.
+ */
+export async function isSessionWindowOpen(contactId: string | null): Promise<boolean> {
+  if (!contactId) return false;
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabaseAdmin
+      .from("interactions")
+      .select("id")
+      .eq("contact_id", contactId)
+      .eq("source", "tamar_inbound")
+      .gte("timestamp", since)
+      .limit(1);
+    return !!(data as any[])?.length;
+  } catch {
+    return false;
+  }
+}
