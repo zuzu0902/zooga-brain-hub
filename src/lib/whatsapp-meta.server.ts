@@ -169,13 +169,7 @@ async function graphSend(body: any): Promise<SendResult> {
 }
 
 export function sendWhatsAppText(to: string, text: string): Promise<SendResult> {
-  return graphSend({
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to,
-    type: "text",
-    text: { preview_url: true, body: text },
-  });
+  return graphSend(buildTextPayload(to, text));
 }
 
 export type QuickOption = { id: string; label: string; value?: string };
@@ -186,9 +180,19 @@ function trim(s: string, n: number): string {
   return t.length <= n ? t : t.slice(0, n - 1) + "\u2026";
 }
 
-/** Up to 3 reply buttons (24h session window only, not templates). */
-export function sendWhatsAppButtons(to: string, body: string, options: QuickOption[]): Promise<SendResult> {
-  return graphSend({
+export function buildTextPayload(to: string, text: string) {
+  return {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "text",
+    text: { preview_url: true, body: text },
+  };
+}
+
+/** Exact Graph payload for an interactive reply-button message. */
+export function buildButtonsPayload(to: string, body: string, options: QuickOption[]) {
+  return {
     messaging_product: "whatsapp",
     recipient_type: "individual",
     to,
@@ -203,7 +207,12 @@ export function sendWhatsAppButtons(to: string, body: string, options: QuickOpti
         })),
       },
     },
-  });
+  };
+}
+
+/** Up to 3 reply buttons (24h session window only, not templates). */
+export function sendWhatsAppButtons(to: string, body: string, options: QuickOption[]): Promise<SendResult> {
+  return graphSend(buildButtonsPayload(to, body, options));
 }
 
 /** Up to 10 list rows. Used when a question has more than 3 answers. */
