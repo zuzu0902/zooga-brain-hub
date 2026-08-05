@@ -116,7 +116,9 @@ export const COPY = {
     "הוסרת מרשימת הדיוור של זוגה ולא יישלח אליך תוכן שיווקי. אם תרצה/י לחזור — פשוט כתוב/כתבי \"התחל\". תודה ולהתראות",
   opt_in_ack: "שמחה שחזרת 🌿 נמשיך לעדכן אותך בטיולים ובאירועים של זוגה.",
   handoff_ack:
-    "בשמחה — אני מעבירה אותך לאדם מהצוות של זוגה שיחזור אליך. מכאן אני עוצרת ולא אמשיך לשאול שאלות 🙏",
+    "כמובן. העברתי את הבקשה שלך לאדם מהצוות של זוגה, והוא יחזור אליך בהקדם. אם תרצה/י להוסיף משהו, אפשר לכתוב לי כאן ואצרף אותו לבקשה.",
+  handoff_frozen_ack:
+    "הבקשה שלך כבר הועברה לאדם מהצוות. אני מוסיפה גם את ההודעה הזאת ומזכירה שוב לצוות.",
   clarify_generic:
     "רוצה לוודא שאני מבינה נכון 🙂 אפשר להסביר לי במשפט אחד מה הכי מעניין אותך? ואם נוח יותר — אפשר לבקש לדבר עם אדם מהצוות.",
   service_only_optout:
@@ -196,12 +198,22 @@ export function decideTurn(input: TurnInput): TurnDecision {
   const interp = input.interpretation;
   const signal = detectSafetySignal(msg);
 
-  // 1. Frozen — a human owns the thread.
+  // 1. Frozen — a human owns the thread. Tamar stops selling and stops
+  //    asking, but is NEVER silent: the customer gets one acknowledgement
+  //    and the request is re-escalated (with cooldown) to the manager.
   if (automationFrozen(input.state)) {
+    if (!msg) {
+      return baseDecision(input, {
+        silent: true,
+        marketing_allowed: false,
+        reason_codes: [`automation_frozen_${input.state}`],
+      });
+    }
     return baseDecision(input, {
-      silent: true,
+      messages: [text(COPY.handoff_frozen_ack)],
+      actions: ["handoff_followup", "freeze"],
       marketing_allowed: false,
-      reason_codes: [`automation_frozen_${input.state}`],
+      reason_codes: [`automation_frozen_${input.state}`, "frozen_followup_ack"],
     });
   }
 
