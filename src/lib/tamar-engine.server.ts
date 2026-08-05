@@ -1019,7 +1019,32 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
       message ?? "",
     );
 
-  if (isOfferSpecific && hasOfferUrl && !priceQueryThisTurn) {
+  // --- B1/B2 — human warm-up before selling ---
+  // A direct question is always answered immediately. Without a direct
+  // ask, Tamar owes at least 2 warm human exchanges before pushing a
+  // product, a link, or a price.
+  const directProductAsk =
+    userRequestedLink ||
+    priceQueryThisTurn ||
+    browseIntentDetected ||
+    /(מתי|איפה|כמה\s+ימים|תאריך|טיסה|מלון|יש\s+לכם|יש\s+לך|ספרי\s+לי\s+על|when|where|how\s+much|how\s+many\s+days)/i.test(
+      message ?? "",
+    );
+  const warmUpTurnsDone = priorTamarOutbounds;
+  const smallTalkPhase = !directProductAsk && warmUpTurnsDone < 2;
+  if (smallTalkPhase) {
+    replyHardRules.push(
+      "WARM-UP PHASE (turn " +
+        (warmUpTurnsDone + 1) +
+        " of 2 before selling): reply like a warm human, not a form. Reflect what they said, add one short human sentence of value, and at most ONE light, natural question. Do NOT recommend a product, do NOT paste a link, do NOT mention price, and do NOT list the catalog this turn — unless the user asks directly.",
+    );
+  } else if (!directProductAsk) {
+    replyHardRules.push(
+      "Warm-up is complete: you may now move toward a concrete next step (a matching trip with its link, or offering a person from the team). Keep it short and human, never a questionnaire.",
+    );
+  }
+
+  if (isOfferSpecific && hasOfferUrl && !priceQueryThisTurn && !smallTalkPhase) {
     const linkOnThisTurn = userRequestedLink || priorTamarOutbounds >= 1;
     if (linkOnThisTurn) {
       replyHardRules.push(
