@@ -229,12 +229,12 @@ export const SCENARIOS: Scenario[] = [
   // ---------- handoff ----------
   { name: "explicit human request hands off", category: "handoff", state: "intake_active", inbound: "אפשר לדבר עם נציג?", expect: { next_state: "human_handoff_queued", action: "handoff" } },
   { name: "handoff also freezes automation", category: "handoff", state: "intake_active", inbound: "תעבירי אותי לאדם", expect: { action: "freeze" } },
-  { name: "handoff acknowledges the customer", category: "handoff", state: "consented", inbound: "רוצה לדבר עם מישהו מהצוות", expect: { includes: "מעבירה אותך" } },
+  { name: "handoff acknowledges the customer", category: "handoff", state: "consented", inbound: "רוצה לדבר עם מישהו מהצוות", expect: { includes: "העברתי את הבקשה שלך" } },
   { name: "distress hands off at high urgency", category: "handoff", state: "intake_active", inbound: "עברתי משבר קשה מאז שבעלי נפטר", expect: { action: "handoff", reason: "urgency_high" } },
   { name: "complaint hands off", category: "handoff", state: "value_delivered", inbound: "יש לי תלונה, לא קיבלתי החזר כספי", expect: { action: "handoff", reason: "urgency_high" } },
   { name: "bot frustration hands off", category: "handoff", state: "intake_active", inbound: "את בוט? זה לא עוזר לי", expect: { action: "handoff" } },
-  { name: "frozen thread stays silent", category: "handoff", state: "human_owned", inbound: "היי, מה קורה?", expect: { silent: true } },
-  { name: "queued handoff stays silent", category: "handoff", state: "human_handoff_queued", inbound: "עוד משהו", expect: { silent: true } },
+  { name: "frozen thread acknowledges instead of going silent", category: "handoff", state: "human_owned", inbound: "היי, מה קורה?", expect: { silent: false, includes: "כבר הועברה" } },
+  { name: "queued handoff re-escalates instead of silence", category: "handoff", state: "human_handoff_queued", inbound: "עוד משהו", expect: { silent: false, action: "handoff_followup" } },
   { name: "handoff never markets", category: "handoff", state: "intake_active", inbound: "תעבירי לנציג", expect: { marketing_allowed: false, offers_max: 0 } },
 
   // ---------- intake ----------
@@ -311,7 +311,7 @@ export const SCENARIOS: Scenario[] = [
   { name: "explicit destination triggers offers", category: "offers", state: "consented", inbound: "יש טיול לאלבניה?", expect: { action: "recommend" } },
   { name: "offer list is capped at two", category: "offers", state: "intake_active", inbound: "מה יש לכם בטיולים?", expect: { offers_max: 2 } },
   { name: "offers include titles", category: "offers", state: "consented", inbound: "אילו טיולים יש?", expect: { includes: "טיול לאלבניה" } },
-  { name: "offers never sent while frozen", category: "offers", state: "human_owned", inbound: "אילו טיולים יש?", expect: { offers_max: 0, silent: true } },
+  { name: "offers never sent while frozen", category: "offers", state: "human_owned", inbound: "אילו טיולים יש?", expect: { offers_max: 0, marketing_allowed: false } },
   { name: "offers never sent while queued", category: "offers", state: "human_handoff_queued", inbound: "אילו טיולים יש?", expect: { offers_max: 0 } },
   { name: "recommendation moves the state forward", category: "offers", state: "intake_active", inbound: "מה יש לכם בטיולים?", expect: { next_state: "recommendation_ready" } },
   { name: "event interest also recommends", category: "offers", state: "consented", inbound: "יש אירוע קרוב?", expect: { action: "recommend" } },
@@ -332,8 +332,8 @@ export const SCENARIOS: Scenario[] = [
   { name: "legal threat hands off", category: "safety", state: "intake_active", inbound: "אני פונה לעורך דין", expect: { action: "handoff" } },
   { name: "widowhood is treated with care", category: "safety", state: "intake_active", inbound: "התאלמנתי לאחרונה", expect: { action: "handoff", reason: "urgency_high" } },
   { name: "handoff never asks an intake question", category: "safety", state: "intake_active", inbound: "תעבירי לנציג", expect: { asks: null } },
-  { name: "frozen thread captures nothing", category: "safety", state: "human_owned", inbound: "אני מהצפון", expect: { silent: true, no_action: "capture_field" } },
-  { name: "paused thread stays silent", category: "safety", state: "paused", inbound: "היי", expect: { silent: true } },
+  { name: "frozen thread captures nothing", category: "safety", state: "human_owned", inbound: "אני מהצפון", expect: { no_action: "capture_field" } },
+  { name: "paused thread acknowledges the customer", category: "safety", state: "paused", inbound: "היי", expect: { silent: false, marketing_allowed: false } },
   { name: "opt-out beats a browse intent", category: "safety", state: "consented", inbound: "הסירו אותי", expect: { action: "opt_out", offers_max: 0 } },
   { name: "opted-out user is never asked a question", category: "safety", state: "opted_out", inbound: "מה שלומך?", expect: { asks: null } },
   { name: "long rambling message still replies", category: "safety", state: "intake_active", inbound: "אני לא ממש יודעת מה אני מחפשת אולי טיול אולי לא תלוי בתאריכים ובאנשים", expect: { silent: false } },
@@ -348,4 +348,11 @@ export const SCENARIOS: Scenario[] = [
   { name: "no medical or therapy framing", category: "safety", state: "intake_active", inbound: "אוקיי", expect: { excludes: "טיפול" } },
   { name: "reply never claims a discount", category: "safety", state: "consented", inbound: "אילו טיולים יש?", expect: { excludes: "הנחה" } },
   { name: "reply never promises availability", category: "safety", state: "consented", inbound: "אילו טיולים יש?", expect: { excludes: "מובטח" } },
+
+  // ---------- replay: silent-handoff incident (05/08) ----------
+  { name: "replay: second human request on a frozen thread is answered", category: "handoff", state: "human_owned", inbound: "תעבירי לנציג", expect: { silent: false, action: "handoff_followup", includes: "כבר הועברה" } },
+  { name: "replay: frozen follow-up never sells", category: "handoff", state: "human_owned", inbound: "תעבירי לנציג", expect: { marketing_allowed: false, offers_max: 0 } },
+  { name: "replay: frozen follow-up asks nothing", category: "handoff", state: "human_owned", inbound: "מישהו יכול לחזור אליי?", expect: { asks: null } },
+  { name: "replay: frozen follow-up freezes automation again", category: "handoff", state: "human_handoff_queued", inbound: "הלו?", expect: { action: "freeze" } },
+  { name: "replay: first human request returns the exact receipt", category: "handoff", state: "intake_active", inbound: "תעבירי לנציג", expect: { includes: "יחזור אליך בהקדם" } },
 ];

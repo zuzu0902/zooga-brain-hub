@@ -15,7 +15,7 @@ import { classifyConsentReply, consentClarifyExhausted } from "./consent";
 import { detectHandoffSignal, isGoodbye, isUserQuestion } from "./signals";
 import { canTransition, deriveState, type ConversationState } from "./state-machine";
 import { loadBrainPolicy, loadCopy } from "./copy.server";
-import { createHandoff } from "./handoff.server";
+import { ensureHandoff, HANDOFF_FROZEN_ACK_TEXT, HANDOFF_RECEIPT_TEXT } from "@/lib/tamar-handoff-core.server";
 import { isOptInMessage, isOptOutMessage, OPT_OUT_CONFIRMATION } from "@/lib/optout";
 
 export type BrainGate =
@@ -79,13 +79,34 @@ export async function runBrainGate(input: GateInput): Promise<BrainGate> {
   const goodbye = isGoodbye(message);
 
   // ---------- 1. Human ownership freeze (highest precedence) ----------
+  // Automation stays frozen (no selling, no questions) BUT Tamar is never
+  // silent: the customer gets one acknowledgement and the message is
+  // appended to the open handoff, re-escalating it under a cooldown.
   if (state === "human_owned" || state === "human_handoff_queued" || state === "paused") {
     await supabaseAdmin.from("webhook_logs").insert({
       source: "tamar_brain",
       status: "automation_frozen",
-      payload: { contact_id: contactId, state },
+      payload: { contact_id: contactId, state, has_message: !!message },
     } as any);
-    return { kind: "silent", state, reason: `automation_frozen_${state}` };
+    if (!message) return { kind: "silent", state, reason: `automation_frozen_${state}` };
+    await ensureHandoff({
+      contactId,
+      customerPhone: input.phone,
+      customerName: contact?.full_name ?? contact?.first_name ?? null,
+      reason: "follow_up_while_human_owned",
+      reasonCodes: ["frozen_followup", ...handoffSignal.reason_codes],
+      urgency: handoffSignal.handoff ? handoffSignal.urgency : "normal",
+      latestInbound: message,
+      followUp: true,
+      runtime: "v1",
+    });
+    return {
+      kind: "reply",
+      state,
+      text: HANDOFF_FROZEN_ACK_TEXT,
+      reason: `automation_frozen_${state}_ack`,
+      marketing: false,
+    };
   }
 
   // ---------- 2. Explicit opt-out at any time ----------
@@ -103,8 +124,7 @@ export async function runBrainGate(input: GateInput): Promise<BrainGate> {
 
   // ---------- 3. Handoff — supreme rule ----------
   if (handoffSignal.handoff) {
-    const ack = await loadCopy("handoff_ack", { contactId, abEnabled: policy.ab_testing_enabled && !policy.kill_switch_ab });
-    await createHandoff({
+    await ensureHandoff({
       contactId,
       customerPhone: input.phone,
       customerName: contact?.full_name ?? contact?.first_name ?? null,
@@ -118,6 +138,7 @@ export async function runBrainGate(input: GateInput): Promise<BrainGate> {
         source: String(i?.source ?? i?.type ?? ""),
         content: String(i?.content ?? ""),
       })),
+      runtime: "v1",
     });
     await applyTransition({
       contactId,
@@ -126,7 +147,13 @@ export async function runBrainGate(input: GateInput): Promise<BrainGate> {
       trigger: "handoff_signal",
       reasonCodes: handoffSignal.reason_codes,
     });
-    return { kind: "reply", state: "human_handoff_queued", text: ack.body, reason: handoffSignal.reason, marketing: false };
+    return {
+      kind: "reply",
+      state: "human_handoff_queued",
+      text: HANDOFF_RECEIPT_TEXT,
+      reason: handoffSignal.reason,
+      marketing: false,
+    };
   }
 
   // ---------- 4. Opted-out contacts ----------

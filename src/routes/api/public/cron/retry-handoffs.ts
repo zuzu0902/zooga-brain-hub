@@ -1,15 +1,15 @@
 /**
- * HANDOFF SWEEP — operational truthfulness for queued handoffs.
- *
- * There is no live manager channel: every handoff is QUEUED inside Zooga.
- * This job re-asserts that state for anything left unattended — makes sure
- * the contact is flagged and an open ops task exists.
+ * HANDOFF SWEEP — retries real manager notifications for queued handoffs
+ * and re-asserts the ops state (flagged contact + open task) for anything
+ * left unattended. A handoff is only ever marked notified after a real
+ * Meta 200.
  *
  *   POST {published}/api/public/cron/retry-handoffs
  *     header: x-api-token: <api_settings.webhook_token>
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { notifyManagerForHandoff, handoffChannelHealth } from "@/lib/tamar-handoff-core.server";
 
 const STALE_MINUTES = 5;
 const MAX_ATTEMPTS = 5;
@@ -45,7 +45,6 @@ export const Route = createFileRoute("/api/public/cron/retry-handoffs")({
         const results: any[] = [];
 
         for (const row of rows) {
-          const attempts = (row.delivery_attempts ?? 0) + 1;
           const { data: existingTask } = await supabaseAdmin
             .from("tasks")
             .select("id")
@@ -71,19 +70,21 @@ export const Route = createFileRoute("/api/public/cron/retry-handoffs")({
               .update({ manager_attention_required: true } as any)
               .eq("id", row.contact_id);
           }
-          await supabaseAdmin
-            .from("manager_handoffs" as any)
-            .update({
-              delivery_attempts: attempts,
-              status: "queued",
-              delivery_promise: "queued",
-              alert_error: "queued_no_manager_channel",
-            } as any)
-            .eq("id", row.id);
-          results.push({ id: row.id, attempts, task_created: !existingTask });
+          const outcome = await notifyManagerForHandoff(row.id);
+          results.push({
+            id: row.id,
+            alert_state: outcome.alert_state,
+            alert_error: outcome.alert_error,
+            task_created: !existingTask,
+          });
         }
 
-        return Response.json({ ok: true, candidates: rows.length, results });
+        return Response.json({
+          ok: true,
+          candidates: rows.length,
+          channel: await handoffChannelHealth(),
+          results,
+        });
       },
     },
   },

@@ -9,7 +9,7 @@
  * The AI never writes state, never picks an offer, never decides handoff.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { createHandoff } from "@/lib/tamar-brain/handoff.server";
+import { ensureHandoff } from "@/lib/tamar-handoff-core.server";
 import { retrieveKnowledge } from "@/lib/tamar-brain/knowledge.server";
 import {
   phoneVariants,
@@ -380,19 +380,26 @@ async function persistTurn(args: {
     } as any);
   } catch { /* ignore */ }
 
-  // handoff + freeze
-  if (decision.actions.includes("handoff")) {
+  // handoff + freeze (also covers follow-ups on an already frozen thread)
+  const isHandoff = decision.actions.includes("handoff");
+  const isHandoffFollowUp = decision.actions.includes("handoff_followup");
+  if (isHandoff || isHandoffFollowUp) {
     try {
-      await createHandoff({
+      await ensureHandoff({
         contactId: contact.id,
-        phone: contact.whatsapp_number ?? contact.phone ?? null,
-        name: contact.first_name ?? contact.full_name ?? null,
-        reason: decision.reason_codes.join(","),
+        customerPhone: contact.whatsapp_number ?? contact.phone ?? null,
+        customerName: contact.first_name ?? contact.full_name ?? null,
+        reason: decision.reason_codes.join(",") || "human_request",
+        reasonCodes: decision.reason_codes,
         urgency: decision.reason_codes.includes("urgency_high") ? "high" : "normal",
         latestInbound: message,
         excerpt: [],
-      } as any);
+        followUp: isHandoffFollowUp,
+        runtime: "v2",
+      });
     } catch { /* handoff row failure must not lose the reply */ }
+  }
+  if (isHandoff) {
     try {
       await supabaseAdmin
         .from("contacts")

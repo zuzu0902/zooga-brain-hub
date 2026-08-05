@@ -138,7 +138,16 @@ export type TurnDecision = {
   next_state: V2State;
   messages: OutboundMessage[];
   /** deterministic actions the runtime must execute */
-  actions: Array<"handoff" | "freeze" | "opt_out" | "opt_in" | "consent_granted" | "capture_field" | "recommend">;
+  actions: Array<
+    | "handoff"
+    | "handoff_followup"
+    | "freeze"
+    | "opt_out"
+    | "opt_in"
+    | "consent_granted"
+    | "capture_field"
+    | "recommend"
+  >;
   ask_step_key: string | null;
   captured: Record<string, string>;
   offer_ids: string[];
