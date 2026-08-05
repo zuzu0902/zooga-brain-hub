@@ -121,19 +121,44 @@ export type Scenario = {
 
 const QUESTION_MARKS = /[?？]/g;
 
+/**
+ * Resolve a scenario option against WHATEVER agent version is running.
+ * A scenario may name a real option id, the fixed consent ids, or a
+ * positional id ("goal_1" = the first option of the `goal` step), so the same
+ * suite is valid for the test agent and for the live admin-edited flow.
+ */
+function resolveOption(agent: AgentVersion, sc: Scenario): { id: string | null; value: string | null } {
+  const wanted = sc.optionId;
+  if (!wanted) return { id: null, value: null };
+  const consent: Record<string, string> = { consent_yes: "yes", consent_no: "no", consent_explain: "explain" };
+  if (consent[wanted]) return { id: wanted, value: consent[wanted]! };
+  const direct = agent.steps.flatMap((s) => s.options).find((o) => o.option_id === wanted);
+  if (direct) return { id: direct.option_id, value: direct.value };
+  const m = /^(.*)_(\d+)$/.exec(wanted);
+  if (m) {
+    const stepKey = m[1]!;
+    const idx = Number(m[2]) - 1;
+    const step = agent.steps.find((s) => s.step_key === stepKey) ?? agent.steps.find((s) => s.step_key === (sc.pendingStepKey ?? ""));
+    const opt = step?.options.filter((o) => o.enabled)[idx];
+    if (opt) return { id: opt.option_id, value: opt.value };
+    if (stepKey === "consent") return idx === 1 ? { id: "consent_no", value: "no" } : { id: "consent_yes", value: "yes" };
+  }
+  return { id: wanted, value: null };
+}
+
 export function runScenario(sc: Scenario, agent: AgentVersion = TEST_AGENT) {
   const interpretation = interpretDeterministic(sc.inbound);
+  const opt = resolveOption(agent, sc);
   const decision = decideTurn({
     state: sc.state,
     message: sc.inbound,
-    optionId: sc.optionId ?? null,
-    optionValue:
-      agent.steps.find((s) => s.step_key === (sc.pendingStepKey ?? ""))?.options.find((o) => o.option_id === sc.optionId)?.value ??
-      agent.steps.flatMap((s) => s.options).find((o) => o.option_id === sc.optionId)?.value ??
-      null,
+    optionId: opt.id,
+    optionValue: opt.value,
     agent,
     interpretation,
-    knownFields: sc.known ?? {},
+    // The contact's name is already known from the WhatsApp profile, so a
+    // `first_name` step in the live flow is never re-asked in the suite.
+    knownFields: { first_name: "דנה", ...(sc.known ?? {}) },
     pendingStepKey: sc.pendingStepKey ?? null,
     ambiguityTurns: sc.ambiguityTurns ?? 0,
     answeredCount: sc.answeredCount ?? 0,
