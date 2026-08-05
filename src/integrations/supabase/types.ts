@@ -1216,10 +1216,16 @@ export type Database = {
           customer_phone: string | null
           delivery_attempts: number
           delivery_promise: string | null
+          escalation_count: number
           handoff_reason: string | null
           id: string
+          idempotency_key: string | null
+          last_customer_message_at: string | null
+          last_escalated_at: string | null
+          last_http_status: number | null
           latest_inbound_message: string | null
           manager_notified: boolean
+          notes: Json
           notified_at: string | null
           notified_manager_id: string | null
           resolved_at: string | null
@@ -1248,10 +1254,16 @@ export type Database = {
           customer_phone?: string | null
           delivery_attempts?: number
           delivery_promise?: string | null
+          escalation_count?: number
           handoff_reason?: string | null
           id?: string
+          idempotency_key?: string | null
+          last_customer_message_at?: string | null
+          last_escalated_at?: string | null
+          last_http_status?: number | null
           latest_inbound_message?: string | null
           manager_notified?: boolean
+          notes?: Json
           notified_at?: string | null
           notified_manager_id?: string | null
           resolved_at?: string | null
@@ -1280,10 +1292,16 @@ export type Database = {
           customer_phone?: string | null
           delivery_attempts?: number
           delivery_promise?: string | null
+          escalation_count?: number
           handoff_reason?: string | null
           id?: string
+          idempotency_key?: string | null
+          last_customer_message_at?: string | null
+          last_escalated_at?: string | null
+          last_http_status?: number | null
           latest_inbound_message?: string | null
           manager_notified?: boolean
+          notes?: Json
           notified_at?: string | null
           notified_manager_id?: string | null
           resolved_at?: string | null
