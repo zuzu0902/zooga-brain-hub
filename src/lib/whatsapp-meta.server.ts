@@ -169,13 +169,7 @@ async function graphSend(body: any): Promise<SendResult> {
 }
 
 export function sendWhatsAppText(to: string, text: string): Promise<SendResult> {
-  return graphSend({
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
-    to,
-    type: "text",
-    text: { preview_url: true, body: text },
-  });
+  return graphSend(buildTextPayload(to, text));
 }
 
 export type QuickOption = { id: string; label: string; value?: string };
@@ -186,9 +180,19 @@ function trim(s: string, n: number): string {
   return t.length <= n ? t : t.slice(0, n - 1) + "\u2026";
 }
 
-/** Up to 3 reply buttons (24h session window only, not templates). */
-export function sendWhatsAppButtons(to: string, body: string, options: QuickOption[]): Promise<SendResult> {
-  return graphSend({
+export function buildTextPayload(to: string, text: string) {
+  return {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "text",
+    text: { preview_url: true, body: text },
+  };
+}
+
+/** Exact Graph payload for an interactive reply-button message. */
+export function buildButtonsPayload(to: string, body: string, options: QuickOption[]) {
+  return {
     messaging_product: "whatsapp",
     recipient_type: "individual",
     to,
@@ -203,7 +207,12 @@ export function sendWhatsAppButtons(to: string, body: string, options: QuickOpti
         })),
       },
     },
-  });
+  };
+}
+
+/** Up to 3 reply buttons (24h session window only, not templates). */
+export function sendWhatsAppButtons(to: string, body: string, options: QuickOption[]): Promise<SendResult> {
+  return graphSend(buildButtonsPayload(to, body, options));
 }
 
 /** Up to 10 list rows. Used when a question has more than 3 answers. */
@@ -301,4 +310,26 @@ export function metaConfigPresence() {
     whatsapp_phone_number_id: !!process.env.WHATSAPP_PHONE_NUMBER_ID,
     lovable_api_key: !!process.env.LOVABLE_API_KEY,
   };
+}
+
+/**
+ * Meta's 24-hour customer service window: interactive messages are only
+ * deliverable while the customer has written to us in the last 24h.
+ * Outside it, only an approved template may be sent.
+ */
+export async function isSessionWindowOpen(contactId: string | null): Promise<boolean> {
+  if (!contactId) return false;
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabaseAdmin
+      .from("interactions")
+      .select("id")
+      .eq("contact_id", contactId)
+      .eq("source", "tamar_inbound")
+      .gte("timestamp", since)
+      .limit(1);
+    return !!(data as any[])?.length;
+  } catch {
+    return false;
+  }
 }

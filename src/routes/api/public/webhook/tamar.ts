@@ -14,6 +14,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
 import { runV2Turn } from "@/lib/tamar-v2/engine.server";
+import { isConsentPhase } from "@/lib/tamar-v2/engine.server";
 import { v2Enabled } from "@/lib/tamar-v2/flags.server";
 import { claimInbound, recordReply } from "@/lib/runtime-inbound-dedupe";
 import { isOptInMessage, isOptOutMessage, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from "@/lib/optout";
@@ -146,9 +147,12 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             continue;
           }
 
-          // ---- Tamar Brain V2 (deterministic workflow + AI interpreter) ----
+          // ---- Tamar Brain V2 ----
+          // The consent phase (exact opener + yes/no buttons) is always owned
+          // by v2, even while the flag is off for the rest of the flow.
           const flag = await v2Enabled(msg.from);
-          if (flag.enabled) {
+          const consentPhase = flag.enabled ? false : await isConsentPhase({ phone: msg.from }).catch(() => false);
+          if (flag.enabled || consentPhase) {
             const v2 = await runV2Turn({
               phone: msg.from,
               message: msg.text,
@@ -162,7 +166,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             await recordReply(msg.wamid, v2.decision.messages.map((m) => m.body).join("\n")).catch(() => {});
             results.push({
               wamid: msg.wamid,
-              engine: "v2",
+              engine: flag.enabled ? "v2" : "v2_consent_phase",
               contact_id: v2.contact_id,
               state: v2.decision.next_state,
               reply_sent: sentAll,

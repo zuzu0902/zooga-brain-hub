@@ -121,19 +121,51 @@ export type Scenario = {
 
 const QUESTION_MARKS = /[?？]/g;
 
+/**
+ * Resolve a scenario option against WHATEVER agent version is running.
+ * A scenario may name a real option id, the fixed consent ids, or a
+ * positional id ("goal_1" = the first option of the `goal` step), so the same
+ * suite is valid for the test agent and for the live admin-edited flow.
+ */
+function resolveOption(agent: AgentVersion, sc: Scenario): { id: string | null; value: string | null } {
+  const wanted = sc.optionId;
+  if (!wanted) return { id: null, value: null };
+  const consent: Record<string, string> = { consent_yes: "yes", consent_no: "no", consent_explain: "explain" };
+  if (consent[wanted]) return { id: wanted, value: consent[wanted]! };
+  const direct = agent.steps.flatMap((s) => s.options).find((o) => o.option_id === wanted);
+  if (direct) return { id: direct.option_id, value: direct.value };
+  const m = /^(.*)_(\d+)$/.exec(wanted);
+  if (m) {
+    const stepKey = m[1]!;
+    const idx = Number(m[2]) - 1;
+    const step = agent.steps.find((s) => s.step_key === stepKey) ?? agent.steps.find((s) => s.step_key === (sc.pendingStepKey ?? ""));
+    const opt = step?.options.filter((o) => o.enabled)[idx];
+    if (opt) return { id: opt.option_id, value: opt.value };
+    if (stepKey === "consent") {
+      const fixed = [
+        { id: "consent_yes", value: "yes" },
+        { id: "consent_no", value: "no" },
+        { id: "consent_explain", value: "explain" },
+      ];
+      return fixed[idx] ?? fixed[0]!;
+    }
+  }
+  return { id: wanted, value: null };
+}
+
 export function runScenario(sc: Scenario, agent: AgentVersion = TEST_AGENT) {
   const interpretation = interpretDeterministic(sc.inbound);
+  const opt = resolveOption(agent, sc);
   const decision = decideTurn({
     state: sc.state,
     message: sc.inbound,
-    optionId: sc.optionId ?? null,
-    optionValue:
-      agent.steps.find((s) => s.step_key === (sc.pendingStepKey ?? ""))?.options.find((o) => o.option_id === sc.optionId)?.value ??
-      agent.steps.flatMap((s) => s.options).find((o) => o.option_id === sc.optionId)?.value ??
-      null,
+    optionId: opt.id,
+    optionValue: opt.value,
     agent,
     interpretation,
-    knownFields: sc.known ?? {},
+    // The contact's name is already known from the WhatsApp profile, so a
+    // `first_name` step in the live flow is never re-asked in the suite.
+    knownFields: { first_name: "דנה", ...(sc.known ?? {}) },
     pendingStepKey: sc.pendingStepKey ?? null,
     ambiguityTurns: sc.ambiguityTurns ?? 0,
     answeredCount: sc.answeredCount ?? 0,
@@ -168,7 +200,7 @@ const consentButtons = { pendingStepKey: "consent" };
 
 export const SCENARIOS: Scenario[] = [
   // ---------- opener / consent ----------
-  { name: "greeting opens with identity + consent", category: "consent", state: "new_inbound", inbound: "שלום", expect: { next_state: "consent_asked", asks: "consent", includes: "אני לא בן אדם", reason: "first_inbound_opener", marketing_allowed: false } },
+  { name: "greeting opens with the exact approved opener", category: "consent", state: "new_inbound", inbound: "שלום", expect: { next_state: "consent_asked", asks: "consent", includes: "אני תמר, העוזרת הדיגיטלית של קהילת זוגה", reason: "first_inbound_opener", marketing_allowed: false } },
   { name: "hi in english opens", category: "consent", state: "new_inbound", inbound: "hi", expect: { next_state: "consent_asked", asks: "consent" } },
   { name: "first message that is a question still opens", category: "consent", state: "new_inbound", inbound: "יש טיול לאלבניה?", expect: { next_state: "consent_asked", asks: "consent", marketing_allowed: false } },
   { name: "greeting never treated as ambiguous consent", category: "consent", state: "new_inbound", inbound: "היי", expect: { reason: "first_inbound_opener" } },
@@ -233,7 +265,7 @@ export const SCENARIOS: Scenario[] = [
   { name: "unknown fact never invented", category: "answer", state: "intake_active", inbound: "יש טיול ליפן?", answerText: "אין לי כרגע טיול ליפן.", expect: { includes: "אין לי כרגע טיול ליפן" } },
 
   // ---------- safety / integrity ----------
-  { name: "never claims to be human", category: "safety", state: "new_inbound", inbound: "שלום", expect: { includes: "אני לא בן אדם" } },
+  { name: "opener asks for message consent", category: "safety", state: "new_inbound", inbound: "שלום", expect: { includes: "האם את/ה מאשר לשלוח לך הודעות למספר הזה?" } },
   { name: "empty message still replies", category: "safety", state: "intake_active", inbound: "", expect: { silent: false } },
   { name: "gibberish does not opt out", category: "safety", state: "intake_active", inbound: "אסדגכדג", expect: { no_action: "opt_out" } },
   { name: "human request beats opt-out keyword order", category: "safety", state: "intake_active", inbound: "תעבירי אותי לנציג בבקשה", expect: { action: "handoff", no_action: "opt_out" } },
@@ -252,8 +284,8 @@ export const SCENARIOS: Scenario[] = [
   { name: "consent close is a single message", category: "consent", state: "consent_asked", inbound: "לא, תודה", expect: { max_questions: 0 } },
   { name: "consent no never asks another question", category: "consent", state: "consent_asked", inbound: "לא", expect: { asks: null } },
   { name: "opener includes the agent name", category: "consent", state: "new_inbound", inbound: "שלום", expect: { includes: "תמר" } },
-  { name: "opener greets by first name", category: "consent", state: "new_inbound", inbound: "היי", expect: { includes: "דנה" } },
-  { name: "opener offers a human", category: "consent", state: "new_inbound", inbound: "בוקר טוב", expect: { includes: "לדבר עם מישהו מהצוות" } },
+  { name: "opener is never prefixed or rephrased", category: "consent", state: "new_inbound", inbound: "היי", expect: { excludes: "היי דנה" } },
+  { name: "opener is a single message", category: "consent", state: "new_inbound", inbound: "בוקר טוב", expect: { includes: "שלום, אני תמר" } },
   { name: "first inbound with an opt-out word still opts out", category: "consent", state: "new_inbound", inbound: "הסר", expect: { next_state: "opted_out" } },
   { name: "first inbound asking for a human hands off", category: "consent", state: "new_inbound", inbound: "אני רוצה לדבר עם נציג", expect: { action: "handoff" } },
   { name: "consent yes then intake keeps marketing allowed", category: "consent", state: "consent_asked", inbound: "כן", expect: { next_state: "intake_active" } },
