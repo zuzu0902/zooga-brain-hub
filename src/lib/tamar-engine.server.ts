@@ -1948,7 +1948,9 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
       ? {
           id: handoffId,
           manager_notified: managerNotified,
-          delivery_promise: handoffPreCheck.delivery_promise,
+          delivery_promise: managerNotified ? "notified" : handoffPreCheck.delivery_promise,
+          alert_state: handoffAlertState,
+          alert_error: handoffAlertError,
         }
       : null,
     meta: {
