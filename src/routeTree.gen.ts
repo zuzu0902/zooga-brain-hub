@@ -64,6 +64,7 @@ import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/w
 import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
 import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
+import { Route as ApiPublicCronZeroLossWorkerRouteImport } from './routes/api/public/cron/zero-loss-worker'
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
 import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
@@ -361,6 +362,12 @@ const ApiPublicIntelligenceExtractRoute =
     path: '/api/public/intelligence/extract',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronZeroLossWorkerRoute =
+  ApiPublicCronZeroLossWorkerRouteImport.update({
+    id: '/api/public/cron/zero-loss-worker',
+    path: '/api/public/cron/zero-loss-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronRetryHandoffsRoute =
   ApiPublicCronRetryHandoffsRouteImport.update({
     id: '/api/public/cron/retry-handoffs',
@@ -433,6 +440,7 @@ export interface FileRoutesByFullPath {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -492,6 +500,7 @@ export interface FileRoutesByTo {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -553,6 +562,7 @@ export interface FileRoutesById {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -614,6 +624,7 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/zero-loss-worker'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
@@ -673,6 +684,7 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/zero-loss-worker'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
@@ -733,6 +745,7 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/zero-loss-worker'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
@@ -772,6 +785,7 @@ export interface RootRouteChildren {
   ApiPublicAdminBackfillMemoriesRoute: typeof ApiPublicAdminBackfillMemoriesRoute
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
+  ApiPublicCronZeroLossWorkerRoute: typeof ApiPublicCronZeroLossWorkerRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeConversationDebugRoute: typeof ApiPublicRuntimeConversationDebugRoute
   ApiPublicRuntimeTamarTurnRoute: typeof ApiPublicRuntimeTamarTurnRoute
@@ -1165,6 +1179,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicIntelligenceExtractRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/zero-loss-worker': {
+      id: '/api/public/cron/zero-loss-worker'
+      path: '/api/public/cron/zero-loss-worker'
+      fullPath: '/api/public/cron/zero-loss-worker'
+      preLoaderRoute: typeof ApiPublicCronZeroLossWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/retry-handoffs': {
       id: '/api/public/cron/retry-handoffs'
       path: '/api/public/cron/retry-handoffs'
@@ -1305,6 +1326,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAdminBackfillMemoriesRoute: ApiPublicAdminBackfillMemoriesRoute,
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
+  ApiPublicCronZeroLossWorkerRoute: ApiPublicCronZeroLossWorkerRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicRuntimeConversationDebugRoute:
     ApiPublicRuntimeConversationDebugRoute,
