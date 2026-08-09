@@ -39,6 +39,7 @@ export async function loadIntakeDefs(version = 1): Promise<IntakeFieldDefinition
     skippable: r.skippable !== false,
     order_index: Number(r.order_index ?? 0),
     enabled: r.enabled !== false,
+    stage: (r.stage ?? (r.field_key === "birth_date" ? "progressive" : "baseline")) as IntakeFieldDefinition["stage"],
   }));
 }
 
@@ -94,6 +95,12 @@ export function toRoutableContact(row: any): RoutableContact {
     id: row.id,
     phone: row.phone ?? null,
     whatsapp_number: row.whatsapp_number ?? null,
+    opening: {
+      opening_status: (row.opening_status ?? "not_sent") as RoutableContact["opening"]["opening_status"],
+      opening_asked_at: row.opening_asked_at ?? null,
+      opening_responded_at: row.opening_responded_at ?? null,
+      opening_deferred_at: row.opening_deferred_at ?? null,
+    },
     consent: {
       consent_status: row.consent_status ?? "unknown",
       consent_source: row.consent_source ?? null,
