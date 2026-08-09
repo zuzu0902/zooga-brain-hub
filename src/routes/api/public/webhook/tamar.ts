@@ -133,11 +133,11 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
         }
 
         const results: any[] = [];
+        const leasedJobs: string[] = [];
         for (const msg of messages) {
           const vaultRef = vaultByEventId.get(msg.wamid) ?? null;
           const jobId = vaultRef && !vaultRef.duplicate ? await leaseJobForVault(vaultRef.vault_id, "webhook") : null;
-          let turnFailed: string | null = null;
-          let resolvedContactId: string | null = null;
+          if (jobId) leasedJobs.push(jobId);
           let inboundText = msg.text;
           let inboundSource: "text" | "voice" = "text";
           let voiceConfidence: number | null = null;
