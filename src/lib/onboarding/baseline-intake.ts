@@ -12,44 +12,56 @@ import type {
 /** Confidence at/above which a known value blocks re-asking. */
 export const KNOWN_CONFIDENCE_MIN = 70;
 /** Hard ceiling of baseline questions before Tamar must deliver value. */
-export const MAX_BASELINE_QUESTIONS_PER_CONVERSATION = 3;
-export const VALUE_AFTER_QUESTIONS = 3;
+export const MAX_BASELINE_QUESTIONS_PER_CONVERSATION = 5;
+export const VALUE_AFTER_QUESTIONS = 5;
 
 /**
- * Baseline = exactly three questions (A city, B interests, C open goal),
- * one per turn, asked once ever. Date of birth is progressive: it is only
- * offered after value was delivered and it never blocks completion.
+ * Baseline, one question per turn, asked once ever:
+ *   A city
+ *   B looking for a relationship
+ *   C likes travel
+ *   D travel scope        (only when likes_travel = yes)
+ *   E last trip           (only when likes_travel = yes)
+ * Date of birth is progressive: only after value was delivered, and it never
+ * blocks completion.
  */
 export const DEFAULT_INTAKE_FIELDS: IntakeFieldDefinition[] = [
   {
-    field_key: "city", label: "אזור מגורים",
-    question_text: "באיזה אזור בארץ את/ה גר/ה?",
+    field_key: "city", label: "עיר מגורים",
+    question_text: "באיזו עיר את/ה גר/ה?",
     purpose_text: "כדי להתאים אירועים וטיולים קרובים אלייך",
     presentation: "text", options: [], required: true, skippable: true,
     order_index: 10, enabled: true, stage: "baseline",
   },
   {
-    field_key: "interests", label: "תחומי עניין",
-    question_text: "מה הכי מעניין אותך מהפעילות של זוגה? אפשר לבחור כמה דברים או לכתוב בחופשיות.",
-    purpose_text: "כדי לשלוח רק מה שרלוונטי עבורך",
-    presentation: "multi",
-    options: [
-      { id: "trips_abroad", label: "טיולים בחו״ל", value: "טיולים בחו״ל" },
-      { id: "trips_il", label: "טיולים בארץ", value: "טיולים בארץ" },
-      { id: "events", label: "אירועים", value: "אירועים" },
-      { id: "culture", label: "תרבות", value: "תרבות" },
-      { id: "nature_food", label: "טבע ואוכל", value: "טבע ואוכל" },
-      { id: "community", label: "קהילה וקשרים חברתיים", value: "קהילה וקשרים חברתיים" },
-      { id: "other", label: "אחר", value: "אחר" },
-    ],
-    required: true, skippable: true, order_index: 20, enabled: true, stage: "baseline",
+    field_key: "looking_for_relationship", label: "מחפש/ת זוגיות",
+    question_text: "האם את/ה מחפש/ת זוגיות?",
+    purpose_text: "כדי לדעת אם להזמין אותך לאירועי היכרויות",
+    presentation: "text", options: [], required: true, skippable: true,
+    order_index: 20, enabled: true, stage: "baseline",
   },
   {
-    field_key: "primary_goal", label: "מטרה בתקופה הקרובה",
-    question_text: "מה הכי היית רוצה שזוגה תעזור לך למצוא או לחוות בתקופה הקרובה?",
-    purpose_text: null,
+    field_key: "likes_travel", label: "אוהב/ת טיולים",
+    question_text: "האם את/ה אוהב/ת טיולים?",
+    purpose_text: "כדי להתאים טיולים רלוונטיים",
     presentation: "text", options: [], required: true, skippable: true,
     order_index: 30, enabled: true, stage: "baseline",
+  },
+  {
+    field_key: "travel_scope", label: "העדפת טיולים",
+    question_text: "מה מושך אותך יותר — טיולים בארץ, בחו״ל או גם וגם?",
+    purpose_text: null,
+    presentation: "text", options: [], required: true, skippable: true,
+    order_index: 40, enabled: true, stage: "baseline",
+    depends_on: { field_key: "likes_travel", equals: ["yes"] },
+  },
+  {
+    field_key: "last_trip_destination", label: "הטיול האחרון",
+    question_text: "איפה היה הטיול האחרון שלך?",
+    purpose_text: null,
+    presentation: "text", options: [], required: false, skippable: true,
+    order_index: 50, enabled: true, stage: "baseline",
+    depends_on: { field_key: "likes_travel", equals: ["yes"] },
   },
   {
     field_key: "birth_date", label: "תאריך לידה (אופציונלי)",
@@ -75,11 +87,36 @@ export function isKnown(fact: ProfileFact | undefined): boolean {
   return fact.confidence >= KNOWN_CONFIDENCE_MIN;
 }
 
+/**
+ * A conditional question is only relevant when its dependency is already
+ * known AND matches. When the dependency is known and does not match, the
+ * question is permanently irrelevant (e.g. travel questions for someone who
+ * does not like travelling).
+ */
+export function isFieldRelevant(def: IntakeFieldDefinition, snap: IntakeSnapshot): boolean {
+  const dep = def.depends_on;
+  if (!dep || !dep.field_key) return true;
+  const f = snap.facts[dep.field_key];
+  if (!isKnown(f)) return false; // not askable yet
+  return dep.equals.includes(String(f?.value_text ?? "").trim());
+}
+
+/** Known and permanently ruled out by an unmet dependency. */
+function isRuledOut(def: IntakeFieldDefinition, snap: IntakeSnapshot): boolean {
+  const dep = def.depends_on;
+  if (!dep || !dep.field_key) return false;
+  const f = snap.facts[dep.field_key];
+  if (!isKnown(f)) return false;
+  return !dep.equals.includes(String(f?.value_text ?? "").trim());
+}
+
 export function completeness(
   defs: IntakeFieldDefinition[],
   snap: IntakeSnapshot,
 ): { fields: FieldCompleteness[]; percent: number; missing: string[] } {
-  const active = defs.filter((d) => d.enabled).sort((a, b) => a.order_index - b.order_index);
+  const active = defs
+    .filter((d) => d.enabled && !isRuledOut(d, snap))
+    .sort((a, b) => a.order_index - b.order_index);
   const fields: FieldCompleteness[] = active.map((d) => {
     const f = snap.facts[d.field_key];
     const known = isKnown(f);
@@ -106,6 +143,7 @@ function pick(defs: IntakeFieldDefinition[], stage: "baseline" | "progressive", 
   for (const d of active) {
     if (isKnown(snap.facts[d.field_key])) continue;
     if (snap.skipped.includes(d.field_key)) continue;
+    if (!isFieldRelevant(d, snap)) continue;
     return d;
   }
   return null;
