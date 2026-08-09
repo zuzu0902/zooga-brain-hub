@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getIntakeStudioConfig, saveIntakeFieldDefinition } from "@/lib/onboarding.functions";
+import { CONSENT_QUESTION_BUTTONS, CONSENT_QUESTION_TEXT } from "@/lib/onboarding/types";
 
 /** Baseline intake calibration — order, wording, required/optional, menu vs free text. */
 export function IntakeConfigTab() {
