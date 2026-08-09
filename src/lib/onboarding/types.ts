@@ -12,7 +12,7 @@ export type ConsentState = {
   consent_source: string | null;
   consent_at: string | null;
   consent_version: string | null;
-  consent_evidence: Record<string, unknown>;
+  consent_evidence: Record<string, string | number | boolean | null>;
   opt_out_at: string | null;
 };
 
