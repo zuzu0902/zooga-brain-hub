@@ -10,10 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Plus, Search, Filter, X, AlertCircle, Trash2 } from "lucide-react";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ContactDeleteDialog } from "@/components/contact-delete-dialog";
 import { toast } from "sonner";
 import {
   STATUS_LABELS, SOURCE_LABELS, INTEREST_LABELS, ALL_INTERESTS,
@@ -58,21 +55,6 @@ function ContactsPage() {
   const [consent, setConsent] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  async function confirmDelete() {
-    if (!toDelete) return;
-    setDeleting(true);
-    const { error } = await supabase.from("contacts").delete().eq("id", toDelete.id);
-    setDeleting(false);
-    if (error) {
-      toast.error(t("שגיאה במחיקה: ") + error.message);
-      return;
-    }
-    toast.success(t("איש הקשר נמחק"));
-    setToDelete(null);
-    refetch();
-  }
 
   const { data: contacts, isLoading, refetch } = useQuery({
     queryKey: ["contacts-rich"],
