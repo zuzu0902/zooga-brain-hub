@@ -21,6 +21,12 @@ const INTAKE_LABEL: Record<string, string> = {
   in_progress: "בתהליך",
   completed: "הושלם",
 };
+const OPENING_LABEL: Record<string, string> = {
+  not_sent: "לא נשלחה פתיחה",
+  asked: "נשאל אם נוח לדבר",
+  available: "אישר/ה שנוח לדבר",
+  deferred: "לא עכשיו (נדחה זמנית)",
+};
 
 export function OnboardingPanel({ contactId }: { contactId: string }) {
   const t = useT();
@@ -36,9 +42,10 @@ export function OnboardingPanel({ contactId }: { contactId: string }) {
   });
 
   if (!data) return null;
-  const { routable, completeness, facts, next_step } = data as any;
+  const { routable, completeness, facts, next_step, next_progressive_step, events } = data as any;
   const consent = routable.consent;
   const intake = routable.intake;
+  const opening = routable.opening ?? { opening_status: "not_sent" };
 
   async function commit(fieldKey: string) {
     try {
@@ -56,6 +63,9 @@ export function OnboardingPanel({ contactId }: { contactId: string }) {
     <Card className="p-6 space-y-5 shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-center gap-3">
         <h3 className="font-semibold">{t("הסכמה ואינטייק")}</h3>
+        <Badge variant={opening.opening_status === "available" ? "default" : opening.opening_status === "deferred" ? "outline" : "secondary"}>
+          {t("פתיחה")}: {OPENING_LABEL[opening.opening_status] ?? opening.opening_status}
+        </Badge>
         <Badge variant={consent.consent_status === "granted" ? "default" : consent.consent_status === "denied" ? "destructive" : "secondary"}>
           {t("הסכמה")}: {CONSENT_LABEL[consent.consent_status] ?? consent.consent_status}
         </Badge>
@@ -83,6 +93,11 @@ export function OnboardingPanel({ contactId }: { contactId: string }) {
         {next_step && (
           <p className="text-xs text-muted-foreground">
             {t("השאלה הבאה")}: {next_step.question_text}
+          </p>
+        )}
+        {!next_step && next_progressive_step && (
+          <p className="text-xs text-muted-foreground">
+            {t("שאלה מתקדמת אופציונלית")}: {next_progressive_step.question_text}
           </p>
         )}
       </div>
@@ -122,6 +137,19 @@ export function OnboardingPanel({ contactId }: { contactId: string }) {
         <p className="text-xs text-muted-foreground">
           {t("שדות חסרים")}: {completeness.missing.join(", ")}
         </p>
+      )}
+
+      {Array.isArray(events) && events.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium">{t("יומן פתיחה והסכמה")}</p>
+          {events.slice(0, 6).map((e: any, i: number) => (
+            <div key={i} className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Badge variant="outline">{e.event_type}</Badge>
+              {e.button_title && <span>{e.button_title}</span>}
+              <span>{e.created_at ? new Date(e.created_at).toLocaleString("he-IL") : ""}</span>
+            </div>
+          ))}
+        </div>
       )}
     </Card>
   );
