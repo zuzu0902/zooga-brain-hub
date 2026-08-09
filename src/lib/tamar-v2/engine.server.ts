@@ -281,7 +281,6 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         });
         if (!res.ok) break;
       }
-      if (!sends.length) noReplyReason = "silent_by_policy";
     }
   }
 
