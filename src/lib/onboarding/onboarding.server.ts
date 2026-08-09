@@ -294,7 +294,8 @@ export async function handleOnboardingButton(args: {
   text?: string | null;
   sourceMessageId?: string | null;
 }): Promise<{ handled: boolean; kind: string | null; reply_text: string | null; duplicate: boolean }> {
-  const { parseOnboardingButton, applyOpeningReply, applyConsentReply } = await import("./two-stage");
+  const { parseOnboardingButton, applyOpeningReply, applyConsentReply, applyRelationshipGateReply } =
+    await import("./two-stage");
   const button = parseOnboardingButton({
     id: args.buttonId ?? null,
     title: args.buttonTitle ?? null,
@@ -332,7 +333,92 @@ export async function handleOnboardingButton(args: {
     });
     return { handled: true, kind: button, reply_text: consent.reply_text, duplicate: false };
   }
+
+  const relationship = applyRelationshipGateReply(button);
+  if (relationship) {
+    await setRelationshipIntakeStatus(args.contactId, relationship.relationship_intake_status, {
+      buttonId: args.buttonId ?? button,
+      buttonTitle: args.buttonTitle ?? null,
+      sourceMessageId: args.sourceMessageId ?? null,
+    });
+    return { handled: true, kind: button, reply_text: relationship.reply_text, duplicate: false };
+  }
   return { handled: false, kind: null, reply_text: null, duplicate: false };
+}
+
+// ------------------------------------------------ relationship intake gate
+
+/** Marks that the gate question itself was sent. Never re-asked immediately. */
+export async function markRelationshipGateOffered(contactId: string) {
+  const now = new Date().toISOString();
+  await db()
+    .from("contacts")
+    .update({ relationship_intake_status: "offered", relationship_intake_offered_at: now })
+    .eq("id", contactId);
+  await recordOnboardingEvent({
+    contactId,
+    eventType: "relationship_intake_offered",
+    stage: "relationship_gate",
+  }).catch(() => null);
+}
+
+/**
+ * "מאוחר יותר" is stored as a deferral only: it never denies consent, never
+ * opts out, and never blocks normal conversation.
+ */
+export async function setRelationshipIntakeStatus(
+  contactId: string,
+  status: RelationshipIntakeStatus,
+  meta: { buttonId?: string | null; buttonTitle?: string | null; sourceMessageId?: string | null } = {},
+) {
+  const now = new Date().toISOString();
+  await db()
+    .from("contacts")
+    .update({
+      relationship_intake_status: status,
+      relationship_intake_ready_at: status === "ready_to_start" ? now : undefined,
+      relationship_intake_deferred_at: status === "deferred" ? now : undefined,
+    })
+    .eq("id", contactId);
+  await recordOnboardingEvent({
+    contactId,
+    eventType: status === "ready_to_start" ? "relationship_intake_yes" : "relationship_intake_later",
+    stage: "relationship_gate",
+    buttonId: meta.buttonId ?? null,
+    buttonTitle: meta.buttonTitle ?? null,
+    sourceMessageId: meta.sourceMessageId ?? null,
+    payload: { is_opt_out: false, consent_touched: false },
+  });
+}
+
+/**
+ * Value step: one active offer with a working link, or the Zooga homepage.
+ * Archived/expired offers are never surfaced.
+ */
+export async function pickActiveOfferLink(hints: {
+  travelScope?: string | null;
+  city?: string | null;
+} = {}): Promise<{ offer_id: string | null; title: string | null; url: string }> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await db()
+    .from("offers")
+    .select("id,title,offer_url,category,status,event_date,event_end_date")
+    .eq("status", "active")
+    .order("event_date", { ascending: true })
+    .limit(50);
+  const rows = ((data as any[]) ?? []).filter(
+    (o) => !!o.offer_url && (!o.event_end_date || o.event_end_date >= today) && (!o.event_date || o.event_date >= today),
+  );
+  if (!rows.length) return { offer_id: null, title: null, url: ZOOGA_FALLBACK_URL };
+  const scope = hints.travelScope ?? null;
+  const preferred =
+    scope === "israel"
+      ? rows.find((o) => o.category === "trip" && /ישראל|בארץ/.test(String(o.title ?? "")))
+      : scope === "abroad"
+        ? rows.find((o) => o.category === "trip" && !/ישראל|בארץ/.test(String(o.title ?? "")))
+        : rows.find((o) => o.category === "trip");
+  const chosen = preferred ?? rows[0]!;
+  return { offer_id: chosen.id, title: chosen.title ?? null, url: String(chosen.offer_url) };
 }
 
 // ---------------------------------------------------------------- facts
