@@ -22,7 +22,7 @@ import {
 import {
   ArrowRight, Plus, Save, X, MessageSquare, StickyNote,
   CheckSquare, Flag, Phone, Mail, MapPin, Calendar, ShieldCheck,
-  Sparkles, AlertCircle, Trash2, ExternalLink,
+  Sparkles, AlertCircle, Trash2, ExternalLink, RotateCcw,
   Brain, Heart, Zap, Clock, User, Activity, TrendingUp, Target,
   Lightbulb, History as HistoryIcon, ChevronRight, Settings2,
 } from "lucide-react";
@@ -40,6 +40,8 @@ import { ContactConversation } from "@/components/contact-conversation";
 import { useT, useLanguage } from "@/lib/language-context";
 import { OnboardingPanel } from "@/components/onboarding-panel";
 import { RelationshipIntakePanel } from "@/components/relationship-intake-panel";
+import { ContactResetDialog } from "@/components/contact-reset-dialog";
+import { ContactDeleteDialog } from "@/components/contact-delete-dialog";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
   head: () => ({ meta: [{ title: "Contact Profile — Zooga CRM" }] }),
@@ -53,7 +55,7 @@ function ContactProfile() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ["contact", id],
