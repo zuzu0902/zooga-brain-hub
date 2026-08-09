@@ -13,6 +13,7 @@ import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppZeroLossRouteImport } from './routes/_app.zero-loss'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
@@ -64,6 +65,8 @@ import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/w
 import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
 import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
+import { Route as ApiPublicCronZeroLossWorkerRouteImport } from './routes/api/public/cron/zero-loss-worker'
+import { Route as ApiPublicCronZeroLossReconcileRouteImport } from './routes/api/public/cron/zero-loss-reconcile'
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
 import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
@@ -85,6 +88,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppZeroLossRoute = AppZeroLossRouteImport.update({
+  id: '/zero-loss',
+  path: '/zero-loss',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTasksRoute = AppTasksRouteImport.update({
@@ -361,6 +369,18 @@ const ApiPublicIntelligenceExtractRoute =
     path: '/api/public/intelligence/extract',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronZeroLossWorkerRoute =
+  ApiPublicCronZeroLossWorkerRouteImport.update({
+    id: '/api/public/cron/zero-loss-worker',
+    path: '/api/public/cron/zero-loss-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronZeroLossReconcileRoute =
+  ApiPublicCronZeroLossReconcileRouteImport.update({
+    id: '/api/public/cron/zero-loss-reconcile',
+    path: '/api/public/cron/zero-loss-reconcile',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronRetryHandoffsRoute =
   ApiPublicCronRetryHandoffsRouteImport.update({
     id: '/api/public/cron/retry-handoffs',
@@ -397,6 +417,7 @@ export interface FileRoutesByFullPath {
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
+  '/zero-loss': typeof AppZeroLossRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
@@ -433,6 +454,8 @@ export interface FileRoutesByFullPath {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
+  '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -455,6 +478,7 @@ export interface FileRoutesByTo {
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
+  '/zero-loss': typeof AppZeroLossRoute
   '/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -492,6 +516,8 @@ export interface FileRoutesByTo {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
+  '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -516,6 +542,7 @@ export interface FileRoutesById {
   '/_app/runtime-trace': typeof AppRuntimeTraceRoute
   '/_app/send-offer': typeof AppSendOfferRoute
   '/_app/tasks': typeof AppTasksRoute
+  '/_app/zero-loss': typeof AppZeroLossRoute
   '/_app/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -553,6 +580,8 @@ export interface FileRoutesById {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
+  '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -578,6 +607,7 @@ export interface FileRouteTypes {
     | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
+    | '/zero-loss'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/campaigns/$id'
@@ -614,6 +644,8 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/zero-loss-reconcile'
+    | '/api/public/cron/zero-loss-worker'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
@@ -636,6 +668,7 @@ export interface FileRouteTypes {
     | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
+    | '/zero-loss'
     | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -673,6 +706,8 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/zero-loss-reconcile'
+    | '/api/public/cron/zero-loss-worker'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
@@ -696,6 +731,7 @@ export interface FileRouteTypes {
     | '/_app/runtime-trace'
     | '/_app/send-offer'
     | '/_app/tasks'
+    | '/_app/zero-loss'
     | '/_app/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -733,6 +769,8 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/zero-loss-reconcile'
+    | '/api/public/cron/zero-loss-worker'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
@@ -772,6 +810,8 @@ export interface RootRouteChildren {
   ApiPublicAdminBackfillMemoriesRoute: typeof ApiPublicAdminBackfillMemoriesRoute
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
+  ApiPublicCronZeroLossReconcileRoute: typeof ApiPublicCronZeroLossReconcileRoute
+  ApiPublicCronZeroLossWorkerRoute: typeof ApiPublicCronZeroLossWorkerRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeConversationDebugRoute: typeof ApiPublicRuntimeConversationDebugRoute
   ApiPublicRuntimeTamarTurnRoute: typeof ApiPublicRuntimeTamarTurnRoute
@@ -806,6 +846,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/zero-loss': {
+      id: '/_app/zero-loss'
+      path: '/zero-loss'
+      fullPath: '/zero-loss'
+      preLoaderRoute: typeof AppZeroLossRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tasks': {
@@ -1165,6 +1212,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicIntelligenceExtractRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/zero-loss-worker': {
+      id: '/api/public/cron/zero-loss-worker'
+      path: '/api/public/cron/zero-loss-worker'
+      fullPath: '/api/public/cron/zero-loss-worker'
+      preLoaderRoute: typeof ApiPublicCronZeroLossWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/zero-loss-reconcile': {
+      id: '/api/public/cron/zero-loss-reconcile'
+      path: '/api/public/cron/zero-loss-reconcile'
+      fullPath: '/api/public/cron/zero-loss-reconcile'
+      preLoaderRoute: typeof ApiPublicCronZeroLossReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/retry-handoffs': {
       id: '/api/public/cron/retry-handoffs'
       path: '/api/public/cron/retry-handoffs'
@@ -1240,6 +1301,7 @@ interface AppRouteChildren {
   AppRuntimeTraceRoute: typeof AppRuntimeTraceRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
   AppTasksRoute: typeof AppTasksRoute
+  AppZeroLossRoute: typeof AppZeroLossRoute
   AppIndexRoute: typeof AppIndexRoute
   AppSettingsApiRoute: typeof AppSettingsApiRoute
   AppSettingsTamarRoute: typeof AppSettingsTamarRoute
@@ -1261,6 +1323,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRuntimeTraceRoute: AppRuntimeTraceRoute,
   AppSendOfferRoute: AppSendOfferRoute,
   AppTasksRoute: AppTasksRoute,
+  AppZeroLossRoute: AppZeroLossRoute,
   AppIndexRoute: AppIndexRoute,
   AppSettingsApiRoute: AppSettingsApiRoute,
   AppSettingsTamarRoute: AppSettingsTamarRoute,
@@ -1305,6 +1368,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAdminBackfillMemoriesRoute: ApiPublicAdminBackfillMemoriesRoute,
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
+  ApiPublicCronZeroLossReconcileRoute: ApiPublicCronZeroLossReconcileRoute,
+  ApiPublicCronZeroLossWorkerRoute: ApiPublicCronZeroLossWorkerRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicRuntimeConversationDebugRoute:
     ApiPublicRuntimeConversationDebugRoute,
