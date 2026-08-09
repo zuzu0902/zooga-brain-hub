@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { IntakeConfigTab } from "@/components/intake-config-tab";
 import { Activity, FlaskConical, GitBranch, Loader2, Play, Save, Sliders, Sparkles, Workflow } from "lucide-react";
 import {
   activateVersion, createDraftVersion, deleteFlowStep, getStudioOverview, runEvalSuite,
