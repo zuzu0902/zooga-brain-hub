@@ -251,7 +251,8 @@ describe("baseline intake", () => {
     expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)).toBeNull();
     const scope = DEFAULT_INTAKE_FIELDS.find((d) => d.field_key === "travel_scope")!;
     expect(isFieldRelevant(scope, snap)).toBe(false);
-    expect(completeness(DEFAULT_INTAKE_FIELDS, snap).missing).toEqual([]);
+    // only the optional progressive DOB remains; no travel question is missing
+    expect(completeness(DEFAULT_INTAKE_FIELDS, snap).missing).toEqual(["birth_date"]);
   });
 
   it("a returning contact resumes at the single missing field", () => {
