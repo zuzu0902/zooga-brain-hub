@@ -12,6 +12,9 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { splitMetaEvents } from "@/lib/zero-loss/core";
+import { ingestEvent, leaseJobForVault, finishJob, quarantineEvent } from "@/lib/zero-loss/vault.server";
+import { registerIdentity } from "@/lib/zero-loss/identity.server";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
 import { runV2Turn } from "@/lib/tamar-v2/engine.server";
 import { isConsentPhase } from "@/lib/tamar-v2/engine.server";
@@ -85,14 +88,56 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           });
         }
 
+        // ---- ZERO-LOSS GATE ------------------------------------------------
+        // Durably persist every unit of this envelope BEFORE anything else.
+        // A vault failure means Meta must retry, so we answer 5xx and do not
+        // process. Anything already stored is answered 2xx as a duplicate.
+        const vaultByEventId = new Map<string, { vault_id: string; correlation_id: string; duplicate: boolean }>();
+        let vaultStored = 0;
+        let vaultDuplicates = 0;
+        const unknownShapes: string[] = [];
+        try {
+          for (const ev of splitMetaEvents(payload)) {
+            const res = await ingestEvent(ev);
+            vaultStored++;
+            if (res.duplicate) vaultDuplicates++;
+            if (ev.provider_event_id && ev.kind === "message") vaultByEventId.set(ev.provider_event_id, res);
+            if (ev.kind === "unknown" && !res.duplicate) {
+              unknownShapes.push(res.vault_id);
+              await quarantineEvent({
+                vaultId: res.vault_id,
+                reason: "unknown_event_shape",
+                severity: "warning",
+                details: { event_type: ev.event_type },
+              });
+            }
+            if (ev.phone) await registerIdentity(ev.phone, null, "meta_whatsapp").catch(() => null);
+          }
+        } catch (err: any) {
+          // NOT acknowledged: Meta will redeliver.
+          return new Response(
+            JSON.stringify({ ok: false, error: "vault_unavailable", detail: String(err?.message ?? err).slice(0, 200) }),
+            { status: 503, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
         const statusCount = await applyStatusUpdates(payload);
         const messages = parseInboundMessages(payload);
         if (!messages.length) {
-          return Response.json({ ok: true, processed: 0, statuses: statusCount });
+          return Response.json({
+            ok: true,
+            processed: 0,
+            statuses: statusCount,
+            vault: { stored: vaultStored, duplicates: vaultDuplicates, quarantined: unknownShapes.length },
+          });
         }
 
         const results: any[] = [];
         for (const msg of messages) {
+          const vaultRef = vaultByEventId.get(msg.wamid) ?? null;
+          const jobId = vaultRef && !vaultRef.duplicate ? await leaseJobForVault(vaultRef.vault_id, "webhook") : null;
+          let turnFailed: string | null = null;
+          let resolvedContactId: string | null = null;
           let inboundText = msg.text;
           let inboundSource: "text" | "voice" = "text";
           let voiceConfidence: number | null = null;
@@ -450,7 +495,18 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           });
         }
 
-        return Response.json({ ok: true, processed: results.length, statuses: statusCount, results });
+          void turnFailed;
+          void resolvedContactId;
+          if (jobId) await finishJob({ jobId, success: true, attempt: 1 }).catch(() => {});
+        }
+
+        return Response.json({
+          ok: true,
+          processed: results.length,
+          statuses: statusCount,
+          vault: { stored: vaultStored, duplicates: vaultDuplicates, quarantined: unknownShapes.length },
+          results,
+        });
       },
     },
   },
