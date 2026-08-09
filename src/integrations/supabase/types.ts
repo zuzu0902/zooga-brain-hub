@@ -411,6 +411,8 @@ export type Database = {
           metadata: Json
           normalized_value: string
           source: string | null
+          suppressed_at: string | null
+          suppression_reason: string | null
           updated_at: string
           value_hash: string
         }
@@ -426,6 +428,8 @@ export type Database = {
           metadata?: Json
           normalized_value: string
           source?: string | null
+          suppressed_at?: string | null
+          suppression_reason?: string | null
           updated_at?: string
           value_hash: string
         }
@@ -441,6 +445,8 @@ export type Database = {
           metadata?: Json
           normalized_value?: string
           source?: string | null
+          suppressed_at?: string | null
+          suppression_reason?: string | null
           updated_at?: string
           value_hash?: string
         }
@@ -3866,6 +3872,29 @@ export type Database = {
       }
     }
     Functions: {
+      admin_contact_delete_preview: {
+        Args: { p_actor?: string; p_contact_id: string }
+        Returns: Json
+      }
+      admin_delete_contact: {
+        Args: {
+          p_actor?: string
+          p_contact_id: string
+          p_correlation?: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      admin_reset_tamar: {
+        Args: {
+          p_actor?: string
+          p_contact_id: string
+          p_correlation?: string
+          p_reason: string
+          p_reset_intake?: boolean
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
