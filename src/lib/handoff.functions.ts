@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+const UUID = /^[0-9a-f-]{36}$/i;
+
 /** Presence-only health of the manager alert channel (no numbers, no secrets). */
 export const getHandoffChannelHealth = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -20,4 +22,53 @@ export const retryHandoffAlert = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { notifyManagerForHandoff } = await import("@/lib/tamar-handoff-core.server");
     return notifyManagerForHandoff(data.handoffId);
+  });
+
+/**
+ * Resolve one handoff and, when nothing else holds the thread, automatically
+ * give the conversation back to Tamar (no more permanent `human_owned`).
+ */
+export const resolveHandoff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { handoffId: string; releaseToTamar?: boolean }) => {
+    const id = String(input?.handoffId ?? "").trim();
+    if (!UUID.test(id)) throw new Error("invalid_handoff_id");
+    return { handoffId: id, releaseToTamar: input?.releaseToTamar !== false };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { countOpenHandoffs, releaseThreadToTamar } = await import("@/lib/tamar-handoff-core.server");
+    const nowIso = new Date().toISOString();
+    const { data: row } = await supabaseAdmin
+      .from("manager_handoffs" as any)
+      .update({ status: "resolved", resolved_at: nowIso } as any)
+      .eq("id", data.handoffId)
+      .select("id, contact_id")
+      .maybeSingle();
+    const contactId = (row as any)?.contact_id ?? null;
+    if (!contactId || !data.releaseToTamar) {
+      return { ok: true, released: false, reason: contactId ? "release_skipped" : "no_contact" };
+    }
+    const stillOpen = await countOpenHandoffs(contactId);
+    if (stillOpen > 0) return { ok: true, released: false, reason: "other_open_handoffs", open: stillOpen };
+    const res = await releaseThreadToTamar({
+      contactId,
+      actor: context.userId,
+      resolveHandoffs: false,
+      trigger: "handoff_resolved",
+    });
+    return { ok: true, ...res };
+  });
+
+/** Explicit admin action: hand the thread back to Tamar right now. */
+export const releaseContactToTamar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { contactId: string }) => {
+    const id = String(input?.contactId ?? "").trim();
+    if (!UUID.test(id)) throw new Error("invalid_contact_id");
+    return { contactId: id };
+  })
+  .handler(async ({ data, context }) => {
+    const { releaseThreadToTamar } = await import("@/lib/tamar-handoff-core.server");
+    return releaseThreadToTamar({ contactId: data.contactId, actor: context.userId });
   });
