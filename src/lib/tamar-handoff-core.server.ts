@@ -612,12 +612,9 @@ export async function healStaleHumanOwnership<T extends { id?: string | null; hu
   contact: T | null,
 ): Promise<T | null> {
   if (!contact?.id || !contact.human_owned) return contact;
-  const open = await countOpenHandoffs(contact.id);
-  if (open > 0) return contact;
-  const res = await releaseThreadToTamar({
+  const res = await releaseIfUnheld({
     contactId: contact.id,
     actor: "system_auto_heal",
-    resolveHandoffs: false,
     trigger: "auto_release_no_open_handoff",
   });
   if (!res.released) return contact;
