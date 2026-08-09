@@ -87,10 +87,14 @@ async function findContact(input: V2TurnInput) {
 
 async function createContact(input: V2TurnInput) {
   const e164 = toE164(input.phone);
-  if (!e164) return null;
-  const { data } = await supabaseAdmin
+  if (!e164) {
+    const { ContactCreateError } = await import("@/lib/contact-create-error");
+    throw new ContactCreateError({ code: "invalid_phone", phone: input.phone, retryable: false });
+  }
+  const { data, error } = await supabaseAdmin
     .from("contacts")
     .insert({
+      // contacts.full_name is GENERATED ALWAYS — never write it.
       phone: e164,
       whatsapp_number: e164,
       first_name: input.name ?? null,
@@ -100,7 +104,20 @@ async function createContact(input: V2TurnInput) {
     } as any)
     .select("*")
     .maybeSingle();
-  return (data as any) ?? null;
+  if (error || !(data as any)?.id) {
+    const { ContactCreateError } = await import("@/lib/contact-create-error");
+    throw new ContactCreateError({
+      code: "contact_create_failed",
+      message: error?.message ?? "insert returned no row",
+      phone: e164,
+    });
+  }
+  // Re-point the zero-loss identity registry at the (possibly new) contact.
+  try {
+    const { registerIdentity } = await import("@/lib/zero-loss/identity.server");
+    await registerIdentity(e164, (data as any).id, "tamar_v2");
+  } catch { /* registry linking must never break the turn */ }
+  return data as any;
 }
 
 /** Consent button ids are a fixed contract, independent of the flow table. */
