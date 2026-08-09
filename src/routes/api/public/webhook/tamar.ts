@@ -199,6 +199,63 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             }
           }
 
+          // ---- Deterministic baseline intake turn ------------------------
+          // Owns the turn only while the approved intake is still running:
+          // one unanswered question, then value + the relationship gate.
+          {
+            const intakeContactId = await findContactIdByPhone(msg.from);
+            if (intakeContactId) {
+              const { applyInboundOnboarding, planIntakeTurn } = await import(
+                "@/lib/onboarding/onboarding.server"
+              );
+              await applyInboundOnboarding({
+                contactId: intakeContactId,
+                message: msg.text,
+                messageId: msg.wamid,
+              }).catch(() => null);
+              const plan = await planIntakeTurn(intakeContactId).catch(() => null);
+              if (plan && plan.kind !== "none") {
+                if (plan.kind === "question") {
+                  const send = await sendWhatsAppText(msg.from, plan.text);
+                  await recordDelivery({
+                    contactId: intakeContactId,
+                    text: plan.text,
+                    result: send,
+                    inboundMessageId: msg.wamid,
+                    kind: `intake_question_${plan.field_key}`,
+                  });
+                  await recordReply(msg.wamid, plan.text).catch(() => {});
+                  results.push({ wamid: msg.wamid, intake: plan.field_key, reply_sent: send.ok });
+                  continue;
+                }
+                const valueSend = await sendWhatsAppText(msg.from, plan.value_text);
+                await recordDelivery({
+                  contactId: intakeContactId,
+                  offerId: plan.offer_id,
+                  text: plan.value_text,
+                  result: valueSend,
+                  inboundMessageId: msg.wamid,
+                  kind: "intake_value",
+                });
+                const gateSend = await sendWhatsAppButtons(msg.from, plan.gate_text, plan.buttons);
+                await recordDelivery({
+                  contactId: intakeContactId,
+                  text: plan.gate_text,
+                  result: gateSend,
+                  inboundMessageId: msg.wamid,
+                  kind: "relationship_intake_gate",
+                });
+                await recordReply(msg.wamid, `${plan.value_text}\n${plan.gate_text}`).catch(() => {});
+                results.push({
+                  wamid: msg.wamid,
+                  intake: "value_then_relationship_gate",
+                  reply_sent: valueSend.ok && gateSend.ok,
+                });
+                continue;
+              }
+            }
+          }
+
           // ---- Tamar Brain V2 ----
           // The consent phase (exact opener + yes/no buttons) is always owned
           // by v2, even while the flag is off for the rest of the flow.

@@ -12,8 +12,10 @@ import { mergeFact, type IncomingFact } from "./profile-facts";
 import {
   CONSENT_VERSION,
   OPENING_TEMPLATE_NAME,
+  ZOOGA_FALLBACK_URL,
   type IntakeFieldDefinition,
   type ProfileFact,
+  type RelationshipIntakeStatus,
   type RoutableContact,
   type RouterResult,
 } from "./types";
@@ -40,6 +42,10 @@ export async function loadIntakeDefs(version = 1): Promise<IntakeFieldDefinition
     order_index: Number(r.order_index ?? 0),
     enabled: r.enabled !== false,
     stage: (r.stage ?? (r.field_key === "birth_date" ? "progressive" : "baseline")) as IntakeFieldDefinition["stage"],
+    depends_on:
+      r.depends_on && typeof r.depends_on === "object" && r.depends_on.field_key
+        ? { field_key: String(r.depends_on.field_key), equals: (r.depends_on.equals ?? []).map(String) }
+        : null,
   }));
 }
 
@@ -84,9 +90,13 @@ function factsFromContactRow(row: any): Record<string, ProfileFact> {
     };
   };
   add("first_name", row.first_name);
-  add("city", row.city ?? row.region);
+  add("city", row.residence_city ?? row.city ?? row.region);
   add("birth_date", row.birth_date);
   add("interests", row.interests);
+  add("looking_for_relationship", row.looking_for_relationship);
+  add("likes_travel", row.likes_travel);
+  add("travel_scope", row.travel_scope);
+  add("last_trip_destination", row.last_trip_destination);
   return out;
 }
 
@@ -284,7 +294,8 @@ export async function handleOnboardingButton(args: {
   text?: string | null;
   sourceMessageId?: string | null;
 }): Promise<{ handled: boolean; kind: string | null; reply_text: string | null; duplicate: boolean }> {
-  const { parseOnboardingButton, applyOpeningReply, applyConsentReply } = await import("./two-stage");
+  const { parseOnboardingButton, applyOpeningReply, applyConsentReply, applyRelationshipGateReply } =
+    await import("./two-stage");
   const button = parseOnboardingButton({
     id: args.buttonId ?? null,
     title: args.buttonTitle ?? null,
@@ -322,7 +333,92 @@ export async function handleOnboardingButton(args: {
     });
     return { handled: true, kind: button, reply_text: consent.reply_text, duplicate: false };
   }
+
+  const relationship = applyRelationshipGateReply(button);
+  if (relationship) {
+    await setRelationshipIntakeStatus(args.contactId, relationship.relationship_intake_status, {
+      buttonId: args.buttonId ?? button,
+      buttonTitle: args.buttonTitle ?? null,
+      sourceMessageId: args.sourceMessageId ?? null,
+    });
+    return { handled: true, kind: button, reply_text: relationship.reply_text, duplicate: false };
+  }
   return { handled: false, kind: null, reply_text: null, duplicate: false };
+}
+
+// ------------------------------------------------ relationship intake gate
+
+/** Marks that the gate question itself was sent. Never re-asked immediately. */
+export async function markRelationshipGateOffered(contactId: string) {
+  const now = new Date().toISOString();
+  await db()
+    .from("contacts")
+    .update({ relationship_intake_status: "offered", relationship_intake_offered_at: now })
+    .eq("id", contactId);
+  await recordOnboardingEvent({
+    contactId,
+    eventType: "relationship_intake_offered",
+    stage: "relationship_gate",
+  }).catch(() => null);
+}
+
+/**
+ * "מאוחר יותר" is stored as a deferral only: it never denies consent, never
+ * opts out, and never blocks normal conversation.
+ */
+export async function setRelationshipIntakeStatus(
+  contactId: string,
+  status: RelationshipIntakeStatus,
+  meta: { buttonId?: string | null; buttonTitle?: string | null; sourceMessageId?: string | null } = {},
+) {
+  const now = new Date().toISOString();
+  await db()
+    .from("contacts")
+    .update({
+      relationship_intake_status: status,
+      relationship_intake_ready_at: status === "ready_to_start" ? now : undefined,
+      relationship_intake_deferred_at: status === "deferred" ? now : undefined,
+    })
+    .eq("id", contactId);
+  await recordOnboardingEvent({
+    contactId,
+    eventType: status === "ready_to_start" ? "relationship_intake_yes" : "relationship_intake_later",
+    stage: "relationship_gate",
+    buttonId: meta.buttonId ?? null,
+    buttonTitle: meta.buttonTitle ?? null,
+    sourceMessageId: meta.sourceMessageId ?? null,
+    payload: { is_opt_out: false, consent_touched: false },
+  });
+}
+
+/**
+ * Value step: one active offer with a working link, or the Zooga homepage.
+ * Archived/expired offers are never surfaced.
+ */
+export async function pickActiveOfferLink(hints: {
+  travelScope?: string | null;
+  city?: string | null;
+} = {}): Promise<{ offer_id: string | null; title: string | null; url: string }> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await db()
+    .from("offers")
+    .select("id,title,offer_url,category,status,event_date,event_end_date")
+    .eq("status", "active")
+    .order("event_date", { ascending: true })
+    .limit(50);
+  const rows = ((data as any[]) ?? []).filter(
+    (o) => !!o.offer_url && (!o.event_end_date || o.event_end_date >= today) && (!o.event_date || o.event_date >= today),
+  );
+  if (!rows.length) return { offer_id: null, title: null, url: ZOOGA_FALLBACK_URL };
+  const scope = hints.travelScope ?? null;
+  const preferred =
+    scope === "israel"
+      ? rows.find((o) => o.category === "trip" && /ישראל|בארץ/.test(String(o.title ?? "")))
+      : scope === "abroad"
+        ? rows.find((o) => o.category === "trip" && !/ישראל|בארץ/.test(String(o.title ?? "")))
+        : rows.find((o) => o.category === "trip");
+  const chosen = preferred ?? rows[0]!;
+  return { offer_id: chosen.id, title: chosen.title ?? null, url: String(chosen.offer_url) };
 }
 
 // ---------------------------------------------------------------- facts
@@ -401,7 +497,85 @@ export async function getOnboardingSnapshot(contactId: string) {
     completeness: comp,
     next_step: next,
     next_progressive_step: nextProgressiveStep(defs, snap),
+    relationship_intake: {
+      status: (row.relationship_intake_status ?? "not_offered") as RelationshipIntakeStatus,
+      offered_at: row.relationship_intake_offered_at ?? null,
+      ready_at: row.relationship_intake_ready_at ?? null,
+      deferred_at: row.relationship_intake_deferred_at ?? null,
+    },
     events: (events as any[]) ?? [],
+  };
+}
+
+// ------------------------------------------------------- intake turn plan
+
+export type IntakeTurnPlan =
+  | { kind: "none"; reason: string }
+  | { kind: "question"; field_key: string; text: string }
+  | {
+      kind: "value_then_gate";
+      value_text: string;
+      offer_id: string | null;
+      gate_text: string;
+      buttons: Array<{ id: string; label: string }>;
+    };
+
+/**
+ * Deterministic owner of the baseline intake turn: one unanswered question at
+ * a time, then value from an ACTIVE offer (or the Zooga homepage), then the
+ * relationship-questionnaire gate exactly once. Known/irrelevant fields are
+ * never asked again.
+ */
+export async function planIntakeTurn(contactId: string): Promise<IntakeTurnPlan> {
+  const { data: row } = await db().from("contacts").select("*").eq("id", contactId).maybeSingle();
+  if (!row) return { kind: "none", reason: "contact_not_found" };
+  if (row.consent_status !== "granted") return { kind: "none", reason: "consent_not_granted" };
+  if (row.opted_out_at) return { kind: "none", reason: "opted_out" };
+
+  const defs = await loadIntakeDefs(Number(row.intake_version ?? 1));
+  const facts = { ...factsFromContactRow(row), ...(await loadFacts(contactId)) };
+  const snap = { facts, skipped: [] as string[] };
+
+  const next = nextIntakeStep(defs, snap);
+  if (next) {
+    await db()
+      .from("contacts")
+      .update({ intake_last_step_id: next.field_key, baseline_intake_status: "in_progress" })
+      .eq("id", contactId);
+    return { kind: "question", field_key: next.field_key, text: next.question_text };
+  }
+
+  const status = (row.relationship_intake_status ?? "not_offered") as RelationshipIntakeStatus;
+  if (status !== "not_offered") return { kind: "none", reason: "baseline_and_gate_done" };
+
+  const {
+    RELATIONSHIP_INTAKE_BUTTONS,
+    RELATIONSHIP_INTAKE_QUESTION_TEXT,
+  } = await import("./types");
+  const pick = await pickActiveOfferLink({
+    travelScope: facts["travel_scope"]?.value_text ?? null,
+    city: facts["city"]?.value_text ?? null,
+  });
+  const valueText = pick.title
+    ? `תודה! הנה משהו שיכול להתאים לך: ${pick.title}\n${pick.url}`
+    : `תודה! הנה כל הפעילויות המתעדכנות של זוגה:\n${pick.url}`;
+
+  await db()
+    .from("contacts")
+    .update({
+      baseline_intake_status: "completed",
+      intake_completed_at: new Date().toISOString(),
+      intake_last_step_id: null,
+    })
+    .eq("id", contactId);
+  await markRelationshipGateOffered(contactId);
+
+  return {
+    kind: "value_then_gate",
+    value_text: valueText,
+    offer_id: pick.offer_id,
+    gate_text: RELATIONSHIP_INTAKE_QUESTION_TEXT,
+    buttons: RELATIONSHIP_INTAKE_BUTTONS.map((b) => ({ id: b.id, label: b.label })),
   };
 }
 

@@ -12,44 +12,56 @@ import type {
 /** Confidence at/above which a known value blocks re-asking. */
 export const KNOWN_CONFIDENCE_MIN = 70;
 /** Hard ceiling of baseline questions before Tamar must deliver value. */
-export const MAX_BASELINE_QUESTIONS_PER_CONVERSATION = 3;
-export const VALUE_AFTER_QUESTIONS = 3;
+export const MAX_BASELINE_QUESTIONS_PER_CONVERSATION = 5;
+export const VALUE_AFTER_QUESTIONS = 5;
 
 /**
- * Baseline = exactly three questions (A city, B interests, C open goal),
- * one per turn, asked once ever. Date of birth is progressive: it is only
- * offered after value was delivered and it never blocks completion.
+ * Baseline, one question per turn, asked once ever:
+ *   A city
+ *   B looking for a relationship
+ *   C likes travel
+ *   D travel scope        (only when likes_travel = yes)
+ *   E last trip           (only when likes_travel = yes)
+ * Date of birth is progressive: only after value was delivered, and it never
+ * blocks completion.
  */
 export const DEFAULT_INTAKE_FIELDS: IntakeFieldDefinition[] = [
   {
-    field_key: "city", label: "אזור מגורים",
-    question_text: "באיזה אזור בארץ את/ה גר/ה?",
+    field_key: "city", label: "עיר מגורים",
+    question_text: "באיזו עיר את/ה גר/ה?",
     purpose_text: "כדי להתאים אירועים וטיולים קרובים אלייך",
     presentation: "text", options: [], required: true, skippable: true,
     order_index: 10, enabled: true, stage: "baseline",
   },
   {
-    field_key: "interests", label: "תחומי עניין",
-    question_text: "מה הכי מעניין אותך מהפעילות של זוגה? אפשר לבחור כמה דברים או לכתוב בחופשיות.",
-    purpose_text: "כדי לשלוח רק מה שרלוונטי עבורך",
-    presentation: "multi",
-    options: [
-      { id: "trips_abroad", label: "טיולים בחו״ל", value: "טיולים בחו״ל" },
-      { id: "trips_il", label: "טיולים בארץ", value: "טיולים בארץ" },
-      { id: "events", label: "אירועים", value: "אירועים" },
-      { id: "culture", label: "תרבות", value: "תרבות" },
-      { id: "nature_food", label: "טבע ואוכל", value: "טבע ואוכל" },
-      { id: "community", label: "קהילה וקשרים חברתיים", value: "קהילה וקשרים חברתיים" },
-      { id: "other", label: "אחר", value: "אחר" },
-    ],
-    required: true, skippable: true, order_index: 20, enabled: true, stage: "baseline",
+    field_key: "looking_for_relationship", label: "מחפש/ת זוגיות",
+    question_text: "האם את/ה מחפש/ת זוגיות?",
+    purpose_text: "כדי לדעת אם להזמין אותך לאירועי היכרויות",
+    presentation: "text", options: [], required: true, skippable: true,
+    order_index: 20, enabled: true, stage: "baseline",
   },
   {
-    field_key: "primary_goal", label: "מטרה בתקופה הקרובה",
-    question_text: "מה הכי היית רוצה שזוגה תעזור לך למצוא או לחוות בתקופה הקרובה?",
-    purpose_text: null,
+    field_key: "likes_travel", label: "אוהב/ת טיולים",
+    question_text: "האם את/ה אוהב/ת טיולים?",
+    purpose_text: "כדי להתאים טיולים רלוונטיים",
     presentation: "text", options: [], required: true, skippable: true,
     order_index: 30, enabled: true, stage: "baseline",
+  },
+  {
+    field_key: "travel_scope", label: "העדפת טיולים",
+    question_text: "מה מושך אותך יותר — טיולים בארץ, בחו״ל או גם וגם?",
+    purpose_text: null,
+    presentation: "text", options: [], required: true, skippable: true,
+    order_index: 40, enabled: true, stage: "baseline",
+    depends_on: { field_key: "likes_travel", equals: ["yes"] },
+  },
+  {
+    field_key: "last_trip_destination", label: "הטיול האחרון",
+    question_text: "איפה היה הטיול האחרון שלך?",
+    purpose_text: null,
+    presentation: "text", options: [], required: false, skippable: true,
+    order_index: 50, enabled: true, stage: "baseline",
+    depends_on: { field_key: "likes_travel", equals: ["yes"] },
   },
   {
     field_key: "birth_date", label: "תאריך לידה (אופציונלי)",
@@ -75,11 +87,36 @@ export function isKnown(fact: ProfileFact | undefined): boolean {
   return fact.confidence >= KNOWN_CONFIDENCE_MIN;
 }
 
+/**
+ * A conditional question is only relevant when its dependency is already
+ * known AND matches. When the dependency is known and does not match, the
+ * question is permanently irrelevant (e.g. travel questions for someone who
+ * does not like travelling).
+ */
+export function isFieldRelevant(def: IntakeFieldDefinition, snap: IntakeSnapshot): boolean {
+  const dep = def.depends_on;
+  if (!dep || !dep.field_key) return true;
+  const f = snap.facts[dep.field_key];
+  if (!isKnown(f)) return false; // not askable yet
+  return dep.equals.includes(String(f?.value_text ?? "").trim());
+}
+
+/** Known and permanently ruled out by an unmet dependency. */
+function isRuledOut(def: IntakeFieldDefinition, snap: IntakeSnapshot): boolean {
+  const dep = def.depends_on;
+  if (!dep || !dep.field_key) return false;
+  const f = snap.facts[dep.field_key];
+  if (!isKnown(f)) return false;
+  return !dep.equals.includes(String(f?.value_text ?? "").trim());
+}
+
 export function completeness(
   defs: IntakeFieldDefinition[],
   snap: IntakeSnapshot,
 ): { fields: FieldCompleteness[]; percent: number; missing: string[] } {
-  const active = defs.filter((d) => d.enabled).sort((a, b) => a.order_index - b.order_index);
+  const active = defs
+    .filter((d) => d.enabled && !isRuledOut(d, snap))
+    .sort((a, b) => a.order_index - b.order_index);
   const fields: FieldCompleteness[] = active.map((d) => {
     const f = snap.facts[d.field_key];
     const known = isKnown(f);
@@ -106,6 +143,7 @@ function pick(defs: IntakeFieldDefinition[], stage: "baseline" | "progressive", 
   for (const d of active) {
     if (isKnown(snap.facts[d.field_key])) continue;
     if (snap.skipped.includes(d.field_key)) continue;
+    if (!isFieldRelevant(d, snap)) continue;
     return d;
   }
   return null;
@@ -199,6 +237,49 @@ const INTEREST_WORDS: Array<[RegExp, string]> = [
   [/אוכל|קולינר|מסעד/, "אוכל"],
 ];
 
+// ------------------------------------------------------------ normalizers
+
+export type YesNoValue = "yes" | "no" | "unsure" | "prefer_not_to_say";
+
+/** Hebrew letters are not \w, so boundaries are expressed explicitly. */
+const B = "(?:^|[^\\u0590-\\u05FFa-zA-Z])";
+const E = "(?![\\u0590-\\u05FFa-zA-Z])";
+const YES_RE = new RegExp(
+  `${B}(כן|בטח|בהחלט|נכון|כמובן|בשמחה|אשמח|ברור|אוהב|אוהבת|מחפש|מחפשת|yes|yep|sure)${E}`,
+);
+const NO_RE = new RegExp(`${B}(לא|no|nope)${E}`);
+const UNSURE_RE = /(אולי|לא יודע|לא יודעת|תלוי|לא בטוח|לא בטוחה|בערך|ככה ככה|maybe)/;
+
+/** Natural Hebrew answer -> normalized yes/no/unsure/prefer_not_to_say. */
+export function normalizeYesNo(raw: string): YesNoValue | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  if (DECLINE_RE.test(s)) return "prefer_not_to_say";
+  if (UNSURE_RE.test(s)) return "unsure";
+  const negative = NO_RE.test(s);
+  // "לא אוהב" / "לא מחפש" is a negation, not a positive statement
+  const positive = YES_RE.test(s) && !/לא\s+(אוהב|אוהבת|מחפש|מחפשת|מעוניינ)/.test(s);
+  if (negative && !positive) return "no";
+  if (positive && !negative) return "yes";
+  if (negative && positive) return "unsure";
+  return null;
+}
+
+export type TravelScopeValue = "israel" | "abroad" | "both" | "other";
+
+/** Natural answer -> israel / abroad / both / other. */
+export function normalizeTravelScope(raw: string): TravelScopeValue | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const abroad = /חו"?״?ל|בחו|לחו|abroad|חוץ לארץ/.test(s);
+  const israel = /בארץ|ישראל|מקומי|פנים הארץ|domestic/.test(s);
+  if (/גם וגם|שניהם|both|גם בארץ וגם/.test(s)) return "both";
+  if (abroad && israel) return "both";
+  if (abroad) return "abroad";
+  if (israel) return "israel";
+  return "other";
+}
+
 /**
  * Deterministic multi-field extraction from one free-text answer.
  * Only what was clearly said; everything else stays unknown.
@@ -226,13 +307,48 @@ export function extractFieldsFromFreeText(
   if (interests.length)
     out["interests"] = { value: Array.from(new Set(interests)).join(", "), kind: "explicit", confidence: 90, evidence: ev };
 
+  // --- B: looking for a relationship (normalized + raw kept) -------------
+  if (askedField === "looking_for_relationship") {
+    const v = normalizeYesNo(s);
+    if (v) {
+      out["looking_for_relationship"] = { value: v, kind: "explicit", confidence: 90, evidence: ev };
+      out["looking_for_relationship_raw"] = { value: s.slice(0, 200), kind: "explicit", confidence: 90, evidence: ev };
+    }
+  } else if (/מחפש(ת)? זוגיות|רוצה זוגיות|מעוניינ(ת)? בזוגיות/.test(s)) {
+    out["looking_for_relationship"] = { value: "yes", kind: "inferred", confidence: 65, evidence: ev };
+  }
+
+  // --- C: likes travel ----------------------------------------------------
+  if (askedField === "likes_travel") {
+    const v = normalizeYesNo(s);
+    if (v) {
+      out["likes_travel"] = { value: v === "prefer_not_to_say" ? "unsure" : v, kind: "explicit", confidence: 90, evidence: ev };
+      out["likes_travel_raw"] = { value: s.slice(0, 200), kind: "explicit", confidence: 90, evidence: ev };
+    }
+  }
+
+  // --- D: travel scope ----------------------------------------------------
+  if (askedField === "travel_scope") {
+    const v = normalizeTravelScope(s);
+    if (v) {
+      out["travel_scope"] = { value: v, kind: "explicit", confidence: 90, evidence: ev };
+      out["travel_scope_raw"] = { value: s.slice(0, 200), kind: "explicit", confidence: 90, evidence: ev };
+    }
+  }
+
+  // --- E: last trip destination ------------------------------------------
+  if (askedField === "last_trip_destination" && s.length >= 2) {
+    out["last_trip_destination"] = { value: s.slice(0, 120), kind: "explicit", confidence: 90, evidence: ev };
+    out["last_trip_destination_raw"] = { value: s.slice(0, 200), kind: "explicit", confidence: 90, evidence: ev };
+  }
+
   const dob = parseBirthDate(s);
   if (dob.ok && (askedField === "birth_date" || /נולדתי|יום הולדת|תאריך לידה/.test(s)))
     out["birth_date"] = { value: dob.iso, kind: "explicit", confidence: 95, evidence: ev };
 
   if (askedField === "primary_goal" && s.length > 3)
     out["primary_goal"] = { value: s.slice(0, 200), kind: "explicit", confidence: 85, evidence: ev };
-  else if (/מחפש|רוצה למצוא|בא לי|מעוניינ/.test(s))
+  else if (!askedField && /רוצה למצוא|בא לי למצוא/.test(s))
     out["primary_goal"] = { value: s.slice(0, 200), kind: "inferred", confidence: 60, evidence: ev };
 
   return out;

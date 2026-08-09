@@ -628,9 +628,12 @@ export type Database = {
           last_presented_offers: Json
           last_presented_offers_at: string | null
           last_touch_campaign_id: string | null
+          last_trip_destination: string | null
           lifestyle_tags: string[]
           likely_needs: string[]
+          likes_travel: string | null
           loneliness_signal: string | null
+          looking_for_relationship: string | null
           manager_attention_required: boolean
           next_best_offer: string | null
           notes: string | null
@@ -656,8 +659,13 @@ export type Database = {
           recommended_campaign: string | null
           region: string | null
           relationship_goals: string[]
+          relationship_intake_deferred_at: string | null
+          relationship_intake_offered_at: string | null
+          relationship_intake_ready_at: string | null
+          relationship_intake_status: string
           relationship_readiness: string | null
           relationship_status: string | null
+          residence_city: string | null
           sales_profile: string | null
           sales_temperature: string | null
           service_window_open_until: string | null
@@ -673,6 +681,7 @@ export type Database = {
           total_messages: number
           total_revenue: number
           travel_preferences: string[]
+          travel_scope: string | null
           trips_interested: string[]
           updated_at: string
           vip_potential: string | null
@@ -770,9 +779,12 @@ export type Database = {
           last_presented_offers?: Json
           last_presented_offers_at?: string | null
           last_touch_campaign_id?: string | null
+          last_trip_destination?: string | null
           lifestyle_tags?: string[]
           likely_needs?: string[]
+          likes_travel?: string | null
           loneliness_signal?: string | null
+          looking_for_relationship?: string | null
           manager_attention_required?: boolean
           next_best_offer?: string | null
           notes?: string | null
@@ -798,8 +810,13 @@ export type Database = {
           recommended_campaign?: string | null
           region?: string | null
           relationship_goals?: string[]
+          relationship_intake_deferred_at?: string | null
+          relationship_intake_offered_at?: string | null
+          relationship_intake_ready_at?: string | null
+          relationship_intake_status?: string
           relationship_readiness?: string | null
           relationship_status?: string | null
+          residence_city?: string | null
           sales_profile?: string | null
           sales_temperature?: string | null
           service_window_open_until?: string | null
@@ -815,6 +832,7 @@ export type Database = {
           total_messages?: number
           total_revenue?: number
           travel_preferences?: string[]
+          travel_scope?: string | null
           trips_interested?: string[]
           updated_at?: string
           vip_potential?: string | null
@@ -912,9 +930,12 @@ export type Database = {
           last_presented_offers?: Json
           last_presented_offers_at?: string | null
           last_touch_campaign_id?: string | null
+          last_trip_destination?: string | null
           lifestyle_tags?: string[]
           likely_needs?: string[]
+          likes_travel?: string | null
           loneliness_signal?: string | null
+          looking_for_relationship?: string | null
           manager_attention_required?: boolean
           next_best_offer?: string | null
           notes?: string | null
@@ -940,8 +961,13 @@ export type Database = {
           recommended_campaign?: string | null
           region?: string | null
           relationship_goals?: string[]
+          relationship_intake_deferred_at?: string | null
+          relationship_intake_offered_at?: string | null
+          relationship_intake_ready_at?: string | null
+          relationship_intake_status?: string
           relationship_readiness?: string | null
           relationship_status?: string | null
+          residence_city?: string | null
           sales_profile?: string | null
           sales_temperature?: string | null
           service_window_open_until?: string | null
@@ -957,6 +983,7 @@ export type Database = {
           total_messages?: number
           total_revenue?: number
           travel_preferences?: string[]
+          travel_scope?: string | null
           trips_interested?: string[]
           updated_at?: string
           vip_potential?: string | null
@@ -1221,6 +1248,7 @@ export type Database = {
       intake_field_definitions: {
         Row: {
           created_at: string
+          depends_on: Json
           enabled: boolean
           field_key: string
           id: string
@@ -1237,6 +1265,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          depends_on?: Json
           enabled?: boolean
           field_key: string
           id?: string
@@ -1253,6 +1282,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          depends_on?: Json
           enabled?: boolean
           field_key?: string
           id?: string
