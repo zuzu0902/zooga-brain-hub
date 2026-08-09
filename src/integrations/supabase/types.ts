@@ -1886,6 +1886,190 @@ export type Database = {
         }
         Relationships: []
       }
+      relationship_intake_answers: {
+        Row: {
+          answered_at: string
+          asked_at: string | null
+          confidence: number | null
+          contact_id: string
+          created_at: string
+          evidence_message_id: string | null
+          id: string
+          is_correction: boolean
+          is_current: boolean
+          question_key: string
+          raw_text: string | null
+          skipped_by_user: boolean
+          source: string
+          structured_value: Json
+          updated_at: string
+        }
+        Insert: {
+          answered_at?: string
+          asked_at?: string | null
+          confidence?: number | null
+          contact_id: string
+          created_at?: string
+          evidence_message_id?: string | null
+          id?: string
+          is_correction?: boolean
+          is_current?: boolean
+          question_key: string
+          raw_text?: string | null
+          skipped_by_user?: boolean
+          source?: string
+          structured_value?: Json
+          updated_at?: string
+        }
+        Update: {
+          answered_at?: string
+          asked_at?: string | null
+          confidence?: number | null
+          contact_id?: string
+          created_at?: string
+          evidence_message_id?: string | null
+          id?: string
+          is_correction?: boolean
+          is_current?: boolean
+          question_key?: string
+          raw_text?: string | null
+          skipped_by_user?: boolean
+          source?: string
+          structured_value?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_intake_answers_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_intake_config: {
+        Row: {
+          completion_text: string
+          created_at: string
+          id: boolean
+          intro_text: string
+          updated_at: string
+          voice_enabled: boolean
+          voice_rules: string | null
+        }
+        Insert: {
+          completion_text: string
+          created_at?: string
+          id?: boolean
+          intro_text: string
+          updated_at?: string
+          voice_enabled?: boolean
+          voice_rules?: string | null
+        }
+        Update: {
+          completion_text?: string
+          created_at?: string
+          id?: boolean
+          intro_text?: string
+          updated_at?: string
+          voice_enabled?: boolean
+          voice_rules?: string | null
+        }
+        Relationships: []
+      }
+      relationship_intake_questions: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          is_final_question: boolean
+          label: string
+          order_index: number
+          question_key: string
+          question_text: string
+          required: boolean
+          skippable: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          is_final_question?: boolean
+          label: string
+          order_index?: number
+          question_key: string
+          question_text: string
+          required?: boolean
+          skippable?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          is_final_question?: boolean
+          label?: string
+          order_index?: number
+          question_key?: string
+          question_text?: string
+          required?: boolean
+          skippable?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      relationship_intake_state: {
+        Row: {
+          completed_at: string | null
+          completion_sent_at: string | null
+          contact_id: string
+          created_at: string
+          current_question_key: string | null
+          intro_sent_at: string | null
+          last_answered_at: string | null
+          pending_confirmation: Json | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completion_sent_at?: string | null
+          contact_id: string
+          created_at?: string
+          current_question_key?: string | null
+          intro_sent_at?: string | null
+          last_answered_at?: string | null
+          pending_confirmation?: Json | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completion_sent_at?: string | null
+          contact_id?: string
+          created_at?: string
+          current_question_key?: string | null
+          intro_sent_at?: string | null
+          last_answered_at?: string | null
+          pending_confirmation?: Json | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_intake_state_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       runtime_inbound_dedupe: {
         Row: {
           contact_id: string | null
@@ -2940,6 +3124,71 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      voice_transcripts: {
+        Row: {
+          confidence: number | null
+          contact_id: string | null
+          created_at: string
+          duration_seconds: number | null
+          error: string | null
+          id: string
+          language: string | null
+          media_id: string | null
+          mime_type: string | null
+          model: string | null
+          provider: string | null
+          size_bytes: number | null
+          status: string
+          transcript: string | null
+          updated_at: string
+          wa_message_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          contact_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          error?: string | null
+          id?: string
+          language?: string | null
+          media_id?: string | null
+          mime_type?: string | null
+          model?: string | null
+          provider?: string | null
+          size_bytes?: number | null
+          status?: string
+          transcript?: string | null
+          updated_at?: string
+          wa_message_id: string
+        }
+        Update: {
+          confidence?: number | null
+          contact_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          error?: string | null
+          id?: string
+          language?: string | null
+          media_id?: string | null
+          mime_type?: string | null
+          model?: string | null
+          provider?: string | null
+          size_bytes?: number | null
+          status?: string
+          transcript?: string | null
+          updated_at?: string
+          wa_message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_transcripts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webhook_logs: {
         Row: {

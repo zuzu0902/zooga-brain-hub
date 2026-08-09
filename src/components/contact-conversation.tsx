@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Mic } from "lucide-react";
 import { formatRelative } from "@/lib/i18n";
 import { useT } from "@/lib/language-context";
 
@@ -55,6 +55,22 @@ export function ContactConversation({ contactId }: { contactId: string }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [rows]);
 
+  // Voice notes: transcript + metadata only. The temporary media URL is never
+  // stored and never rendered.
+  const { data: voice } = useQuery({
+    queryKey: ["voice-transcripts", contactId],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("voice_transcripts" as any)
+        .select("wa_message_id,transcript,mime_type,duration_seconds,language,status,created_at")
+        .eq("contact_id", contactId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return (data ?? []) as any[];
+    },
+  });
+
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2 mb-3">
@@ -100,6 +116,29 @@ export function ContactConversation({ contactId }: { contactId: string }) {
           })
         )}
       </div>
+      {(voice?.length ?? 0) > 0 && (
+        <div className="mt-4 space-y-2 border-t border-border/60 pt-3">
+          <div className="flex items-center gap-2">
+            <Mic className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">{t("הודעות קוליות")}</span>
+            <Badge variant="outline" className="text-[10px]">{voice!.length}</Badge>
+          </div>
+          {voice!.map((v: any) => (
+            <div key={v.wa_message_id} className="rounded-lg border p-2 text-sm">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="text-[10px]">{t("הודעה קולית")}</Badge>
+                <span className="text-[10px] text-muted-foreground">
+                  {v.mime_type ?? "—"}
+                  {v.duration_seconds ? ` · ${v.duration_seconds}s` : ""}
+                  {v.language ? ` · ${v.language}` : ""} · {v.status}
+                </span>
+                <span className="text-[10px] text-muted-foreground">{formatRelative(v.created_at)}</span>
+              </div>
+              <div className="whitespace-pre-wrap break-words">{v.transcript ?? "—"}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

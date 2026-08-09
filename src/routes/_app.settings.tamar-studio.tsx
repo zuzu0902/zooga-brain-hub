@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { IntakeConfigTab } from "@/components/intake-config-tab";
+import { RelationshipIntakeTab } from "@/components/relationship-intake-tab";
 import { Activity, FlaskConical, GitBranch, Loader2, Play, Save, Sliders, Sparkles, Workflow } from "lucide-react";
 import {
   activateVersion, createDraftVersion, deleteFlowStep, getStudioOverview, runEvalSuite,
@@ -71,6 +72,7 @@ function TamarStudioPage() {
           <TabsTrigger value="identity">אישיות וטון</TabsTrigger>
           <TabsTrigger value="flow">זרימה ושאלות</TabsTrigger>
           <TabsTrigger value="intake">אינטייק בסיסי</TabsTrigger>
+          <TabsTrigger value="relationship">שאלון זוגיות</TabsTrigger>
           <TabsTrigger value="models">מודלים</TabsTrigger>
           <TabsTrigger value="safety">בטיחות והעברה לאדם</TabsTrigger>
           <TabsTrigger value="knowledge">ידע</TabsTrigger>
@@ -83,6 +85,7 @@ function TamarStudioPage() {
         <TabsContent value="identity"><IdentityTab data={data} onSaved={refresh} /></TabsContent>
         <TabsContent value="flow"><FlowTab data={data} onSaved={refresh} /></TabsContent>
         <TabsContent value="intake"><IntakeConfigTab /></TabsContent>
+        <TabsContent value="relationship"><RelationshipIntakeTab /></TabsContent>
         <TabsContent value="models"><ModelsTab data={data} onSaved={refresh} /></TabsContent>
         <TabsContent value="safety"><SafetyTab data={data} onSaved={refresh} /></TabsContent>
         <TabsContent value="knowledge"><KnowledgeTab data={data} /></TabsContent>
