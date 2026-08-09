@@ -495,9 +495,11 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           });
         }
 
-          void turnFailed;
-          void resolvedContactId;
-          if (jobId) await finishJob({ jobId, success: true, attempt: 1 }).catch(() => {});
+        // Every leased job whose turn completed (any `continue` branch is a
+        // completed turn too) is closed here. A thrown exception leaves the
+        // lease in place so the durable worker retries it later.
+        for (const jobId of leasedJobs) {
+          await finishJob({ jobId, success: true, attempt: 1 }).catch(() => {});
         }
 
         return Response.json({
