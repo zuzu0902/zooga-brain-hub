@@ -115,7 +115,7 @@ export async function saveRelationshipAnswer(args: {
   contactId: string;
   questionKey: string;
   rawText: string | null;
-  structuredValue?: Record<string, unknown>;
+  structuredValue?: Record<string, string | number | boolean | null>;
   source: AnswerSource;
   evidenceMessageId?: string | null;
   confidence?: number | null;

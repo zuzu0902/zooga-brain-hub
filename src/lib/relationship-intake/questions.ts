@@ -23,7 +23,7 @@ export type AnswerSource = "text" | "voice";
 export type RelationshipAnswer = {
   question_key: string;
   raw_text: string | null;
-  structured_value: Record<string, unknown>;
+  structured_value: Record<string, string | number | boolean | null>;
   source: AnswerSource;
   evidence_message_id: string | null;
   confidence: number | null;
