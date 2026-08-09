@@ -12,7 +12,8 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { splitMetaEvents } from "@/lib/zero-loss/core";
+import { splitMetaEvents, classifyFailure } from "@/lib/zero-loss/core";
+import { classifyTurnOutcome } from "@/lib/zero-loss/turn-outcome";
 import { ingestEvent, leaseJobForVault, finishJob, quarantineEvent } from "@/lib/zero-loss/vault.server";
 import { registerIdentity } from "@/lib/zero-loss/identity.server";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
@@ -40,6 +41,16 @@ async function applyStatusUpdates(payload: any) {
   // recipient is normalized to E.164 inside applyStatusUpdate
   for (const s of statuses) await applyStatusUpdate(s);
   return statuses.length;
+}
+
+/** Current attempt number of a leased job (used for backoff + quarantine). */
+async function jobAttempts(jobId: string): Promise<number> {
+  const { data } = await supabaseAdmin
+    .from("processing_jobs" as any)
+    .select("attempts")
+    .eq("id", jobId)
+    .maybeSingle();
+  return Number((data as any)?.attempts ?? 1) || 1;
 }
 
 async function findContactIdByPhone(phone: string): Promise<string | null> {
@@ -133,15 +144,16 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
         }
 
         const results: any[] = [];
-        const leasedJobs: string[] = [];
+        const jobByWamid = new Map<string, { jobId: string; vaultId: string; attempt: number }>();
         for (const msg of messages) {
           const vaultRef = vaultByEventId.get(msg.wamid) ?? null;
           const jobId = vaultRef && !vaultRef.duplicate ? await leaseJobForVault(vaultRef.vault_id, "webhook") : null;
-          if (jobId) leasedJobs.push(jobId);
+          if (jobId && vaultRef) jobByWamid.set(msg.wamid, { jobId, vaultId: vaultRef.vault_id, attempt: await jobAttempts(jobId) });
           let inboundText = msg.text;
           let inboundSource: "text" | "voice" = "text";
           let voiceConfidence: number | null = null;
 
+          try {
           // ---- Idempotency gate (wamid) BEFORE any model call or send ----
           const claim = await claimInbound({
             inboundMessageId: msg.wamid,
@@ -500,13 +512,47 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             send_error: send.error,
             handoff_requested: !!turn.payload?.handoff_requested,
           });
+          } catch (err: any) {
+            // A classified processing failure. Nothing is swallowed: the job
+            // below is closed as retryable, never as `succeeded`.
+            results.push({
+              wamid: msg.wamid,
+              reply_sent: false,
+              error: String(err?.code ?? err?.message ?? err).slice(0, 200),
+              correlation_id: err?.correlation_id ?? null,
+            });
+          }
         }
 
-        // Every leased job whose turn completed (any `continue` branch is a
-        // completed turn too) is closed here. A thrown exception leaves the
-        // lease in place so the durable worker retries it later.
-        for (const jobId of leasedJobs) {
-          await finishJob({ jobId, success: true, attempt: 1 }).catch(() => {});
+        // A job only reaches `succeeded` when the required business result
+        // happened: a real contact_id AND an outbound send, or an explicit,
+        // documented no-reply reason. Anything else is retryable, and after
+        // max attempts it is quarantined for human review.
+        for (const r of results) {
+          const job = jobByWamid.get(r.wamid);
+          if (!job) continue;
+          const outcome = classifyTurnOutcome({
+            contactId: r.contact_id ?? null,
+            sends: r.reply_sent === true ? [{ ok: true }] : r.reply_sent === false ? [{ ok: false }] : [],
+            noReplyReason: r.no_reply_reason ?? null,
+            error: r.error ?? null,
+            attempt: job.attempt,
+          });
+          r.job_outcome = outcome.reason;
+          if (outcome.success) {
+            await finishJob({ jobId: job.jobId, success: true, attempt: job.attempt, contactId: r.contact_id ?? null }).catch(() => {});
+            continue;
+          }
+          await finishJob({ jobId: job.jobId, success: false, error: outcome.reason, attempt: job.attempt }).catch(() => {});
+          if (outcome.quarantine) {
+            await quarantineEvent({
+              vaultId: job.vaultId,
+              jobId: job.jobId,
+              reason: classifyFailure(outcome.reason),
+              severity: "critical",
+              details: { inbound_message_id: r.wamid, outcome: outcome.reason, attempt: job.attempt },
+            }).catch(() => {});
+          }
         }
 
         return Response.json({
