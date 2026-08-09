@@ -241,8 +241,13 @@ const INTEREST_WORDS: Array<[RegExp, string]> = [
 
 export type YesNoValue = "yes" | "no" | "unsure" | "prefer_not_to_say";
 
-const YES_RE = /(^|\s)(כן|בטח|בהחלט|נכון|כמובן|בשמחה|אשמח|מאוד|ברור|yes|yep|sure)\b|אני מחפש|מחפשת זוגיות|מאוד אוהב|אוהבת מאוד|אוהב(ת)? מאוד/;
-const NO_RE = /(^|\s)(לא|ממש לא|בכלל לא|no|nope)\b|לא ממש|לא כרגע לא|לא מחפש|לא מעוניינ|לא אוהב/;
+/** Hebrew letters are not \w, so boundaries are expressed explicitly. */
+const B = "(?:^|[^\\u0590-\\u05FFa-zA-Z])";
+const E = "(?![\\u0590-\\u05FFa-zA-Z])";
+const YES_RE = new RegExp(
+  `${B}(כן|בטח|בהחלט|נכון|כמובן|בשמחה|אשמח|ברור|אוהב|אוהבת|מחפש|מחפשת|yes|yep|sure)${E}`,
+);
+const NO_RE = new RegExp(`${B}(לא|no|nope)${E}`);
 const UNSURE_RE = /(אולי|לא יודע|לא יודעת|תלוי|לא בטוח|לא בטוחה|בערך|ככה ככה|maybe)/;
 
 /** Natural Hebrew answer -> normalized yes/no/unsure/prefer_not_to_say. */
@@ -252,7 +257,8 @@ export function normalizeYesNo(raw: string): YesNoValue | null {
   if (DECLINE_RE.test(s)) return "prefer_not_to_say";
   if (UNSURE_RE.test(s)) return "unsure";
   const negative = NO_RE.test(s);
-  const positive = YES_RE.test(s);
+  // "לא אוהב" / "לא מחפש" is a negation, not a positive statement
+  const positive = YES_RE.test(s) && !/לא\s+(אוהב|אוהבת|מחפש|מחפשת|מעוניינ)/.test(s);
   if (negative && !positive) return "no";
   if (positive && !negative) return "yes";
   if (negative && positive) return "unsure";
