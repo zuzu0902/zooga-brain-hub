@@ -180,6 +180,70 @@ export async function resolveOrCreateContact(args: {
 
 // -------------------------------------------------------------- consent
 
+/** Append-only audit trail. Idempotent per (contact, event, source message). */
+export async function recordOnboardingEvent(args: {
+  contactId: string;
+  eventType: string;
+  stage?: string | null;
+  buttonId?: string | null;
+  buttonTitle?: string | null;
+  sourceMessageId?: string | null;
+  payload?: Record<string, unknown>;
+}): Promise<{ recorded: boolean; duplicate: boolean }> {
+  const { error } = await db().from("onboarding_events").insert({
+    contact_id: args.contactId,
+    event_type: args.eventType,
+    stage: args.stage ?? null,
+    button_id: args.buttonId ?? null,
+    button_title: args.buttonTitle ?? null,
+    source_message_id: args.sourceMessageId ?? null,
+    payload: args.payload ?? {},
+  });
+  if (error) {
+    if (String(error.code) === "23505") return { recorded: false, duplicate: true };
+    throw new Error(error.message);
+  }
+  return { recorded: true, duplicate: false };
+}
+
+export async function markOpeningSent(contactId: string) {
+  const now = new Date().toISOString();
+  await db()
+    .from("contacts")
+    .update({ opening_status: "asked", opening_asked_at: now })
+    .eq("id", contactId);
+  await recordOnboardingEvent({ contactId, eventType: "opening_sent", stage: "opening" });
+}
+
+/**
+ * Availability answer. NEVER writes consent — "לא עכשיו" only defers.
+ */
+export async function setOpeningStatus(
+  contactId: string,
+  status: "available" | "deferred",
+  meta: { buttonId?: string | null; buttonTitle?: string | null; sourceMessageId?: string | null } = {},
+) {
+  const now = new Date().toISOString();
+  await db()
+    .from("contacts")
+    .update({
+      opening_status: status,
+      opening_responded_at: now,
+      opening_deferred_at: status === "deferred" ? now : null,
+      service_window_open_until:
+        status === "available" ? new Date(Date.now() + 24 * 3600 * 1000).toISOString() : undefined,
+    })
+    .eq("id", contactId);
+  await recordOnboardingEvent({
+    contactId,
+    eventType: status === "available" ? "opening_available_yes" : "opening_not_now",
+    stage: "opening",
+    buttonId: meta.buttonId ?? null,
+    buttonTitle: meta.buttonTitle ?? null,
+    sourceMessageId: meta.sourceMessageId ?? null,
+  });
+}
+
 export async function setConsent(
   contactId: string,
   granted: boolean,
@@ -201,6 +265,64 @@ export async function setConsent(
       intake_started_at: granted ? now : null,
     })
     .eq("id", contactId);
+  await recordOnboardingEvent({
+    contactId,
+    eventType: granted ? "consent_granted" : "consent_denied",
+    stage: "consent",
+    payload: evidence as Record<string, unknown>,
+  });
+}
+
+/**
+ * Single entry point for an inbound button/quick-reply during onboarding.
+ * Idempotent: replaying the same WhatsApp message id is a no-op.
+ */
+export async function handleOnboardingButton(args: {
+  contactId: string;
+  buttonId?: string | null;
+  buttonTitle?: string | null;
+  text?: string | null;
+  sourceMessageId?: string | null;
+}): Promise<{ handled: boolean; kind: string | null; reply_text: string | null; duplicate: boolean }> {
+  const { parseOnboardingButton, applyOpeningReply, applyConsentReply } = await import("./two-stage");
+  const button = parseOnboardingButton({
+    id: args.buttonId ?? null,
+    title: args.buttonTitle ?? null,
+    text: args.text ?? null,
+  });
+  if (!button) return { handled: false, kind: null, reply_text: null, duplicate: false };
+
+  if (args.sourceMessageId) {
+    const { data: seen } = await db()
+      .from("onboarding_events")
+      .select("id")
+      .eq("contact_id", args.contactId)
+      .eq("source_message_id", args.sourceMessageId)
+      .limit(1)
+      .maybeSingle();
+    if (seen) return { handled: true, kind: button, reply_text: null, duplicate: true };
+  }
+
+  const opening = applyOpeningReply(button);
+  if (opening) {
+    await setOpeningStatus(args.contactId, opening.opening_status as "available" | "deferred", {
+      buttonId: args.buttonId ?? button,
+      buttonTitle: args.buttonTitle ?? null,
+      sourceMessageId: args.sourceMessageId ?? null,
+    });
+    return { handled: true, kind: button, reply_text: opening.reply_text, duplicate: false };
+  }
+
+  const consent = applyConsentReply(button);
+  if (consent) {
+    await setConsent(args.contactId, consent.granted, {
+      button_id: args.buttonId ?? button,
+      button_title: args.buttonTitle ?? null,
+      source_message_id: args.sourceMessageId ?? null,
+    });
+    return { handled: true, kind: button, reply_text: consent.reply_text, duplicate: false };
+  }
+  return { handled: false, kind: null, reply_text: null, duplicate: false };
 }
 
 // ---------------------------------------------------------------- facts
