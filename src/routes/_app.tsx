@@ -20,6 +20,7 @@ import {
   Activity,
   BellRing,
   Brain,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -38,6 +39,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
       { to: "/handoff", label: "Handoff Console", icon: Flag },
       { to: "/manager-alerts", label: "Manager Alerts", icon: BellRing },
       { to: "/runtime-trace", label: "Runtime Trace", icon: Activity },
+      { to: "/zero-loss", label: "Zero-Loss Control", icon: ShieldCheck },
     ],
   },
   {
