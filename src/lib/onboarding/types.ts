@@ -50,7 +50,7 @@ export type IntakeFieldDefinition = {
 export type ProfileFact = {
   field_key: string;
   value_text: string | null;
-  value_json?: unknown;
+  value_json?: string | number | boolean | null;
   explicit_or_inferred: FactKind;
   confidence: number;
   source: string;
