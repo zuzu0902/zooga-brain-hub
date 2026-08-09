@@ -13,6 +13,7 @@
  *    a real error. We never claim a notification that did not happen.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { decideAutoRelease, type LockSnapshot, type ReleaseDecision } from "@/lib/handoff-release-core";
 import { sendWhatsAppTemplate, sendWhatsAppText, toE164 } from "@/lib/whatsapp-meta.server";
 import { listMetaTemplates } from "@/lib/whatsapp-templates.server";
 import {
