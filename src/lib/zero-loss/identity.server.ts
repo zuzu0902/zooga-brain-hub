@@ -78,7 +78,8 @@ export async function resolveIdentity(args: {
     const { data: inserted, error } = await supabaseAdmin
       .from("contacts")
       .insert({
-        full_name: args.displayName || e164,
+        // `contacts.full_name` is a GENERATED column — writing it aborts the insert.
+        first_name: args.displayName || null,
         phone: e164,
         whatsapp_number: e164,
         source: "Tamar WhatsApp",

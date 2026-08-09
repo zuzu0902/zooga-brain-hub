@@ -13,6 +13,7 @@
  *    a real error. We never claim a notification that did not happen.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { decideAutoRelease, type LockSnapshot, type ReleaseDecision } from "@/lib/handoff-release-core";
 import { sendWhatsAppTemplate, sendWhatsAppText, toE164 } from "@/lib/whatsapp-meta.server";
 import { listMetaTemplates } from "@/lib/whatsapp-templates.server";
 import {
@@ -495,6 +496,52 @@ export async function countOpenHandoffs(contactId: string): Promise<number> {
   return count ?? 0;
 }
 
+/** Current hold on the thread: handoff-driven freeze and/or manual human lock. */
+export async function getLockSnapshot(contactId: string): Promise<LockSnapshot> {
+  const { data } = await supabaseAdmin
+    .from("contacts")
+    .select("human_owned, human_owned_by, human_owned_at")
+    .eq("id", contactId)
+    .maybeSingle();
+  return {
+    humanOwned: (data as any)?.human_owned === true,
+    humanOwnedBy: (data as any)?.human_owned_by ?? null,
+    humanOwnedAt: (data as any)?.human_owned_at ?? null,
+    openHandoffs: await countOpenHandoffs(contactId),
+  };
+}
+
+/**
+ * Single gate for every automatic release path (handoff resolve, auto-heal).
+ * Never frees a thread another human really holds; `force` is reserved for the
+ * explicit admin "return to Tamar" action.
+ */
+export async function releaseIfUnheld(args: {
+  contactId: string;
+  actor: string;
+  trigger: string;
+  force?: boolean;
+}): Promise<ReleaseResult & { decision: ReleaseDecision["reason"] }> {
+  const snap = await getLockSnapshot(args.contactId);
+  const decision = decideAutoRelease(snap, { force: args.force });
+  if (!decision.release) {
+    return {
+      released: false,
+      contact_id: args.contactId,
+      resolved_handoffs: 0,
+      reason: decision.reason,
+      decision: decision.reason,
+    };
+  }
+  const res = await releaseThreadToTamar({
+    contactId: args.contactId,
+    actor: args.actor,
+    resolveHandoffs: args.force === true,
+    trigger: args.trigger,
+  });
+  return { ...res, decision: decision.reason };
+}
+
 export type ReleaseResult = {
   released: boolean;
   contact_id: string;
@@ -565,12 +612,9 @@ export async function healStaleHumanOwnership<T extends { id?: string | null; hu
   contact: T | null,
 ): Promise<T | null> {
   if (!contact?.id || !contact.human_owned) return contact;
-  const open = await countOpenHandoffs(contact.id);
-  if (open > 0) return contact;
-  const res = await releaseThreadToTamar({
+  const res = await releaseIfUnheld({
     contactId: contact.id,
     actor: "system_auto_heal",
-    resolveHandoffs: false,
     trigger: "auto_release_no_open_handoff",
   });
   if (!res.released) return contact;

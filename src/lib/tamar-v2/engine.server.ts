@@ -94,7 +94,6 @@ async function createContact(input: V2TurnInput) {
       phone: e164,
       whatsapp_number: e164,
       first_name: input.name ?? null,
-      full_name: input.name ?? null,
       source: "Tamar WhatsApp",
       status: "new_lead",
       conversation_state: "consent_pending",
