@@ -79,12 +79,6 @@ export const getZeroLossOverview = createServerFn({ method: "GET" })
       .limit(1)
       .maybeSingle();
 
-    const { data: cronRows } = await supabaseAdmin.rpc("zl_ingest_event" as any, {}).then(
-      () => ({ data: null }),
-      () => ({ data: null }),
-    );
-    void cronRows;
-
     const vaultReady = ingested7d >= 0;
     const items: ReadinessItem[] = [
       { key: "vault", label: "Durable event vault", essential: true, verified: vaultReady, evidence: `${ingested7d} events stored (7d)` },
