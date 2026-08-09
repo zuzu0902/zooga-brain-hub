@@ -168,7 +168,6 @@ export async function resolveOrCreateContact(args: {
     .insert({
       phone,
       whatsapp_number: phone,
-      full_name: args.fullName ?? null,
       first_name: first,
       last_name: last,
       source: (args.source as any) ?? "Manual",
