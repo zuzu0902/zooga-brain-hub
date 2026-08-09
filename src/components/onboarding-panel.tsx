@@ -27,6 +27,12 @@ const OPENING_LABEL: Record<string, string> = {
   available: "אישר/ה שנוח לדבר",
   deferred: "לא עכשיו (נדחה זמנית)",
 };
+const RELATIONSHIP_LABEL: Record<string, string> = {
+  not_offered: "שאלון זוגיות: טרם הוצע",
+  offered: "שאלון זוגיות: הוצע, ממתין לתשובה",
+  ready_to_start: "שאלון זוגיות: מוכן להתחיל",
+  deferred: "שאלון זוגיות: מאוחר יותר (לא סירוב)",
+};
 
 export function OnboardingPanel({ contactId }: { contactId: string }) {
   const t = useT();
@@ -42,10 +48,12 @@ export function OnboardingPanel({ contactId }: { contactId: string }) {
   });
 
   if (!data) return null;
-  const { routable, completeness, facts, next_step, next_progressive_step, events } = data as any;
+  const { routable, completeness, facts, next_step, next_progressive_step, events, relationship_intake } =
+    data as any;
   const consent = routable.consent;
   const intake = routable.intake;
   const opening = routable.opening ?? { opening_status: "not_sent" };
+  const rel = relationship_intake ?? { status: "not_offered" };
 
   async function commit(fieldKey: string) {
     try {
@@ -75,6 +83,9 @@ export function OnboardingPanel({ contactId }: { contactId: string }) {
         {routable.conversation.has_prior_conversation && (
           <Badge variant="outline">{t("שיחה קודמת קיימת")}</Badge>
         )}
+        <Badge variant={rel.status === "ready_to_start" ? "default" : "outline"}>
+          {RELATIONSHIP_LABEL[rel.status] ?? rel.status}
+        </Badge>
       </div>
 
       <div className="text-xs text-muted-foreground grid grid-cols-2 md:grid-cols-4 gap-2">

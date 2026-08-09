@@ -9,7 +9,12 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getIntakeStudioConfig, saveIntakeFieldDefinition } from "@/lib/onboarding.functions";
-import { CONSENT_QUESTION_BUTTONS, CONSENT_QUESTION_TEXT } from "@/lib/onboarding/types";
+import {
+  CONSENT_QUESTION_BUTTONS,
+  CONSENT_QUESTION_TEXT,
+  RELATIONSHIP_INTAKE_BUTTONS,
+  RELATIONSHIP_INTAKE_QUESTION_TEXT,
+} from "@/lib/onboarding/types";
 
 /** Baseline intake calibration — order, wording, required/optional, menu vs free text. */
 export function IntakeConfigTab() {
@@ -78,7 +83,7 @@ export function IntakeConfigTab() {
       <Card className="p-5 space-y-3">
         <h3 className="font-semibold">שאלות baseline intake</h3>
         <p className="text-xs text-muted-foreground">
-          baseline = שלוש שאלות בלבד (אזור, תחומי עניין, מטרה), שאלה אחת בכל תור. תאריך לידה הוא שאלה מתקדמת ואופציונלית אחרי מסירת ערך.
+          baseline = עיר מגורים, חיפוש זוגיות, אהבת טיולים, ורק אם אוהב/ת טיולים גם העדפת טיולים והטיול האחרון. שאלה אחת בכל תור, בדילוג על מידע ידוע. תאריך לידה הוא שאלה מתקדמת ואופציונלית אחרי מסירת ערך.
         </p>
         {((data as any).defs ?? []).map((d: any) => (
           <div key={d.field_key} className="rounded-md border border-border/60 p-3 space-y-2">
@@ -87,6 +92,11 @@ export function IntakeConfigTab() {
               <Badge variant={d.stage === "progressive" ? "secondary" : "default"}>
                 {d.stage === "progressive" ? "מתקדם / אופציונלי" : "baseline"}
               </Badge>
+              {d.depends_on?.field_key && (
+                <Badge variant="secondary">
+                  מותנה: {d.depends_on.field_key} = {(d.depends_on.equals ?? []).join(" / ")}
+                </Badge>
+              )}
               <Input
                 className="h-8 w-20"
                 type="number"
@@ -121,6 +131,19 @@ export function IntakeConfigTab() {
             />
           </div>
         ))}
+      </Card>
+
+      <Card className="p-5 space-y-2">
+        <h3 className="font-semibold">שער שאלון הזוגיות (אחרי מסירת ערך)</h3>
+        <p className="text-xs text-muted-foreground">
+          נשלח פעם אחת בלבד, אחרי שהשאלות הרלוונטיות הושלמו ונשלח קישור להצעה פעילה. "מאוחר יותר" = דחייה זמנית בלבד, לא סירוב ולא הסרה, והלקוח נשאר זכאי להצעה טבעית בשיחה עתידית.
+        </p>
+        <p className="text-sm whitespace-pre-wrap">{RELATIONSHIP_INTAKE_QUESTION_TEXT}</p>
+        <div className="flex gap-2">
+          {RELATIONSHIP_INTAKE_BUTTONS.map((b) => (
+            <Badge key={b.id} variant="outline">{b.label} · {b.id}</Badge>
+          ))}
+        </div>
       </Card>
     </div>
   );
