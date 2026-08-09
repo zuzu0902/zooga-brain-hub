@@ -6,6 +6,18 @@
 export type ConsentStatus = "unknown" | "pending" | "granted" | "denied";
 export type BaselineIntakeStatus = "not_started" | "in_progress" | "completed";
 export type FactKind = "explicit" | "inferred";
+/**
+ * Availability of the contact for a conversation. Completely separate from
+ * marketing consent: "לא עכשיו" is a deferral, never a refusal.
+ */
+export type OpeningStatus = "not_sent" | "asked" | "available" | "deferred";
+
+export type OpeningState = {
+  opening_status: OpeningStatus;
+  opening_asked_at: string | null;
+  opening_responded_at: string | null;
+  opening_deferred_at: string | null;
+};
 
 export type ConsentState = {
   consent_status: ConsentStatus;
@@ -45,6 +57,8 @@ export type IntakeFieldDefinition = {
   skippable: boolean;
   order_index: number;
   enabled: boolean;
+  /** baseline = asked once before value; progressive = only after value. */
+  stage: "baseline" | "progressive";
 };
 
 export type ProfileFact = {
@@ -75,6 +89,7 @@ export type RoutableContact = {
   id: string;
   phone: string | null;
   whatsapp_number: string | null;
+  opening: OpeningState;
   consent: ConsentState;
   intake: IntakeState;
   conversation: ConversationFacts;
@@ -84,6 +99,7 @@ export type RouteDecision =
   | "new_intake"
   | "resume_intake"
   | "known_contact"
+  | "deferred_not_now"
   | "suppressed"
   | "blocked_missing_optin"
   | "blocked_missing_template"
@@ -91,7 +107,7 @@ export type RouteDecision =
 
 export type RouterResult = {
   decision: RouteDecision;
-  branch: "A" | "B" | "C" | "D" | "E" | "F" | "G";
+  branch: "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H";
   reason: string;
   /** send is allowed only when true; false is always fail-closed. */
   may_send: boolean;
@@ -107,12 +123,26 @@ export type RouterResult = {
     | "none";
 };
 
-export const CONSENT_VERSION = "zooga_opening_consent_v1";
+export const CONSENT_VERSION = "zooga_opening_consent_v2";
+
+/** STEP 1 — availability only. Sent outside the 24h service window. */
 export const OPENING_TEMPLATE_NAME = "zooga_opening_consent";
 export const OPENING_TEMPLATE_BODY =
-  "שלום {{1}}, אני תמר, העוזרת הדיגיטלית של קהילת זוגה. פנוי/ה לשיחה קצרה כדי שאכיר אותך ואוכל לשלוח לך מידע והצעות מתאימות?";
+  "שלום {{1}}, אני תמר, העוזרת הדיגיטלית של קהילת זוגה. אשמח להכיר אותך בשיחה קצרה כדי שאוכל להתאים לך מידע והצעות. נוח לך לדבר עכשיו?";
 export const OPENING_TEMPLATE_BUTTONS = [
-  { id: "consent_yes", label: "כן, בשמחה" },
-  { id: "consent_no", label: "לא כרגע" },
+  { id: "opening_available_yes", label: "כן, אפשר" },
+  { id: "opening_not_now", label: "לא עכשיו" },
 ];
+
+/** STEP 2 — the only place consent is ever obtained. Inside the service window. */
+export const CONSENT_QUESTION_TEXT =
+  "לפני שנתחיל, האם את/ה מאשר/ת לזוגה לשלוח לך כאן הודעות, מידע והצעות שעשויים להתאים לך? בכל שלב אפשר לבקש להפסיק או לדבר עם אדם מהצוות.";
+export const CONSENT_QUESTION_BUTTONS = [
+  { id: "consent_yes", label: "כן, מאשר/ת" },
+  { id: "consent_no", label: "לא, תודה" },
+];
+
 export const OPT_OUT_CLOSING_TEXT = "תודה ולהתראות.";
+/** Acknowledgement for "לא עכשיו" — no pressure, no re-contact promise. */
+export const OPENING_DEFERRED_TEXT =
+  "בסדר גמור, תודה. אם בעתיד יתאים לך, אפשר פשוט לכתוב לי כאן ואשמח לעזור.";

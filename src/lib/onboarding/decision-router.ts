@@ -17,6 +17,8 @@ export type RouterInput = {
   openingTemplateApproved: boolean;
   /** true when the customer wrote in the last 24h (free-form allowed) */
   serviceWindowOpen?: boolean;
+  /** customer-initiated inbound may always resume, even after a deferral */
+  inboundInitiated?: boolean;
 };
 
 export function routeConversationStart(input: RouterInput): RouterResult {
@@ -65,6 +67,19 @@ export function routeConversationStart(input: RouterInput): RouterResult {
       reason: "consent_denied_or_opted_out",
       may_send: false,
       requires_opening_template: false,
+      create_contact: false,
+      next_action: "none",
+    };
+  }
+
+  // H — availability deferred ("לא עכשיו"). Not a refusal, but no auto re-contact.
+  if (c.opening.opening_status === "deferred" && !input.inboundInitiated) {
+    return {
+      decision: "deferred_not_now",
+      branch: "H",
+      reason: "opening_deferred_not_now",
+      may_send: false,
+      requires_opening_template: true,
       create_contact: false,
       next_action: "none",
     };

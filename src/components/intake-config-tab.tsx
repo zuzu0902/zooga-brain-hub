@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getIntakeStudioConfig, saveIntakeFieldDefinition } from "@/lib/onboarding.functions";
+import { CONSENT_QUESTION_BUTTONS, CONSENT_QUESTION_TEXT } from "@/lib/onboarding/types";
 
 /** Baseline intake calibration — order, wording, required/optional, menu vs free text. */
 export function IntakeConfigTab() {
@@ -38,12 +39,15 @@ export function IntakeConfigTab() {
     <div className="space-y-4">
       <Card className="p-5 space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="font-semibold">תבנית פתיחה</h3>
+          <h3 className="font-semibold">שלב 1 — תבנית פתיחה (זמינות בלבד)</h3>
           <Badge variant={tpl?.approved ? "default" : "secondary"}>
             {tpl?.approved ? "מאושרת ב-Meta" : `לא מאושרת${tpl?.meta_status ? ` (${tpl.meta_status})` : ""}`}
           </Badge>
           <Badge variant="outline">טיוטה: {tpl?.draft?.status ?? "—"}</Badge>
         </div>
+        <p className="text-xs text-muted-foreground">
+          נשלחת מחוץ לחלון 24 השעות ושואלת רק אם נוח לדבר עכשיו. "לא עכשיו" = דחייה זמנית בלבד — לא סירוב ולא הסרה.
+        </p>
         <p className="text-sm whitespace-pre-wrap">{tpl?.draft?.body_text}</p>
         <div className="flex gap-2">
           {(tpl?.draft?.buttons ?? []).map((b: any) => (
@@ -57,12 +61,32 @@ export function IntakeConfigTab() {
         )}
       </Card>
 
+      <Card className="p-5 space-y-2">
+        <h3 className="font-semibold">שלב 2 — שאלת הסכמה אינטראקטיבית</h3>
+        <p className="text-xs text-muted-foreground">
+          נשלחת רק בתוך חלון השירות, אחרי "כן, אפשר" או אחרי הודעה יזומה של הלקוח. זהו המקום היחיד שבו נרשמת הסכמה.
+        </p>
+        <p className="text-sm whitespace-pre-wrap">{CONSENT_QUESTION_TEXT}</p>
+        <div className="flex gap-2">
+          {CONSENT_QUESTION_BUTTONS.map((b) => (
+            <Badge key={b.id} variant="outline">{b.label} · {b.id}</Badge>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">"לא, תודה" = סירוב מלא, הסרה וסגירה מנומסת.</p>
+      </Card>
+
       <Card className="p-5 space-y-3">
         <h3 className="font-semibold">שאלות baseline intake</h3>
+        <p className="text-xs text-muted-foreground">
+          baseline = שלוש שאלות בלבד (אזור, תחומי עניין, מטרה), שאלה אחת בכל תור. תאריך לידה הוא שאלה מתקדמת ואופציונלית אחרי מסירת ערך.
+        </p>
         {((data as any).defs ?? []).map((d: any) => (
           <div key={d.field_key} className="rounded-md border border-border/60 p-3 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="outline">{d.field_key}</Badge>
+              <Badge variant={d.stage === "progressive" ? "secondary" : "default"}>
+                {d.stage === "progressive" ? "מתקדם / אופציונלי" : "baseline"}
+              </Badge>
               <Input
                 className="h-8 w-20"
                 type="number"

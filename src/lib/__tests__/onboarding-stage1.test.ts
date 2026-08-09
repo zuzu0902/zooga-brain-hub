@@ -6,16 +6,25 @@ import {
   extractFieldsFromFreeText,
   isSkipAnswer,
   nextIntakeStep,
+  nextProgressiveStep,
   parseBirthDate,
   ageFromBirthDate,
   mustDeliverValue,
   questionBudgetExhausted,
 } from "@/lib/onboarding/baseline-intake";
+import {
+  applyConsentReply,
+  applyOpeningReply,
+  mayAutoRecontactAfterDeferral,
+  nextOnboardingStage,
+  parseOnboardingButton,
+} from "@/lib/onboarding/two-stage";
 import { mergeFact } from "@/lib/onboarding/profile-facts";
 import { normalizePhone } from "@/lib/phone";
 import type { ProfileFact, RoutableContact } from "@/lib/onboarding/types";
 
 function contact(over: {
+  opening?: Partial<RoutableContact["opening"]>;
   consent?: Partial<RoutableContact["consent"]>;
   intake?: Partial<RoutableContact["intake"]>;
   conversation?: Partial<RoutableContact["conversation"]>;
@@ -24,6 +33,7 @@ function contact(over: {
     id: "c1",
     phone: "+972501234567",
     whatsapp_number: "+972501234567",
+    opening: { opening_status: "not_sent", opening_asked_at: null, opening_responded_at: null, opening_deferred_at: null, ...(over.opening ?? {}) },
     consent: { consent_status: "unknown", consent_source: null, consent_at: null, consent_version: null, consent_evidence: {}, opt_out_at: null, ...(over.consent ?? {}) },
     intake: { baseline_intake_status: "not_started", intake_version: 1, started_at: null, completed_at: null, last_step_id: null, ...(over.intake ?? {}) },
     conversation: { first_seen_at: null, first_inbound_at: null, last_inbound_at: null, last_outbound_at: null, total_messages: 0, has_prior_conversation: false, service_window_open_until: null, ...(over.conversation ?? {}) },
@@ -96,6 +106,96 @@ describe("decision router — 7 branch matrix", () => {
     expect(r.decision).toBe("blocked_invalid_phone");
     expect(r.may_send).toBe(false);
   });
+
+  it("H: 'לא עכשיו' defers without ever denying consent", () => {
+    const c = contact({ opening: { opening_status: "deferred" } });
+    const r = routeConversationStart({ phone: P, contact: c, hasOptInEvidence: true, openingTemplateApproved: true });
+    expect(r.branch).toBe("H");
+    expect(r.decision).toBe("deferred_not_now");
+    expect(r.may_send).toBe(false);
+    expect(c.consent.consent_status).toBe("unknown");
+    expect(c.consent.opt_out_at).toBeNull();
+  });
+
+  it("H: a deferred contact may still be answered when they write first", () => {
+    const c = contact({ opening: { opening_status: "deferred" } });
+    const r = routeConversationStart({ phone: P, contact: c, hasOptInEvidence: true, openingTemplateApproved: true, inboundInitiated: true });
+    expect(r.decision).not.toBe("deferred_not_now");
+  });
+});
+
+describe("two-stage opening: availability is not consent", () => {
+  it("parses a button by id, by title and by plain text", () => {
+    expect(parseOnboardingButton({ id: "opening_available_yes" })).toBe("opening_available_yes");
+    expect(parseOnboardingButton({ title: "לא עכשיו" })).toBe("opening_not_now");
+    expect(parseOnboardingButton({ text: "כן, מאשר/ת" })).toBe("consent_yes");
+    expect(parseOnboardingButton({ text: "משהו אחר" })).toBeNull();
+  });
+
+  it("availability yes moves to the consent question and touches no consent", () => {
+    const t = applyOpeningReply("opening_available_yes")!;
+    expect(t.opening_status).toBe("available");
+    expect(t.consent_touched).toBe(false);
+    expect(t.next).toBe("ask_consent");
+  });
+
+  it("'לא עכשיו' is a deferral with no auto re-contact", () => {
+    const t = applyOpeningReply("opening_not_now")!;
+    expect(t.opening_status).toBe("deferred");
+    expect(t.consent_touched).toBe(false);
+    expect(t.next).toBe("stop_no_recontact");
+    expect(mayAutoRecontactAfterDeferral()).toBe(false);
+  });
+
+  it("consent no suppresses and closes politely", () => {
+    const t = applyConsentReply("consent_no")!;
+    expect(t.granted).toBe(false);
+    expect(t.suppress).toBe(true);
+    expect(t.reply_text).toBe("תודה ולהתראות.");
+  });
+
+  it("consent yes starts the baseline intake", () => {
+    expect(applyConsentReply("consent_yes")).toMatchObject({ granted: true, next: "start_baseline" });
+  });
+});
+
+describe("stage planner", () => {
+  const snap = { facts: {}, skipped: [] };
+  const base = { defs: DEFAULT_INTAKE_FIELDS, snapshot: snap, questionsAskedThisConversation: 0, serviceWindowOpen: false, inboundInitiated: false };
+
+  it("outside the window an unopened contact gets the availability template", () => {
+    expect(nextOnboardingStage({ ...base, contact: contact() }).stage).toBe("send_opening");
+  });
+
+  it("after availability=yes the next step is the consent question", () => {
+    expect(nextOnboardingStage({ ...base, contact: contact({ opening: { opening_status: "available" } }) }).stage).toBe("ask_consent");
+  });
+
+  it("a customer-initiated inbound asks consent directly, no template", () => {
+    expect(nextOnboardingStage({ ...base, inboundInitiated: true, contact: contact() }).stage).toBe("ask_consent");
+  });
+
+  it("granted contact gets one baseline question per turn", () => {
+    const plan = nextOnboardingStage({ ...base, contact: contact({ consent: { consent_status: "granted" } }) });
+    expect(plan).toMatchObject({ stage: "baseline_intake" });
+    if (plan.stage === "baseline_intake") expect(plan.field.field_key).toBe("city");
+  });
+
+  it("value is delivered by the third question", () => {
+    const plan = nextOnboardingStage({ ...base, questionsAskedThisConversation: 3, contact: contact({ consent: { consent_status: "granted" } }) });
+    expect(plan.stage).toBe("deliver_value");
+  });
+
+  it("a completed contact is never re-intaked", () => {
+    const done = { facts: { city: fact("city", "חיפה"), interests: fact("interests", "טיולים"), primary_goal: fact("primary_goal", "לצאת יותר") }, skipped: [] };
+    const plan = nextOnboardingStage({ ...base, snapshot: done, valueDelivered: true, contact: contact({ consent: { consent_status: "granted" }, intake: { baseline_intake_status: "completed" } }) });
+    expect(plan).toMatchObject({ stage: "progressive_question" });
+    if (plan.stage === "progressive_question") expect(plan.field.field_key).toBe("birth_date");
+  });
+
+  it("denied contacts are suppressed at the planner too", () => {
+    expect(nextOnboardingStage({ ...base, contact: contact({ consent: { consent_status: "denied" } }) }).stage).toBe("suppressed");
+  });
 });
 
 describe("phone dedupe", () => {
@@ -113,33 +213,38 @@ function fact(field_key: string, value: string, kind: "explicit" | "inferred" = 
 
 describe("baseline intake", () => {
   it("never re-asks a known field and resumes at the next gap", () => {
-    const snap = { facts: { first_name: fact("first_name", "ורדה"), city: fact("city", "חיפה") }, skipped: [] };
-    const next = nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap);
-    expect(next?.field_key).toBe("birth_date");
-  });
-
-  it("skipped fields are not asked again", () => {
-    const snap = { facts: { first_name: fact("first_name", "ורדה") }, skipped: ["city", "birth_date"] };
+    const snap = { facts: { city: fact("city", "חיפה") }, skipped: [] };
     expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("interests");
   });
 
+  it("skipped fields are not asked again", () => {
+    const snap = { facts: {}, skipped: ["city", "interests"] };
+    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("primary_goal");
+  });
+
   it("low confidence inference does not count as known", () => {
-    const snap = { facts: { first_name: fact("first_name", "אולי דנה", "inferred", 40) }, skipped: [] };
-    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("first_name");
+    const snap = { facts: { city: fact("city", "אולי חיפה", "inferred", 40) }, skipped: [] };
+    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("city");
+  });
+
+  it("baseline is exactly 3 questions and DOB is progressive only", () => {
+    const snap = { facts: { city: fact("city", "חיפה"), interests: fact("interests", "טיולים"), primary_goal: fact("primary_goal", "לצאת") }, skipped: [] };
+    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)).toBeNull();
+    expect(nextProgressiveStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("birth_date");
   });
 
   it("completeness is per field, not a boolean", () => {
-    const snap = { facts: { first_name: fact("first_name", "ורדה") }, skipped: ["birth_date"] };
+    const snap = { facts: { city: fact("city", "חיפה") }, skipped: ["birth_date"] };
     const c = completeness(DEFAULT_INTAKE_FIELDS, snap);
-    expect(c.fields.length).toBe(5);
-    expect(c.percent).toBe(40);
-    expect(c.missing).toEqual(["city", "interests", "primary_goal"]);
+    expect(c.fields.length).toBe(4);
+    expect(c.percent).toBe(50);
+    expect(c.missing).toEqual(["interests", "primary_goal"]);
   });
 
-  it("value must be delivered after 2 questions and asking stops at 4", () => {
-    expect(mustDeliverValue(1)).toBe(false);
-    expect(mustDeliverValue(2)).toBe(true);
-    expect(questionBudgetExhausted(4)).toBe(true);
+  it("value must be delivered by the third question", () => {
+    expect(mustDeliverValue(2)).toBe(false);
+    expect(mustDeliverValue(3)).toBe(true);
+    expect(questionBudgetExhausted(3)).toBe(true);
   });
 });
 
@@ -169,7 +274,6 @@ describe("date of birth", () => {
 describe("free text fills several fields at once", () => {
   it("captures name, city and interests from one sentence", () => {
     const out = extractFieldsFromFreeText("קוראים לי דנה, אני מחיפה ואוהבת טיולים בחו״ל ואוכל");
-    expect(out["first_name"]?.value).toBe("דנה");
     expect(out["city"]?.value).toBe("חיפה");
     expect(out["interests"]?.value).toContain("טיולים בחו״ל");
     expect(out["interests"]?.value).toContain("אוכל");

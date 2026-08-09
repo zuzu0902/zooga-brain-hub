@@ -12,29 +12,52 @@ import type {
 /** Confidence at/above which a known value blocks re-asking. */
 export const KNOWN_CONFIDENCE_MIN = 70;
 /** Hard ceiling of baseline questions before Tamar must deliver value. */
-export const MAX_BASELINE_QUESTIONS_PER_CONVERSATION = 4;
-export const VALUE_AFTER_QUESTIONS = 2;
+export const MAX_BASELINE_QUESTIONS_PER_CONVERSATION = 3;
+export const VALUE_AFTER_QUESTIONS = 3;
 
+/**
+ * Baseline = exactly three questions (A city, B interests, C open goal),
+ * one per turn, asked once ever. Date of birth is progressive: it is only
+ * offered after value was delivered and it never blocks completion.
+ */
 export const DEFAULT_INTAKE_FIELDS: IntakeFieldDefinition[] = [
-  { field_key: "first_name", label: "שם", question_text: "איך קוראים לך?", purpose_text: null, presentation: "text", options: [], required: true, skippable: false, order_index: 10, enabled: true },
-  { field_key: "city", label: "אזור מגורים", question_text: "באיזה אזור בארץ את/ה גר/ה?", purpose_text: "כדי להתאים אירועים וטיולים קרובים אלייך", presentation: "text", options: [], required: false, skippable: true, order_index: 20, enabled: true },
-  { field_key: "birth_date", label: "תאריך לידה", question_text: "נשמח לשמור את תאריך הלידה שלך כדי לפנק אותך בברכה ומתנה ביום ההולדת 🎂 (אפשר גם לדלג)", purpose_text: "ברכה ומתנת יום הולדת", presentation: "text", options: [], required: false, skippable: true, order_index: 30, enabled: true },
   {
-    field_key: "interests", label: "תחומי עניין", question_text: "מה הכי מעניין אותך מהפעילות של זוגה?", purpose_text: null,
+    field_key: "city", label: "אזור מגורים",
+    question_text: "באיזה אזור בארץ את/ה גר/ה?",
+    purpose_text: "כדי להתאים אירועים וטיולים קרובים אלייך",
+    presentation: "text", options: [], required: true, skippable: true,
+    order_index: 10, enabled: true, stage: "baseline",
+  },
+  {
+    field_key: "interests", label: "תחומי עניין",
+    question_text: "מה הכי מעניין אותך מהפעילות של זוגה? אפשר לבחור כמה דברים או לכתוב בחופשיות.",
+    purpose_text: "כדי לשלוח רק מה שרלוונטי עבורך",
     presentation: "multi",
     options: [
-      { id: "trips_il", label: "טיולים בארץ", value: "טיולים בארץ" },
       { id: "trips_abroad", label: "טיולים בחו״ל", value: "טיולים בחו״ל" },
+      { id: "trips_il", label: "טיולים בארץ", value: "טיולים בארץ" },
       { id: "events", label: "אירועים", value: "אירועים" },
-      { id: "dating", label: "היכרויות/קהילה", value: "היכרויות/קהילה" },
       { id: "culture", label: "תרבות", value: "תרבות" },
-      { id: "nature", label: "טבע", value: "טבע" },
-      { id: "food", label: "אוכל", value: "אוכל" },
+      { id: "nature_food", label: "טבע ואוכל", value: "טבע ואוכל" },
+      { id: "community", label: "קהילה וקשרים חברתיים", value: "קהילה וקשרים חברתיים" },
       { id: "other", label: "אחר", value: "אחר" },
     ],
-    required: true, skippable: true, order_index: 40, enabled: true,
+    required: true, skippable: true, order_index: 20, enabled: true, stage: "baseline",
   },
-  { field_key: "primary_goal", label: "מטרת הקשר", question_text: "מה הכי חשוב לך שנעזור לך בו עכשיו?", purpose_text: null, presentation: "text", options: [], required: false, skippable: true, order_index: 50, enabled: true },
+  {
+    field_key: "primary_goal", label: "מטרה בתקופה הקרובה",
+    question_text: "מה הכי היית רוצה שזוגה תעזור לך למצוא או לחוות בתקופה הקרובה?",
+    purpose_text: null,
+    presentation: "text", options: [], required: true, skippable: true,
+    order_index: 30, enabled: true, stage: "baseline",
+  },
+  {
+    field_key: "birth_date", label: "תאריך לידה (אופציונלי)",
+    question_text: "כדי שנוכל לשמח אותך ביום ההולדת, תרצה/י לשתף את תאריך הלידה? אפשר גם לבחור 'מעדיפ/ה לא לציין'.",
+    purpose_text: "ברכה ומתנת יום הולדת",
+    presentation: "text", options: [], required: false, skippable: true,
+    order_index: 100, enabled: true, stage: "progressive",
+  },
 ];
 
 export type IntakeSnapshot = {
@@ -76,18 +99,32 @@ export function completeness(
   return { fields, percent, missing: fields.filter((f) => !f.known && !f.skipped).map((f) => f.field_key) };
 }
 
-/** The next question to ask, or null when baseline intake is done. */
-export function nextIntakeStep(
-  defs: IntakeFieldDefinition[],
-  snap: IntakeSnapshot,
-): IntakeFieldDefinition | null {
-  const active = defs.filter((d) => d.enabled).sort((a, b) => a.order_index - b.order_index);
+function pick(defs: IntakeFieldDefinition[], stage: "baseline" | "progressive", snap: IntakeSnapshot) {
+  const active = defs
+    .filter((d) => d.enabled && (d.stage ?? "baseline") === stage)
+    .sort((a, b) => a.order_index - b.order_index);
   for (const d of active) {
     if (isKnown(snap.facts[d.field_key])) continue;
     if (snap.skipped.includes(d.field_key)) continue;
     return d;
   }
   return null;
+}
+
+/** The next baseline question to ask, or null when baseline intake is done. */
+export function nextIntakeStep(
+  defs: IntakeFieldDefinition[],
+  snap: IntakeSnapshot,
+): IntakeFieldDefinition | null {
+  return pick(defs, "baseline", snap);
+}
+
+/** Optional questions offered only after value was delivered. */
+export function nextProgressiveStep(
+  defs: IntakeFieldDefinition[],
+  snap: IntakeSnapshot,
+): IntakeFieldDefinition | null {
+  return pick(defs, "progressive", snap);
 }
 
 export function baselineComplete(defs: IntakeFieldDefinition[], snap: IntakeSnapshot): boolean {

@@ -23,11 +23,13 @@ import {
   parseInboundMessages,
   parseStatusUpdates,
   recordDelivery,
+  sendWhatsAppButtons,
   sendWhatsAppText,
   toE164,
   verifyHubChallenge,
   verifyMetaSignature,
 } from "@/lib/whatsapp-meta.server";
+import { CONSENT_QUESTION_BUTTONS, CONSENT_QUESTION_TEXT } from "@/lib/onboarding/types";
 
 async function applyStatusUpdates(payload: any) {
   const statuses = parseStatusUpdates(payload);
@@ -145,6 +147,56 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             await recordReply(msg.wamid, confirmation).catch(() => {});
             results.push({ wamid: msg.wamid, consent_command: optOut ? "opt_out" : "opt_in", reply_sent: ack.ok });
             continue;
+          }
+
+          // ---- Two-stage opening: availability button, then consent button.
+          // Deterministic and idempotent; never reaches the model.
+          {
+            const onboardingContactId = await findContactIdByPhone(msg.from);
+            if (onboardingContactId) {
+              const { handleOnboardingButton } = await import("@/lib/onboarding/onboarding.server");
+              const res = await handleOnboardingButton({
+                contactId: onboardingContactId,
+                buttonId: msg.option_id ?? null,
+                buttonTitle: msg.text ?? null,
+                text: msg.text ?? null,
+                sourceMessageId: msg.wamid,
+              }).catch(() => null);
+              if (res?.handled) {
+                if (res.duplicate) {
+                  results.push({ wamid: msg.wamid, onboarding: res.kind, duplicate: true, reply_sent: false });
+                  continue;
+                }
+                // availability=yes -> ask consent (interactive); otherwise ack text
+                const send =
+                  res.kind === "opening_available_yes"
+                    ? await sendWhatsAppButtons(msg.from, CONSENT_QUESTION_TEXT, CONSENT_QUESTION_BUTTONS.map((b) => ({ id: b.id, label: b.label })))
+                    : res.reply_text
+                      ? await sendWhatsAppText(msg.from, res.reply_text)
+                      : null;
+                const bodySent =
+                  res.kind === "opening_available_yes" ? CONSENT_QUESTION_TEXT : (res.reply_text ?? "");
+                if (send) {
+                  await recordDelivery({
+                    contactId: onboardingContactId,
+                    text: bodySent,
+                    result: send,
+                    inboundMessageId: msg.wamid,
+                    kind: `onboarding_${res.kind}`,
+                  });
+                  await recordReply(msg.wamid, bodySent).catch(() => {});
+                }
+                if (res.kind !== "consent_yes") {
+                  results.push({
+                    wamid: msg.wamid,
+                    onboarding: res.kind,
+                    reply_sent: !!send?.ok,
+                  });
+                  continue;
+                }
+                // consent granted: fall through so the engine starts baseline intake
+              }
+            }
           }
 
           // ---- Tamar Brain V2 ----

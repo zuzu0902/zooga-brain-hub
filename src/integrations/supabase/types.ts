@@ -636,6 +636,10 @@ export type Database = {
           notes: string | null
           objections: string[]
           offers_sent: string[]
+          opening_asked_at: string | null
+          opening_deferred_at: string | null
+          opening_responded_at: string | null
+          opening_status: string
           openness_score: number | null
           opted_out_at: string | null
           personality_tags: string[]
@@ -774,6 +778,10 @@ export type Database = {
           notes?: string | null
           objections?: string[]
           offers_sent?: string[]
+          opening_asked_at?: string | null
+          opening_deferred_at?: string | null
+          opening_responded_at?: string | null
+          opening_status?: string
           openness_score?: number | null
           opted_out_at?: string | null
           personality_tags?: string[]
@@ -912,6 +920,10 @@ export type Database = {
           notes?: string | null
           objections?: string[]
           offers_sent?: string[]
+          opening_asked_at?: string | null
+          opening_deferred_at?: string | null
+          opening_responded_at?: string | null
+          opening_status?: string
           openness_score?: number | null
           opted_out_at?: string | null
           personality_tags?: string[]
@@ -1700,6 +1712,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      onboarding_events: {
+        Row: {
+          button_id: string | null
+          button_title: string | null
+          contact_id: string
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          source_message_id: string | null
+          stage: string | null
+        }
+        Insert: {
+          button_id?: string | null
+          button_title?: string | null
+          contact_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          source_message_id?: string | null
+          stage?: string | null
+        }
+        Update: {
+          button_id?: string | null
+          button_title?: string | null
+          contact_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          source_message_id?: string | null
+          stage?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_events_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       opening_templates: {
         Row: {
