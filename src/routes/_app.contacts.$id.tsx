@@ -42,6 +42,8 @@ import { OnboardingPanel } from "@/components/onboarding-panel";
 import { RelationshipIntakePanel } from "@/components/relationship-intake-panel";
 import { ContactResetDialog } from "@/components/contact-reset-dialog";
 import { ContactDeleteDialog } from "@/components/contact-delete-dialog";
+import { ContactReleaseDialog } from "@/components/contact-release-dialog";
+import { HumanLockBanner } from "@/components/human-lock-banner";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
   head: () => ({ meta: [{ title: "Contact Profile — Zooga CRM" }] }),
@@ -56,6 +58,7 @@ function ContactProfile() {
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [releaseOpen, setReleaseOpen] = useState(false);
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ["contact", id],
@@ -159,6 +162,9 @@ function ContactProfile() {
           onReset={() => setResetOpen(true)}
         />
 
+        {/* === HUMAN LOCK: who holds this thread, and the way back to Tamar === */}
+        <HumanLockBanner contactId={id} onRelease={() => setReleaseOpen(true)} />
+
         {/* === AI RELATIONSHIP SUMMARY === */}
         <AIRelationshipSummary contact={contact} />
 
@@ -258,6 +264,15 @@ function ContactProfile() {
           onDone={() => {
             qc.invalidateQueries({ queryKey: ["contact", id] });
             qc.invalidateQueries({ queryKey: ["interactions", id] });
+          }}
+        />
+        <ContactReleaseDialog
+          open={releaseOpen}
+          onOpenChange={setReleaseOpen}
+          contactId={id}
+          onDone={() => {
+            qc.invalidateQueries({ queryKey: ["contact", id] });
+            qc.invalidateQueries({ queryKey: ["contact-lock", id] });
           }}
         />
       </div>
