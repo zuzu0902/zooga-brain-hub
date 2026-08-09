@@ -93,6 +93,10 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
 
         const results: any[] = [];
         for (const msg of messages) {
+          let inboundText = msg.text;
+          let inboundSource: "text" | "voice" = "text";
+          let voiceConfidence: number | null = null;
+
           // ---- Idempotency gate (wamid) BEFORE any model call or send ----
           const claim = await claimInbound({
             inboundMessageId: msg.wamid,
@@ -121,17 +125,55 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               inbound_message_id: msg.wamid,
               from_present: !!msg.from,
               has_text: !!msg.text,
+              type: msg.type,
+              has_audio: !!msg.audio,
             },
           } as any);
 
-          if (!msg.text) {
+          // ---- Inbound voice note: transcribe server-side, then continue
+          // through the exact same conversational pipeline as text. ----
+          if (msg.audio?.id) {
+            const voiceContactId = await findContactIdByPhone(msg.from);
+            const { transcribeInboundVoice } = await import("@/lib/voice/transcription.server");
+            const voice = await transcribeInboundVoice({
+              contactId: voiceContactId,
+              waMessageId: msg.wamid,
+              mediaId: msg.audio.id,
+              mime: msg.audio.mime_type,
+              phoneNumberId: msg.business_phone_number_id,
+              durationSeconds: msg.audio.duration,
+            }).catch(() => null);
+            if (voice?.status === "duplicate") {
+              results.push({ wamid: msg.wamid, voice: "duplicate", reply_sent: false });
+              continue;
+            }
+            if (!voice || voice.status !== "ok" || !voice.transcript) {
+              const { VOICE_FAILED_TEXT } = await import("@/lib/relationship-intake/questions");
+              const ack = await sendWhatsAppText(msg.from, VOICE_FAILED_TEXT);
+              await recordDelivery({
+                contactId: voiceContactId,
+                text: VOICE_FAILED_TEXT,
+                result: ack,
+                inboundMessageId: msg.wamid,
+                kind: "voice_transcription_failed",
+              });
+              await recordReply(msg.wamid, VOICE_FAILED_TEXT).catch(() => {});
+              results.push({ wamid: msg.wamid, voice: "failed", reply_sent: ack.ok });
+              continue;
+            }
+            inboundText = voice.transcript;
+            inboundSource = "voice";
+            voiceConfidence = voice.confidence;
+          }
+
+          if (!inboundText) {
             results.push({ wamid: msg.wamid, skipped: "unsupported_message_type" });
             continue;
           }
 
           // ---- Consent commands short-circuit the engine entirely ----
-          if (isOptOutMessage(msg.text) || isOptInMessage(msg.text)) {
-            const optOut = isOptOutMessage(msg.text);
+          if (isOptOutMessage(inboundText) || isOptInMessage(inboundText)) {
+            const optOut = isOptOutMessage(inboundText);
             const contactId = await findContactIdByPhone(msg.from);
             if (optOut) await applyOptOut(msg.from, contactId);
             else await applyOptIn(msg.from, contactId);
@@ -158,8 +200,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               const res = await handleOnboardingButton({
                 contactId: onboardingContactId,
                 buttonId: msg.option_id ?? null,
-                buttonTitle: msg.text ?? null,
-                text: msg.text ?? null,
+                buttonTitle: inboundText ?? null,
+                text: inboundText ?? null,
                 sourceMessageId: msg.wamid,
               }).catch(() => null);
               if (res?.handled) {
@@ -199,6 +241,45 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             }
           }
 
+          // ---- Relationship questionnaire ------------------------------
+          // Owns the turn from relationship_intake_status = ready_to_start
+          // until the completion message was sent. Free text and voice only,
+          // one question per turn, no human-agent offer.
+          {
+            const relContactId = await findContactIdByPhone(msg.from);
+            if (relContactId) {
+              const { planRelationshipTurn } = await import("@/lib/relationship-intake/intake.server");
+              const plan = await planRelationshipTurn(relContactId, {
+                text: inboundText,
+                source: inboundSource,
+                messageId: msg.wamid,
+                transcriptConfidence: voiceConfidence,
+              }).catch(() => null);
+              if (plan && plan.kind === "messages") {
+                let allOk = true;
+                for (const body of plan.texts) {
+                  const send = await sendWhatsAppText(msg.from, body);
+                  allOk = allOk && send.ok;
+                  await recordDelivery({
+                    contactId: relContactId,
+                    text: body,
+                    result: send,
+                    inboundMessageId: msg.wamid,
+                    kind: plan.completed ? "relationship_intake_completed" : "relationship_intake_question",
+                  });
+                }
+                await recordReply(msg.wamid, plan.texts.join("\n")).catch(() => {});
+                results.push({
+                  wamid: msg.wamid,
+                  relationship_intake: plan.question_key ?? "completed",
+                  source: inboundSource,
+                  reply_sent: allOk,
+                });
+                continue;
+              }
+            }
+          }
+
           // ---- Deterministic baseline intake turn ------------------------
           // Owns the turn only while the approved intake is still running:
           // one unanswered question, then value + the relationship gate.
@@ -210,7 +291,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               );
               await applyInboundOnboarding({
                 contactId: intakeContactId,
-                message: msg.text,
+                message: inboundText,
                 messageId: msg.wamid,
               }).catch(() => null);
               const plan = await planIntakeTurn(intakeContactId).catch(() => null);
@@ -264,7 +345,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           if (flag.enabled || consentPhase) {
             const v2 = await runV2Turn({
               phone: msg.from,
-              message: msg.text,
+              message: inboundText,
               option_id: msg.option_id,
               name: msg.name,
               inbound_message_id: msg.wamid,
@@ -287,7 +368,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           }
 
           const turn = await runTamarTurn({
-            message: msg.text,
+            message: inboundText,
             phone: msg.from,
             whatsapp_number: msg.from,
             name: msg.name,
