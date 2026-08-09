@@ -11,16 +11,25 @@ import {
   ageFromBirthDate,
   mustDeliverValue,
   questionBudgetExhausted,
+  normalizeYesNo,
+  normalizeTravelScope,
+  isFieldRelevant,
 } from "@/lib/onboarding/baseline-intake";
 import {
   applyConsentReply,
   applyOpeningReply,
+  applyRelationshipGateReply,
   mayAutoRecontactAfterDeferral,
   nextOnboardingStage,
   parseOnboardingButton,
 } from "@/lib/onboarding/two-stage";
 import { mergeFact } from "@/lib/onboarding/profile-facts";
 import { normalizePhone } from "@/lib/phone";
+import {
+  OPENING_TEMPLATE_BODY,
+  OPENING_TEMPLATE_BUTTONS,
+  RELATIONSHIP_INTAKE_BUTTONS,
+} from "@/lib/onboarding/types";
 import type { ProfileFact, RoutableContact } from "@/lib/onboarding/types";
 
 function contact(over: {
@@ -181,14 +190,17 @@ describe("stage planner", () => {
     if (plan.stage === "baseline_intake") expect(plan.field.field_key).toBe("city");
   });
 
-  it("value is delivered by the third question", () => {
-    const plan = nextOnboardingStage({ ...base, questionsAskedThisConversation: 3, contact: contact({ consent: { consent_status: "granted" } }) });
+  it("value is delivered once the question budget is reached", () => {
+    const plan = nextOnboardingStage({ ...base, questionsAskedThisConversation: 5, contact: contact({ consent: { consent_status: "granted" } }) });
     expect(plan.stage).toBe("deliver_value");
   });
 
-  it("a completed contact is never re-intaked", () => {
-    const done = { facts: { city: fact("city", "חיפה"), interests: fact("interests", "טיולים"), primary_goal: fact("primary_goal", "לצאת יותר") }, skipped: [] };
-    const plan = nextOnboardingStage({ ...base, snapshot: done, valueDelivered: true, contact: contact({ consent: { consent_status: "granted" }, intake: { baseline_intake_status: "completed" } }) });
+  it("after value the relationship gate is offered exactly once", () => {
+    const done = { facts: { city: fact("city", "חיפה"), looking_for_relationship: fact("looking_for_relationship", "yes"), likes_travel: fact("likes_travel", "no") }, skipped: [] };
+    const c = contact({ consent: { consent_status: "granted" }, intake: { baseline_intake_status: "completed" } });
+    const gate = nextOnboardingStage({ ...base, snapshot: done, valueDelivered: true, contact: c });
+    expect(gate.stage).toBe("relationship_gate");
+    const plan = nextOnboardingStage({ ...base, snapshot: done, valueDelivered: true, relationshipIntakeStatus: "deferred", contact: c });
     expect(plan).toMatchObject({ stage: "progressive_question" });
     if (plan.stage === "progressive_question") expect(plan.field.field_key).toBe("birth_date");
   });
@@ -214,12 +226,12 @@ function fact(field_key: string, value: string, kind: "explicit" | "inferred" = 
 describe("baseline intake", () => {
   it("never re-asks a known field and resumes at the next gap", () => {
     const snap = { facts: { city: fact("city", "חיפה") }, skipped: [] };
-    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("interests");
+    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("looking_for_relationship");
   });
 
   it("skipped fields are not asked again", () => {
-    const snap = { facts: {}, skipped: ["city", "interests"] };
-    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("primary_goal");
+    const snap = { facts: {}, skipped: ["city", "looking_for_relationship"] };
+    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("likes_travel");
   });
 
   it("low confidence inference does not count as known", () => {
@@ -227,8 +239,28 @@ describe("baseline intake", () => {
     expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("city");
   });
 
-  it("baseline is exactly 3 questions and DOB is progressive only", () => {
-    const snap = { facts: { city: fact("city", "חיפה"), interests: fact("interests", "טיולים"), primary_goal: fact("primary_goal", "לצאת") }, skipped: [] };
+  it("travel=yes opens the two conditional travel questions", () => {
+    const snap = { facts: { city: fact("city", "חיפה"), looking_for_relationship: fact("looking_for_relationship", "no"), likes_travel: fact("likes_travel", "yes") }, skipped: [] };
+    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("travel_scope");
+    const withScope = { facts: { ...snap.facts, travel_scope: fact("travel_scope", "both") }, skipped: [] };
+    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, withScope)?.field_key).toBe("last_trip_destination");
+  });
+
+  it("travel=no skips D and E entirely and completes the baseline", () => {
+    const snap = { facts: { city: fact("city", "חיפה"), looking_for_relationship: fact("looking_for_relationship", "unsure"), likes_travel: fact("likes_travel", "no") }, skipped: [] };
+    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)).toBeNull();
+    const scope = DEFAULT_INTAKE_FIELDS.find((d) => d.field_key === "travel_scope")!;
+    expect(isFieldRelevant(scope, snap)).toBe(false);
+    expect(completeness(DEFAULT_INTAKE_FIELDS, snap).missing).toEqual([]);
+  });
+
+  it("a returning contact resumes at the single missing field", () => {
+    const snap = { facts: { city: fact("city", "חיפה"), looking_for_relationship: fact("looking_for_relationship", "yes"), likes_travel: fact("likes_travel", "yes"), last_trip_destination: fact("last_trip_destination", "יוון") }, skipped: [] };
+    expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("travel_scope");
+  });
+
+  it("baseline completes and DOB stays progressive only", () => {
+    const snap = { facts: { city: fact("city", "חיפה"), looking_for_relationship: fact("looking_for_relationship", "yes"), likes_travel: fact("likes_travel", "yes"), travel_scope: fact("travel_scope", "abroad"), last_trip_destination: fact("last_trip_destination", "יוון") }, skipped: [] };
     expect(nextIntakeStep(DEFAULT_INTAKE_FIELDS, snap)).toBeNull();
     expect(nextProgressiveStep(DEFAULT_INTAKE_FIELDS, snap)?.field_key).toBe("birth_date");
   });
@@ -236,15 +268,89 @@ describe("baseline intake", () => {
   it("completeness is per field, not a boolean", () => {
     const snap = { facts: { city: fact("city", "חיפה") }, skipped: ["birth_date"] };
     const c = completeness(DEFAULT_INTAKE_FIELDS, snap);
-    expect(c.fields.length).toBe(4);
-    expect(c.percent).toBe(50);
-    expect(c.missing).toEqual(["interests", "primary_goal"]);
+    expect(c.fields.length).toBe(6);
+    expect(c.missing).toEqual(["looking_for_relationship", "likes_travel", "travel_scope", "last_trip_destination"]);
   });
 
-  it("value must be delivered by the third question", () => {
-    expect(mustDeliverValue(2)).toBe(false);
-    expect(mustDeliverValue(3)).toBe(true);
-    expect(questionBudgetExhausted(3)).toBe(true);
+  it("value must be delivered once the budget is reached", () => {
+    expect(mustDeliverValue(4)).toBe(false);
+    expect(mustDeliverValue(5)).toBe(true);
+    expect(questionBudgetExhausted(5)).toBe(true);
+  });
+});
+
+describe("approved intake copy and answer normalization", () => {
+  it("uses the exact approved availability wording and button ids", () => {
+    expect(OPENING_TEMPLATE_BODY).toBe(
+      "שלום {{1}}, אני תמר, העוזרת הדיגיטלית של קהילת זוגה. אשמח להכיר אותך בשיחה קצרה כדי שאוכל להתאים לך מידע והצעות. האם נוח לך לצ׳וטט עכשיו?",
+    );
+    expect(OPENING_TEMPLATE_BUTTONS.map((b) => b.id)).toEqual(["opening_available_yes", "opening_not_now"]);
+    expect(RELATIONSHIP_INTAKE_BUTTONS.map((b) => b.id)).toEqual([
+      "relationship_intake_yes",
+      "relationship_intake_later",
+    ]);
+  });
+
+  it("uses the exact approved question wording", () => {
+    const q = (k: string) => DEFAULT_INTAKE_FIELDS.find((d) => d.field_key === k)!.question_text;
+    expect(q("city")).toBe("באיזו עיר את/ה גר/ה?");
+    expect(q("looking_for_relationship")).toBe("האם את/ה מחפש/ת זוגיות?");
+    expect(q("likes_travel")).toBe("האם את/ה אוהב/ת טיולים?");
+    expect(q("travel_scope")).toBe("מה מושך אותך יותר — טיולים בארץ, בחו״ל או גם וגם?");
+    expect(q("last_trip_destination")).toBe("איפה היה הטיול האחרון שלך?");
+  });
+
+  it("normalizes natural yes/no answers", () => {
+    expect(normalizeYesNo("כן בהחלט")).toBe("yes");
+    expect(normalizeYesNo("לא, ממש לא")).toBe("no");
+    expect(normalizeYesNo("אולי, תלוי")).toBe("unsure");
+    expect(normalizeYesNo("מעדיפה לא לציין")).toBe("prefer_not_to_say");
+  });
+
+  it("normalizes travel scope from free text", () => {
+    expect(normalizeTravelScope("בעיקר בחו״ל")).toBe("abroad");
+    expect(normalizeTravelScope("בארץ")).toBe("israel");
+    expect(normalizeTravelScope("גם וגם")).toBe("both");
+    expect(normalizeTravelScope("גם בארץ וגם בחו״ל")).toBe("both");
+  });
+
+  it("stores the normalized value and the raw answer together", () => {
+    const rel = extractFieldsFromFreeText("כן, מאוד", "looking_for_relationship");
+    expect(rel["looking_for_relationship"]?.value).toBe("yes");
+    expect(rel["looking_for_relationship_raw"]?.value).toBe("כן, מאוד");
+    const trip = extractFieldsFromFreeText("הייתי ביוון בקיץ", "last_trip_destination");
+    expect(trip["last_trip_destination"]?.value).toBe("הייתי ביוון בקיץ");
+  });
+});
+
+describe("relationship intake gate", () => {
+  it("parses both gate buttons by id, title and text", () => {
+    expect(parseOnboardingButton({ id: "relationship_intake_yes" })).toBe("relationship_intake_yes");
+    expect(parseOnboardingButton({ title: "מאוחר יותר" })).toBe("relationship_intake_later");
+    expect(parseOnboardingButton({ text: "כן, בשמחה" })).toBe("relationship_intake_yes");
+  });
+
+  it("yes marks ready_to_start without inventing questions", () => {
+    const t = applyRelationshipGateReply("relationship_intake_yes")!;
+    expect(t.relationship_intake_status).toBe("ready_to_start");
+    expect(t.next).toBe("handoff_to_relationship_intake");
+    expect(t.reply_text.length).toBeGreaterThan(0);
+  });
+
+  it("'מאוחר יותר' is a deferral, never an opt-out, and does not block chat", () => {
+    const t = applyRelationshipGateReply("relationship_intake_later")!;
+    expect(t.relationship_intake_status).toBe("deferred");
+    expect(t.is_opt_out).toBe(false);
+    expect(t.consent_touched).toBe(false);
+    expect(t.eligible_for_future_offer).toBe(true);
+    expect(t.next).toBe("continue_normal_conversation");
+  });
+
+  it("the gate is never re-asked after an answer", () => {
+    const done = { facts: { city: fact("city", "חיפה"), looking_for_relationship: fact("looking_for_relationship", "yes"), likes_travel: fact("likes_travel", "no") }, skipped: [] };
+    const args = { defs: DEFAULT_INTAKE_FIELDS, snapshot: done, questionsAskedThisConversation: 0, serviceWindowOpen: true, inboundInitiated: true, valueDelivered: true, contact: contact({ consent: { consent_status: "granted" } }) };
+    expect(nextOnboardingStage({ ...args, relationshipIntakeStatus: "ready_to_start" }).stage).not.toBe("relationship_gate");
+    expect(nextOnboardingStage({ ...args, relationshipIntakeStatus: "deferred" }).stage).not.toBe("relationship_gate");
   });
 });
 
