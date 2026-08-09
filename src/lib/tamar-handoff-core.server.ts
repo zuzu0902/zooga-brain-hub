@@ -15,6 +15,12 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendWhatsAppTemplate, sendWhatsAppText, toE164 } from "@/lib/whatsapp-meta.server";
 import { listMetaTemplates } from "@/lib/whatsapp-templates.server";
+import {
+  MANAGER_ALERT_TEMPLATE_NAME,
+  MANAGER_ALERT_TEMPLATE_LANGUAGE,
+  buildManagerAlertComponents,
+  buildManagerAlertText,
+} from "@/lib/handoff-template-params";
 
 /** A1 — exact receipt sent to the customer the moment a human is requested. */
 export const HANDOFF_RECEIPT_TEXT =
@@ -25,7 +31,7 @@ export const HANDOFF_FROZEN_ACK_TEXT =
   "הבקשה שלך כבר הועברה לאדם מהצוות. אני מוסיפה גם את ההודעה הזאת ומזכירה שוב לצוות.";
 
 export const ESCALATION_COOLDOWN_MS = 10 * 60 * 1000;
-export const MANAGER_ALERT_TEMPLATE = "zooga_manager_handoff";
+export const MANAGER_ALERT_TEMPLATE = MANAGER_ALERT_TEMPLATE_NAME;
 
 export type AlertState = "sent" | "queued" | "failed" | "skipped";
 
@@ -96,18 +102,32 @@ export function crmLink(contactId: string | null): string | null {
   return contactId ? `/contacts/${contactId}` : null;
 }
 
-function alertSummary(row: any): string {
-  return [
-    "🔔 התראת זוגה — נדרש טיפול אנושי",
-    `לקוח: ${row.customer_name ?? "ללא שם"} (${row.customer_phone ?? "ללא מספר"})`,
-    `סיבה: ${row.handoff_reason ?? "לא צוין"}`,
-    `דחיפות: ${row.urgency ?? "normal"}`,
-    row.escalation_count > 1 ? `תזכורת #${row.escalation_count}` : null,
-    row.latest_inbound_message ? `הודעה אחרונה: ${String(row.latest_inbound_message).slice(0, 300)}` : null,
-    `CRM: ${row.crm_link ?? crmLink(row.contact_id) ?? "—"}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+/** Enrich a handoff row with contact-side phone/name so {{2}} is always real. */
+async function enrichRow(row: any): Promise<any> {
+  if (!row?.contact_id) return row;
+  try {
+    const { data } = await supabaseAdmin
+      .from("contacts")
+      .select("phone, whatsapp_number, full_name, first_name, last_name")
+      .eq("id", row.contact_id)
+      .maybeSingle();
+    const c = data as any;
+    if (!c) return row;
+    const name =
+      row.customer_name ??
+      c.full_name ??
+      [c.first_name, c.last_name].filter(Boolean).join(" ").trim() ??
+      null;
+    return {
+      ...row,
+      customer_name: name || row.customer_name,
+      contact_phone: c.phone ?? null,
+      contact_whatsapp_number: c.whatsapp_number ?? null,
+      crm_link: row.crm_link ?? crmLink(row.contact_id),
+    };
+  } catch {
+    return row;
+  }
 }
 
 export type NotifyOutcome = {
@@ -128,7 +148,7 @@ export async function notifyManagerForHandoff(handoffId: string): Promise<Notify
     .select("*")
     .eq("id", handoffId)
     .maybeSingle();
-  const row = rowData as any;
+  const row = await enrichRow(rowData as any);
   if (!row) {
     return { alert_state: "failed", alert_error: "handoff_not_found", http_status: null, manager_configured: false, window_open: false };
   }
@@ -146,8 +166,9 @@ export async function notifyManagerForHandoff(handoffId: string): Promise<Notify
     };
   } else {
     const windowOpen = await managerWindowOpen(manager.phone);
+    const { components, params } = buildManagerAlertComponents(row, MANAGER_ALERT_TEMPLATE_LANGUAGE);
     if (windowOpen) {
-      const res = await sendWhatsAppText(manager.phone, alertSummary(row));
+      const res = await sendWhatsAppText(manager.phone, buildManagerAlertText(row, MANAGER_ALERT_TEMPLATE_LANGUAGE));
       outcome = {
         alert_state: res.ok ? "sent" : "failed",
         alert_error: res.error,
@@ -155,8 +176,9 @@ export async function notifyManagerForHandoff(handoffId: string): Promise<Notify
         manager_configured: true,
         window_open: true,
       };
+      if (params.dataIssues.length) await auditHandoff("alert_data_issues", handoffId, { issues: params.dataIssues });
     } else {
-      const gate = await templateApproved(MANAGER_ALERT_TEMPLATE, "he");
+      const gate = await templateApproved(MANAGER_ALERT_TEMPLATE, MANAGER_ALERT_TEMPLATE_LANGUAGE);
       if (!gate.ok) {
         outcome = {
           alert_state: "queued",
@@ -166,16 +188,15 @@ export async function notifyManagerForHandoff(handoffId: string): Promise<Notify
           window_open: false,
         };
       } else {
-        const res = await sendWhatsAppTemplate(manager.phone, MANAGER_ALERT_TEMPLATE, "he", [
-          {
-            type: "body",
-            parameters: [
-              { type: "text", text: String(row.customer_name ?? row.customer_phone ?? "לקוח").slice(0, 60) },
-              { type: "text", text: String(row.handoff_reason ?? "בקשת נציג").slice(0, 60) },
-              { type: "text", text: String(row.urgency ?? "normal") },
-            ],
-          },
-        ]);
+        if (params.dataIssues.length) {
+          await auditHandoff("alert_data_issues", handoffId, { issues: params.dataIssues });
+        }
+        const res = await sendWhatsAppTemplate(
+          manager.phone,
+          MANAGER_ALERT_TEMPLATE,
+          MANAGER_ALERT_TEMPLATE_LANGUAGE,
+          components,
+        );
         outcome = {
           alert_state: res.ok ? "sent" : "failed",
           alert_error: res.error,
