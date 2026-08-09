@@ -10,8 +10,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useT, useLanguage } from "@/lib/language-context";
 import { useServerFn } from "@tanstack/react-start";
-import { getHandoffChannelHealth, retryHandoffAlert } from "@/lib/handoff.functions";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import {
+  getHandoffChannelHealth,
+  releaseContactToTamar,
+  resolveHandoff,
+  retryHandoffAlert,
+} from "@/lib/handoff.functions";
+import { AlertTriangle, RotateCcw, Undo2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/manager-alerts")({
   head: () => ({ meta: [{ title: "Manager Alerts — Zooga CRM" }] }),
@@ -38,6 +43,9 @@ function ManagerAlertsPage() {
   const [retrying, setRetrying] = useState<string | null>(null);
   const fetchHealth = useServerFn(getHandoffChannelHealth);
   const doRetry = useServerFn(retryHandoffAlert);
+  const doResolve = useServerFn(resolveHandoff);
+  const doRelease = useServerFn(releaseContactToTamar);
+  const [releasing, setReleasing] = useState<string | null>(null);
 
   const { data: health } = useQuery({
     queryKey: ["handoff-channel-health"],
@@ -85,9 +93,18 @@ function ManagerAlertsPage() {
   });
 
   async function setStatus(id: string, status: string) {
+    if (status === "resolved") {
+      try {
+        const res: any = await doResolve({ data: { handoffId: id } });
+        toast.success(res?.released ? t("נסגר והשיחה הוחזרה לתמר") : t("עודכן"));
+      } catch (e: any) {
+        toast.error(String(e?.message ?? e));
+      }
+      qc.invalidateQueries({ queryKey: ["manager-handoffs"] });
+      return;
+    }
     const patch: any = { status };
     if (status === "claimed") patch.claimed_at = new Date().toISOString();
-    if (status === "resolved") patch.resolved_at = new Date().toISOString();
     const { error } = await supabase
       .from("manager_handoffs" as any)
       .update(patch)
@@ -95,6 +112,20 @@ function ManagerAlertsPage() {
     if (error) return toast.error(error.message);
     toast.success(t("עודכן"));
     qc.invalidateQueries({ queryKey: ["manager-handoffs"] });
+  }
+
+  async function returnToTamar(contactId: string) {
+    setReleasing(contactId);
+    try {
+      const res: any = await doRelease({ data: { contactId } });
+      if (res?.released) toast.success(t("השיחה הוחזרה לתמר"));
+      else toast.error(`${t("לא הוחזר")}: ${res?.reason}`);
+      qc.invalidateQueries({ queryKey: ["manager-handoffs"] });
+    } catch (e: any) {
+      toast.error(String(e?.message ?? e));
+    } finally {
+      setReleasing(null);
+    }
   }
 
   const [newName, setNewName] = useState("");
@@ -259,6 +290,18 @@ function ManagerAlertsPage() {
                       )}
                       <Button size="sm" variant="outline" onClick={() => setStatus(h.id, "claimed")}>{t("סמן claimed")}</Button>
                       <Button size="sm" variant="outline" onClick={() => setStatus(h.id, "resolved")}>{t("סמן resolved")}</Button>
+                      {h.contact_id && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="gap-1"
+                          disabled={releasing === h.contact_id}
+                          onClick={() => returnToTamar(h.contact_id)}
+                        >
+                          <Undo2 className="h-3.5 w-3.5" />
+                          {releasing === h.contact_id ? t("מחזיר…") : t("החזר לתמר")}
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" onClick={() => setExpanded(open ? null : h.id)}>
                         {open ? t("הסתר") : "raw"}
                       </Button>

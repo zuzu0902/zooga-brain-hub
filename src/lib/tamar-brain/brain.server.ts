@@ -15,7 +15,12 @@ import { classifyConsentReply, consentClarifyExhausted } from "./consent";
 import { detectHandoffSignal, isGoodbye, isUserQuestion } from "./signals";
 import { canTransition, deriveState, type ConversationState } from "./state-machine";
 import { loadBrainPolicy, loadCopy } from "./copy.server";
-import { ensureHandoff, HANDOFF_FROZEN_ACK_TEXT, HANDOFF_RECEIPT_TEXT } from "@/lib/tamar-handoff-core.server";
+import {
+  ensureHandoff,
+  healStaleHumanOwnership,
+  HANDOFF_FROZEN_ACK_TEXT,
+  HANDOFF_RECEIPT_TEXT,
+} from "@/lib/tamar-handoff-core.server";
 import { isOptInMessage, isOptOutMessage, OPT_OUT_CONFIRMATION } from "@/lib/optout";
 
 export type BrainGate =
@@ -69,7 +74,9 @@ export type GateInput = {
 };
 
 export async function runBrainGate(input: GateInput): Promise<BrainGate> {
-  const contact = input.contact;
+  // Stale freeze guard: `human_owned` with no open handoff is dead data and
+  // must never trap the thread forever.
+  const contact = await healStaleHumanOwnership(input.contact);
   const contactId = contact?.id ?? null;
   const message = String(input.message ?? "").trim();
   const policy = await loadBrainPolicy();

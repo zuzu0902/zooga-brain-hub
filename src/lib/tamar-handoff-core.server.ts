@@ -477,3 +477,113 @@ export async function handoffChannelHealth() {
     deliverable_now: !!manager && (approved || (manager ? await managerWindowOpen(manager.phone) : false)),
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * RELEASE / AUTO-HEAL — a frozen thread must always have a way back.  *
+ * ------------------------------------------------------------------ */
+
+/** Handoff statuses that still hold the thread for a human. */
+export const OPEN_HANDOFF_STATUSES = ["open", "notified", "claimed"] as const;
+
+/** How many handoffs still hold this contact for a human. */
+export async function countOpenHandoffs(contactId: string): Promise<number> {
+  const { count } = await supabaseAdmin
+    .from("manager_handoffs" as any)
+    .select("id", { count: "exact", head: true })
+    .eq("contact_id", contactId)
+    .in("status", OPEN_HANDOFF_STATUSES as unknown as string[]);
+  return count ?? 0;
+}
+
+export type ReleaseResult = {
+  released: boolean;
+  contact_id: string;
+  resolved_handoffs: number;
+  reason: string;
+};
+
+/**
+ * Give a thread back to Tamar. Resolves every still-open handoff for the
+ * contact and clears the automation freeze, so `human_owned` can never be a
+ * permanent dead end. Safe to call twice.
+ */
+export async function releaseThreadToTamar(args: {
+  contactId: string;
+  actor: string;
+  resolveHandoffs?: boolean;
+  trigger?: string;
+}): Promise<ReleaseResult> {
+  const nowIso = new Date().toISOString();
+  let resolved = 0;
+
+  if (args.resolveHandoffs !== false) {
+    const { data } = await supabaseAdmin
+      .from("manager_handoffs" as any)
+      .update({ status: "resolved", resolved_at: nowIso } as any)
+      .eq("contact_id", args.contactId)
+      .in("status", OPEN_HANDOFF_STATUSES as unknown as string[])
+      .select("id");
+    resolved = Array.isArray(data) ? data.length : 0;
+  }
+
+  const { data: updated } = await supabaseAdmin
+    .from("contacts")
+    .update({
+      human_owned: false,
+      human_owned_by: null,
+      manager_attention_required: false,
+      conversation_state: "consented",
+      conversation_state_at: nowIso,
+    } as any)
+    .eq("id", args.contactId)
+    .select("id")
+    .maybeSingle();
+
+  if (!updated) {
+    return { released: false, contact_id: args.contactId, resolved_handoffs: resolved, reason: "contact_not_found" };
+  }
+
+  await supabaseAdmin.from("tamar_state_transitions" as any).insert({
+    contact_id: args.contactId,
+    from_state: "human_owned",
+    to_state: "consented",
+    trigger: args.trigger ?? "manual_release_to_tamar",
+    reason_codes: ["release_to_tamar"],
+    actor: args.actor,
+  } as any);
+
+  return { released: true, contact_id: args.contactId, resolved_handoffs: resolved, reason: "released" };
+}
+
+/**
+ * Auto-heal: a contact frozen as `human_owned` with NO open handoff row is
+ * stale data (handoff resolved/deleted elsewhere). Release it so the next
+ * inbound message reaches Tamar instead of the frozen acknowledgement.
+ * Returns the (possibly refreshed) contact row.
+ */
+export async function healStaleHumanOwnership<T extends { id?: string | null; human_owned?: boolean | null }>(
+  contact: T | null,
+): Promise<T | null> {
+  if (!contact?.id || !contact.human_owned) return contact;
+  const open = await countOpenHandoffs(contact.id);
+  if (open > 0) return contact;
+  const res = await releaseThreadToTamar({
+    contactId: contact.id,
+    actor: "system_auto_heal",
+    resolveHandoffs: false,
+    trigger: "auto_release_no_open_handoff",
+  });
+  if (!res.released) return contact;
+  await supabaseAdmin.from("webhook_logs").insert({
+    source: "tamar_brain",
+    status: "auto_released_stale_human_owned",
+    payload: { contact_id: contact.id },
+  } as any);
+  return {
+    ...contact,
+    human_owned: false,
+    human_owned_by: null,
+    manager_attention_required: false,
+    conversation_state: "consented",
+  } as T;
+}

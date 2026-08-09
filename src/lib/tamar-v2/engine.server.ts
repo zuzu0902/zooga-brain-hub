@@ -190,6 +190,10 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
 
   let contact = input.simulate ? null : await findContact(input);
   if (!contact && !input.simulate) contact = await createContact(input);
+  if (contact && !input.simulate) {
+    const { healStaleHumanOwnership } = await import("@/lib/tamar-handoff-core.server");
+    contact = await healStaleHumanOwnership(contact as any);
+  }
 
   const dyn = (contact?.dynamic_profile_fields ?? {}) as Record<string, any>;
   const pendingStepKey: string | null = dyn?.["v2_pending_step"] ?? null;
