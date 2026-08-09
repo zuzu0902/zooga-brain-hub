@@ -13,6 +13,7 @@ import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppZeroLossRouteImport } from './routes/_app.zero-loss'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
@@ -87,6 +88,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppZeroLossRoute = AppZeroLossRouteImport.update({
+  id: '/zero-loss',
+  path: '/zero-loss',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTasksRoute = AppTasksRouteImport.update({
@@ -411,6 +417,7 @@ export interface FileRoutesByFullPath {
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
+  '/zero-loss': typeof AppZeroLossRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
@@ -471,6 +478,7 @@ export interface FileRoutesByTo {
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
   '/tasks': typeof AppTasksRoute
+  '/zero-loss': typeof AppZeroLossRoute
   '/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -534,6 +542,7 @@ export interface FileRoutesById {
   '/_app/runtime-trace': typeof AppRuntimeTraceRoute
   '/_app/send-offer': typeof AppSendOfferRoute
   '/_app/tasks': typeof AppTasksRoute
+  '/_app/zero-loss': typeof AppZeroLossRoute
   '/_app/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -598,6 +607,7 @@ export interface FileRouteTypes {
     | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
+    | '/zero-loss'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/campaigns/$id'
@@ -658,6 +668,7 @@ export interface FileRouteTypes {
     | '/runtime-trace'
     | '/send-offer'
     | '/tasks'
+    | '/zero-loss'
     | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -720,6 +731,7 @@ export interface FileRouteTypes {
     | '/_app/runtime-trace'
     | '/_app/send-offer'
     | '/_app/tasks'
+    | '/_app/zero-loss'
     | '/_app/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -834,6 +846,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/zero-loss': {
+      id: '/_app/zero-loss'
+      path: '/zero-loss'
+      fullPath: '/zero-loss'
+      preLoaderRoute: typeof AppZeroLossRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tasks': {
@@ -1282,6 +1301,7 @@ interface AppRouteChildren {
   AppRuntimeTraceRoute: typeof AppRuntimeTraceRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
   AppTasksRoute: typeof AppTasksRoute
+  AppZeroLossRoute: typeof AppZeroLossRoute
   AppIndexRoute: typeof AppIndexRoute
   AppSettingsApiRoute: typeof AppSettingsApiRoute
   AppSettingsTamarRoute: typeof AppSettingsTamarRoute
@@ -1303,6 +1323,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRuntimeTraceRoute: AppRuntimeTraceRoute,
   AppSendOfferRoute: AppSendOfferRoute,
   AppTasksRoute: AppTasksRoute,
+  AppZeroLossRoute: AppZeroLossRoute,
   AppIndexRoute: AppIndexRoute,
   AppSettingsApiRoute: AppSettingsApiRoute,
   AppSettingsTamarRoute: AppSettingsTamarRoute,
