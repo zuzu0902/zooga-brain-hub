@@ -12,8 +12,10 @@ import { mergeFact, type IncomingFact } from "./profile-facts";
 import {
   CONSENT_VERSION,
   OPENING_TEMPLATE_NAME,
+  ZOOGA_FALLBACK_URL,
   type IntakeFieldDefinition,
   type ProfileFact,
+  type RelationshipIntakeStatus,
   type RoutableContact,
   type RouterResult,
 } from "./types";
@@ -40,6 +42,10 @@ export async function loadIntakeDefs(version = 1): Promise<IntakeFieldDefinition
     order_index: Number(r.order_index ?? 0),
     enabled: r.enabled !== false,
     stage: (r.stage ?? (r.field_key === "birth_date" ? "progressive" : "baseline")) as IntakeFieldDefinition["stage"],
+    depends_on:
+      r.depends_on && typeof r.depends_on === "object" && r.depends_on.field_key
+        ? { field_key: String(r.depends_on.field_key), equals: (r.depends_on.equals ?? []).map(String) }
+        : null,
   }));
 }
 
@@ -84,9 +90,13 @@ function factsFromContactRow(row: any): Record<string, ProfileFact> {
     };
   };
   add("first_name", row.first_name);
-  add("city", row.city ?? row.region);
+  add("city", row.residence_city ?? row.city ?? row.region);
   add("birth_date", row.birth_date);
   add("interests", row.interests);
+  add("looking_for_relationship", row.looking_for_relationship);
+  add("likes_travel", row.likes_travel);
+  add("travel_scope", row.travel_scope);
+  add("last_trip_destination", row.last_trip_destination);
   return out;
 }
 
