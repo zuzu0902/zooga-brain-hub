@@ -237,6 +237,43 @@ const INTEREST_WORDS: Array<[RegExp, string]> = [
   [/אוכל|קולינר|מסעד/, "אוכל"],
 ];
 
+// ------------------------------------------------------------ normalizers
+
+export type YesNoValue = "yes" | "no" | "unsure" | "prefer_not_to_say";
+
+const YES_RE = /(^|\s)(כן|בטח|בהחלט|נכון|כמובן|בשמחה|אשמח|מאוד|ברור|yes|yep|sure)\b|אני מחפש|מחפשת זוגיות|מאוד אוהב|אוהבת מאוד|אוהב(ת)? מאוד/;
+const NO_RE = /(^|\s)(לא|ממש לא|בכלל לא|no|nope)\b|לא ממש|לא כרגע לא|לא מחפש|לא מעוניינ|לא אוהב/;
+const UNSURE_RE = /(אולי|לא יודע|לא יודעת|תלוי|לא בטוח|לא בטוחה|בערך|ככה ככה|maybe)/;
+
+/** Natural Hebrew answer -> normalized yes/no/unsure/prefer_not_to_say. */
+export function normalizeYesNo(raw: string): YesNoValue | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  if (DECLINE_RE.test(s)) return "prefer_not_to_say";
+  if (UNSURE_RE.test(s)) return "unsure";
+  const negative = NO_RE.test(s);
+  const positive = YES_RE.test(s);
+  if (negative && !positive) return "no";
+  if (positive && !negative) return "yes";
+  if (negative && positive) return "unsure";
+  return null;
+}
+
+export type TravelScopeValue = "israel" | "abroad" | "both" | "other";
+
+/** Natural answer -> israel / abroad / both / other. */
+export function normalizeTravelScope(raw: string): TravelScopeValue | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const abroad = /חו"?״?ל|בחו|לחו|abroad|חוץ לארץ/.test(s);
+  const israel = /בארץ|ישראל|מקומי|פנים הארץ|domestic/.test(s);
+  if (/גם וגם|שניהם|both|גם בארץ וגם/.test(s)) return "both";
+  if (abroad && israel) return "both";
+  if (abroad) return "abroad";
+  if (israel) return "israel";
+  return "other";
+}
+
 /**
  * Deterministic multi-field extraction from one free-text answer.
  * Only what was clearly said; everything else stays unknown.
@@ -264,13 +301,48 @@ export function extractFieldsFromFreeText(
   if (interests.length)
     out["interests"] = { value: Array.from(new Set(interests)).join(", "), kind: "explicit", confidence: 90, evidence: ev };
 
+  // --- B: looking for a relationship (normalized + raw kept) -------------
+  if (askedField === "looking_for_relationship") {
+    const v = normalizeYesNo(s);
+    if (v) {
+      out["looking_for_relationship"] = { value: v, kind: "explicit", confidence: 90, evidence: ev };
+      out["looking_for_relationship_raw"] = { value: s.slice(0, 200), kind: "explicit", confidence: 90, evidence: ev };
+    }
+  } else if (/מחפש(ת)? זוגיות|רוצה זוגיות|מעוניינ(ת)? בזוגיות/.test(s)) {
+    out["looking_for_relationship"] = { value: "yes", kind: "inferred", confidence: 65, evidence: ev };
+  }
+
+  // --- C: likes travel ----------------------------------------------------
+  if (askedField === "likes_travel") {
+    const v = normalizeYesNo(s);
+    if (v) {
+      out["likes_travel"] = { value: v === "prefer_not_to_say" ? "unsure" : v, kind: "explicit", confidence: 90, evidence: ev };
+      out["likes_travel_raw"] = { value: s.slice(0, 200), kind: "explicit", confidence: 90, evidence: ev };
+    }
+  }
+
+  // --- D: travel scope ----------------------------------------------------
+  if (askedField === "travel_scope") {
+    const v = normalizeTravelScope(s);
+    if (v) {
+      out["travel_scope"] = { value: v, kind: "explicit", confidence: 90, evidence: ev };
+      out["travel_scope_raw"] = { value: s.slice(0, 200), kind: "explicit", confidence: 90, evidence: ev };
+    }
+  }
+
+  // --- E: last trip destination ------------------------------------------
+  if (askedField === "last_trip_destination" && s.length >= 2) {
+    out["last_trip_destination"] = { value: s.slice(0, 120), kind: "explicit", confidence: 90, evidence: ev };
+    out["last_trip_destination_raw"] = { value: s.slice(0, 200), kind: "explicit", confidence: 90, evidence: ev };
+  }
+
   const dob = parseBirthDate(s);
   if (dob.ok && (askedField === "birth_date" || /נולדתי|יום הולדת|תאריך לידה/.test(s)))
     out["birth_date"] = { value: dob.iso, kind: "explicit", confidence: 95, evidence: ev };
 
   if (askedField === "primary_goal" && s.length > 3)
     out["primary_goal"] = { value: s.slice(0, 200), kind: "explicit", confidence: 85, evidence: ev };
-  else if (/מחפש|רוצה למצוא|בא לי|מעוניינ/.test(s))
+  else if (!askedField && /רוצה למצוא|בא לי למצוא/.test(s))
     out["primary_goal"] = { value: s.slice(0, 200), kind: "inferred", confidence: 60, evidence: ev };
 
   return out;
