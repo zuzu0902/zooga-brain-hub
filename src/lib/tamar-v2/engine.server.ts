@@ -64,6 +64,8 @@ export type V2TurnResult = {
   interpretation: Interpretation;
   agent_version: number;
   sends: Array<{ kind: string; ok: boolean; http: number; error: string | null }>;
+  /** Explicit, documented reason when no outbound was produced. */
+  no_reply_reason: string | null;
   latency_ms: number;
 };
 
