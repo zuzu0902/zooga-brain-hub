@@ -19,6 +19,7 @@ import { Upload, FileText, ShieldCheck } from "lucide-react";
 import { normalizePhone } from "@/lib/phone";
 import { importLeads, markLeadsReady, type ImportLeadsResult } from "@/lib/leads.functions";
 import { useT, useLanguage } from "@/lib/language-context";
+import { SendDecisionPreview } from "@/components/send-decision-preview";
 
 export const Route = createFileRoute("/_app/import-leads")({
   head: () => ({ meta: [{ title: "ייבוא לידים — Zooga CRM" }] }),
@@ -177,6 +178,8 @@ function ImportLeadsPage() {
         <h1 className="text-3xl font-bold">{t("ייבוא לידים")}</h1>
         <p className="text-muted-foreground mt-1">{t("העלאת קובץ CSV של לידים והכנתם לקמפיין אינטייק")}</p>
       </header>
+
+      <SendDecisionPreview />
 
       <Card className="p-5 space-y-3">
         <div className="grid sm:grid-cols-2 gap-3">

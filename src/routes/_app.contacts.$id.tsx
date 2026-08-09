@@ -38,6 +38,7 @@ import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
 import { TamarDecisionStrip } from "@/components/tamar-decision-strip";
 import { ContactConversation } from "@/components/contact-conversation";
 import { useT, useLanguage } from "@/lib/language-context";
+import { OnboardingPanel } from "@/components/onboarding-panel";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
   head: () => ({ meta: [{ title: "Contact Profile — Zooga CRM" }] }),
@@ -166,6 +167,9 @@ function ContactProfile() {
 
         {/* === INTAKE PROGRESS (V1) === */}
         <IntakeProgressCard contact={contact} contactId={id} />
+
+        {/* === CONSENT / BASELINE INTAKE / PROFILE FACTS (STAGE 1) === */}
+        <OnboardingPanel contactId={id} />
 
         {/* === LIVE CONVERSATION === */}
         <ContactConversation contactId={id} />
