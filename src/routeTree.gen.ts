@@ -65,6 +65,7 @@ import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/publ
 import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicCronZeroLossWorkerRouteImport } from './routes/api/public/cron/zero-loss-worker'
+import { Route as ApiPublicCronZeroLossReconcileRouteImport } from './routes/api/public/cron/zero-loss-reconcile'
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
 import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
@@ -368,6 +369,12 @@ const ApiPublicCronZeroLossWorkerRoute =
     path: '/api/public/cron/zero-loss-worker',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronZeroLossReconcileRoute =
+  ApiPublicCronZeroLossReconcileRouteImport.update({
+    id: '/api/public/cron/zero-loss-reconcile',
+    path: '/api/public/cron/zero-loss-reconcile',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronRetryHandoffsRoute =
   ApiPublicCronRetryHandoffsRouteImport.update({
     id: '/api/public/cron/retry-handoffs',
@@ -440,6 +447,7 @@ export interface FileRoutesByFullPath {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
   '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
@@ -500,6 +508,7 @@ export interface FileRoutesByTo {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
   '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
@@ -562,6 +571,7 @@ export interface FileRoutesById {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
   '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
@@ -624,6 +634,7 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/zero-loss-reconcile'
     | '/api/public/cron/zero-loss-worker'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
@@ -684,6 +695,7 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/zero-loss-reconcile'
     | '/api/public/cron/zero-loss-worker'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
@@ -745,6 +757,7 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/zero-loss-reconcile'
     | '/api/public/cron/zero-loss-worker'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
@@ -785,6 +798,7 @@ export interface RootRouteChildren {
   ApiPublicAdminBackfillMemoriesRoute: typeof ApiPublicAdminBackfillMemoriesRoute
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
+  ApiPublicCronZeroLossReconcileRoute: typeof ApiPublicCronZeroLossReconcileRoute
   ApiPublicCronZeroLossWorkerRoute: typeof ApiPublicCronZeroLossWorkerRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeConversationDebugRoute: typeof ApiPublicRuntimeConversationDebugRoute
@@ -1186,6 +1200,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronZeroLossWorkerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/zero-loss-reconcile': {
+      id: '/api/public/cron/zero-loss-reconcile'
+      path: '/api/public/cron/zero-loss-reconcile'
+      fullPath: '/api/public/cron/zero-loss-reconcile'
+      preLoaderRoute: typeof ApiPublicCronZeroLossReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/retry-handoffs': {
       id: '/api/public/cron/retry-handoffs'
       path: '/api/public/cron/retry-handoffs'
@@ -1326,6 +1347,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAdminBackfillMemoriesRoute: ApiPublicAdminBackfillMemoriesRoute,
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
+  ApiPublicCronZeroLossReconcileRoute: ApiPublicCronZeroLossReconcileRoute,
   ApiPublicCronZeroLossWorkerRoute: ApiPublicCronZeroLossWorkerRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicRuntimeConversationDebugRoute:
