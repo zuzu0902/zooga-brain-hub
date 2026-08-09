@@ -286,22 +286,17 @@ function ContactsPage() {
       </Card>
 
       <ContactCreateDialog open={open} onOpenChange={setOpen} onCreated={() => refetch()} />
-      <AlertDialog open={!!toDelete} onOpenChange={(v) => !v && setToDelete(null)}>
-        <AlertDialogContent dir={dir}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("למחוק את איש הקשר?")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("פעולה זו תמחק לצמיתות את")} {toDelete?.name} {t("ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{t("ביטול")}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleting ? t("מוחק...") : t("מחק")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ContactDeleteDialog
+        open={!!toDelete}
+        onOpenChange={(v) => !v && setToDelete(null)}
+        contactId={toDelete?.id ?? null}
+        contactName={toDelete?.name ?? null}
+        onDeleted={(r) => {
+          setToDelete(null);
+          toast.success(t("איש הקשר נמחק") + ` · ${r?.identities_preserved ?? 0} זהויות נשמרו`);
+          refetch();
+        }}
+      />
     </div>
   );
 }
