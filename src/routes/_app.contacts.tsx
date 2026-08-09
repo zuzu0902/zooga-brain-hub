@@ -10,10 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Plus, Search, Filter, X, AlertCircle, Trash2 } from "lucide-react";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ContactDeleteDialog } from "@/components/contact-delete-dialog";
 import { toast } from "sonner";
 import {
   STATUS_LABELS, SOURCE_LABELS, INTEREST_LABELS, ALL_INTERESTS,
@@ -58,21 +55,6 @@ function ContactsPage() {
   const [consent, setConsent] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  async function confirmDelete() {
-    if (!toDelete) return;
-    setDeleting(true);
-    const { error } = await supabase.from("contacts").delete().eq("id", toDelete.id);
-    setDeleting(false);
-    if (error) {
-      toast.error(t("שגיאה במחיקה: ") + error.message);
-      return;
-    }
-    toast.success(t("איש הקשר נמחק"));
-    setToDelete(null);
-    refetch();
-  }
 
   const { data: contacts, isLoading, refetch } = useQuery({
     queryKey: ["contacts-rich"],
@@ -304,22 +286,17 @@ function ContactsPage() {
       </Card>
 
       <ContactCreateDialog open={open} onOpenChange={setOpen} onCreated={() => refetch()} />
-      <AlertDialog open={!!toDelete} onOpenChange={(v) => !v && setToDelete(null)}>
-        <AlertDialogContent dir={dir}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("למחוק את איש הקשר?")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("פעולה זו תמחק לצמיתות את")} {toDelete?.name} {t("ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{t("ביטול")}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {deleting ? t("מוחק...") : t("מחק")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ContactDeleteDialog
+        open={!!toDelete}
+        onOpenChange={(v) => !v && setToDelete(null)}
+        contactId={toDelete?.id ?? null}
+        contactName={toDelete?.name ?? null}
+        onDeleted={(r) => {
+          setToDelete(null);
+          toast.success(t("איש הקשר נמחק") + ` · ${r?.identities_preserved ?? 0} זהויות נשמרו`);
+          refetch();
+        }}
+      />
     </div>
   );
 }

@@ -22,7 +22,7 @@ import {
 import {
   ArrowRight, Plus, Save, X, MessageSquare, StickyNote,
   CheckSquare, Flag, Phone, Mail, MapPin, Calendar, ShieldCheck,
-  Sparkles, AlertCircle, Trash2, ExternalLink,
+  Sparkles, AlertCircle, Trash2, ExternalLink, RotateCcw,
   Brain, Heart, Zap, Clock, User, Activity, TrendingUp, Target,
   Lightbulb, History as HistoryIcon, ChevronRight, Settings2,
 } from "lucide-react";
@@ -40,6 +40,8 @@ import { ContactConversation } from "@/components/contact-conversation";
 import { useT, useLanguage } from "@/lib/language-context";
 import { OnboardingPanel } from "@/components/onboarding-panel";
 import { RelationshipIntakePanel } from "@/components/relationship-intake-panel";
+import { ContactResetDialog } from "@/components/contact-reset-dialog";
+import { ContactDeleteDialog } from "@/components/contact-delete-dialog";
 
 export const Route = createFileRoute("/_app/contacts/$id")({
   head: () => ({ meta: [{ title: "Contact Profile — Zooga CRM" }] }),
@@ -53,7 +55,7 @@ function ContactProfile() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ["contact", id],
@@ -128,15 +130,11 @@ function ContactProfile() {
 
   const initials = (contact.full_name || contact.first_name || "?").trim().slice(0, 1);
 
-  async function handleDelete() {
-    setDeleting(true);
-    const { error } = await supabase.from("contacts").delete().eq("id", id);
-    setDeleting(false);
-    if (error) {
-      toast.error(t("שגיאה במחיקה: ") + error.message);
-      return;
-    }
-    toast.success(t("איש הקשר נמחק"));
+  function onDeleted(result: any) {
+    toast.success(
+      t("איש הקשר נמחק") + ` · ${result?.identities_preserved ?? 0} זהויות נשמרו במרשם` +
+        (result?.suppression_tombstone ? " · נשמר סימון חסימה" : ""),
+    );
     setDeleteOpen(false);
     qc.invalidateQueries({ queryKey: ["contacts-rich"] });
     navigate({ to: "/contacts" });
@@ -158,6 +156,7 @@ function ContactProfile() {
           onMessage={() => setInteractionOpen(true)}
           onTask={() => setTaskOpen(true)}
           onDelete={() => setDeleteOpen(true)}
+          onReset={() => setResetOpen(true)}
         />
 
         {/* === AI RELATIONSHIP SUMMARY === */}
@@ -244,22 +243,23 @@ function ContactProfile() {
           contactId={id}
           onAdded={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
         />
-        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <AlertDialogContent dir={dir}>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("למחוק את איש הקשר?")}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("פעולה זו תמחק לצמיתות את")} {contact.full_name || t("איש הקשר")} {t("ואת כל הנתונים המקושרים (שיחות, משימות, זיכרון). לא ניתן לשחזר.")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleting}>{t("ביטול")}</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                {deleting ? t("מוחק...") : t("מחק")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ContactDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          contactId={id}
+          contactName={contact.full_name}
+          onDeleted={onDeleted}
+        />
+        <ContactResetDialog
+          open={resetOpen}
+          onOpenChange={setResetOpen}
+          contactId={id}
+          contactName={contact.full_name}
+          onDone={() => {
+            qc.invalidateQueries({ queryKey: ["contact", id] });
+            qc.invalidateQueries({ queryKey: ["interactions", id] });
+          }}
+        />
       </div>
     </div>
   );
@@ -279,7 +279,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
  * Premium 5-section layout components
  * ============================================================ */
 
-function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDelete }: any) {
+function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDelete, onReset }: any) {
   const t = useT();
   return (
     <Card className="p-6 shadow-[var(--shadow-elevated)] border-border/60 overflow-hidden relative">
@@ -366,6 +366,14 @@ function IdentityHeader({ contact, initials, id, update, onMessage, onTask, onDe
               onClick={() => window.open(`/contacts/${id}`, "_blank", "noopener,noreferrer")}
             >
               <ExternalLink className="h-3.5 w-3.5" /> {t("פתח להדפסה / PDF")}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 col-span-2 border border-warning/40 text-warning-foreground hover:bg-warning/10"
+              onClick={onReset}
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> {t("איפוס תמר")}
             </Button>
             <Button
               size="sm"
