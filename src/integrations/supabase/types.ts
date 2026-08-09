@@ -398,6 +398,69 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_identity_registry: {
+        Row: {
+          archived_at: string | null
+          contact_id: string | null
+          created_at: string
+          first_seen_at: string
+          id: string
+          identity_type: string
+          last_seen_at: string
+          merged_into: string | null
+          metadata: Json
+          normalized_value: string
+          source: string | null
+          updated_at: string
+          value_hash: string
+        }
+        Insert: {
+          archived_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          identity_type?: string
+          last_seen_at?: string
+          merged_into?: string | null
+          metadata?: Json
+          normalized_value: string
+          source?: string | null
+          updated_at?: string
+          value_hash: string
+        }
+        Update: {
+          archived_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          identity_type?: string
+          last_seen_at?: string
+          merged_into?: string | null
+          metadata?: Json
+          normalized_value?: string
+          source?: string | null
+          updated_at?: string
+          value_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_identity_registry_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_identity_registry_merged_into_fkey"
+            columns: ["merged_into"]
+            isOneToOne: false
+            referencedRelation: "contact_identity_registry"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_memories: {
         Row: {
           confidence_score: number | null
@@ -548,6 +611,8 @@ export type Database = {
           ai_risk_flags: string | null
           ai_summary: string | null
           ambiguity_turns: number
+          archive_reason: string | null
+          archived_at: string | null
           availability_preferences: string[]
           baseline_intake_status: string
           birth_date: string | null
@@ -699,6 +764,8 @@ export type Database = {
           ai_risk_flags?: string | null
           ai_summary?: string | null
           ambiguity_turns?: number
+          archive_reason?: string | null
+          archived_at?: string | null
           availability_preferences?: string[]
           baseline_intake_status?: string
           birth_date?: string | null
@@ -850,6 +917,8 @@ export type Database = {
           ai_risk_flags?: string | null
           ai_summary?: string | null
           ambiguity_turns?: number
+          archive_reason?: string | null
+          archived_at?: string | null
           availability_preferences?: string[]
           baseline_intake_status?: string
           birth_date?: string | null
@@ -1144,6 +1213,78 @@ export type Database = {
           source_file_name?: string | null
           updated_at?: string
           whatsapp_template_status?: Database["public"]["Enums"]["whatsapp_template_status"]
+        }
+        Relationships: []
+      }
+      inbound_event_vault: {
+        Row: {
+          attempt_count: number
+          claimed_at: string | null
+          claimed_by: string | null
+          contact_id: string | null
+          correlation_id: string
+          created_at: string
+          dedupe_key: string
+          event_type: string
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          next_retry_at: string | null
+          normalized_phone: string | null
+          payload_sha256: string
+          phone_hash: string | null
+          processed_at: string | null
+          processing_status: string
+          provider: string
+          provider_event_id: string | null
+          raw_payload: Json
+          received_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          contact_id?: string | null
+          correlation_id?: string
+          created_at?: string
+          dedupe_key: string
+          event_type?: string
+          id?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          next_retry_at?: string | null
+          normalized_phone?: string | null
+          payload_sha256: string
+          phone_hash?: string | null
+          processed_at?: string | null
+          processing_status?: string
+          provider?: string
+          provider_event_id?: string | null
+          raw_payload: Json
+          received_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          contact_id?: string | null
+          correlation_id?: string
+          created_at?: string
+          dedupe_key?: string
+          event_type?: string
+          id?: string
+          last_error_code?: string | null
+          last_error_message?: string | null
+          next_retry_at?: string | null
+          normalized_phone?: string | null
+          payload_sha256?: string
+          phone_hash?: string | null
+          processed_at?: string | null
+          processing_status?: string
+          provider?: string
+          provider_event_id?: string | null
+          raw_payload?: Json
+          received_at?: string
         }
         Relationships: []
       }
@@ -1835,6 +1976,99 @@ export type Database = {
         }
         Relationships: []
       }
+      outbound_event_ledger: {
+        Row: {
+          attempts: number
+          body_preview: string | null
+          contact_id: string | null
+          correlation_id: string | null
+          created_at: string
+          delivered_at: string | null
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          identity_id: string | null
+          kind: string
+          last_error: string | null
+          max_attempts: number
+          next_attempt_at: string
+          normalized_phone: string | null
+          provider_message_id: string | null
+          queued_at: string
+          read_at: string | null
+          request_hash: string
+          sent_at: string | null
+          state: string
+          updated_at: string
+          vault_event_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          body_preview?: string | null
+          contact_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key: string
+          identity_id?: string | null
+          kind?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          normalized_phone?: string | null
+          provider_message_id?: string | null
+          queued_at?: string
+          read_at?: string | null
+          request_hash: string
+          sent_at?: string | null
+          state?: string
+          updated_at?: string
+          vault_event_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          body_preview?: string | null
+          contact_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          failed_at?: string | null
+          id?: string
+          idempotency_key?: string
+          identity_id?: string | null
+          kind?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          normalized_phone?: string | null
+          provider_message_id?: string | null
+          queued_at?: string
+          read_at?: string | null
+          request_hash?: string
+          sent_at?: string | null
+          state?: string
+          updated_at?: string
+          vault_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outbound_event_ledger_identity_id_fkey"
+            columns: ["identity_id"]
+            isOneToOne: false
+            referencedRelation: "contact_identity_registry"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outbound_event_ledger_vault_event_id_fkey"
+            columns: ["vault_event_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_event_vault"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_ai_insights: {
         Row: {
           category: string
@@ -1883,6 +2117,201 @@ export type Database = {
           reviewed_by?: string | null
           source_message?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      processing_jobs: {
+        Row: {
+          attempts: number
+          correlation_id: string | null
+          created_at: string
+          dead_letter_at: string | null
+          id: string
+          job_type: string
+          last_error: string | null
+          lease_until: string | null
+          leased_by: string | null
+          max_attempts: number
+          next_attempt_at: string
+          state: string
+          updated_at: string
+          vault_event_id: string
+        }
+        Insert: {
+          attempts?: number
+          correlation_id?: string | null
+          created_at?: string
+          dead_letter_at?: string | null
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          lease_until?: string | null
+          leased_by?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          state?: string
+          updated_at?: string
+          vault_event_id: string
+        }
+        Update: {
+          attempts?: number
+          correlation_id?: string | null
+          created_at?: string
+          dead_letter_at?: string | null
+          id?: string
+          job_type?: string
+          last_error?: string | null
+          lease_until?: string | null
+          leased_by?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          state?: string
+          updated_at?: string
+          vault_event_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processing_jobs_vault_event_id_fkey"
+            columns: ["vault_event_id"]
+            isOneToOne: true
+            referencedRelation: "inbound_event_vault"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quarantine_events: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          details: Json
+          detected_at: string
+          id: string
+          reason_code: string
+          resolution_notes: string | null
+          resolution_status: string
+          resolved_at: string | null
+          severity: string
+          updated_at: string
+          vault_event_id: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          details?: Json
+          detected_at?: string
+          id?: string
+          reason_code: string
+          resolution_notes?: string | null
+          resolution_status?: string
+          resolved_at?: string | null
+          severity?: string
+          updated_at?: string
+          vault_event_id?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          details?: Json
+          detected_at?: string
+          id?: string
+          reason_code?: string
+          resolution_notes?: string | null
+          resolution_status?: string
+          resolved_at?: string | null
+          severity?: string
+          updated_at?: string
+          vault_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quarantine_events_vault_event_id_fkey"
+            columns: ["vault_event_id"]
+            isOneToOne: true
+            referencedRelation: "inbound_event_vault"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reconciliation_findings: {
+        Row: {
+          action_taken: string | null
+          count: number
+          created_at: string
+          finding_type: string
+          id: string
+          run_id: string
+          sample_ids: Json
+          severity: string
+          status: string
+        }
+        Insert: {
+          action_taken?: string | null
+          count?: number
+          created_at?: string
+          finding_type: string
+          id?: string
+          run_id: string
+          sample_ids?: Json
+          severity?: string
+          status?: string
+        }
+        Update: {
+          action_taken?: string | null
+          count?: number
+          created_at?: string
+          finding_type?: string
+          id?: string
+          run_id?: string
+          sample_ids?: Json
+          severity?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_findings_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reconciliation_runs: {
+        Row: {
+          created_at: string
+          error: string | null
+          findings_count: number
+          finished_at: string | null
+          id: string
+          repaired_count: number
+          started_at: string
+          status: string
+          summary: Json
+          trigger_source: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          findings_count?: number
+          finished_at?: string | null
+          id?: string
+          repaired_count?: number
+          started_at?: string
+          status?: string
+          summary?: Json
+          trigger_source?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          findings_count?: number
+          finished_at?: string | null
+          id?: string
+          repaired_count?: number
+          started_at?: string
+          status?: string
+          summary?: Json
+          trigger_source?: string
         }
         Relationships: []
       }
@@ -3217,6 +3646,39 @@ export type Database = {
         }
         Relationships: []
       }
+      zero_loss_audit_log: {
+        Row: {
+          action: string
+          actor_label: string | null
+          actor_user_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          target_id: string | null
+          target_kind: string | null
+        }
+        Insert: {
+          action: string
+          actor_label?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_kind?: string | null
+        }
+        Update: {
+          action?: string
+          actor_label?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          target_id?: string | null
+          target_kind?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       offers_public: {
@@ -3412,6 +3874,53 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      zl_claim_jobs: {
+        Args: { p_lease_seconds: number; p_limit: number; p_worker: string }
+        Returns: {
+          attempts: number
+          correlation_id: string
+          job_id: string
+          max_attempts: number
+          vault_event_id: string
+        }[]
+      }
+      zl_finish_job: {
+        Args: {
+          p_backoff_seconds: number
+          p_contact_id: string
+          p_error: string
+          p_job_id: string
+          p_success: boolean
+        }
+        Returns: undefined
+      }
+      zl_ingest_event: {
+        Args: {
+          p_correlation_id: string
+          p_dedupe_key: string
+          p_event_type: string
+          p_normalized_phone: string
+          p_payload_sha256: string
+          p_phone_hash: string
+          p_provider: string
+          p_provider_event_id: string
+          p_raw_payload: Json
+        }
+        Returns: {
+          correlation_id: string
+          duplicate: boolean
+          vault_id: string
+        }[]
+      }
+      zl_register_identity: {
+        Args: {
+          p_contact_id: string
+          p_normalized_value: string
+          p_source: string
+          p_value_hash: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "user"
