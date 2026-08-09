@@ -16,6 +16,11 @@ import {
   OPENING_TEMPLATE_BODY,
   OPENING_TEMPLATE_BUTTONS,
   OPT_OUT_CLOSING_TEXT,
+  RELATIONSHIP_INTAKE_BUTTONS,
+  RELATIONSHIP_INTAKE_LATER_TEXT,
+  RELATIONSHIP_INTAKE_QUESTION_TEXT,
+  RELATIONSHIP_INTAKE_READY_TEXT,
+  type RelationshipIntakeStatus,
   type IntakeFieldDefinition,
   type OpeningStatus,
   type RoutableContact,
@@ -26,22 +31,29 @@ export const OPENING_BUTTON_YES = "opening_available_yes";
 export const OPENING_BUTTON_NOT_NOW = "opening_not_now";
 export const CONSENT_BUTTON_YES = "consent_yes";
 export const CONSENT_BUTTON_NO = "consent_no";
+export const RELATIONSHIP_BUTTON_YES = "relationship_intake_yes";
+export const RELATIONSHIP_BUTTON_LATER = "relationship_intake_later";
 
 export type OnboardingButtonId =
   | typeof OPENING_BUTTON_YES
   | typeof OPENING_BUTTON_NOT_NOW
   | typeof CONSENT_BUTTON_YES
-  | typeof CONSENT_BUTTON_NO;
+  | typeof CONSENT_BUTTON_NO
+  | typeof RELATIONSHIP_BUTTON_YES
+  | typeof RELATIONSHIP_BUTTON_LATER;
 
 const BY_TITLE: Record<string, OnboardingButtonId> = {};
 for (const b of OPENING_TEMPLATE_BUTTONS) BY_TITLE[b.label] = b.id as OnboardingButtonId;
 for (const b of CONSENT_QUESTION_BUTTONS) BY_TITLE[b.label] = b.id as OnboardingButtonId;
+for (const b of RELATIONSHIP_INTAKE_BUTTONS) BY_TITLE[b.label] = b.id as OnboardingButtonId;
 
 const VALID_IDS = new Set<string>([
   OPENING_BUTTON_YES,
   OPENING_BUTTON_NOT_NOW,
   CONSENT_BUTTON_YES,
   CONSENT_BUTTON_NO,
+  RELATIONSHIP_BUTTON_YES,
+  RELATIONSHIP_BUTTON_LATER,
 ]);
 
 /**
@@ -104,6 +116,45 @@ export function applyConsentReply(button: OnboardingButtonId): ConsentTransition
   return null;
 }
 
+// ------------------------------------------------ relationship intake gate
+
+export type RelationshipGateTransition = {
+  relationship_intake_status: RelationshipIntakeStatus;
+  /** "מאוחר יותר" is a scheduling answer, never a marketing refusal. */
+  is_opt_out: false;
+  consent_touched: false;
+  /** the contact may still receive a natural offer in a future conversation */
+  eligible_for_future_offer: true;
+  reply_text: string;
+  next: "handoff_to_relationship_intake" | "continue_normal_conversation";
+};
+
+export function applyRelationshipGateReply(
+  button: OnboardingButtonId,
+): RelationshipGateTransition | null {
+  if (button === RELATIONSHIP_BUTTON_YES) {
+    return {
+      relationship_intake_status: "ready_to_start",
+      is_opt_out: false,
+      consent_touched: false,
+      eligible_for_future_offer: true,
+      reply_text: RELATIONSHIP_INTAKE_READY_TEXT,
+      next: "handoff_to_relationship_intake",
+    };
+  }
+  if (button === RELATIONSHIP_BUTTON_LATER) {
+    return {
+      relationship_intake_status: "deferred",
+      is_opt_out: false,
+      consent_touched: false,
+      eligible_for_future_offer: true,
+      reply_text: RELATIONSHIP_INTAKE_LATER_TEXT,
+      next: "continue_normal_conversation",
+    };
+  }
+  return null;
+}
+
 /** A deferral may only be resumed by the customer writing first. */
 export function mayAutoRecontactAfterDeferral(): boolean {
   return false;
@@ -119,6 +170,7 @@ export type StagePlan =
   | { stage: "ask_consent"; body: string; buttons: typeof CONSENT_QUESTION_BUTTONS }
   | { stage: "baseline_intake"; field: IntakeFieldDefinition; question_index: number }
   | { stage: "deliver_value"; reason: string }
+  | { stage: "relationship_gate"; body: string; buttons: typeof RELATIONSHIP_INTAKE_BUTTONS }
   | { stage: "progressive_question"; field: IntakeFieldDefinition }
   | { stage: "known_contact" };
 
@@ -134,10 +186,12 @@ export type StageInput = {
   inboundInitiated: boolean;
   /** value (offer/link) was already delivered in this conversation */
   valueDelivered?: boolean;
+  /** current relationship-questionnaire gate status */
+  relationshipIntakeStatus?: RelationshipIntakeStatus;
 };
 
 /** Hard cap of profiling questions before Tamar must deliver value. */
-export const MAX_PROFILING_QUESTIONS_BEFORE_VALUE = 3;
+export const MAX_PROFILING_QUESTIONS_BEFORE_VALUE = 5;
 
 export function nextOnboardingStage(input: StageInput): StagePlan {
   const { contact: c } = input;
@@ -170,6 +224,15 @@ export function nextOnboardingStage(input: StageInput): StagePlan {
   }
 
   if (!input.valueDelivered) return { stage: "deliver_value", reason: "baseline_complete" };
+
+  // value delivered -> offer the relationship questionnaire exactly once
+  if ((input.relationshipIntakeStatus ?? "not_offered") === "not_offered") {
+    return {
+      stage: "relationship_gate",
+      body: RELATIONSHIP_INTAKE_QUESTION_TEXT,
+      buttons: RELATIONSHIP_INTAKE_BUTTONS,
+    };
+  }
 
   const progressive = nextProgressiveStep(input.defs, input.snapshot);
   if (progressive) return { stage: "progressive_question", field: progressive };
