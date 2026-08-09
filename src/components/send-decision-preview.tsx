@@ -11,6 +11,7 @@ const DECISION_LABEL: Record<string, string> = {
   new_intake: "אינטייק חדש",
   resume_intake: "המשך אינטייק",
   known_contact: "לקוח מוכר",
+  deferred_not_now: "נדחה — 'לא עכשיו'",
   suppressed: "חסום — הוסר/סירב",
   blocked_missing_optin: "חסום — אין opt-in מתועד",
   blocked_missing_template: "חסום — אין תבנית מאושרת",
@@ -20,6 +21,7 @@ const DECISION_LABEL: Record<string, string> = {
 function tone(d: string) {
   if (d === "new_intake" || d === "resume_intake" || d === "known_contact") return "default";
   if (d === "suppressed") return "destructive";
+  if (d === "deferred_not_now") return "outline";
   return "secondary";
 }
 
@@ -47,6 +49,7 @@ export function SendDecisionPreview({ initialPhones = "" }: { initialPhones?: st
   }
 
   const sendable = (result?.rows ?? []).filter((r: any) => r.may_send);
+  const deferred = (result?.rows ?? []).filter((r: any) => r.decision === "deferred_not_now");
 
   return (
     <Card className="p-6 space-y-4">
@@ -75,8 +78,14 @@ export function SendDecisionPreview({ initialPhones = "" }: { initialPhones?: st
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
             {t("ניתן לשלוח")}: {sendable.length} / {result.rows.length}
+            {deferred.length > 0 ? ` · ${t("נדחו זמנית (לא עכשיו)")}: ${deferred.length}` : ""}
             {result.template_reason ? ` · ${result.template_reason}` : ""}
           </p>
+          {deferred.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {t("אנשי קשר שביקשו 'לא עכשיו' אינם סירוב ואינם מוסרים — לא נשלחת אליהם פנייה יזומה חוזרת.")}
+            </p>
+          )}
           <div className="space-y-1">
             {result.rows.map((r: any, i: number) => (
               <div key={i} className="flex flex-wrap items-center gap-2 rounded-md border border-border/60 p-2 text-sm">
