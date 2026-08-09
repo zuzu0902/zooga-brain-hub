@@ -1505,6 +1505,19 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
       } as any).select("id").single();
       outboundInteractionId = (outboundRow as any)?.id ?? null;
     }
+    // Stage 1: conversation facts + progressive profiling (never overrides
+    // an explicit statement with an inference).
+    try {
+      const { applyInboundOnboarding } = await import("@/lib/onboarding/onboarding.server");
+      await applyInboundOnboarding({
+        contactId,
+        message,
+        messageId: metaMessageId ?? null,
+        repliedOutbound: !!replyText,
+      });
+    } catch {
+      /* profiling must never break a live turn */
+    }
   }
 
   const promptBlocksInjected = Object.entries(promptBlocksMap).map(([k, v]: [string, any]) => ({
