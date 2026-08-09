@@ -15,7 +15,7 @@ import { mergeFact } from "@/lib/onboarding/profile-facts";
 import { normalizePhone } from "@/lib/phone";
 import type { ProfileFact, RoutableContact } from "@/lib/onboarding/types";
 
-function contact(over: Partial<RoutableContact> & {
+function contact(over: {
   consent?: Partial<RoutableContact["consent"]>;
   intake?: Partial<RoutableContact["intake"]>;
   conversation?: Partial<RoutableContact["conversation"]>;
