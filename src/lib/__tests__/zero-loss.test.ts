@@ -140,14 +140,17 @@ describe("zero-loss: failure classification", () => {
 
 describe("zero-loss: production gate", () => {
   const items = (over: Partial<ReadinessItem>[] = []): ReadinessItem[] => [
-    { key: "vault", label: "v", essential: true, verified: true, evidence: "" },
-    { key: "pitr", label: "p", essential: false, verified: false, evidence: "" },
+    { key: "vault", label: "v", essential: true, core: true, verified: true, evidence: "" },
+    { key: "pitr", label: "p", essential: true, verified: false, evidence: "" },
     ...(over as ReadinessItem[]),
   ];
-  it("is ready when every essential item is verified", () => {
-    expect(computeProductionGate(items()).production_ready).toBe(true);
+  it("is NOT ready while an operational proof such as PITR is unverified", () => {
+    const gate = computeProductionGate(items());
+    expect(gate.production_ready).toBe(false);
+    expect(gate.blocking).toEqual(["pitr"]);
+    expect(gate.core_verified).toBe(1);
   });
-  it("is blocked by any unverified essential item", () => {
+  it("is blocked by any unverified item", () => {
     const gate = computeProductionGate(items([{ key: "worker", label: "w", essential: true, verified: false, evidence: "" }]));
     expect(gate.production_ready).toBe(false);
     expect(gate.blocking).toContain("worker");

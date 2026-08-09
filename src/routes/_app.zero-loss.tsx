@@ -153,24 +153,25 @@ function ZeroLossPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Production Readiness — {gate?.production_ready ? "READY" : "חסום"} ({gate?.verified_count}/{gate?.total})
+            Production Readiness — {gate?.production_ready ? "READY" : "NOT READY"} ({gate?.verified_count}/{gate?.total})
           </CardTitle>
+          <div className="text-xs text-muted-foreground">
+            Core controls {gate?.core_verified}/{gate?.core_total} · כל 11 הסעיפים חייבים להיות VERIFIED כדי להכריז READY
+          </div>
         </CardHeader>
         <CardContent className="space-y-2">
           {(overview.data?.readiness ?? []).map((r: any) => (
             <div key={r.key} className="flex items-start justify-between gap-3 border-b border-border/60 pb-2 text-sm">
               <div>
-                <div className="font-medium">
-                  {r.label} {!r.essential && <span className="text-[10px] text-muted-foreground">(לא חוסם)</span>}
-                </div>
+                <div className="font-medium">{r.label}</div>
                 <div className="text-xs text-muted-foreground">{r.evidence}</div>
+                {!r.verified && r.manual_action && (
+                  <div className="text-xs text-warning">נדרש ידנית: {r.manual_action}</div>
+                )}
               </div>
-              <Badge variant={r.verified ? "default" : "outline"}>{r.verified ? "VERIFIED" : "NOT VERIFIED"}</Badge>
+              <Badge variant={r.verified ? "default" : "destructive"}>{r.verified ? "VERIFIED" : "NOT VERIFIED"}</Badge>
             </div>
           ))}
-          <div className="text-xs text-muted-foreground pt-1">
-            PITR/גיבוי, load test ו-restore drill אינם ניתנים לאימות מתוך האפליקציה ולכן מסומנים NOT VERIFIED עד לאימות ידני.
-          </div>
         </CardContent>
       </Card>
 
