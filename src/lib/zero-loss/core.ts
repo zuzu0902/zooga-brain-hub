@@ -132,24 +132,42 @@ export function backoffSeconds(attempt: number, rand: number = Math.random()): n
 export type ReadinessItem = {
   key: string;
   label: string;
+  /**
+   * Every readiness item blocks production. `essential` is kept for
+   * backwards compatibility and is always true for the shipped list.
+   */
   essential: boolean;
+  /** Core = in-app engineering control. Non-core = operational proof. */
+  core?: boolean;
   verified: boolean;
   evidence: string;
+  /** What a human has to do when it cannot be verified from the app. */
+  manual_action?: string;
 };
 
-/** Production gate: essential items must all be verified. */
+/**
+ * Production gate. A project about to take real customers is READY only when
+ * EVERY item is verified — scheduler, backup/PITR, load test and restore
+ * drill included. Core controls are reported separately so progress is
+ * visible, but they can never make the headline say READY on their own.
+ */
 export function computeProductionGate(items: ReadinessItem[]): {
   production_ready: boolean;
   blocking: string[];
   verified_count: number;
   total: number;
+  core_verified: number;
+  core_total: number;
 } {
-  const blocking = items.filter((i) => i.essential && !i.verified).map((i) => i.key);
+  const blocking = items.filter((i) => !i.verified).map((i) => i.key);
+  const core = items.filter((i) => i.core);
   return {
     production_ready: blocking.length === 0,
     blocking,
     verified_count: items.filter((i) => i.verified).length,
     total: items.length,
+    core_verified: core.filter((i) => i.verified).length,
+    core_total: core.length,
   };
 }
 

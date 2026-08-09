@@ -80,24 +80,62 @@ export const getZeroLossOverview = createServerFn({ method: "GET" })
       .maybeSingle();
 
     const vaultReady = ingested7d >= 0;
+
+    // Scheduler evidence: a cron-triggered reconciliation run inside the last
+    // 15 minutes. Anything older (or manual-only) is NOT SCHEDULED.
+    const { data: cronRun } = await supabaseAdmin
+      .from("reconciliation_runs" as any)
+      .select("started_at, trigger_source")
+      .eq("trigger_source", "cron")
+      .gte("started_at", new Date(now - 15 * 60_000).toISOString())
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const schedulerVerified = !!cronRun;
+
     const items: ReadinessItem[] = [
-      { key: "vault", label: "Durable event vault", essential: true, verified: vaultReady, evidence: `${ingested7d} events stored (7d)` },
-      { key: "idempotency", label: "Idempotent ingestion (dedupe key)", essential: true, verified: true, evidence: "unique index inbound_event_vault_dedupe_uniq" },
-      { key: "retry_worker", label: "Durable retry worker", essential: true, verified: true, evidence: "POST /api/public/cron/zero-loss-worker (lease + SKIP LOCKED)" },
-      { key: "quarantine", label: "Quarantine pipeline", essential: true, verified: true, evidence: "quarantine_events table wired to processor" },
-      { key: "identity_registry", label: "Phone identity registry", essential: true, verified: true, evidence: "contact_identity_registry, ON DELETE SET NULL" },
-      { key: "delete_guard", label: "Contact delete guard (archive only)", essential: true, verified: true, evidence: "trigger contacts_delete_guard" },
-      { key: "alerts", label: "Critical findings surfaced to admin UI", essential: true, verified: true, evidence: "Zero-Loss Control Center + audit log" },
+      { key: "vault", label: "Durable event vault", essential: true, core: true, verified: vaultReady, evidence: `${ingested7d} events stored (7d)` },
+      { key: "idempotency", label: "Idempotent ingestion (dedupe key)", essential: true, core: true, verified: true, evidence: "unique index inbound_event_vault_dedupe_uniq" },
+      { key: "retry_worker", label: "Durable retry worker", essential: true, core: true, verified: true, evidence: "POST /api/public/cron/zero-loss-worker (lease + SKIP LOCKED)" },
+      { key: "quarantine", label: "Quarantine pipeline", essential: true, core: true, verified: true, evidence: "quarantine_events table wired to processor" },
+      { key: "identity_registry", label: "Phone identity registry", essential: true, core: true, verified: true, evidence: "contact_identity_registry, ON DELETE SET NULL" },
+      { key: "delete_guard", label: "Contact delete guard (archive only)", essential: true, core: true, verified: true, evidence: "trigger contacts_delete_guard" },
+      { key: "alerts", label: "Critical findings surfaced to admin UI", essential: true, core: true, verified: true, evidence: "Zero-Loss Control Center + audit log" },
       {
         key: "reconciliation_scheduler",
-        label: "Reconciliation scheduler",
-        essential: false,
-        verified: !!lastRun && String((lastRun as any).trigger_source) === "cron",
-        evidence: lastRun ? `last run ${(lastRun as any).started_at} (${(lastRun as any).trigger_source})` : "NOT SCHEDULED — endpoint ready, no cron registered",
+        label: "Reconciliation scheduler (cron ≤ 5 min)",
+        essential: true,
+        verified: schedulerVerified,
+        evidence: schedulerVerified
+          ? `cron run at ${(cronRun as any).started_at}`
+          : "NOT SCHEDULED — endpoint ready, no cron run seen in the last 15 minutes",
+        manual_action:
+          "Schedule POST /api/public/cron/zero-loss-reconcile every 5 minutes and /zero-loss-worker every minute, sending header x-api-token with the service webhook token.",
       },
-      { key: "pitr_backup", label: "PITR / backup verified", essential: false, verified: false, evidence: "cannot be verified from the app — verify in Cloud settings" },
-      { key: "load_test", label: "Load test executed", essential: false, verified: false, evidence: "not executed" },
-      { key: "restore_drill", label: "Restore drill executed", essential: false, verified: false, evidence: "not executed" },
+      {
+        key: "pitr_backup",
+        label: "PITR / backup verified",
+        essential: true,
+        verified: false,
+        evidence: "NOT VERIFIED — backup state cannot be read from the app",
+        manual_action: "Enable point-in-time recovery in Cloud settings and record the verification date here.",
+      },
+      {
+        key: "load_test",
+        label: "Load test executed",
+        essential: true,
+        verified: false,
+        evidence: "NOT VERIFIED — no load test run recorded",
+        manual_action: "Replay a burst of webhook envelopes against the published endpoint and confirm zero vault gaps.",
+      },
+      {
+        key: "restore_drill",
+        label: "Restore drill executed",
+        essential: true,
+        verified: false,
+        evidence: "NOT VERIFIED — no restore drill recorded",
+        manual_action: "Restore a backup to a scratch environment and confirm vault + identity registry integrity.",
+      },
     ];
 
     return {
