@@ -167,6 +167,9 @@ function ContactProfile() {
         {/* === INTAKE PROGRESS (V1) === */}
         <IntakeProgressCard contact={contact} contactId={id} />
 
+        {/* === CONSENT / BASELINE INTAKE / PROFILE FACTS (STAGE 1) === */}
+        <OnboardingPanel contactId={id} />
+
         {/* === LIVE CONVERSATION === */}
         <ContactConversation contactId={id} />
 
