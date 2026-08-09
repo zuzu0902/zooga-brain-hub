@@ -101,7 +101,6 @@ export const importLeads = createServerFn({ method: "POST" })
       .map((c) => ({
         phone: c.phone,
         whatsapp_number: c.phone,
-        full_name: c.full_name,
         first_name: c.first,
         last_name: c.last,
         email: c.row.email || null,
