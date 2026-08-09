@@ -39,6 +39,10 @@ export type InboundWhatsAppMessage = {
   timestamp: string | null;
   /** stable id that travels back when the user taps a button / list row */
   option_id: string | null;
+  /** message type as reported by Meta ("text", "audio", "interactive", ...) */
+  type: string;
+  /** present for inbound voice notes / audio messages */
+  audio: { id: string; mime_type: string | null; voice: boolean; duration: number | null } | null;
 };
 
 export type MetaStatusUpdate = {
@@ -95,6 +99,7 @@ export function parseInboundMessages(payload: any): InboundWhatsAppMessage[] {
           null;
         if (!msg?.id || !msg?.from) continue;
         const profile = contacts.find((c: any) => c?.wa_id === msg.from);
+        const audioNode = msg?.audio ?? msg?.voice ?? null;
         out.push({
           wamid: String(msg.id),
           from: String(msg.from),
@@ -103,6 +108,16 @@ export function parseInboundMessages(payload: any): InboundWhatsAppMessage[] {
           business_phone_number_id: phoneId,
           timestamp: msg?.timestamp ? String(msg.timestamp) : null,
           option_id: optionId ? String(optionId) : null,
+          type: String(msg?.type ?? (audioNode ? "audio" : "text")),
+          audio:
+            audioNode?.id
+              ? {
+                  id: String(audioNode.id),
+                  mime_type: audioNode.mime_type ? String(audioNode.mime_type) : null,
+                  voice: audioNode.voice !== false,
+                  duration: audioNode.duration != null ? Number(audioNode.duration) : null,
+                }
+              : null,
         });
       }
     }
