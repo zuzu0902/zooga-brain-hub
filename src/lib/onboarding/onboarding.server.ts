@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { normalizePhone, splitName } from "@/lib/phone";
 import { routeConversationStart } from "./decision-router";
 import { completeness, DEFAULT_INTAKE_FIELDS, nextIntakeStep } from "./baseline-intake";
+import { extractFieldsFromFreeText } from "./baseline-intake";
 import { mergeFact, type IncomingFact } from "./profile-facts";
 import {
   CONSENT_VERSION,
@@ -338,4 +339,66 @@ export async function previewSendDecisions(
     });
   }
   return { rows, template_approved: tpl.approved, template_reason: tpl.reason ?? null };
+}
+
+// -------------------------------------------------- progressive profiling
+
+/**
+ * Runs on every inbound customer message: refreshes conversation facts and
+ * stores only what was clearly said, with evidence and confidence.
+ */
+export async function applyInboundOnboarding(args: {
+  contactId: string;
+  message: string;
+  messageId?: string | null;
+  repliedOutbound?: boolean;
+}) {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const { data: row } = await db()
+    .from("contacts")
+    .select("id,total_messages,first_inbound_at,intake_last_step_id,baseline_intake_status")
+    .eq("id", args.contactId)
+    .maybeSingle();
+  if (!row) return { applied: [], rejected: [] };
+
+  await db()
+    .from("contacts")
+    .update({
+      last_inbound_at: nowIso,
+      first_inbound_at: row.first_inbound_at ?? nowIso,
+      last_outbound_at: args.repliedOutbound ? nowIso : undefined,
+      total_messages: Number(row.total_messages ?? 0) + 1 + (args.repliedOutbound ? 1 : 0),
+      has_prior_conversation: true,
+      service_window_open_until: new Date(now.getTime() + 24 * 3600 * 1000).toISOString(),
+    })
+    .eq("id", args.contactId);
+
+  const extracted = extractFieldsFromFreeText(args.message, row.intake_last_step_id ?? null);
+  const incoming: IncomingFact[] = Object.entries(extracted).map(([field_key, v]) => ({
+    field_key,
+    value: v.value,
+    kind: v.kind,
+    confidence: v.confidence,
+    source: "tamar_extractor",
+    source_message_id: args.messageId ?? null,
+    evidence: v.evidence,
+    observed_at: nowIso,
+  }));
+  if (!incoming.length) return { applied: [], rejected: [] };
+  const result = await recordFacts(args.contactId, incoming);
+
+  // baseline completion is decided by data, never by the model
+  const defs = await loadIntakeDefs();
+  const facts = { ...factsFromContactRow(row), ...(await loadFacts(args.contactId)) };
+  const done = nextIntakeStep(defs, { facts, skipped: [] }) === null;
+  await db()
+    .from("contacts")
+    .update({
+      baseline_intake_status: done ? "completed" : "in_progress",
+      intake_completed_at: done ? nowIso : null,
+      intake_started_at: row.baseline_intake_status === "not_started" ? nowIso : undefined,
+    })
+    .eq("id", args.contactId);
+  return result;
 }
