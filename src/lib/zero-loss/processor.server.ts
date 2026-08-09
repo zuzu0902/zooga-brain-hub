@@ -55,6 +55,9 @@ export async function processVaultEvent(args: {
     source: "meta_whatsapp",
   });
   if (!resolution.normalized_phone) throw new Error("invalid_phone");
+  // A message event is only recoverable once it owns a real contact row.
+  // Without it the job stays retryable instead of being closed as succeeded.
+  if (!resolution.contact_id) throw new Error("contact_resolution_failed: contact_missing");
 
   await supabaseAdmin
     .from("inbound_event_vault" as any)

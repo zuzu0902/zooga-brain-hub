@@ -64,6 +64,8 @@ export type V2TurnResult = {
   interpretation: Interpretation;
   agent_version: number;
   sends: Array<{ kind: string; ok: boolean; http: number; error: string | null }>;
+  /** Explicit, documented reason when no outbound was produced. */
+  no_reply_reason: string | null;
   latency_ms: number;
 };
 
@@ -87,10 +89,14 @@ async function findContact(input: V2TurnInput) {
 
 async function createContact(input: V2TurnInput) {
   const e164 = toE164(input.phone);
-  if (!e164) return null;
-  const { data } = await supabaseAdmin
+  if (!e164) {
+    const { ContactCreateError } = await import("@/lib/contact-create-error");
+    throw new ContactCreateError({ code: "invalid_phone", phone: input.phone, retryable: false });
+  }
+  const { data, error } = await supabaseAdmin
     .from("contacts")
     .insert({
+      // contacts.full_name is GENERATED ALWAYS — never write it.
       phone: e164,
       whatsapp_number: e164,
       first_name: input.name ?? null,
@@ -100,7 +106,20 @@ async function createContact(input: V2TurnInput) {
     } as any)
     .select("*")
     .maybeSingle();
-  return (data as any) ?? null;
+  if (error || !(data as any)?.id) {
+    const { ContactCreateError } = await import("@/lib/contact-create-error");
+    throw new ContactCreateError({
+      code: "contact_create_failed",
+      message: error?.message ?? "insert returned no row",
+      phone: e164,
+    });
+  }
+  // Re-point the zero-loss identity registry at the (possibly new) contact.
+  try {
+    const { registerIdentity } = await import("@/lib/zero-loss/identity.server");
+    await registerIdentity(e164, (data as any).id, "tamar_v2");
+  } catch { /* registry linking must never break the turn */ }
+  return data as any;
 }
 
 /** Consent button ids are a fixed contract, independent of the flow table. */
@@ -237,10 +256,17 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const decision = decideTurn(turnInput);
 
   const sends: V2TurnResult["sends"] = [];
+  let noReplyReason: string | null = input.simulate ? "simulate" : null;
   if (!input.simulate && contact) {
     await persistTurn({ contact, input, decision, interpretation, agent, message, answeredCount });
     const to = toE164(contact.whatsapp_number ?? contact.phone ?? input.phone) ?? "";
-    if (to && !decision.silent) {
+    if (!to) {
+      const { ContactCreateError } = await import("@/lib/contact-create-error");
+      throw new ContactCreateError({ code: "invalid_phone", phone: input.phone, retryable: false });
+    }
+    if (decision.silent) {
+      noReplyReason = "silent_by_policy";
+    } else {
       const windowOpen = !!input.inbound_message_id || (await isSessionWindowOpen(contact.id));
       const template = windowOpen ? null : await activeSessionTemplate();
       for (const m of decision.messages) {
@@ -265,6 +291,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     interpretation,
     agent_version: agent.version,
     sends,
+    no_reply_reason: noReplyReason,
     latency_ms: Date.now() - started,
   };
 }

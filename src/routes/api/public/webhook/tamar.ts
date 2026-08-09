@@ -12,7 +12,8 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { splitMetaEvents } from "@/lib/zero-loss/core";
+import { splitMetaEvents, classifyFailure } from "@/lib/zero-loss/core";
+import { classifyTurnOutcome } from "@/lib/zero-loss/turn-outcome";
 import { ingestEvent, leaseJobForVault, finishJob, quarantineEvent } from "@/lib/zero-loss/vault.server";
 import { registerIdentity } from "@/lib/zero-loss/identity.server";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
@@ -40,6 +41,16 @@ async function applyStatusUpdates(payload: any) {
   // recipient is normalized to E.164 inside applyStatusUpdate
   for (const s of statuses) await applyStatusUpdate(s);
   return statuses.length;
+}
+
+/** Current attempt number of a leased job (used for backoff + quarantine). */
+async function jobAttempts(jobId: string): Promise<number> {
+  const { data } = await supabaseAdmin
+    .from("processing_jobs" as any)
+    .select("attempts")
+    .eq("id", jobId)
+    .maybeSingle();
+  return Number((data as any)?.attempts ?? 1) || 1;
 }
 
 async function findContactIdByPhone(phone: string): Promise<string | null> {
@@ -133,15 +144,16 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
         }
 
         const results: any[] = [];
-        const leasedJobs: string[] = [];
+        const jobByWamid = new Map<string, { jobId: string; vaultId: string; attempt: number }>();
         for (const msg of messages) {
           const vaultRef = vaultByEventId.get(msg.wamid) ?? null;
           const jobId = vaultRef && !vaultRef.duplicate ? await leaseJobForVault(vaultRef.vault_id, "webhook") : null;
-          if (jobId) leasedJobs.push(jobId);
+          if (jobId && vaultRef) jobByWamid.set(msg.wamid, { jobId, vaultId: vaultRef.vault_id, attempt: await jobAttempts(jobId) });
           let inboundText = msg.text;
           let inboundSource: "text" | "voice" = "text";
           let voiceConfidence: number | null = null;
 
+          try {
           // ---- Idempotency gate (wamid) BEFORE any model call or send ----
           const claim = await claimInbound({
             inboundMessageId: msg.wamid,
@@ -159,7 +171,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 hit_count: claim.hit_count,
               },
             } as any);
-            results.push({ wamid: msg.wamid, duplicate: true, reply_sent: false });
+            results.push({ wamid: msg.wamid, duplicate: true, reply_sent: false, no_reply_reason: "duplicate_inbound" });
             continue;
           }
 
@@ -189,7 +201,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               durationSeconds: msg.audio.duration,
             }).catch(() => null);
             if (voice?.status === "duplicate") {
-              results.push({ wamid: msg.wamid, voice: "duplicate", reply_sent: false });
+              results.push({ wamid: msg.wamid, voice: "duplicate", reply_sent: false, contact_id: voiceContactId, no_reply_reason: "duplicate_inbound" });
               continue;
             }
             if (!voice || voice.status !== "ok" || !voice.transcript) {
@@ -203,7 +215,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 kind: "voice_transcription_failed",
               });
               await recordReply(msg.wamid, VOICE_FAILED_TEXT).catch(() => {});
-              results.push({ wamid: msg.wamid, voice: "failed", reply_sent: ack.ok });
+              results.push({ wamid: msg.wamid, voice: "failed", contact_id: voiceContactId, reply_sent: ack.ok });
               continue;
             }
             inboundText = voice.transcript;
@@ -212,7 +224,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           }
 
           if (!inboundText) {
-            results.push({ wamid: msg.wamid, skipped: "unsupported_message_type" });
+            results.push({ wamid: msg.wamid, skipped: "unsupported_message_type", reply_sent: false, no_reply_reason: "unsupported_message_type" });
             continue;
           }
 
@@ -232,7 +244,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               kind: optOut ? "opt_out_ack" : "opt_in_ack",
             });
             await recordReply(msg.wamid, confirmation).catch(() => {});
-            results.push({ wamid: msg.wamid, consent_command: optOut ? "opt_out" : "opt_in", reply_sent: ack.ok });
+            results.push({ wamid: msg.wamid, contact_id: contactId, consent_command: optOut ? "opt_out" : "opt_in", reply_sent: ack.ok });
             continue;
           }
 
@@ -251,7 +263,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               }).catch(() => null);
               if (res?.handled) {
                 if (res.duplicate) {
-                  results.push({ wamid: msg.wamid, onboarding: res.kind, duplicate: true, reply_sent: false });
+                  results.push({ wamid: msg.wamid, contact_id: onboardingContactId, onboarding: res.kind, duplicate: true, reply_sent: false, no_reply_reason: "onboarding_duplicate" });
                   continue;
                 }
                 // availability=yes -> ask consent (interactive); otherwise ack text
@@ -276,6 +288,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 if (res.kind !== "consent_yes") {
                   results.push({
                     wamid: msg.wamid,
+                    contact_id: onboardingContactId,
                     onboarding: res.kind,
                     reply_sent: !!send?.ok,
                   });
@@ -316,6 +329,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 await recordReply(msg.wamid, plan.texts.join("\n")).catch(() => {});
                 results.push({
                   wamid: msg.wamid,
+                  contact_id: relContactId,
                   relationship_intake: plan.question_key ?? "completed",
                   source: inboundSource,
                   reply_sent: allOk,
@@ -351,7 +365,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                     kind: `intake_question_${plan.field_key}`,
                   });
                   await recordReply(msg.wamid, plan.text).catch(() => {});
-                  results.push({ wamid: msg.wamid, intake: plan.field_key, reply_sent: send.ok });
+                  results.push({ wamid: msg.wamid, contact_id: intakeContactId, intake: plan.field_key, reply_sent: send.ok });
                   continue;
                 }
                 const valueSend = await sendWhatsAppText(msg.from, plan.value_text);
@@ -374,6 +388,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 await recordReply(msg.wamid, `${plan.value_text}\n${plan.gate_text}`).catch(() => {});
                 results.push({
                   wamid: msg.wamid,
+                  contact_id: intakeContactId,
                   intake: "value_then_relationship_gate",
                   reply_sent: valueSend.ok && gateSend.ok,
                 });
@@ -405,6 +420,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               contact_id: v2.contact_id,
               state: v2.decision.next_state,
               reply_sent: sentAll,
+              no_reply_reason: v2.no_reply_reason,
               silent: v2.decision.silent,
               reason_codes: v2.decision.reason_codes,
               send_errors: v2.sends.filter((s) => !s.ok).map((s) => s.error),
@@ -440,8 +456,10 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             } as any);
             results.push({
               wamid: msg.wamid,
+              contact_id: turn.payload?.contact_id ?? null,
               reply_sent: false,
               suppressed: true,
+              no_reply_reason: "suppressed_brain_gate",
               brain_state: turn.payload?.brain_state ?? null,
             });
             continue;
@@ -449,6 +467,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           if (turn.status !== 200 || !replyText) {
             results.push({
               wamid: msg.wamid,
+              contact_id: turn.payload?.contact_id ?? null,
               reply_sent: false,
               error: turn.payload?.error ?? "no_reply",
               trace_id: turn.payload?.trace_id ?? null,
@@ -493,13 +512,47 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             send_error: send.error,
             handoff_requested: !!turn.payload?.handoff_requested,
           });
+          } catch (err: any) {
+            // A classified processing failure. Nothing is swallowed: the job
+            // below is closed as retryable, never as `succeeded`.
+            results.push({
+              wamid: msg.wamid,
+              reply_sent: false,
+              error: String(err?.code ?? err?.message ?? err).slice(0, 200),
+              correlation_id: err?.correlation_id ?? null,
+            });
+          }
         }
 
-        // Every leased job whose turn completed (any `continue` branch is a
-        // completed turn too) is closed here. A thrown exception leaves the
-        // lease in place so the durable worker retries it later.
-        for (const jobId of leasedJobs) {
-          await finishJob({ jobId, success: true, attempt: 1 }).catch(() => {});
+        // A job only reaches `succeeded` when the required business result
+        // happened: a real contact_id AND an outbound send, or an explicit,
+        // documented no-reply reason. Anything else is retryable, and after
+        // max attempts it is quarantined for human review.
+        for (const r of results) {
+          const job = jobByWamid.get(r.wamid);
+          if (!job) continue;
+          const outcome = classifyTurnOutcome({
+            contactId: r.contact_id ?? null,
+            sends: r.reply_sent === true ? [{ ok: true }] : r.reply_sent === false ? [{ ok: false }] : [],
+            noReplyReason: r.no_reply_reason ?? null,
+            error: r.error ?? null,
+            attempt: job.attempt,
+          });
+          r.job_outcome = outcome.reason;
+          if (outcome.success) {
+            await finishJob({ jobId: job.jobId, success: true, attempt: job.attempt, contactId: r.contact_id ?? null }).catch(() => {});
+            continue;
+          }
+          await finishJob({ jobId: job.jobId, success: false, error: outcome.reason, attempt: job.attempt }).catch(() => {});
+          if (outcome.quarantine) {
+            await quarantineEvent({
+              vaultId: job.vaultId,
+              jobId: job.jobId,
+              reason: classifyFailure(outcome.reason),
+              severity: "critical",
+              details: { inbound_message_id: r.wamid, outcome: outcome.reason, attempt: job.attempt },
+            }).catch(() => {});
+          }
         }
 
         return Response.json({

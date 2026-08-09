@@ -35,7 +35,7 @@ export async function ensureContactsForLeads(
     toCreate.push({
       phone,
       whatsapp_number: phone,
-      full_name: l.full_name,
+      // contacts.full_name is GENERATED ALWAYS — first/last are the sources.
       first_name: l.first_name ?? first,
       last_name: l.last_name ?? last,
       source: "Manual",
@@ -48,7 +48,14 @@ export async function ensureContactsForLeads(
 
   let created = 0;
   if (toCreate.length) {
-    const { data: made } = await supabaseAdmin.from("contacts").insert(toCreate as any).select("id, phone");
+    const { data: made, error } = await supabaseAdmin
+      .from("contacts")
+      .insert(toCreate as any)
+      .select("id, phone");
+    if (error) {
+      const { ContactCreateError } = await import("@/lib/contact-create-error");
+      throw new ContactCreateError({ code: "lead_contact_create_failed", message: error.message });
+    }
     (made ?? []).forEach((c: any) => byPhone.set(c.phone, c.id));
     created = made?.length ?? 0;
   }
