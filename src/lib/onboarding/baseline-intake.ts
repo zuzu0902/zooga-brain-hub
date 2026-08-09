@@ -1,0 +1,207 @@
+/**
+ * BASELINE INTAKE — one question at a time, never re-asks a known field,
+ * a single free-text answer may fill several fields, and after 2-4 questions
+ * the conversation must move to value. Pure logic.
+ */
+import type {
+  FieldCompleteness,
+  IntakeFieldDefinition,
+  ProfileFact,
+} from "./types";
+
+/** Confidence at/above which a known value blocks re-asking. */
+export const KNOWN_CONFIDENCE_MIN = 70;
+/** Hard ceiling of baseline questions before Tamar must deliver value. */
+export const MAX_BASELINE_QUESTIONS_PER_CONVERSATION = 4;
+export const VALUE_AFTER_QUESTIONS = 2;
+
+export const DEFAULT_INTAKE_FIELDS: IntakeFieldDefinition[] = [
+  { field_key: "first_name", label: "שם", question_text: "איך קוראים לך?", purpose_text: null, presentation: "text", options: [], required: true, skippable: false, order_index: 10, enabled: true },
+  { field_key: "city", label: "אזור מגורים", question_text: "באיזה אזור בארץ את/ה גר/ה?", purpose_text: "כדי להתאים אירועים וטיולים קרובים אלייך", presentation: "text", options: [], required: false, skippable: true, order_index: 20, enabled: true },
+  { field_key: "birth_date", label: "תאריך לידה", question_text: "נשמח לשמור את תאריך הלידה שלך כדי לפנק אותך בברכה ומתנה ביום ההולדת 🎂 (אפשר גם לדלג)", purpose_text: "ברכה ומתנת יום הולדת", presentation: "text", options: [], required: false, skippable: true, order_index: 30, enabled: true },
+  {
+    field_key: "interests", label: "תחומי עניין", question_text: "מה הכי מעניין אותך מהפעילות של זוגה?", purpose_text: null,
+    presentation: "multi",
+    options: [
+      { id: "trips_il", label: "טיולים בארץ", value: "טיולים בארץ" },
+      { id: "trips_abroad", label: "טיולים בחו״ל", value: "טיולים בחו״ל" },
+      { id: "events", label: "אירועים", value: "אירועים" },
+      { id: "dating", label: "היכרויות/קהילה", value: "היכרויות/קהילה" },
+      { id: "culture", label: "תרבות", value: "תרבות" },
+      { id: "nature", label: "טבע", value: "טבע" },
+      { id: "food", label: "אוכל", value: "אוכל" },
+      { id: "other", label: "אחר", value: "אחר" },
+    ],
+    required: true, skippable: true, order_index: 40, enabled: true,
+  },
+  { field_key: "primary_goal", label: "מטרת הקשר", question_text: "מה הכי חשוב לך שנעזור לך בו עכשיו?", purpose_text: null, presentation: "text", options: [], required: false, skippable: true, order_index: 50, enabled: true },
+];
+
+export type IntakeSnapshot = {
+  /** current facts keyed by field_key */
+  facts: Record<string, ProfileFact>;
+  /** fields the customer explicitly declined */
+  skipped: string[];
+};
+
+export function isKnown(fact: ProfileFact | undefined): boolean {
+  if (!fact) return false;
+  const v = (fact.value_text ?? "").trim();
+  if (!v) return false;
+  if (fact.explicit_or_inferred === "explicit") return true;
+  return fact.confidence >= KNOWN_CONFIDENCE_MIN;
+}
+
+export function completeness(
+  defs: IntakeFieldDefinition[],
+  snap: IntakeSnapshot,
+): { fields: FieldCompleteness[]; percent: number; missing: string[] } {
+  const active = defs.filter((d) => d.enabled).sort((a, b) => a.order_index - b.order_index);
+  const fields: FieldCompleteness[] = active.map((d) => {
+    const f = snap.facts[d.field_key];
+    const known = isKnown(f);
+    return {
+      field_key: d.field_key,
+      label: d.label,
+      known,
+      kind: f?.explicit_or_inferred ?? null,
+      confidence: f?.confidence ?? 0,
+      value: f?.value_text ?? null,
+      required: d.required,
+      skipped: snap.skipped.includes(d.field_key),
+    };
+  });
+  const resolved = fields.filter((f) => f.known || f.skipped).length;
+  const percent = fields.length ? Math.round((resolved / fields.length) * 100) : 100;
+  return { fields, percent, missing: fields.filter((f) => !f.known && !f.skipped).map((f) => f.field_key) };
+}
+
+/** The next question to ask, or null when baseline intake is done. */
+export function nextIntakeStep(
+  defs: IntakeFieldDefinition[],
+  snap: IntakeSnapshot,
+): IntakeFieldDefinition | null {
+  const active = defs.filter((d) => d.enabled).sort((a, b) => a.order_index - b.order_index);
+  for (const d of active) {
+    if (isKnown(snap.facts[d.field_key])) continue;
+    if (snap.skipped.includes(d.field_key)) continue;
+    return d;
+  }
+  return null;
+}
+
+export function baselineComplete(defs: IntakeFieldDefinition[], snap: IntakeSnapshot): boolean {
+  return nextIntakeStep(defs, snap) === null;
+}
+
+/** True once Tamar must stop asking and deliver value in this conversation. */
+export function mustDeliverValue(questionsAskedThisConversation: number): boolean {
+  return questionsAskedThisConversation >= VALUE_AFTER_QUESTIONS;
+}
+
+export function questionBudgetExhausted(questionsAskedThisConversation: number): boolean {
+  return questionsAskedThisConversation >= MAX_BASELINE_QUESTIONS_PER_CONVERSATION;
+}
+
+// ---------------------------------------------------------------- DOB
+
+export type DobResult =
+  | { ok: true; iso: string; day: number; month: number; year: number | null }
+  | { ok: false; reason: "declined" | "unparsable" | "out_of_range" };
+
+const DECLINE_RE = /(מעדיפ|לא רוצה|לא מעוניינ|דלג|לא לציין|בלי תאריך|prefer not)/i;
+
+/** Strict DOB parsing — never guesses, never stores a wrong age. */
+export function parseBirthDate(raw: string, today = new Date()): DobResult {
+  const s = String(raw ?? "").trim();
+  if (!s) return { ok: false, reason: "unparsable" };
+  if (DECLINE_RE.test(s)) return { ok: false, reason: "declined" };
+  const m = s.match(/(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?/);
+  if (!m) return { ok: false, reason: "unparsable" };
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  let year: number | null = m[3] ? Number(m[3]) : null;
+  if (year != null && year < 100) year = year > 30 ? 1900 + year : 2000 + year;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return { ok: false, reason: "out_of_range" };
+  const thisYear = today.getFullYear();
+  if (year != null && (year < thisYear - 110 || year > thisYear - 16)) return { ok: false, reason: "out_of_range" };
+  const probeYear = year ?? 2000;
+  const d = new Date(Date.UTC(probeYear, month - 1, day));
+  if (d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) return { ok: false, reason: "out_of_range" };
+  const iso = year != null
+    ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    : `--${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return { ok: true, iso, day, month, year };
+}
+
+export function ageFromBirthDate(iso: string, today = new Date()): number | null {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null; // no year -> never fabricate an age
+  const year = Number(m[1]);
+  let age = today.getFullYear() - year;
+  const md = (today.getMonth() + 1) * 100 + today.getDate();
+  if (md < Number(m[2]) * 100 + Number(m[3])) age -= 1;
+  return age >= 0 && age <= 120 ? age : null;
+}
+
+// ------------------------------------------------- free-text multi-fill
+
+const REGION_WORDS = [
+  "תל אביב", "ירושלים", "חיפה", "באר שבע", "ראשון לציון", "נתניה", "פתח תקווה", "אשדוד",
+  "רעננה", "הרצליה", "מודיעין", "אילת", "רמת גן", "גבעתיים", "כפר סבא", "רחובות",
+  "השרון", "הצפון", "הדרום", "המרכז", "השפלה",
+];
+
+const INTEREST_WORDS: Array<[RegExp, string]> = [
+  [/טיול(ים)? (ב)?חו"?״?ל|חו"?״?ל/, "טיולים בחו״ל"],
+  [/טיול(ים)? בארץ|טיולים בישראל/, "טיולים בארץ"],
+  [/אירוע|מסיב/, "אירועים"],
+  [/היכרו|זוגי|קהיל/, "היכרויות/קהילה"],
+  [/תרבות|תיאטרון|הופע|קונצרט/, "תרבות"],
+  [/טבע|מסלול|הליכ|צעד/, "טבע"],
+  [/אוכל|קולינר|מסעד/, "אוכל"],
+];
+
+/**
+ * Deterministic multi-field extraction from one free-text answer.
+ * Only what was clearly said; everything else stays unknown.
+ */
+export function extractFieldsFromFreeText(
+  text: string,
+  askedField?: string | null,
+): Record<string, { value: string; kind: "explicit" | "inferred"; confidence: number; evidence: string }> {
+  const out: Record<string, { value: string; kind: "explicit" | "inferred"; confidence: number; evidence: string }> = {};
+  const s = String(text ?? "").trim();
+  if (!s) return out;
+  const ev = s.slice(0, 200);
+
+  const nameMatch = s.match(/(?:קוראים לי|שמי|אני)\s+([\u0590-\u05FFA-Za-z]{2,15})/);
+  if (nameMatch) out["first_name"] = { value: nameMatch[1]!, kind: "explicit", confidence: 95, evidence: ev };
+  else if (askedField === "first_name" && /^[\u0590-\u05FFA-Za-z]{2,20}$/.test(s))
+    out["first_name"] = { value: s, kind: "explicit", confidence: 95, evidence: ev };
+
+  const city = REGION_WORDS.find((w) => s.includes(w));
+  if (city) out["city"] = { value: city, kind: "explicit", confidence: 90, evidence: ev };
+  else if (askedField === "city" && s.length <= 30 && !/\d/.test(s))
+    out["city"] = { value: s, kind: "explicit", confidence: 85, evidence: ev };
+
+  const interests = INTEREST_WORDS.filter(([re]) => re.test(s)).map(([, label]) => label);
+  if (interests.length)
+    out["interests"] = { value: Array.from(new Set(interests)).join(", "), kind: "explicit", confidence: 90, evidence: ev };
+
+  const dob = parseBirthDate(s);
+  if (dob.ok && (askedField === "birth_date" || /נולדתי|יום הולדת|תאריך לידה/.test(s)))
+    out["birth_date"] = { value: dob.iso, kind: "explicit", confidence: 95, evidence: ev };
+
+  if (askedField === "primary_goal" && s.length > 3)
+    out["primary_goal"] = { value: s.slice(0, 200), kind: "explicit", confidence: 85, evidence: ev };
+  else if (/מחפש|רוצה למצוא|בא לי|מעוניינ/.test(s))
+    out["primary_goal"] = { value: s.slice(0, 200), kind: "inferred", confidence: 60, evidence: ev };
+
+  return out;
+}
+
+/** Explicit customer refusal of the field currently being asked. */
+export function isSkipAnswer(text: string): boolean {
+  return DECLINE_RE.test(String(text ?? "")) || /^\s*(דלג|skip|לא עכשיו)\s*$/i.test(String(text ?? ""));
+}
