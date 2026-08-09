@@ -256,10 +256,17 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const decision = decideTurn(turnInput);
 
   const sends: V2TurnResult["sends"] = [];
+  let noReplyReason: string | null = input.simulate ? "simulate" : null;
   if (!input.simulate && contact) {
     await persistTurn({ contact, input, decision, interpretation, agent, message, answeredCount });
     const to = toE164(contact.whatsapp_number ?? contact.phone ?? input.phone) ?? "";
-    if (to && !decision.silent) {
+    if (!to) {
+      const { ContactCreateError } = await import("@/lib/contact-create-error");
+      throw new ContactCreateError({ code: "invalid_phone", phone: input.phone, retryable: false });
+    }
+    if (decision.silent) {
+      noReplyReason = "silent_by_policy";
+    } else {
       const windowOpen = !!input.inbound_message_id || (await isSessionWindowOpen(contact.id));
       const template = windowOpen ? null : await activeSessionTemplate();
       for (const m of decision.messages) {
@@ -274,6 +281,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         });
         if (!res.ok) break;
       }
+      if (!sends.length) noReplyReason = "silent_by_policy";
     }
   }
 
@@ -284,6 +292,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     interpretation,
     agent_version: agent.version,
     sends,
+    no_reply_reason: noReplyReason,
     latency_ms: Date.now() - started,
   };
 }
