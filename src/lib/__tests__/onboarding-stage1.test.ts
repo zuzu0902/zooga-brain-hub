@@ -241,10 +241,10 @@ describe("baseline intake", () => {
     expect(c.missing).toEqual(["interests", "primary_goal"]);
   });
 
-  it("value must be delivered after 2 questions and asking stops at 4", () => {
-    expect(mustDeliverValue(1)).toBe(false);
-    expect(mustDeliverValue(2)).toBe(true);
-    expect(questionBudgetExhausted(4)).toBe(true);
+  it("value must be delivered by the third question", () => {
+    expect(mustDeliverValue(2)).toBe(false);
+    expect(mustDeliverValue(3)).toBe(true);
+    expect(questionBudgetExhausted(3)).toBe(true);
   });
 });
 
