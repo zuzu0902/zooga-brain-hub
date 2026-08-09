@@ -223,7 +223,7 @@ export function extractRelationshipFields(
     if (kids) put("children", `${kids[1]} ילדים`, 85);
   }
 
-  const rel = s.match(/(חילוני|חילונית|מסורתי|מסורתית|דתי|דתייה|דתית|חרדי|חרדית)/);
+  const rel = s.match(/(חילונית|חילוני|מסורתית|מסורתי|דתייה|דתית|דתי|חרדית|חרדי)/);
   if (rel) put("religiosity", rel[1]!, 85);
 
   const habits: string[] = [];
@@ -240,8 +240,9 @@ export function extractRelationshipFields(
   const region = REGIONS.find((r) => s.includes(r));
   if (region) put("geography", region, 80);
 
-  // the answer to the question actually asked is always stored as given
-  if (askedKey && s.length >= 2) {
+  // the answer to the question actually asked is stored as given, unless a
+  // precise structured value was already extracted for that same field
+  if (askedKey && s.length >= 2 && !out[askedKey]) {
     out[askedKey] = { value: s.slice(0, 1000), confidence: 95, evidence: ev };
   }
   return out;
@@ -288,8 +289,9 @@ export function buildConfirmationQuestion(summary: string): string {
   return `רק כדי לוודא שהבנתי נכון — ${String(summary).trim().replace(/[.?!]+$/, "")}?`;
 }
 
-const CONFIRM_YES = /^(כן|נכון|בדיוק|אכן|כן נכון|yes)\b/;
-const CONFIRM_NO = /^(לא|לא נכון|טעות|no)\b/;
+// Hebrew letters are not \w, so \b cannot be used here.
+const CONFIRM_YES = /^(כן נכון|נכון|בדיוק|אכן|כן|yes)(?![\p{L}])/u;
+const CONFIRM_NO = /^(לא נכון|לא|טעות|no)(?![\p{L}])/u;
 
 export function readConfirmationReply(text: string): "yes" | "no" | null {
   const s = String(text ?? "").trim();
