@@ -387,12 +387,21 @@ export async function getOnboardingSnapshot(contactId: string) {
   const snap = { facts, skipped };
   const comp = completeness(defs, snap);
   const next = nextIntakeStep(defs, snap);
+  const { nextProgressiveStep } = await import("./baseline-intake");
+  const { data: events } = await db()
+    .from("onboarding_events")
+    .select("event_type,stage,button_id,button_title,created_at")
+    .eq("contact_id", contactId)
+    .order("created_at", { ascending: false })
+    .limit(20);
   return {
     routable: toRoutableContact(row),
     defs,
     facts: Object.values(facts),
     completeness: comp,
     next_step: next,
+    next_progressive_step: nextProgressiveStep(defs, snap),
+    events: (events as any[]) ?? [],
   };
 }
 
