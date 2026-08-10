@@ -209,7 +209,15 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             }
             if (!voice || voice.status !== "ok" || !voice.transcript) {
               const { VOICE_FAILED_TEXT } = await import("@/lib/relationship-intake/questions");
-              const ack = await sendWhatsAppText(msg.from, VOICE_FAILED_TEXT);
+              const voiceGuard = await guardOutbound({
+                contactId: voiceContactId,
+                phone: msg.from,
+                route: "voice_failed_ack",
+                inboundMessageId: msg.wamid,
+                candidateText: VOICE_FAILED_TEXT,
+                mode: "log_only",
+              });
+              const ack = await sendWhatsAppText(msg.from, voiceGuard.text);
               await recordDelivery({
                 contactId: voiceContactId,
                 text: VOICE_FAILED_TEXT,
@@ -238,7 +246,17 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             if (optOut) await applyOptOut(msg.from, contactId);
             else await applyOptIn(msg.from, contactId);
             const confirmation = optOut ? OPT_OUT_CONFIRMATION : OPT_IN_CONFIRMATION;
-            const ack = await sendWhatsAppText(msg.from, confirmation);
+            // Compliance acknowledgement: recorded for loop telemetry, never rewritten.
+            const consentGuard = await guardOutbound({
+              contactId,
+              phone: msg.from,
+              route: optOut ? "consent_opt_out_ack" : "consent_opt_in_ack",
+              inboundMessageId: msg.wamid,
+              inboundText,
+              candidateText: confirmation,
+              mode: "log_only",
+            });
+            const ack = await sendWhatsAppText(msg.from, consentGuard.text);
             await recordDelivery({
               contactId,
               text: confirmation,
@@ -278,6 +296,19 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                       : null;
                 const bodySent =
                   res.kind === "opening_available_yes" ? CONSENT_QUESTION_TEXT : (res.reply_text ?? "");
+                // Consent/availability copy is fixed by policy -> log_only.
+                if (bodySent) {
+                  await guardOutbound({
+                    contactId: onboardingContactId,
+                    phone: msg.from,
+                    route: `onboarding_${res.kind}`,
+                    inboundMessageId: msg.wamid,
+                    inboundText,
+                    candidateText: bodySent,
+                    mode: "log_only",
+                    progress: { advanced_state: true },
+                  }).catch(() => null);
+                }
                 if (send) {
                   await recordDelivery({
                     contactId: onboardingContactId,
@@ -318,7 +349,23 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               }).catch(() => null);
               if (plan && plan.kind === "messages") {
                 let allOk = true;
-                for (const body of plan.texts) {
+                // Guard the question-bearing message of the turn (the last one);
+                // value/intro lines are informational and pass through.
+                const relGuard = await guardOutbound({
+                  contactId: relContactId,
+                  phone: msg.from,
+                  route: "relationship_intake",
+                  inboundMessageId: msg.wamid,
+                  inboundText,
+                  candidateText: plan.texts[plan.texts.length - 1] ?? "",
+                  askedField: plan.question_key ?? null,
+                  progress: { advanced_state: true, saved_new_fact: true },
+                });
+                const relTexts =
+                  relGuard.verdict === "send"
+                    ? plan.texts
+                    : [...plan.texts.slice(0, -1), relGuard.text];
+                for (const body of relTexts) {
                   const send = await sendWhatsAppText(msg.from, body);
                   allOk = allOk && send.ok;
                   await recordDelivery({
@@ -335,6 +382,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                   contact_id: relContactId,
                   relationship_intake: plan.question_key ?? "completed",
                   source: inboundSource,
+                  guard: relGuard.verdict,
                   reply_sent: allOk,
                 });
                 continue;
@@ -411,6 +459,16 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                   });
                   continue;
                 }
+                const gateGuard = await guardOutbound({
+                  contactId: intakeContactId,
+                  phone: msg.from,
+                  route: "intake_value_gate",
+                  inboundMessageId: msg.wamid,
+                  inboundText,
+                  candidateText: plan.gate_text,
+                  askedField: "relationship_gate",
+                  progress: { advanced_state: true, provided_requested_info: true },
+                });
                 const valueSend = await sendWhatsAppText(msg.from, plan.value_text);
                 await recordDelivery({
                   contactId: intakeContactId,
@@ -433,6 +491,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                   wamid: msg.wamid,
                   contact_id: intakeContactId,
                   intake: "value_then_relationship_gate",
+                  guard: gateGuard.verdict,
                   reply_sent: valueSend.ok && gateSend.ok,
                 });
                 continue;
