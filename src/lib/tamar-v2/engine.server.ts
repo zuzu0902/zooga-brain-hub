@@ -282,7 +282,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
             inboundMessageId: input.inbound_message_id ?? null,
             inboundText: message,
             candidateText: messageText(first),
-            askedField: decision.next_question_key ?? pendingStepKey,
+            askedField: decision.ask_step_key ?? pendingStepKey,
             intent: interpretation.intent,
             stateBefore: state,
             stateAfter: decision.next_state,
