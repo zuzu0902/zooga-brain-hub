@@ -385,7 +385,6 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                   // A guarded question is never asked a third time: after a
                   // recovery the field is deferred for this conversation.
                   if (guard.verdict === "recovery") {
-                    await supabaseAdmin.rpc("noop" as any, {} as any).catch(() => null);
                     const { data: c } = await supabaseAdmin
                       .from("contacts")
                       .select("intake_deferred_fields")
