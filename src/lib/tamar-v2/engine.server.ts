@@ -201,6 +201,22 @@ export async function isConsentPhase(input: { phone?: string | null; contact_id?
 }
 
 /** Run one WhatsApp turn through the v2 engine. */
+/**
+ * Rolling context for the decision layer: the last N transcript lines.
+ * Without it the engine cannot see that it already asked something.
+ */
+async function loadRecentTranscript(contactId: string, limit = 12): Promise<string[]> {
+  const { data } = await supabaseAdmin
+    .from("interactions")
+    .select("source, content, timestamp")
+    .eq("contact_id", contactId)
+    .order("timestamp", { ascending: false })
+    .limit(limit);
+  return ((data as any[]) ?? [])
+    .reverse()
+    .map((r) => `${String(r.source ?? "").includes("outbound") ? "תמר" : "לקוח"}: ${String(r.content ?? "").slice(0, 300)}`);
+}
+
 export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const started = Date.now();
   const message = String(input.message ?? "").trim();
@@ -224,7 +240,13 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
 
   const interpretation: Interpretation = input.offline
     ? interpretDeterministic(message)
-    : await interpret(message, { state, pendingQuestion: pendingStepKey, known: knownFields });
+    : await interpret(message, {
+        state,
+        pendingQuestion: pendingStepKey,
+        known: knownFields,
+        history: contact?.id ? await loadRecentTranscript(contact.id, 12) : [],
+        summary: (contact?.dynamic_profile_fields as any)?.["v2_summary"] ?? null,
+      });
 
   // Grounded wording is produced ONLY for real customer questions.
   let answerText: string | null = null;
