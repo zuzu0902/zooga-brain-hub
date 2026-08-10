@@ -29,7 +29,32 @@ export async function recentTurns(contactId: string, limit = 5): Promise<TurnRec
   return ((data as any[]) ?? []) as TurnRecord[];
 }
 
-export type GuardedTurn = GuardResult & { logged: boolean };
+export type GuardedTurn = GuardResult & { logged: boolean; replayed?: boolean };
+
+/**
+ * `enforce`  — the guard may rewrite/suppress the candidate (conversational
+ *              routes that ask questions).
+ * `log_only` — compliance-critical acknowledgements (consent, opt-out/in,
+ *              voice failure). The turn is recorded so the loop history stays
+ *              complete, but the text is NEVER rewritten.
+ */
+export type GuardMode = "enforce" | "log_only";
+
+/**
+ * One inbound provider message id may produce at most ONE guarded outbound
+ * per route. A webhook retry that reaches the same route again replays the
+ * previously recorded verdict instead of evaluating (and mutating) twice.
+ */
+async function existingTurn(inboundMessageId: string | null | undefined, route: string) {
+  if (!inboundMessageId) return null;
+  const { data } = await db()
+    .from("conversation_turns")
+    .select("guard_verdict,guard_reason,repeat_count,loop_signal,question_signature")
+    .eq("inbound_message_id", inboundMessageId)
+    .eq("route", route)
+    .maybeSingle();
+  return (data as any) ?? null;
+}
 
 /**
  * Single entry point used by deterministic intake, the v2 engine, the LLM
@@ -51,7 +76,27 @@ export async function guardOutbound(args: {
   factsBefore?: Record<string, unknown>;
   factsAfter?: Record<string, unknown>;
   progress?: ProgressFlags | null;
+  mode?: GuardMode;
 }): Promise<GuardedTurn> {
+  const mode: GuardMode = args.mode ?? "enforce";
+
+  // ---- double-guard / double-send protection -------------------------
+  const prior = await existingTurn(args.inboundMessageId, args.route).catch(() => null);
+  if (prior) {
+    const verdict = (prior.guard_verdict ?? "send") as GuardResult["verdict"];
+    return {
+      verdict,
+      reason: `replayed:${prior.guard_reason ?? "unknown"}`,
+      repeat_count: Number(prior.repeat_count ?? 0),
+      question_signature: prior.question_signature ?? questionSignature(args.candidateText),
+      loop_signal: !!prior.loop_signal,
+      // The stored verdict is re-applied; the candidate is never re-mutated.
+      text: args.candidateText,
+      logged: true,
+      replayed: true,
+    };
+  }
+
   const recent = args.contactId ? await recentTurns(args.contactId).catch(() => []) : [];
   const result = evaluateOutbound({
     candidateText: args.candidateText,
@@ -62,6 +107,10 @@ export async function guardOutbound(args: {
     summary: args.summary ?? null,
     purpose: args.purpose ?? null,
   });
+
+  if (mode === "log_only") {
+    result.text = args.candidateText;
+  }
 
   let logged = false;
   try {
@@ -89,14 +138,14 @@ export async function guardOutbound(args: {
           recovery_action: result.verdict === "send" ? null : result.verdict,
           phone_masked: maskPhone(args.phone ?? null),
         },
-        { onConflict: "inbound_message_id,route", ignoreDuplicates: false } as any,
+        { onConflict: "inbound_message_id,route", ignoreDuplicates: true } as any,
       );
     logged = true;
   } catch {
     logged = false;
   }
 
-  if (result.verdict !== "send") {
+  if (result.verdict !== "send" && mode === "enforce") {
     await db()
       .from("webhook_logs")
       .insert({
