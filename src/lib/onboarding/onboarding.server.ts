@@ -478,7 +478,7 @@ export async function getOnboardingSnapshot(contactId: string) {
   const defs = await loadIntakeDefs(Number(row.intake_version ?? 1));
   const stored = await loadFacts(contactId);
   const facts = { ...factsFromContactRow(row), ...stored };
-  const skipped: string[] = Array.isArray(row.intake_missing_fields) ? [] : [];
+  const skipped: string[] = Array.isArray(row.intake_deferred_fields) ? row.intake_deferred_fields.map(String) : [];
   const snap = { facts, skipped };
   const comp = completeness(defs, snap);
   const next = nextIntakeStep(defs, snap);

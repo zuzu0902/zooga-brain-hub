@@ -34,6 +34,9 @@ import {
   verifyMetaSignature,
 } from "@/lib/whatsapp-meta.server";
 import { CONSENT_QUESTION_BUTTONS, CONSENT_QUESTION_TEXT } from "@/lib/onboarding/types";
+import { guardOutbound } from "@/lib/conversation-guard/guard.server";
+import { detectLoopSignal } from "@/lib/conversation-guard/core";
+import { isUserQuestion } from "@/lib/tamar-brain/signals";
 
 async function applyStatusUpdates(payload: any) {
   const statuses = parseStatusUpdates(payload);
@@ -342,13 +345,16 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // ---- Deterministic baseline intake turn ------------------------
           // Owns the turn only while the approved intake is still running:
           // one unanswered question, then value + the relationship gate.
+          // It NEVER owns a turn where the customer asked a direct question or
+          // signalled a loop — answering the customer always comes first.
           {
             const intakeContactId = await findContactIdByPhone(msg.from);
-            if (intakeContactId) {
+            const intakeMayOwnTurn = !isUserQuestion(inboundText) && !detectLoopSignal(inboundText);
+            if (intakeContactId && intakeMayOwnTurn) {
               const { applyInboundOnboarding, planIntakeTurn } = await import(
                 "@/lib/onboarding/onboarding.server"
               );
-              await applyInboundOnboarding({
+              const applied = await applyInboundOnboarding({
                 contactId: intakeContactId,
                 message: inboundText,
                 messageId: msg.wamid,
@@ -356,16 +362,54 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               const plan = await planIntakeTurn(intakeContactId).catch(() => null);
               if (plan && plan.kind !== "none") {
                 if (plan.kind === "question") {
-                  const send = await sendWhatsAppText(msg.from, plan.text);
+                  // ---- Conversation Progress Guard -----------------------
+                  const guard = await guardOutbound({
+                    contactId: intakeContactId,
+                    phone: msg.from,
+                    route: "baseline_intake",
+                    inboundMessageId: msg.wamid,
+                    inboundText,
+                    candidateText: plan.text,
+                    askedField: plan.field_key,
+                    purpose: plan.purpose,
+                    progress: { saved_new_fact: !!applied?.applied?.length },
+                  });
+                  const send = await sendWhatsAppText(msg.from, guard.text);
                   await recordDelivery({
                     contactId: intakeContactId,
-                    text: plan.text,
+                    text: guard.text,
                     result: send,
                     inboundMessageId: msg.wamid,
-                    kind: `intake_question_${plan.field_key}`,
+                    kind: `intake_${guard.verdict}_${plan.field_key}`,
                   });
-                  await recordReply(msg.wamid, plan.text).catch(() => {});
-                  results.push({ wamid: msg.wamid, contact_id: intakeContactId, intake: plan.field_key, reply_sent: send.ok });
+                  // A guarded question is never asked a third time: after a
+                  // recovery the field is deferred for this conversation.
+                  if (guard.verdict === "recovery") {
+                    await supabaseAdmin.rpc("noop" as any, {} as any).catch(() => null);
+                    const { data: c } = await supabaseAdmin
+                      .from("contacts")
+                      .select("intake_deferred_fields")
+                      .eq("id", intakeContactId)
+                      .maybeSingle();
+                    const cur: string[] = Array.isArray((c as any)?.intake_deferred_fields)
+                      ? (c as any).intake_deferred_fields.map(String)
+                      : [];
+                    if (!cur.includes(plan.field_key)) {
+                      await supabaseAdmin
+                        .from("contacts")
+                        .update({ intake_deferred_fields: [...cur, plan.field_key] } as any)
+                        .eq("id", intakeContactId);
+                    }
+                  }
+                  await recordReply(msg.wamid, guard.text).catch(() => {});
+                  results.push({
+                    wamid: msg.wamid,
+                    contact_id: intakeContactId,
+                    intake: plan.field_key,
+                    guard: guard.verdict,
+                    guard_reason: guard.reason,
+                    reply_sent: send.ok,
+                  });
                   continue;
                 }
                 const valueSend = await sendWhatsAppText(msg.from, plan.value_text);
