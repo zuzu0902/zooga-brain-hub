@@ -518,15 +518,32 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             continue;
           }
 
-          const send = await sendWhatsAppText(msg.from, replyText);
+          // ---- Conversation Progress Guard (engine path) ----------------
+          const engineGuard = await guardOutbound({
+            contactId: turn.payload?.contact_id ?? null,
+            phone: msg.from,
+            route: "tamar_engine",
+            inboundMessageId: msg.wamid,
+            inboundText,
+            candidateText: replyText,
+            intent: turn.payload?.meta?.intent ?? null,
+            stateBefore: turn.payload?.brain_state ?? null,
+            progress: {
+              answered_user_intent: !!turn.payload?.meta?.answered,
+              provided_requested_info: !!turn.payload?.meta?.offer_id,
+              performed_handoff: !!turn.payload?.handoff_requested,
+            },
+          });
+          const outboundText = engineGuard.text;
+          const send = await sendWhatsAppText(msg.from, outboundText);
           await recordDelivery({
             contactId: turn.payload?.contact_id ?? null,
             offerId: turn.payload?.meta?.offer_id ?? null,
-            text: replyText,
+            text: outboundText,
             result: send,
             inboundMessageId: msg.wamid,
           });
-          await recordReply(msg.wamid, replyText).catch(() => {});
+          await recordReply(msg.wamid, outboundText).catch(() => {});
 
           if (turn.payload?.trace_id) {
             await supabaseAdmin
@@ -551,6 +568,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             contact_id: turn.payload?.contact_id ?? null,
             trace_id: turn.payload?.trace_id ?? null,
             reply_sent: send.ok,
+            guard: engineGuard.verdict,
+            guard_reason: engineGuard.reason,
             provider_message_id: send.provider_message_id,
             send_error: send.error,
             handoff_requested: !!turn.payload?.handoff_requested,
