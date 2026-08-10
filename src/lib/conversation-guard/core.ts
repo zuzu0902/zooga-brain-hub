@@ -30,7 +30,7 @@ export function normalizeText(raw: string | null | undefined): string {
   return String(raw ?? "")
     .replace(NIQQUD, "")
     .replace(/\p{Extended_Pictographic}/gu, " ")
-    .replace(/([\u0590-\u05FF])\/[\u0590-\u05FF]{1,2}\b/gu, "$1")
+    .replace(/([\u0590-\u05FF])\/[\u0590-\u05FF]{1,2}(?![\u0590-\u05FF])/gu, "$1")
     .replace(PUNCT, " ")
     .replace(/\s+/g, " ")
     .trim()
