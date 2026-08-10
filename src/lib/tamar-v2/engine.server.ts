@@ -269,7 +269,38 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     } else {
       const windowOpen = !!input.inbound_message_id || (await isSessionWindowOpen(contact.id));
       const template = windowOpen ? null : await activeSessionTemplate();
-      for (const m of decision.messages) {
+      // ---- Conversation Progress Guard ------------------------------
+      // The engine may not repeat a question it already asked. A second
+      // attempt is rephrased once; a third becomes an open recovery turn.
+      const { guardOutbound } = await import("@/lib/conversation-guard/guard.server");
+      const first = decision.messages[0];
+      const guard = first
+        ? await guardOutbound({
+            contactId: contact.id,
+            phone: to,
+            route: "tamar_v2",
+            inboundMessageId: input.inbound_message_id ?? null,
+            inboundText: message,
+            candidateText: messageText(first),
+            askedField: decision.next_question_key ?? pendingStepKey,
+            intent: interpretation.intent,
+            stateBefore: state,
+            stateAfter: decision.next_state,
+            progress: {
+              answered_user_intent: !!answerText,
+              advanced_state: decision.next_state !== state,
+              performed_handoff: decision.reason_codes?.includes("handoff") ?? false,
+            },
+          }).catch(() => null)
+        : null;
+      const outgoing =
+        guard && guard.verdict !== "send"
+          ? [{ kind: "text", body: guard.text } as any]
+          : decision.messages;
+      if (guard && guard.verdict !== "send") {
+        decision.reason_codes = [...(decision.reason_codes ?? []), `guard_${guard.verdict}`];
+      }
+      for (const m of outgoing) {
         const res = await sendMessage(to, m, { windowOpen, template });
         sends.push({ kind: m.kind, ok: res.ok, http: res.status, error: res.error });
         await recordDelivery({
