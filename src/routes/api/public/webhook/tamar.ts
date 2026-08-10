@@ -209,7 +209,15 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             }
             if (!voice || voice.status !== "ok" || !voice.transcript) {
               const { VOICE_FAILED_TEXT } = await import("@/lib/relationship-intake/questions");
-              const ack = await sendWhatsAppText(msg.from, VOICE_FAILED_TEXT);
+              const voiceGuard = await guardOutbound({
+                contactId: voiceContactId,
+                phone: msg.from,
+                route: "voice_failed_ack",
+                inboundMessageId: msg.wamid,
+                candidateText: VOICE_FAILED_TEXT,
+                mode: "log_only",
+              });
+              const ack = await sendWhatsAppText(msg.from, voiceGuard.text);
               await recordDelivery({
                 contactId: voiceContactId,
                 text: VOICE_FAILED_TEXT,
@@ -238,7 +246,17 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             if (optOut) await applyOptOut(msg.from, contactId);
             else await applyOptIn(msg.from, contactId);
             const confirmation = optOut ? OPT_OUT_CONFIRMATION : OPT_IN_CONFIRMATION;
-            const ack = await sendWhatsAppText(msg.from, confirmation);
+            // Compliance acknowledgement: recorded for loop telemetry, never rewritten.
+            const consentGuard = await guardOutbound({
+              contactId,
+              phone: msg.from,
+              route: optOut ? "consent_opt_out_ack" : "consent_opt_in_ack",
+              inboundMessageId: msg.wamid,
+              inboundText,
+              candidateText: confirmation,
+              mode: "log_only",
+            });
+            const ack = await sendWhatsAppText(msg.from, consentGuard.text);
             await recordDelivery({
               contactId,
               text: confirmation,
@@ -278,6 +296,19 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                       : null;
                 const bodySent =
                   res.kind === "opening_available_yes" ? CONSENT_QUESTION_TEXT : (res.reply_text ?? "");
+                // Consent/availability copy is fixed by policy -> log_only.
+                if (bodySent) {
+                  await guardOutbound({
+                    contactId: onboardingContactId,
+                    phone: msg.from,
+                    route: `onboarding_${res.kind}`,
+                    inboundMessageId: msg.wamid,
+                    inboundText,
+                    candidateText: bodySent,
+                    mode: "log_only",
+                    progress: { advanced_state: true },
+                  }).catch(() => null);
+                }
                 if (send) {
                   await recordDelivery({
                     contactId: onboardingContactId,
