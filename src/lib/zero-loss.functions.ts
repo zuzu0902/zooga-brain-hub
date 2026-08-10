@@ -18,6 +18,15 @@ async function assertAdmin(context: any) {
   return context.userId as string;
 }
 
+/** Loop-safety telemetry: repeated questions prevented in the last 24h. */
+export const getLoopSafety = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { loopSafetyStats } = await import("@/lib/conversation-guard/guard.server");
+    return await loopSafetyStats(24);
+  });
+
 export const getZeroLossOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
