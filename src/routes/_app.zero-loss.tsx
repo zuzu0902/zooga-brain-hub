@@ -180,13 +180,6 @@ function ZeroLossPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">חריגים בהסגר</CardTitle>
-        </CardHeader>
-        <CardContent />
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle className="text-base">בטיחות לולאות שיחה (24 שעות)</CardTitle>
           <div className="text-xs text-muted-foreground">
             שאלות חוזרות שנחסמו לפני שליחה, ושיחות שהועברו למצב התאוששות
