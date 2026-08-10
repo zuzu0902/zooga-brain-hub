@@ -12,6 +12,8 @@ import {
   evaluateOutbound,
   questionSignature,
   responseSignature,
+  buildRecovery,
+  buildRephrase,
   type GuardResult,
   type ProgressFlags,
   type TurnRecord,
@@ -19,17 +21,35 @@ import {
 
 const db = () => supabaseAdmin as any;
 
-export async function recentTurns(contactId: string, limit = 5): Promise<TurnRecord[]> {
-  const { data } = await db()
-    .from("conversation_turns")
-    .select("asked_field,question_signature,response_signature,normalized_intent,progress_made,repeat_count,created_at")
-    .eq("contact_id", contactId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+const TURN_COLUMNS =
+  "route,asked_field,question_signature,response_signature,normalized_intent,progress_made,repeat_count,created_at";
+
+/**
+ * The last Tamar turns of a CONTACT/SESSION across **all** reply routes.
+ * No route filter is applied: an alternating loop
+ * (baseline_intake -> tamar_engine -> relationship_intake) must be visible
+ * as one history. Falls back to the masked phone when the contact row does
+ * not exist yet.
+ */
+export async function recentTurns(
+  contactId: string | null,
+  limit = 3,
+  phone?: string | null,
+): Promise<TurnRecord[]> {
+  let query = db().from("conversation_turns").select(TURN_COLUMNS);
+  if (contactId) query = query.eq("contact_id", contactId);
+  else if (maskPhone(phone ?? null)) query = query.eq("phone_masked", maskPhone(phone ?? null));
+  else return [];
+  const { data } = await query.order("created_at", { ascending: false }).limit(limit);
   return ((data as any[]) ?? []) as TurnRecord[];
 }
 
-export type GuardedTurn = GuardResult & { logged: boolean; replayed?: boolean };
+export type GuardedTurn = GuardResult & {
+  logged: boolean;
+  replayed?: boolean;
+  /** Route that originally produced the (single) rewriting verdict. */
+  owner_route?: string | null;
+};
 
 /**
  * `enforce`  — the guard may rewrite/suppress the candidate (conversational
@@ -41,19 +61,22 @@ export type GuardedTurn = GuardResult & { logged: boolean; replayed?: boolean };
 export type GuardMode = "enforce" | "log_only";
 
 /**
- * One inbound provider message id may produce at most ONE guarded outbound
- * per route. A webhook retry that reaches the same route again replays the
- * previously recorded verdict instead of evaluating (and mutating) twice.
+ * Idempotency stays keyed by (inbound_message_id, route). On top of that a
+ * single guard call OWNS the rewriting for an inbound message: if any route
+ * already produced a verdict for this inbound id, later call sites replay
+ * that final verdict instead of mutating the text a second time.
  */
 async function existingTurn(inboundMessageId: string | null | undefined, route: string) {
   if (!inboundMessageId) return null;
   const { data } = await db()
     .from("conversation_turns")
-    .select("guard_verdict,guard_reason,repeat_count,loop_signal,question_signature")
+    .select("route,guard_verdict,guard_reason,repeat_count,loop_signal,question_signature")
     .eq("inbound_message_id", inboundMessageId)
-    .eq("route", route)
-    .maybeSingle();
-  return (data as any) ?? null;
+    .order("created_at", { ascending: true })
+    .limit(5);
+  const rows = ((data as any[]) ?? []).filter((r) => !!r?.guard_verdict);
+  if (!rows.length) return null;
+  return rows.find((r) => r.route === route) ?? rows[0];
 }
 
 /**
@@ -84,20 +107,29 @@ export async function guardOutbound(args: {
   const prior = await existingTurn(args.inboundMessageId, args.route).catch(() => null);
   if (prior) {
     const verdict = (prior.guard_verdict ?? "send") as GuardResult["verdict"];
+    // The verdict is re-applied deterministically; the candidate text is
+    // never passed through a second rewriting pass.
+    const text =
+      verdict === "rephrase"
+        ? buildRephrase(args.candidateText, args.purpose ?? null)
+        : verdict === "recovery"
+          ? buildRecovery(args.summary ?? null)
+          : args.candidateText;
     return {
       verdict,
       reason: `replayed:${prior.guard_reason ?? "unknown"}`,
       repeat_count: Number(prior.repeat_count ?? 0),
       question_signature: prior.question_signature ?? questionSignature(args.candidateText),
       loop_signal: !!prior.loop_signal,
-      // The stored verdict is re-applied; the candidate is never re-mutated.
-      text: args.candidateText,
+      text: mode === "log_only" ? args.candidateText : text,
       logged: true,
       replayed: true,
+      owner_route: prior.route ?? null,
     };
   }
 
-  const recent = args.contactId ? await recentTurns(args.contactId).catch(() => []) : [];
+  // Session-level history: every route of this contact, newest first.
+  const recent = await recentTurns(args.contactId, 3, args.phone).catch(() => []);
   const result = evaluateOutbound({
     candidateText: args.candidateText,
     askedField: args.askedField ?? null,

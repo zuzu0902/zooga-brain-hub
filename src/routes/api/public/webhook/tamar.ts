@@ -567,11 +567,26 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             continue;
           }
           if (turn.status !== 200 || !replyText) {
+            // Decision layer failed while vault + DB are healthy: never leave
+            // the customer in silence. Exactly one recovery fallback is sent
+            // (idempotent through the guard); the job stays retryable so the
+            // real answer can still be repaired internally.
+            const failure = turn.payload?.error ?? "no_reply";
+            const { maybeSendRecoveryFallback } = await import("@/lib/conversation-guard/fallback.server");
+            const fb = await maybeSendRecoveryFallback({
+              contactId: turn.payload?.contact_id ?? null,
+              phone: msg.from,
+              inboundMessageId: msg.wamid,
+              inboundText,
+              error: failure,
+            }).catch(() => null);
             results.push({
               wamid: msg.wamid,
               contact_id: turn.payload?.contact_id ?? null,
               reply_sent: false,
-              error: turn.payload?.error ?? "no_reply",
+              error: failure,
+              recovery_fallback: fb?.sent ?? false,
+              recovery_reason: fb?.reason ?? null,
               trace_id: turn.payload?.trace_id ?? null,
             });
             continue;
@@ -636,10 +651,20 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           } catch (err: any) {
             // A classified processing failure. Nothing is swallowed: the job
             // below is closed as retryable, never as `succeeded`.
+            const { maybeSendRecoveryFallback } = await import("@/lib/conversation-guard/fallback.server");
+            const fb = await maybeSendRecoveryFallback({
+              contactId: await findContactIdByPhone(msg.from).catch(() => null),
+              phone: msg.from,
+              inboundMessageId: msg.wamid,
+              inboundText,
+              error: err,
+            }).catch(() => null);
             results.push({
               wamid: msg.wamid,
               reply_sent: false,
               error: String(err?.code ?? err?.message ?? err).slice(0, 200),
+              recovery_fallback: fb?.sent ?? false,
+              recovery_reason: fb?.reason ?? null,
               correlation_id: err?.correlation_id ?? null,
             });
           }

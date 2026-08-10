@@ -16,6 +16,8 @@ export type TurnRecord = {
   progress_made: boolean;
   repeat_count?: number;
   created_at?: string;
+  /** Route that produced the turn. Loop detection is route-AGNOSTIC. */
+  route?: string | null;
 };
 
 const NIQQUD = /[\u0591-\u05C7]/g;
@@ -113,6 +115,10 @@ export type GuardResult = {
   question_signature: string;
   loop_signal: boolean;
   text: string;
+  /** Distinct routes among the repeats that produced this verdict. */
+  routes_involved?: string[];
+  /** True when the repeats came from more than one reply route. */
+  cross_route?: boolean;
 };
 
 export const OPEN_QUESTION = "מה הכי חשוב לך שנדבר עליו עכשיו?";
@@ -147,19 +153,28 @@ export function evaluateOutbound(args: {
   purpose?: string | null;
 }): GuardResult {
   const sig = questionSignature(args.candidateText);
+  // Session/contact level: the last 3 Tamar turns of this contact from ALL
+  // routes together. A loop that alternates baseline_intake -> tamar_engine
+  // -> relationship_intake is therefore still detected.
   const recent = (args.recentTurns ?? []).slice(0, 3);
   const loop = detectLoopSignal(args.inboundText);
 
-  const repeat = recent.filter(
+  const repeats = recent.filter(
     (t) =>
       (args.askedField && t.asked_field && t.asked_field === args.askedField) ||
       semanticallyEquivalent(t.question_signature ?? null, sig),
-  ).length;
+  );
+  const repeat = repeats.length;
+  const routesInvolved = Array.from(
+    new Set(repeats.map((t) => String(t.route ?? "unknown"))),
+  );
 
   const base = {
     repeat_count: repeat,
     question_signature: sig,
     loop_signal: loop,
+    routes_involved: routesInvolved,
+    cross_route: routesInvolved.length > 1,
   };
 
   if (loop) {
