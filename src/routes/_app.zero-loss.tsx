@@ -182,6 +182,36 @@ function ZeroLossPage() {
         <CardHeader>
           <CardTitle className="text-base">חריגים בהסגר</CardTitle>
         </CardHeader>
+        <CardContent />
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">בטיחות לולאות שיחה (24 שעות)</CardTitle>
+          <div className="text-xs text-muted-foreground">
+            שאלות חוזרות שנחסמו לפני שליחה, ושיחות שהועברו למצב התאוששות
+          </div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+          <Metric label="תורים שנבדקו" value={loopSafety.data?.turns ?? null} />
+          <Metric
+            label="לולאות שנמנעו"
+            value={loopSafety.data?.loop_prevented ?? null}
+            tone={loopSafety.data?.loop_prevented ? "warn" : undefined}
+          />
+          <Metric
+            label="שיחות בהתאוששות"
+            value={loopSafety.data?.conversations_in_recovery ?? null}
+            tone={(loopSafety.data?.conversations_in_recovery ?? 0) > 2 ? "bad" : undefined}
+          />
+          <Metric label='תלונות "כבר עניתי"' value={loopSafety.data?.loop_signals ?? null} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">חריגים בהסגר</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-2">
           {(exceptions.data ?? []).length === 0 && <div className="text-sm text-muted-foreground">אין חריגים פתוחים.</div>}
           {(exceptions.data ?? []).map((e: any) => (
