@@ -47,7 +47,14 @@ function coerce(raw: string | null): Interpretation | null {
 
 export async function interpret(
   message: string,
-  ctx: { state: string; pendingQuestion?: string | null; known?: Record<string, string> },
+  ctx: {
+    state: string;
+    pendingQuestion?: string | null;
+    known?: Record<string, string>;
+    /** last turns, oldest first: "לקוח: ..." / "תמר: ..." */
+    history?: string[];
+    summary?: string | null;
+  },
 ): Promise<Interpretation> {
   const deterministic = interpretDeterministic(message);
   // Safety signals are decided pre-model and are never softened by it.
@@ -56,6 +63,9 @@ export async function interpret(
   const user = `state: ${ctx.state}
 pending question: ${ctx.pendingQuestion ?? "none"}
 already known: ${JSON.stringify(ctx.known ?? {})}
+conversation summary: ${ctx.summary ?? "none"}
+recent turns:
+${(ctx.history ?? []).slice(-12).join("\n") || "(none)"}
 inbound message: ${message}`;
 
   const res = await callStage("intent_interpreter", [

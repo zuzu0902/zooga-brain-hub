@@ -34,6 +34,9 @@ import {
   verifyMetaSignature,
 } from "@/lib/whatsapp-meta.server";
 import { CONSENT_QUESTION_BUTTONS, CONSENT_QUESTION_TEXT } from "@/lib/onboarding/types";
+import { guardOutbound } from "@/lib/conversation-guard/guard.server";
+import { detectLoopSignal } from "@/lib/conversation-guard/core";
+import { isUserQuestion } from "@/lib/tamar-brain/signals";
 
 async function applyStatusUpdates(payload: any) {
   const statuses = parseStatusUpdates(payload);
@@ -342,13 +345,16 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // ---- Deterministic baseline intake turn ------------------------
           // Owns the turn only while the approved intake is still running:
           // one unanswered question, then value + the relationship gate.
+          // It NEVER owns a turn where the customer asked a direct question or
+          // signalled a loop — answering the customer always comes first.
           {
             const intakeContactId = await findContactIdByPhone(msg.from);
-            if (intakeContactId) {
+            const intakeMayOwnTurn = !isUserQuestion(inboundText) && !detectLoopSignal(inboundText);
+            if (intakeContactId && intakeMayOwnTurn) {
               const { applyInboundOnboarding, planIntakeTurn } = await import(
                 "@/lib/onboarding/onboarding.server"
               );
-              await applyInboundOnboarding({
+              const applied = await applyInboundOnboarding({
                 contactId: intakeContactId,
                 message: inboundText,
                 messageId: msg.wamid,
@@ -356,16 +362,53 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               const plan = await planIntakeTurn(intakeContactId).catch(() => null);
               if (plan && plan.kind !== "none") {
                 if (plan.kind === "question") {
-                  const send = await sendWhatsAppText(msg.from, plan.text);
+                  // ---- Conversation Progress Guard -----------------------
+                  const guard = await guardOutbound({
+                    contactId: intakeContactId,
+                    phone: msg.from,
+                    route: "baseline_intake",
+                    inboundMessageId: msg.wamid,
+                    inboundText,
+                    candidateText: plan.text,
+                    askedField: plan.field_key,
+                    purpose: plan.purpose,
+                    progress: { saved_new_fact: !!applied?.applied?.length },
+                  });
+                  const send = await sendWhatsAppText(msg.from, guard.text);
                   await recordDelivery({
                     contactId: intakeContactId,
-                    text: plan.text,
+                    text: guard.text,
                     result: send,
                     inboundMessageId: msg.wamid,
-                    kind: `intake_question_${plan.field_key}`,
+                    kind: `intake_${guard.verdict}_${plan.field_key}`,
                   });
-                  await recordReply(msg.wamid, plan.text).catch(() => {});
-                  results.push({ wamid: msg.wamid, contact_id: intakeContactId, intake: plan.field_key, reply_sent: send.ok });
+                  // A guarded question is never asked a third time: after a
+                  // recovery the field is deferred for this conversation.
+                  if (guard.verdict === "recovery") {
+                    const { data: c } = await supabaseAdmin
+                      .from("contacts")
+                      .select("intake_deferred_fields")
+                      .eq("id", intakeContactId)
+                      .maybeSingle();
+                    const cur: string[] = Array.isArray((c as any)?.intake_deferred_fields)
+                      ? (c as any).intake_deferred_fields.map(String)
+                      : [];
+                    if (!cur.includes(plan.field_key)) {
+                      await supabaseAdmin
+                        .from("contacts")
+                        .update({ intake_deferred_fields: [...cur, plan.field_key] } as any)
+                        .eq("id", intakeContactId);
+                    }
+                  }
+                  await recordReply(msg.wamid, guard.text).catch(() => {});
+                  results.push({
+                    wamid: msg.wamid,
+                    contact_id: intakeContactId,
+                    intake: plan.field_key,
+                    guard: guard.verdict,
+                    guard_reason: guard.reason,
+                    reply_sent: send.ok,
+                  });
                   continue;
                 }
                 const valueSend = await sendWhatsAppText(msg.from, plan.value_text);
@@ -475,15 +518,32 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             continue;
           }
 
-          const send = await sendWhatsAppText(msg.from, replyText);
+          // ---- Conversation Progress Guard (engine path) ----------------
+          const engineGuard = await guardOutbound({
+            contactId: turn.payload?.contact_id ?? null,
+            phone: msg.from,
+            route: "tamar_engine",
+            inboundMessageId: msg.wamid,
+            inboundText,
+            candidateText: replyText,
+            intent: turn.payload?.meta?.intent ?? null,
+            stateBefore: turn.payload?.brain_state ?? null,
+            progress: {
+              answered_user_intent: !!turn.payload?.meta?.answered,
+              provided_requested_info: !!turn.payload?.meta?.offer_id,
+              performed_handoff: !!turn.payload?.handoff_requested,
+            },
+          });
+          const outboundText = engineGuard.text;
+          const send = await sendWhatsAppText(msg.from, outboundText);
           await recordDelivery({
             contactId: turn.payload?.contact_id ?? null,
             offerId: turn.payload?.meta?.offer_id ?? null,
-            text: replyText,
+            text: outboundText,
             result: send,
             inboundMessageId: msg.wamid,
           });
-          await recordReply(msg.wamid, replyText).catch(() => {});
+          await recordReply(msg.wamid, outboundText).catch(() => {});
 
           if (turn.payload?.trace_id) {
             await supabaseAdmin
@@ -508,6 +568,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             contact_id: turn.payload?.contact_id ?? null,
             trace_id: turn.payload?.trace_id ?? null,
             reply_sent: send.ok,
+            guard: engineGuard.verdict,
+            guard_reason: engineGuard.reason,
             provider_message_id: send.provider_message_id,
             send_error: send.error,
             handoff_requested: !!turn.payload?.handoff_requested,

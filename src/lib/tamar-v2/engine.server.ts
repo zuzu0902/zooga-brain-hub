@@ -201,6 +201,22 @@ export async function isConsentPhase(input: { phone?: string | null; contact_id?
 }
 
 /** Run one WhatsApp turn through the v2 engine. */
+/**
+ * Rolling context for the decision layer: the last N transcript lines.
+ * Without it the engine cannot see that it already asked something.
+ */
+async function loadRecentTranscript(contactId: string, limit = 12): Promise<string[]> {
+  const { data } = await supabaseAdmin
+    .from("interactions")
+    .select("source, content, timestamp")
+    .eq("contact_id", contactId)
+    .order("timestamp", { ascending: false })
+    .limit(limit);
+  return ((data as any[]) ?? [])
+    .reverse()
+    .map((r) => `${String(r.source ?? "").includes("outbound") ? "תמר" : "לקוח"}: ${String(r.content ?? "").slice(0, 300)}`);
+}
+
 export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const started = Date.now();
   const message = String(input.message ?? "").trim();
@@ -224,7 +240,13 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
 
   const interpretation: Interpretation = input.offline
     ? interpretDeterministic(message)
-    : await interpret(message, { state, pendingQuestion: pendingStepKey, known: knownFields });
+    : await interpret(message, {
+        state,
+        pendingQuestion: pendingStepKey,
+        known: knownFields,
+        history: contact?.id ? await loadRecentTranscript(contact.id, 12) : [],
+        summary: (contact?.dynamic_profile_fields as any)?.["v2_summary"] ?? null,
+      });
 
   // Grounded wording is produced ONLY for real customer questions.
   let answerText: string | null = null;
@@ -269,7 +291,38 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     } else {
       const windowOpen = !!input.inbound_message_id || (await isSessionWindowOpen(contact.id));
       const template = windowOpen ? null : await activeSessionTemplate();
-      for (const m of decision.messages) {
+      // ---- Conversation Progress Guard ------------------------------
+      // The engine may not repeat a question it already asked. A second
+      // attempt is rephrased once; a third becomes an open recovery turn.
+      const { guardOutbound } = await import("@/lib/conversation-guard/guard.server");
+      const first = decision.messages[0];
+      const guard = first
+        ? await guardOutbound({
+            contactId: contact.id,
+            phone: to,
+            route: "tamar_v2",
+            inboundMessageId: input.inbound_message_id ?? null,
+            inboundText: message,
+            candidateText: messageText(first),
+            askedField: decision.ask_step_key ?? pendingStepKey,
+            intent: interpretation.intent,
+            stateBefore: state,
+            stateAfter: decision.next_state,
+            progress: {
+              answered_user_intent: !!answerText,
+              advanced_state: decision.next_state !== state,
+              performed_handoff: decision.reason_codes?.includes("handoff") ?? false,
+            },
+          }).catch(() => null)
+        : null;
+      const outgoing =
+        guard && guard.verdict !== "send"
+          ? [{ kind: "text", body: guard.text } as any]
+          : decision.messages;
+      if (guard && guard.verdict !== "send") {
+        decision.reason_codes = [...(decision.reason_codes ?? []), `guard_${guard.verdict}`];
+      }
+      for (const m of outgoing) {
         const res = await sendMessage(to, m, { windowOpen, template });
         sends.push({ kind: m.kind, ok: res.ok, http: res.status, error: res.error });
         await recordDelivery({

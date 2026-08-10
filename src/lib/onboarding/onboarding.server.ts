@@ -478,7 +478,7 @@ export async function getOnboardingSnapshot(contactId: string) {
   const defs = await loadIntakeDefs(Number(row.intake_version ?? 1));
   const stored = await loadFacts(contactId);
   const facts = { ...factsFromContactRow(row), ...stored };
-  const skipped: string[] = Array.isArray(row.intake_missing_fields) ? [] : [];
+  const skipped: string[] = Array.isArray(row.intake_deferred_fields) ? row.intake_deferred_fields.map(String) : [];
   const snap = { facts, skipped };
   const comp = completeness(defs, snap);
   const next = nextIntakeStep(defs, snap);
@@ -510,7 +510,7 @@ export async function getOnboardingSnapshot(contactId: string) {
 
 export type IntakeTurnPlan =
   | { kind: "none"; reason: string }
-  | { kind: "question"; field_key: string; text: string }
+  | { kind: "question"; field_key: string; text: string; purpose: string | null }
   | {
       kind: "value_then_gate";
       value_text: string;
@@ -533,7 +533,8 @@ export async function planIntakeTurn(contactId: string): Promise<IntakeTurnPlan>
 
   const defs = await loadIntakeDefs(Number(row.intake_version ?? 1));
   const facts = { ...factsFromContactRow(row), ...(await loadFacts(contactId)) };
-  const snap = { facts, skipped: [] as string[] };
+  const deferred: string[] = Array.isArray(row.intake_deferred_fields) ? row.intake_deferred_fields.map(String) : [];
+  const snap = { facts, skipped: deferred };
 
   const next = nextIntakeStep(defs, snap);
   if (next) {
@@ -541,7 +542,7 @@ export async function planIntakeTurn(contactId: string): Promise<IntakeTurnPlan>
       .from("contacts")
       .update({ intake_last_step_id: next.field_key, baseline_intake_status: "in_progress" })
       .eq("id", contactId);
-    return { kind: "question", field_key: next.field_key, text: next.question_text };
+    return { kind: "question", field_key: next.field_key, text: next.question_text, purpose: next.purpose_text ?? null };
   }
 
   const status = (row.relationship_intake_status ?? "not_offered") as RelationshipIntakeStatus;
@@ -668,7 +669,7 @@ export async function applyInboundOnboarding(args: {
   const nowIso = now.toISOString();
   const { data: row } = await db()
     .from("contacts")
-    .select("id,total_messages,first_inbound_at,intake_last_step_id,baseline_intake_status")
+    .select("id,total_messages,first_inbound_at,intake_last_step_id,baseline_intake_status,intake_deferred_fields")
     .eq("id", args.contactId)
     .maybeSingle();
   if (!row) return { applied: [], rejected: [] };
@@ -685,7 +686,23 @@ export async function applyInboundOnboarding(args: {
     })
     .eq("id", args.contactId);
 
-  const extracted = extractFieldsFromFreeText(args.message, row.intake_last_step_id ?? null);
+  const askedField: string | null = row.intake_last_step_id ?? null;
+  const extracted = extractFieldsFromFreeText(args.message, askedField);
+
+  // "לא מכיר" / "דלג" is neither an answer nor a reason to ask again: the
+  // field is deferred for this conversation so intake can move forward.
+  const { isDontKnowAnswer, isSkipAnswer } = await import("./baseline-intake");
+  const deferred: string[] = Array.isArray(row.intake_deferred_fields) ? row.intake_deferred_fields.map(String) : [];
+  if (
+    askedField &&
+    !extracted[askedField] &&
+    (isDontKnowAnswer(args.message) || isSkipAnswer(args.message)) &&
+    !deferred.includes(askedField)
+  ) {
+    deferred.push(askedField);
+    await db().from("contacts").update({ intake_deferred_fields: deferred }).eq("id", args.contactId);
+  }
+
   const incoming: IncomingFact[] = Object.entries(extracted).map(([field_key, v]) => ({
     field_key,
     value: v.value,
@@ -696,13 +713,13 @@ export async function applyInboundOnboarding(args: {
     evidence: v.evidence,
     observed_at: nowIso,
   }));
-  if (!incoming.length) return { applied: [], rejected: [] };
+  if (!incoming.length) return { applied: [], rejected: [], deferred };
   const result = await recordFacts(args.contactId, incoming);
 
   // baseline completion is decided by data, never by the model
   const defs = await loadIntakeDefs();
   const facts = { ...factsFromContactRow(row), ...(await loadFacts(args.contactId)) };
-  const done = nextIntakeStep(defs, { facts, skipped: [] }) === null;
+  const done = nextIntakeStep(defs, { facts, skipped: deferred }) === null;
   await db()
     .from("contacts")
     .update({
@@ -711,5 +728,5 @@ export async function applyInboundOnboarding(args: {
       intake_started_at: row.baseline_intake_status === "not_started" ? nowIso : undefined,
     })
     .eq("id", args.contactId);
-  return result;
+  return { ...result, deferred };
 }

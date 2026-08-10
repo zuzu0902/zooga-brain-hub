@@ -676,6 +676,7 @@ export type Database = {
           intake_completed_at: string | null
           intake_completed_fields: string[] | null
           intake_completion_score: number | null
+          intake_deferred_fields: string[]
           intake_last_captured_at: string | null
           intake_last_captured_field: string | null
           intake_last_question_at: string | null
@@ -829,6 +830,7 @@ export type Database = {
           intake_completed_at?: string | null
           intake_completed_fields?: string[] | null
           intake_completion_score?: number | null
+          intake_deferred_fields?: string[]
           intake_last_captured_at?: string | null
           intake_last_captured_field?: string | null
           intake_last_question_at?: string | null
@@ -982,6 +984,7 @@ export type Database = {
           intake_completed_at?: string | null
           intake_completed_fields?: string[] | null
           intake_completion_score?: number | null
+          intake_deferred_fields?: string[]
           intake_last_captured_at?: string | null
           intake_last_captured_field?: string | null
           intake_last_question_at?: string | null
@@ -1063,6 +1066,81 @@ export type Database = {
           updated_at?: string
           vip_potential?: string | null
           whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
+      conversation_turns: {
+        Row: {
+          action: string | null
+          asked_field: string | null
+          contact_id: string | null
+          correlation_id: string | null
+          created_at: string
+          facts_after: Json
+          facts_before: Json
+          guard_reason: string | null
+          guard_verdict: string | null
+          id: string
+          inbound_message_id: string | null
+          loop_signal: boolean
+          normalized_intent: string | null
+          phone_masked: string | null
+          progress_made: boolean
+          question_signature: string | null
+          recovery_action: string | null
+          repeat_count: number
+          response_signature: string | null
+          route: string
+          state_after: string | null
+          state_before: string | null
+        }
+        Insert: {
+          action?: string | null
+          asked_field?: string | null
+          contact_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          facts_after?: Json
+          facts_before?: Json
+          guard_reason?: string | null
+          guard_verdict?: string | null
+          id?: string
+          inbound_message_id?: string | null
+          loop_signal?: boolean
+          normalized_intent?: string | null
+          phone_masked?: string | null
+          progress_made?: boolean
+          question_signature?: string | null
+          recovery_action?: string | null
+          repeat_count?: number
+          response_signature?: string | null
+          route?: string
+          state_after?: string | null
+          state_before?: string | null
+        }
+        Update: {
+          action?: string | null
+          asked_field?: string | null
+          contact_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          facts_after?: Json
+          facts_before?: Json
+          guard_reason?: string | null
+          guard_verdict?: string | null
+          id?: string
+          inbound_message_id?: string | null
+          loop_signal?: boolean
+          normalized_intent?: string | null
+          phone_masked?: string | null
+          progress_made?: boolean
+          question_signature?: string | null
+          recovery_action?: string | null
+          repeat_count?: number
+          response_signature?: string | null
+          route?: string
+          state_after?: string | null
+          state_before?: string | null
         }
         Relationships: []
       }

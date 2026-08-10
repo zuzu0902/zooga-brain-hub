@@ -8,6 +8,9 @@ import type {
   IntakeFieldDefinition,
   ProfileFact,
 } from "./types";
+import { isDontKnowAnswer } from "@/lib/conversation-guard/core";
+
+export { isDontKnowAnswer };
 
 /** Confidence at/above which a known value blocks re-asking. */
 export const KNOWN_CONFIDENCE_MIN = 70;
@@ -306,6 +309,8 @@ export function extractFieldsFromFreeText(
   const interests = INTEREST_WORDS.filter(([re]) => re.test(s)).map(([, label]) => label);
   if (interests.length)
     out["interests"] = { value: Array.from(new Set(interests)).join(", "), kind: "explicit", confidence: 90, evidence: ev };
+  else if (askedField === "interests" && s.length >= 2 && !isDontKnowAnswer(s) && !isSkipAnswer(s))
+    out["interests"] = { value: s.slice(0, 200), kind: "explicit", confidence: 80, evidence: ev };
 
   // --- B: looking for a relationship (normalized + raw kept) -------------
   if (askedField === "looking_for_relationship") {
