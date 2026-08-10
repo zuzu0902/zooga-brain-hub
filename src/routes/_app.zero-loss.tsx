@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getZeroLossOverview,
+  getLoopSafety,
   listReconciliationRuns,
   listZeroLossExceptions,
   relinkIdentity,
@@ -54,11 +55,13 @@ function ZeroLossPage() {
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
   const overviewFn = useServerFn(getZeroLossOverview);
+  const loopFn = useServerFn(getLoopSafety);
   const exceptionsFn = useServerFn(listZeroLossExceptions);
   const runsFn = useServerFn(listReconciliationRuns);
   const searchFn = useServerFn(searchIdentities);
 
   const overview = useQuery({ queryKey: ["zl", "overview"], queryFn: () => overviewFn({}) });
+  const loopSafety = useQuery({ queryKey: ["zl", "loop-safety"], queryFn: () => loopFn({}) });
   const exceptions = useQuery({ queryKey: ["zl", "exceptions"], queryFn: () => exceptionsFn({}) });
   const runs = useQuery({ queryKey: ["zl", "runs"], queryFn: () => runsFn({}) });
   const identities = useQuery({
