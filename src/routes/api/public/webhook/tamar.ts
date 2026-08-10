@@ -349,7 +349,23 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               }).catch(() => null);
               if (plan && plan.kind === "messages") {
                 let allOk = true;
-                for (const body of plan.texts) {
+                // Guard the question-bearing message of the turn (the last one);
+                // value/intro lines are informational and pass through.
+                const relGuard = await guardOutbound({
+                  contactId: relContactId,
+                  phone: msg.from,
+                  route: "relationship_intake",
+                  inboundMessageId: msg.wamid,
+                  inboundText,
+                  candidateText: plan.texts[plan.texts.length - 1] ?? "",
+                  askedField: plan.question_key ?? null,
+                  progress: { advanced_state: true, saved_new_fact: true },
+                });
+                const relTexts =
+                  relGuard.verdict === "send"
+                    ? plan.texts
+                    : [...plan.texts.slice(0, -1), relGuard.text];
+                for (const body of relTexts) {
                   const send = await sendWhatsAppText(msg.from, body);
                   allOk = allOk && send.ok;
                   await recordDelivery({
@@ -366,6 +382,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                   contact_id: relContactId,
                   relationship_intake: plan.question_key ?? "completed",
                   source: inboundSource,
+                  guard: relGuard.verdict,
                   reply_sent: allOk,
                 });
                 continue;
@@ -442,6 +459,16 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                   });
                   continue;
                 }
+                const gateGuard = await guardOutbound({
+                  contactId: intakeContactId,
+                  phone: msg.from,
+                  route: "intake_value_gate",
+                  inboundMessageId: msg.wamid,
+                  inboundText,
+                  candidateText: plan.gate_text,
+                  askedField: "relationship_gate",
+                  progress: { advanced_state: true, provided_requested_info: true },
+                });
                 const valueSend = await sendWhatsAppText(msg.from, plan.value_text);
                 await recordDelivery({
                   contactId: intakeContactId,
@@ -464,6 +491,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                   wamid: msg.wamid,
                   contact_id: intakeContactId,
                   intake: "value_then_relationship_gate",
+                  guard: gateGuard.verdict,
                   reply_sent: valueSend.ok && gateSend.ok,
                 });
                 continue;
