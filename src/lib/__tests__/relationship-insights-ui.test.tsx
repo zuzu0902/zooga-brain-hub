@@ -38,7 +38,18 @@ const CURRENT = {
   error: null,
 };
 
-vi.mock("@tanstack/react-start", () => ({ useServerFn: () => async () => ({}) }));
+vi.mock("@tanstack/react-start", () => ({
+  useServerFn: () => async () => ({}),
+  createMiddleware: () => ({ server: () => ({}), client: () => ({}) }),
+  createServerFn: () => {
+    const chain: any = {
+      middleware: () => chain,
+      inputValidator: () => chain,
+      handler: () => async () => ({}),
+    };
+    return chain;
+  },
+}));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: () => {} }),
   useMutation: () => ({ mutate: () => {}, isPending: false }),

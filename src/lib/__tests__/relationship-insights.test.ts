@@ -187,7 +187,18 @@ function fakeDb() {
     eq(k: string, v: unknown) { chain._filters[k] = v; return chain; },
     order() { return chain; },
     limit() { return Promise.resolve({ data: chain._result() }); },
-    update() { return { eq: () => ({ eq: () => Promise.resolve({}) }) }; },
+    update(patch: any) {
+      return {
+        eq: (k1: string, v1: unknown) => ({
+          eq: (k2: string, v2: unknown) => {
+            for (const r of state.rows) {
+              if ((r as any)[k1] === v1 && (r as any)[k2] === v2) Object.assign(r, patch);
+            }
+            return Promise.resolve({});
+          },
+        }),
+      };
+    },
     maybeSingle() { return Promise.resolve({ data: chain._result()[0] ?? null }); },
     upsert(row: any) {
       const idx = state.rows.findIndex((r: any) => r.contact_id === row.contact_id && r.source_hash === row.source_hash);
