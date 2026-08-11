@@ -10,6 +10,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runWorker } from "@/lib/zero-loss/worker.server";
+import { runInsightsWorker } from "@/lib/relationship-insights/queue.server";
 
 async function authorized(request: Request): Promise<boolean> {
   const provided = request.headers.get("x-api-token");
@@ -30,7 +31,18 @@ export const Route = createFileRoute("/api/public/cron/zero-loss-worker")({
         }
         try {
           const res = await runWorker({ worker: `edge-${Math.random().toString(36).slice(2, 8)}`, limit: 25 });
-          return Response.json({ ok: true, ...res });
+          // Shared drain: admin-only relationship insight jobs run on the same
+          // reliable schedule. A failure here never fails the zero-loss drain.
+          let insights: unknown = null;
+          try {
+            insights = await runInsightsWorker({
+              worker: `edge-insights-${Math.random().toString(36).slice(2, 8)}`,
+              limit: 3,
+            });
+          } catch (err: any) {
+            insights = { error: String(err?.message ?? err) };
+          }
+          return Response.json({ ok: true, ...res, insights });
         } catch (err: any) {
           return new Response(JSON.stringify({ ok: false, error: String(err?.message ?? err) }), {
             status: 503,

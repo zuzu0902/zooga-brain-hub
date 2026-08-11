@@ -2563,6 +2563,68 @@ export type Database = {
           },
         ]
       }
+      relationship_insight_jobs: {
+        Row: {
+          attempts: number
+          contact_id: string
+          created_at: string
+          dead_letter_at: string | null
+          force: boolean
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          leased_by: string | null
+          max_attempts: number
+          next_attempt_at: string
+          requested_by: string | null
+          source_hash: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          contact_id: string
+          created_at?: string
+          dead_letter_at?: string | null
+          force?: boolean
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          leased_by?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          requested_by?: string | null
+          source_hash: string
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          contact_id?: string
+          created_at?: string
+          dead_letter_at?: string | null
+          force?: boolean
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          leased_by?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          requested_by?: string | null
+          source_hash?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_insight_jobs_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       relationship_intake_answers: {
         Row: {
           answered_at: string
@@ -4145,6 +4207,61 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      ri_claim_insight_jobs: {
+        Args: { p_lease_seconds?: number; p_limit?: number; p_worker: string }
+        Returns: {
+          attempts: number
+          contact_id: string
+          force: boolean
+          job_id: string
+          max_attempts: number
+          source_hash: string
+        }[]
+      }
+      ri_enqueue_insight_job: {
+        Args: {
+          p_contact_id: string
+          p_force?: boolean
+          p_requested_by?: string
+          p_source_hash: string
+        }
+        Returns: {
+          duplicate: boolean
+          job_id: string
+          state: string
+        }[]
+      }
+      ri_finish_insight_job: {
+        Args: {
+          p_backoff_seconds?: number
+          p_error?: string
+          p_job_id: string
+          p_success: boolean
+        }
+        Returns: undefined
+      }
+      ri_persist_insights: {
+        Args: {
+          p_answered_keys: Json
+          p_confidence: number
+          p_contact_id: string
+          p_contradictions: Json
+          p_error: string
+          p_matching_tags: Json
+          p_missing_info: Json
+          p_model_id: string
+          p_prompt_version: string
+          p_section_confidence: Json
+          p_sections: Json
+          p_source_hash: string
+          p_status: string
+          p_summary_he: string
+        }
+        Returns: {
+          status: string
+          version: number
+        }[]
+      }
       zl_claim_jobs: {
         Args: { p_lease_seconds: number; p_limit: number; p_worker: string }
         Returns: {

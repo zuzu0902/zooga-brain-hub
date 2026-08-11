@@ -30,9 +30,30 @@ export const refreshRelationshipInsights = createServerFn({ method: "POST" })
   .inputValidator(contactInput)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-    const { generateRelationshipInsights, getCurrentInsights } = await import(
-      "@/lib/relationship-insights/insights.server"
+    const { getCurrentInsights } = await import("@/lib/relationship-insights/insights.server");
+    const { enqueueRelationshipInsights, runInsightsWorker } = await import(
+      "@/lib/relationship-insights/queue.server"
     );
-    const result = await generateRelationshipInsights(data.contactId, { force: true });
-    return { result, ...(await getCurrentInsights(data.contactId)) };
+    // Durable first: the forced job is committed before anything else, so the
+    // refresh survives a terminated request. Then drain inline (awaited) so the
+    // admin normally sees the result in the same response.
+    const enqueued = await enqueueRelationshipInsights(data.contactId, {
+      force: true,
+      requestedBy: context.userId,
+    });
+    let drain: { claimed: number; succeeded: number; failed: number; dead_letter: number } | null = null;
+    if (enqueued.enqueued) {
+      try {
+        const report = await runInsightsWorker({ worker: `admin-refresh`, limit: 1, leaseSeconds: 180 });
+        drain = {
+          claimed: report.claimed,
+          succeeded: report.succeeded,
+          failed: report.failed,
+          dead_letter: report.dead_letter,
+        };
+      } catch {
+        /* the queued job stays due and the shared drain retries it */
+      }
+    }
+    return { result: { enqueued, drain }, ...(await getCurrentInsights(data.contactId)) };
   });

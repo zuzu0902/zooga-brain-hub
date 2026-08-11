@@ -200,6 +200,40 @@ function fakeDb() {
       };
     },
     maybeSingle() { return Promise.resolve({ data: chain._result()[0] ?? null }); },
+    // mirrors public.ri_persist_insights: atomic version allocation +
+    // current-flag switching under a per-contact lock
+    rpc(fn: string, params: any) {
+      if (fn !== "ri_persist_insights") return Promise.resolve({ data: [], error: null });
+      const contactId = params.p_contact_id;
+      const version =
+        Math.max(0, ...state.rows.filter((r: any) => r.contact_id === contactId).map((r: any) => r.version)) + 1;
+      for (const r of state.rows) if (r.contact_id === contactId) r.is_current = false;
+      const row = {
+        contact_id: contactId,
+        source_hash: params.p_source_hash,
+        version,
+        is_current: true,
+        status: params.p_status,
+        summary_he: params.p_summary_he,
+        sections: params.p_sections,
+        matching_tags: params.p_matching_tags,
+        missing_info: params.p_missing_info,
+        contradictions: params.p_contradictions,
+        confidence: params.p_confidence,
+        section_confidence: params.p_section_confidence,
+        answered_keys: params.p_answered_keys,
+        model_id: params.p_model_id,
+        prompt_version: params.p_prompt_version,
+        error: params.p_error,
+        generated_at: new Date().toISOString(),
+      };
+      const idx = state.rows.findIndex(
+        (r: any) => r.contact_id === contactId && r.source_hash === params.p_source_hash,
+      );
+      if (idx >= 0) state.rows[idx] = { ...state.rows[idx], ...row, version: state.rows[idx].version };
+      else state.rows.push(row);
+      return Promise.resolve({ data: [{ version: idx >= 0 ? state.rows[idx].version : version }], error: null });
+    },
     upsert(row: any) {
       const idx = state.rows.findIndex((r: any) => r.contact_id === row.contact_id && r.source_hash === row.source_hash);
       if (idx >= 0) state.rows[idx] = { ...state.rows[idx], ...row };

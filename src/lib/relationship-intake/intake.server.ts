@@ -375,11 +375,12 @@ export async function planRelationshipTurn(
     completion_sent_at: now,
     pending_confirmation: null,
   });
-  // Internal admin-only AI profile. Async, idempotent and non-blocking: a
-  // failure here can never fail the questionnaire completion.
+  // Internal admin-only AI profile. Durable: the job row is committed before
+  // this request returns, so a terminated runtime still produces insights on
+  // the next drain. Never blocks or fails the questionnaire completion.
   try {
     const { triggerRelationshipInsights } = await import("@/lib/relationship-insights/insights.server");
-    triggerRelationshipInsights(contactId);
+    await triggerRelationshipInsights(contactId);
   } catch {
     /* ignore */
   }

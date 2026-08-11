@@ -31,6 +31,20 @@ const CERTAINTY_LABEL: Record<string, string> = {
   unknown: "לא ידוע",
 };
 
+const JOB_LABEL: Record<string, string> = {
+  pending: "בתור",
+  leased: "רץ כעת",
+  failed: "ניסיון נוסף מתוזמן",
+  dead_letter: "נכשל",
+  succeeded: "הושלם",
+};
+
+function jobBadgeVariant(state: string): "default" | "secondary" | "destructive" | "outline" {
+  if (state === "dead_letter") return "destructive";
+  if (state === "pending" || state === "leased" || state === "failed") return "secondary";
+  return "outline";
+}
+
 export function RelationshipAiInsightsCard({ contactId }: { contactId: string }) {
   const load = useServerFn(getRelationshipInsights);
   const refresh = useServerFn(refreshRelationshipInsights);
@@ -64,6 +78,8 @@ export function RelationshipAiInsightsCard({ contactId }: { contactId: string })
 
   if (denied || !data) return null;
   const current = (data as any).current;
+  const job = (data as any).job;
+  const jobActive = !!job && ["pending", "leased", "failed"].includes(job.state);
 
   return (
     <Card dir="rtl" className="p-6 space-y-4 shadow-[var(--shadow-card)]">
@@ -71,6 +87,15 @@ export function RelationshipAiInsightsCard({ contactId }: { contactId: string })
         <Brain className="h-4 w-4 text-primary" />
         <h3 className="font-semibold">תובנות AI לזוגיות</h3>
         <Badge variant="outline">פנימי — לצוות בלבד</Badge>
+        {jobActive && (
+          <Badge variant={jobBadgeVariant(job.state)}>
+            {JOB_LABEL[job.state] ?? job.state}
+            {job.attempts > 1 ? ` (ניסיון ${job.attempts}/${job.max_attempts})` : ""}
+          </Badge>
+        )}
+        {!jobActive && job?.state === "dead_letter" && (
+          <Badge variant="destructive">{JOB_LABEL["dead_letter"]}</Badge>
+        )}
         {current && (
           <>
             <Badge variant={current.status === "ok" ? "default" : "secondary"}>
@@ -96,13 +121,21 @@ export function RelationshipAiInsightsCard({ contactId }: { contactId: string })
         </Button>
       </div>
 
+      {job?.last_error && jobActive && (
+        <p className="text-xs text-muted-foreground">שגיאה אחרונה בתור: {job.last_error}</p>
+      )}
+
       <p className="text-xs text-muted-foreground">
         פרופיל התנהגותי/זוגי לא־קליני, מבוסס שאלון בלבד. אינו אבחון ואינו מוצג ללקוח. תגיות התאמה הן עזר בלבד.
       </p>
 
       {!current && (
         <p className="text-sm text-muted-foreground">
-          {(data as any).has_answers ? "טרם הופקו תובנות. אפשר לרענן ידנית." : "אין עדיין תשובות בשאלון הזוגיות."}
+          {!(data as any).has_answers
+            ? "אין עדיין תשובות בשאלון הזוגיות."
+            : jobActive
+              ? "התובנות בהפקה — העבודה בתור ותתבצע גם אם החלון נסגר."
+              : "טרם הופקו תובנות. אפשר לרענן ידנית."}
         </p>
       )}
 
