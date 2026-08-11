@@ -364,6 +364,64 @@ export function acceptedHandoffOffer(message: string): boolean {
   return YES_RE.test(String(message ?? "").trim());
 }
 
+/** Durable memory of "I offered a human for THIS unanswered product question". */
+export type PendingProductHandoff = {
+  offer_id: string | null;
+  offer_title: string | null;
+  question: string;
+  at: string;
+};
+
+/** A pending offer expires so an old "כן" in another context cannot trigger it. */
+export const PENDING_HANDOFF_TTL_MS = 24 * 60 * 60 * 1000;
+
+export function isPendingHandoffFresh(
+  pending: PendingProductHandoff | null,
+  now: Date = new Date(),
+): boolean {
+  if (!pending?.at) return false;
+  const t = Date.parse(pending.at);
+  return Number.isFinite(t) && now.getTime() - t <= PENDING_HANDOFF_TTL_MS;
+}
+
+/* ------------------------------------------------------------------ */
+/* Product-question gating                                             */
+/* ------------------------------------------------------------------ */
+
+/** Explicit product/trip vocabulary. Without one of these (or a strong
+ *  current-message offer match) a question is NOT a product question. */
+const PRODUCT_SIGNAL_RE =
+  /(טיול|טיולים|נסיע|יעד|חופש|טיסה|טיסות|מלון|לינה|חדר|מסלול|מחיר|עולה|עלות|כמה\s+זה|תשלום|מקדמה|תארי[ךכ]ים|מתי\s+יוצא|יציאה|הרשמה|להירשם|מקומות|כלול|לא\s+כלול|ארוחות|קבוצה|מדריך|הצעה|אירוע|סדנה|trip|tour|price|itinerary)/i;
+
+/** Pronoun follow-up that only makes sense against a product-grounded turn. */
+const FOLLOWUP_PRONOUN_RE =
+  /^(ו?מה\s+עם\s+זה|וזה|זה|הוא|היא|שם|כמה\s+זה|ומה\s+לגבי|ומה\s+איתו|ומה\s+איתה|ועוד)\b/i;
+
+/**
+ * Is this turn really about a product? A generic question ("מי את?", "אפשר
+ * לדבר בטלפון?") must never hijack the last offer from context.
+ */
+export function isProductQuestion(args: {
+  message: string;
+  /** resolution computed from the CURRENT message only (no context carry) */
+  directResolution: OfferResolution;
+  /** the last offer that was actually grounded in a previous turn */
+  lastGroundedOfferId?: string | null;
+  isQuestion: boolean;
+}): { product: boolean; useContext: boolean; reason: string } {
+  const msg = String(args.message ?? "");
+  const strong =
+    !!args.directResolution.offer &&
+    (args.directResolution.reason === "exact" || args.directResolution.reason === "alias");
+  if (strong) return { product: true, useContext: false, reason: "direct_offer_match" };
+  if (args.directResolution.ambiguous) return { product: true, useContext: false, reason: "ambiguous_offer" };
+  if (PRODUCT_SIGNAL_RE.test(msg)) return { product: true, useContext: true, reason: "product_signal" };
+  if (args.isQuestion && args.lastGroundedOfferId && FOLLOWUP_PRONOUN_RE.test(msg.trim())) {
+    return { product: true, useContext: true, reason: "pronoun_followup" };
+  }
+  return { product: false, useContext: false, reason: "not_product" };
+}
+
 /* ------------------------------------------------------------------ */
 /* Customer-safe self summary                                          */
 /* ------------------------------------------------------------------ */
