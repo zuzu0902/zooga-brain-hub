@@ -282,39 +282,83 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   // Resolve WHICH offer the customer is talking about, then answer only from
   // that offer's structured knowledge + approved community knowledge.
   const candidates: OfferKnowledge[] = await loadOfferKnowledgeCandidates().catch(() => []);
-  const resolution = resolveOffer(message, candidates, {
-    recentMessages: history,
-    lastOfferId: lastOfferIdFrom(contact),
-  });
-  const resolved = resolution.offer;
-  const availability = resolved ? offerAvailability(resolved) : { sellable: false, past: false };
-
-  const productAsked =
+  // Resolution from the CURRENT message only — context is allowed to carry the
+  // offer forward only when this turn really is about a product.
+  const directResolution = resolveOffer(message, candidates);
+  const asksSomething =
     isUserQuestion(message) ||
     interpretation.intent === "question" ||
     interpretation.intent === "price_question";
+  const productGate = isProductQuestion({
+    message,
+    directResolution,
+    lastGroundedOfferId: lastGroundedOfferIdFrom(contact),
+    isQuestion: asksSomething,
+  });
+  const productAsked = productGate.product;
+  const resolution = productGate.useContext
+    ? resolveOffer(message, candidates, {
+        recentMessages: history,
+        lastOfferId: lastGroundedOfferIdFrom(contact) ?? lastOfferIdFrom(contact),
+      })
+    : directResolution;
+  const resolved = productAsked ? resolution.offer : null;
+  const availability = resolved ? offerAvailability(resolved) : { sellable: false, past: false };
 
   let answerText: string | null = null;
   let groundingPath = "none";
   let knowledgeIds: string[] = [];
   let linkSent = false;
+  let pendingHandoff: PendingProductHandoff | null = null;
+  let clearPendingHandoff = false;
+
+  // ---- Pending product handoff: the customer said yes to a human ---------
+  const pending = pendingProductHandoffFrom(contact);
+  const acceptsPending =
+    !!contact &&
+    !input.simulate &&
+    isPendingHandoffFresh(pending) &&
+    (acceptedHandoffOffer(message) || wantsHuman(message));
+  if (acceptsPending && pending) {
+    const res = await ensureHandoff({
+      contactId: contact.id,
+      customerPhone: contact.whatsapp_number ?? contact.phone ?? null,
+      customerName: contact.first_name ?? null,
+      reason: "product_question_unknown",
+      reasonCodes: ["product_question_unknown", "customer_accepted_handoff"],
+      urgency: "normal",
+      latestInbound: message,
+      suggestedResponse: `שאלה פתוחה: ${pending.question}`,
+      excerpt: history.slice(-12).map((line) => ({
+        ts: new Date().toISOString(),
+        source: line.startsWith("תמר") ? "tamar" : "customer",
+        content: line,
+      })),
+      offerId: pending.offer_id,
+      runtime: "v2",
+    }).catch(() => null);
+    if (res?.handoff_id) {
+      answerText = res.receipt_text;
+      groundingPath = "product_handoff_confirmed";
+      clearPendingHandoff = true; // cleared ONLY after durable creation
+    } else {
+      // Never claim a handoff that was not created — keep the pending offer.
+      answerText = "רגע אחד, לא הצלחתי להעביר את זה עכשיו. אני מנסה שוב ואחזור אלייך כאן.";
+      groundingPath = "product_handoff_failed";
+    }
+  }
 
   const solo = soloPolicyReply(message);
-  if (isSelfSummaryRequest(message)) {
+  if (answerText) {
+    /* pending-handoff turn already answered */
+  } else if (isSelfSummaryRequest(message)) {
     // Customer-safe: ONLY explicit facts the customer supplied.
-    let relationshipAnswers: Array<{ question_key: string; raw_text: string | null }> = [];
-    if (contact?.id) {
-      const { data } = await supabaseAdmin
-        .from("relationship_intake_answers")
-        .select("question_key, raw_text")
-        .eq("contact_id", contact.id)
-        .limit(12);
-      relationshipAnswers = ((data as any[]) ?? []).map((r) => ({
-        question_key: r.question_key,
-        raw_text: r.raw_text ?? null,
-      }));
-    }
-    answerText = buildCustomerSelfSummary({ contact, relationshipAnswers });
+    const provenance = contact?.id ? await loadCustomerSuppliedProfile(contact.id) : { facts: [], answers: [] };
+    answerText = buildCustomerSelfSummary({
+      firstName: contact?.first_name ?? null,
+      explicitFacts: provenance.facts,
+      relationshipAnswers: provenance.answers,
+    });
     groundingPath = "self_summary_explicit_facts";
   } else if (solo) {
     answerText = solo.text;
@@ -337,6 +381,24 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       infoOnly: !!resolved && !availability.sellable,
     }).catch(() => null);
     groundingPath = resolved ? "offer_knowledge" : "community_knowledge";
+  }
+
+  // ---- Offer a human ONLY for an unknown product/service question -------
+  if (
+    !clearPendingHandoff &&
+    (groundingPath === "honest_unknown" || groundingPath === "solo_policy_unknown") &&
+    mayOfferHandoff({
+      inQuestionnaire: !!pendingStepKey,
+      unknownProductQuestion: true,
+      explicitRequest: wantsHuman(message),
+    })
+  ) {
+    pendingHandoff = {
+      offer_id: resolved?.id ?? pending?.offer_id ?? null,
+      offer_title: resolved?.title ?? pending?.offer_title ?? null,
+      question: message.slice(0, 500),
+      at: new Date().toISOString(),
+    };
   }
 
   // A past / non-sellable offer may be discussed, never marketed.
