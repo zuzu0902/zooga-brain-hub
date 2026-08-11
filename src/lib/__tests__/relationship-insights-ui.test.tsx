@@ -67,7 +67,9 @@ describe("relationship insights — RTL card rendering", () => {
     expect(html).toContain("רענן תובנות AI");
     expect(html).toContain("72%");
     expect(html).toContain("תקציר פנימי לצוות");
-    expect(html).toContain("dealbreakers");
+    expect(html).toContain("צרכים וגבולות"); // collapsible section header
+    expect(html).toContain("90%"); // per-section confidence
+    expect(html).toContain("occupation"); // missing info
     expect(html).toContain("אינו אבחון");
   });
 });
