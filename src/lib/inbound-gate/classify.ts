@@ -221,7 +221,7 @@ export function classifyInbound(input: ClassifyInput): InboundClassification {
   const validation = validateFieldAnswer(input.currentQuestionKey ?? null, text);
   const controlKinds = kinds.filter((k) => k !== "topic_shift");
   if (validation.valid && !controlKinds.length) kinds.push("answer_current_question");
-  if (!kinds.length && SMALLTALK_RE.test(norm)) kinds.push("smalltalk");
+  if (!kinds.length && (SMALLTALK_RE.test(norm) || GREETING_ONLY_RE.test(text))) kinds.push("smalltalk");
   if (!kinds.length) kinds.push(input.currentQuestionKey ? "confusion" : "smalltalk");
 
   // A button reply to the current question is a first-class answer.
