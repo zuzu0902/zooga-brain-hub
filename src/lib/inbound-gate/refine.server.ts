@@ -27,11 +27,13 @@ import {
 export const AMBIGUITY_THRESHOLD = 0.6;
 
 const HARD_KINDS: InboundKind[] = ["opt_out", "handoff", "consent", "refusal_or_skip"];
+/** Deterministically certain kinds — the model must not second-guess them. */
+const NEVER_REFINE: InboundKind[] = [...HARD_KINDS, "confusion"];
 
 /** No model call unless the verdict is genuinely ambiguous. */
 export function needsRefinement(c: InboundClassification): boolean {
   if (c.classifier_status !== "ok") return false;
-  if (c.kinds.some((k) => HARD_KINDS.includes(k))) return false;
+  if (c.kinds.some((k) => NEVER_REFINE.includes(k))) return false;
   if (c.answer_valid && c.confidence >= AMBIGUITY_THRESHOLD) return false;
   return c.confidence < AMBIGUITY_THRESHOLD;
 }
