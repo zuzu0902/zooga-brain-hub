@@ -363,12 +363,18 @@ async function persistTurn(args: {
 
   // inbound + outbound transcript
   try {
-    await supabaseAdmin.from("interactions").insert({
-      contact_id: contact.id,
-      type: "whatsapp_message",
-      source: "tamar_inbound",
-      content: message,
-    } as any);
+    // The Inbound Context Gate already logs the inbound line keyed by the
+    // provider message id; upserting on that key keeps exactly one row.
+    await supabaseAdmin.from("interactions").upsert(
+      {
+        contact_id: contact.id,
+        type: "whatsapp_message",
+        source: "tamar_inbound",
+        content: message,
+        provider_message_id: args.input.inbound_message_id ?? null,
+      } as any,
+      { onConflict: "provider_message_id", ignoreDuplicates: true } as any,
+    );
     for (const m of decision.messages) {
       await supabaseAdmin.from("interactions").insert({
         contact_id: contact.id,
