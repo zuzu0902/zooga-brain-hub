@@ -17,6 +17,7 @@ import {
   type InboundClassification,
   type SourceType,
 } from "./classify";
+import { needsRefinement, refineClassification } from "./refine.server";
 
 const db = () => supabaseAdmin as any;
 
@@ -162,6 +163,8 @@ export async function runInboundGate(args: {
   optionId?: string | null;
   /** transcript confidence for voice; a weak transcript never captures */
   transcriptConfidence?: number | null;
+  /** set false in tests/replay to keep the classifier deterministic */
+  allowRefinement?: boolean;
 }): Promise<GateResult> {
   const key = args.inboundMessageId ?? "";
   if (key && memo.has(key)) return { ...memo.get(key)!, replayed: true };
@@ -227,6 +230,20 @@ export async function runInboundGate(args: {
         should_advance: false,
         validator_reason: "low_confidence_transcript",
       };
+    }
+    // AMBIGUOUS ONLY: one structured LLM refinement on the context that is
+    // already loaded. Deterministic verdicts never reach the model.
+    if (args.allowRefinement !== false && needsRefinement(classification)) {
+      classification = await refineClassification(classification, {
+        text: args.text,
+        currentQuestionKey: context.current_question_key,
+        currentQuestionText: context.current_question_text,
+        transcript: context.transcript.map(
+          (t) => `${t.role === "in" ? "לקוח" : "תמר"}: ${t.text}`,
+        ),
+        summary: context.summary,
+        state: context.conversation_state,
+      });
     }
   } catch {
     classification = failedClassification(args.sourceType ?? "text");
@@ -298,28 +315,43 @@ export async function recordInboundMessage(args: {
 }) {
   if (!args.contactId) return;
   try {
-    await db().from("messages").insert({
-      contact_id: args.contactId,
-      channel: "WhatsApp",
-      message_text: args.text.slice(0, 4000),
-      reply_text: args.text.slice(0, 4000),
-      status: "replied",
-    });
-    await db().from("interactions").insert({
-      contact_id: args.contactId,
-      type: "whatsapp_message",
-      source: `inbound_${args.sourceType}`,
-      content: JSON.stringify({
-        text: args.text.slice(0, 500),
-        source_type: args.sourceType,
-        classification: args.classification.kind,
-        confidence: args.classification.confidence,
-        answer_valid: args.classification.answer_valid,
-        facts: args.classification.extracted_facts,
-        route: args.route ?? null,
-        inbound_message_id: args.inboundMessageId ?? null,
-      }).slice(0, 2000),
-    });
+    // One row per provider message id: the unique partial index on
+    // provider_message_id makes a webhook retry a no-op.
+    const pid = args.inboundMessageId ?? null;
+    await db()
+      .from("messages")
+      .upsert(
+        {
+          contact_id: args.contactId,
+          channel: "WhatsApp",
+          message_text: args.text.slice(0, 4000),
+          reply_text: args.text.slice(0, 4000),
+          status: "replied",
+          provider_message_id: pid,
+        },
+        { onConflict: "provider_message_id", ignoreDuplicates: true } as any,
+      );
+    await db()
+      .from("interactions")
+      .upsert(
+        {
+          contact_id: args.contactId,
+          type: "whatsapp_message",
+          source: `inbound_${args.sourceType}`,
+          provider_message_id: pid,
+          content: JSON.stringify({
+            text: args.text.slice(0, 500),
+            source_type: args.sourceType,
+            classification: args.classification.kind,
+            confidence: args.classification.confidence,
+            answer_valid: args.classification.answer_valid,
+            facts: args.classification.extracted_facts,
+            route: args.route ?? null,
+            inbound_message_id: pid,
+          }).slice(0, 2000),
+        },
+        { onConflict: "provider_message_id", ignoreDuplicates: true } as any,
+      );
   } catch {
     /* the ledger must never break the reply path */
   }
