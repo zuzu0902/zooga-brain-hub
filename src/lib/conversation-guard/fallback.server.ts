@@ -11,6 +11,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isSessionWindowOpen, recordDelivery, sendWhatsAppText, toE164 } from "@/lib/whatsapp-meta.server";
 import { recordReply } from "@/lib/runtime-inbound-dedupe";
 import { maskPhone } from "@/lib/zero-loss/core";
+import { quiet } from "@/lib/db-safe";
 import { guardOutbound, recentTurns } from "./guard.server";
 import { buildFallbackText, classifyFailureKind, decideRecoveryFallback, type FailureKind } from "./fallback";
 
@@ -30,6 +31,30 @@ async function contactPolicy(contactId: string | null) {
     optedOut: !!c.opted_out_at || c.consent_status === "denied" || c.conversation_state === "opted_out",
     humanOwned: !!c.human_owned || c.conversation_state === "human_owned",
   };
+}
+
+/** Fallback repetition window: the SAME text is never re-sent inside it. */
+const FALLBACK_REPEAT_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * Last-resort loop stop. Even without any turn history (the guard's write
+ * may itself be broken), the identical fallback text is never sent twice to
+ * the same contact inside the repeat window.
+ */
+async function fallbackAlreadySent(contactId: string | null, text: string): Promise<boolean> {
+  if (!contactId) return false;
+  const since = new Date(Date.now() - FALLBACK_REPEAT_WINDOW_MS).toISOString();
+  const res = await quiet(
+    db()
+      .from("messages")
+      .select("message_text,created_at")
+      .eq("contact_id", contactId)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(5),
+  );
+  const rows = ((res as any)?.data as any[]) ?? [];
+  return rows.some((r) => String(r?.message_text ?? "").trim() === text.trim());
 }
 
 export type FallbackOutcome = {
@@ -70,19 +95,20 @@ export async function maybeSendRecoveryFallback(args: {
   });
 
   if (!decision.send) {
-    await db()
-      .from("webhook_logs")
-      .insert({
-        source: "conversation_guard",
-        status: "recovery_fallback_skipped",
-        payload: {
-          phone_masked: maskPhone(args.phone),
-          inbound_message_id: args.inboundMessageId ?? null,
-          failure_kind: failureKind,
-          no_reply_reason: decision.reason,
-        },
-      })
-      .catch(() => null);
+    await quiet(
+      db()
+        .from("webhook_logs")
+        .insert({
+          source: "conversation_guard",
+          status: "recovery_fallback_skipped",
+          payload: {
+            phone_masked: maskPhone(args.phone),
+            inbound_message_id: args.inboundMessageId ?? null,
+            failure_kind: failureKind,
+            no_reply_reason: decision.reason,
+          },
+        }),
+    );
     return { sent: false, reason: decision.reason, failure_kind: failureKind };
   }
 
@@ -103,6 +129,24 @@ export async function maybeSendRecoveryFallback(args: {
   });
   if (guard.replayed) {
     return { sent: false, reason: "fallback_already_sent", failure_kind: failureKind };
+  }
+
+  if (await fallbackAlreadySent(args.contactId, guard.text)) {
+    await quiet(
+      db()
+        .from("webhook_logs")
+        .insert({
+          source: "conversation_guard",
+          status: "recovery_fallback_suppressed_repeat",
+          payload: {
+            contact_id: args.contactId,
+            phone_masked: maskPhone(args.phone),
+            inbound_message_id: args.inboundMessageId ?? null,
+            failure_kind: failureKind,
+          },
+        }),
+    );
+    return { sent: false, reason: "fallback_repeat_suppressed", failure_kind: failureKind };
   }
 
   const send = await sendWhatsAppText(to!, guard.text);

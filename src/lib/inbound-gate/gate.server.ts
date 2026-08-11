@@ -11,6 +11,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { maskPhone } from "@/lib/zero-loss/core";
+import { quiet } from "@/lib/db-safe";
 import {
   classifyInbound,
   failedClassification,
@@ -252,9 +253,11 @@ export async function runInboundGate(args: {
   const result: GateResult = { classification, context, replayed: false };
   if (key) memo.set(key, result);
 
-  await db()
-    .from("inbound_gate_decisions")
-    .upsert(
+  // Telemetry only: a failure here must NEVER fail the inbound turn.
+  await quiet(
+    db()
+      .from("inbound_gate_decisions")
+      .upsert(
       {
         inbound_message_id: key || null,
         contact_id: args.contactId,
@@ -271,12 +274,12 @@ export async function runInboundGate(args: {
         context_messages: context.transcript.length,
         current_question_key: context.current_question_key,
         classifier_status: classification.classifier_status,
-        routes: [],
-        transcript: String(args.text ?? "").slice(0, 1000),
-      },
-      { onConflict: "inbound_message_id" } as any,
-    )
-    .catch(() => null);
+          routes: [],
+          transcript: String(args.text ?? "").slice(0, 1000),
+        },
+        { onConflict: "inbound_message_id" } as any,
+      ),
+  );
 
   return result;
 }
@@ -384,7 +387,7 @@ export async function syncGateFacts(contactId: string | null, facts: Record<stri
     applied.push(column);
   }
   if (!applied.length) return { applied };
-  await db().from("contacts").update(patch).eq("id", contactId).catch(() => null);
+  await quiet(db().from("contacts").update(patch).eq("id", contactId));
   return { applied };
 }
 

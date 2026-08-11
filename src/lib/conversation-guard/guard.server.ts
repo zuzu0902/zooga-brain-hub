@@ -8,6 +8,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { maskPhone } from "@/lib/zero-loss/core";
+import { quiet } from "@/lib/db-safe";
 import {
   evaluateOutbound,
   questionSignature,
@@ -151,8 +152,9 @@ export async function guardOutbound(args: {
   }
 
   let logged = false;
+  let logError: string | null = null;
   try {
-    await db()
+    const { error } = (await db()
       .from("conversation_turns")
       .upsert(
         {
@@ -182,30 +184,53 @@ export async function guardOutbound(args: {
           extracted_facts: args.extractedFacts ?? {},
         },
         { onConflict: "inbound_message_id,route", ignoreDuplicates: true } as any,
-      );
+      )) ?? {};
+    if (error) throw error;
     logged = true;
-  } catch {
+  } catch (err: any) {
     logged = false;
+    logError = String(err?.message ?? err).slice(0, 300);
+  }
+
+  // A silent loop-history write failure is what turns a bad turn into an
+  // endless loop: the guard loses its memory. Make it visible.
+  if (!logged) {
+    await quiet(
+      db()
+        .from("webhook_logs")
+        .insert({
+          source: "conversation_guard",
+          status: "turn_log_failed",
+          error: logError,
+          payload: {
+            contact_id: args.contactId,
+            route: args.route,
+            inbound_message_id: args.inboundMessageId ?? null,
+            phone_masked: maskPhone(args.phone ?? null),
+          },
+        }),
+    );
   }
 
   if (result.verdict !== "send" && mode === "enforce") {
-    await db()
-      .from("webhook_logs")
-      .insert({
-        source: "conversation_guard",
-        status: `loop_prevented_${result.verdict}`,
-        payload: {
-          contact_id: args.contactId,
-          phone_masked: maskPhone(args.phone ?? null),
-          route: args.route,
-          reason: result.reason,
-          repeated_signature: result.question_signature,
-          repeat_count: result.repeat_count,
-          loop_signal: result.loop_signal,
-          state: args.stateBefore ?? null,
-        },
-      })
-      .catch(() => null);
+    await quiet(
+      db()
+        .from("webhook_logs")
+        .insert({
+          source: "conversation_guard",
+          status: `loop_prevented_${result.verdict}`,
+          payload: {
+            contact_id: args.contactId,
+            phone_masked: maskPhone(args.phone ?? null),
+            route: args.route,
+            reason: result.reason,
+            repeated_signature: result.question_signature,
+            repeat_count: result.repeat_count,
+            loop_signal: result.loop_signal,
+            state: args.stateBefore ?? null,
+          },
+        }),
+    );
   }
 
   return { ...result, logged };
