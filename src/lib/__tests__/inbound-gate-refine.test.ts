@@ -14,6 +14,11 @@ function base(text: string, fieldKey: string | null = "residence_city") {
   return classifyInbound({ text, sourceType: "text", currentQuestionKey: fieldKey });
 }
 
+
+function ambiguous(text: string, fieldKey: string | null = "residence_city") {
+  return { ...base(text, fieldKey), kind: "smalltalk" as const, kinds: ["smalltalk" as const], confidence: 0.3, answer_valid: false, should_advance: false, classifier_status: "ok" as const };
+}
+
 function reply(content: string | null, ok = true) {
   mockedCall.mockResolvedValueOnce({
     ok,
@@ -45,7 +50,7 @@ describe("inbound gate — LLM refinement", () => {
   });
 
   it("model cannot turn a non-answer into a captured answer", async () => {
-    const b = { ...base("?"), confidence: 0.3, classifier_status: "ok" as const };
+    const b = ambiguous("?");
     reply(JSON.stringify({ kind: "answer_current_question", is_answer_to_current_question: true, confidence: 0.99 }));
     const out = await refineClassification(b, { text: "?", currentQuestionKey: "residence_city" });
     expect(out.answer_valid).toBe(false);
@@ -53,7 +58,7 @@ describe("inbound gate — LLM refinement", () => {
   });
 
   it("model cannot invent a control intent", async () => {
-    const b = { ...base("אולי"), confidence: 0.3, classifier_status: "ok" as const };
+    const b = ambiguous("אולי");
     reply(JSON.stringify({ kind: "opt_out", confidence: 0.9 }));
     const out = await refineClassification(b, { text: "אולי" });
     expect(out.classifier_status).toBe("model_failed");
@@ -61,20 +66,20 @@ describe("inbound gate — LLM refinement", () => {
   });
 
   it("invalid JSON or timeout degrades to a no-capture verdict", async () => {
-    const b = { ...base("אולי"), confidence: 0.3, classifier_status: "ok" as const };
+    const b = ambiguous("אולי");
     reply("not json at all");
     const out = await refineClassification(b, { text: "אולי" });
     expect(out.classifier_status).toBe("model_failed");
     expect(out.answer_valid).toBe(false);
 
-    const b2 = { ...base("אולי"), confidence: 0.3, classifier_status: "ok" as const };
+    const b2 = ambiguous("אולי");
     reply(null, false);
     const out2 = await refineClassification(b2, { text: "אולי" });
     expect(out2.classifier_status).toBe("model_failed");
   });
 
   it("model may downgrade an ambiguous message to a question", async () => {
-    const b = { ...base("ומה עם החורף"), confidence: 0.4, classifier_status: "ok" as const };
+    const b = ambiguous("ומה עם החורף");
     reply(JSON.stringify({ kind: "question", confidence: 0.8 }));
     const out = await refineClassification(b, { text: "ומה עם החורף" });
     expect(out.kind).toBe("question");
@@ -83,7 +88,7 @@ describe("inbound gate — LLM refinement", () => {
   });
 
   it("a model-confirmed valid answer that passes the validator may advance", async () => {
-    const b = { ...base("תל אביב"), confidence: 0.4, classifier_status: "ok" as const, answer_valid: false, should_advance: false };
+    const b = ambiguous("תל אביב");
     reply(JSON.stringify({ kind: "answer_current_question", is_answer_to_current_question: true, confidence: 0.9 }));
     const out = await refineClassification(b, { text: "תל אביב", currentQuestionKey: "residence_city" });
     expect(out.answer_valid).toBe(true);
