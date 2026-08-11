@@ -458,6 +458,9 @@ async function persistTurn(args: {
   agent: AgentVersion;
   message: string;
   answeredCount: number;
+  offerId?: string | null;
+  linkSent?: boolean;
+  grounding?: { path: string; knowledge_ids: string[]; confidence: number };
 }) {
   const { contact, decision, interpretation, agent, message } = args;
   const now = new Date().toISOString();
@@ -491,6 +494,10 @@ async function persistTurn(args: {
   dyn["v2_pending_step"] = decision.ask_step_key;
   dyn["v2_ambiguity_turns"] = decision.ambiguity_turns;
   dyn["v2_answered_count"] = args.answeredCount + (Object.keys(decision.captured).length ? 1 : 0);
+  Object.assign(
+    dyn,
+    withOfferLedger(dyn, { offerId: args.offerId ?? null, linkSent: !!args.linkSent }),
+  );
 
   const patch: Record<string, unknown> = {
     conversation_state: decision.next_state,
@@ -548,7 +555,7 @@ async function persistTurn(args: {
       confidence: interpretation.confidence,
       reason_codes: decision.reason_codes,
       fields_used: decision.captured,
-      offer_ids: decision.offer_ids,
+      offer_ids: args.offerId ? [...new Set([...decision.offer_ids, args.offerId])] : decision.offer_ids,
       prompt_version: `v2.${agent.version}`,
       model: interpretation.source,
     } as any);
