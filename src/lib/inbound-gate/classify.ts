@@ -68,6 +68,23 @@ const QUESTION_OPENER_RE =
 /** Fields that only accept a value containing digits. */
 const NUMERIC_FIELDS = /(birth|age|גיל|date|year|phone|budget|count|kids|children|ילדים)/i;
 
+/** Closed-vocabulary fields: only a recognised value is ever a valid answer. */
+const ENUM_FIELDS: Array<{ match: RegExp; values: RegExp }> = [
+  {
+    match: /(marital|relationship_status|מצב\s*משפחתי)/i,
+    values: /(רווק|רווקה|גרוש|גרושה|אלמן|אלמנה|נשוי|נשואה|פרוד|פרודה|בזוגיות|לא\s*נשוי|single|divorced|widow)/,
+  },
+  { match: /(^|_)gender($|_)|מגדר/i, values: /(גבר|אישה|זכר|נקבה|male|female|אחר)/ },
+];
+
+/** A greeting on its own is never an answer to a question. */
+const GREETING_ONLY_RE =
+  /^(היי|הי|שלום|אהלן|בוקר\s*טוב|ערב\s*טוב|צהריים\s*טובים|מה\s*נשמע|מה\s*קורה|hi|hello|hey|תודה|תודה\s*רבה|להתראות|ביי)[\s!.]*$/;
+
+/** "אני רוצה לנסוע" — an intent statement, not an answer to an intake field. */
+const INTENT_STATEMENT_RE =
+  /(אני\s*רוצה|אני\s*מעוניינ|אני\s*מחפש|מעניין\s*אותי|אשמח\s*ל|בא\s*לי)/;
+
 export type FieldValidation = { valid: boolean; reason: string };
 
 /**
@@ -93,6 +110,15 @@ export function validateFieldAnswer(
   }
   if (NUMERIC_FIELDS.test(fieldKey) && !/\d/.test(text)) {
     return { valid: false, reason: "field_requires_number" };
+  }
+  if (GREETING_ONLY_RE.test(norm)) return { valid: false, reason: "greeting_not_answer" };
+  for (const f of ENUM_FIELDS) {
+    if (f.match.test(fieldKey) && !f.values.test(norm)) {
+      return { valid: false, reason: "field_value_not_recognized" };
+    }
+  }
+  if (INTENT_STATEMENT_RE.test(norm) && TOPIC_RE.test(norm)) {
+    return { valid: false, reason: "intent_statement_not_answer" };
   }
   if (norm.replace(/\s+/g, "").length < 2) return { valid: false, reason: "too_short" };
   return { valid: true, reason: "ok" };
@@ -182,7 +208,13 @@ export function classifyInbound(input: ClassifyInput): InboundClassification {
   }
   const asksSomething = isUserQuestion(text) && !BARE_QUESTION_RE.test(norm);
   if (asksSomething) kinds.push("question");
-  if (TOPIC_RE.test(norm) && (asksSomething || !input.currentQuestionKey || !!facts["destination_interest"])) {
+  if (
+    TOPIC_RE.test(norm) &&
+    (asksSomething ||
+      !input.currentQuestionKey ||
+      !!facts["destination_interest"] ||
+      INTENT_STATEMENT_RE.test(norm))
+  ) {
     kinds.push("topic_shift");
   }
 
