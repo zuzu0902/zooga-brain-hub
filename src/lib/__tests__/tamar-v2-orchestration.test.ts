@@ -252,7 +252,9 @@ describe("pending product handoff", () => {
 
   it("a following yes creates exactly one handoff with full product context and the ack", async () => {
     await turn("עם מי אשן בחדר בטיול לוייטנאם?");
-    await turn("כן");
+    console.log("DYN", JSON.stringify(dynOf()));
+    const r2 = await turn("כן");
+    console.log("R2", JSON.stringify(r2).slice(0, 800));
     expect(handoffCalls).toHaveLength(1);
     const h = handoffCalls[0];
     expect(h.contactId).toBe(CONTACT_ID);
