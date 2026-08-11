@@ -291,6 +291,7 @@ export async function recordDelivery(args: {
         message_text: text,
         status: result.ok ? "sent" : "failed",
         sent_at: result.ok ? new Date().toISOString() : null,
+        provider_message_id: result.provider_message_id ?? null,
       } as any);
     }
     await supabaseAdmin.from("webhook_logs").insert({
