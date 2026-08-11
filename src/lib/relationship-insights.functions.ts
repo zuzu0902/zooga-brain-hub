@@ -4,14 +4,11 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertAdminRole } from "@/lib/relationship-insights/authz";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
-async function assertAdmin(supabase: any, userId: string): Promise<void> {
-  const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-  if (error) throw new Error("authorization_check_failed");
-  if (data !== true) throw new Error("forbidden");
-}
+const assertAdmin = assertAdminRole;
 
 function contactInput(input: { contactId: string }) {
   const id = String(input?.contactId ?? "").trim();
