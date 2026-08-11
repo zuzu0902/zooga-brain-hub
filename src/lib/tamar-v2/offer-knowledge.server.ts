@@ -3,7 +3,7 @@
  * link-delivery ledger. All policy lives in ./offer-knowledge (pure).
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import type { OfferKnowledge } from "./offer-knowledge";
+import type { OfferKnowledge, PendingProductHandoff } from "./offer-knowledge";
 
 const COLUMNS =
   "id,title,offer_url,category,status,event_date,event_end_date,ai_summary,description," +
@@ -91,3 +91,57 @@ export function withOfferLedger(
 }
 
 export { LEDGER_KEY as OFFER_LINK_LEDGER_KEY, LAST_OFFER_KEY as OFFER_LAST_ID_KEY };
+
+/* ------------------------------------------------------------------ */
+/* Durable pending product handoff                                     */
+/* ------------------------------------------------------------------ */
+
+const PENDING_KEY = "v2_pending_product_handoff";
+const GROUNDED_OFFER_KEY = "v2_last_grounded_offer_id";
+
+export function pendingProductHandoffFrom(contact: any): PendingProductHandoff | null {
+  const dyn = (contact?.dynamic_profile_fields ?? {}) as Record<string, any>;
+  const p = dyn[PENDING_KEY];
+  if (!p || typeof p !== "object" || typeof p.question !== "string") return null;
+  return {
+    offer_id: p.offer_id ?? null,
+    offer_title: p.offer_title ?? null,
+    question: p.question,
+    at: String(p.at ?? ""),
+  };
+}
+
+export function lastGroundedOfferIdFrom(contact: any): string | null {
+  const dyn = (contact?.dynamic_profile_fields ?? {}) as Record<string, any>;
+  const v = dyn[GROUNDED_OFFER_KEY];
+  return typeof v === "string" ? v : null;
+}
+
+/** Set / clear the pending offer and remember the last GROUNDED offer. */
+export function withPendingHandoff(
+  dyn: Record<string, any>,
+  args: { pending?: PendingProductHandoff | null; clear?: boolean; groundedOfferId?: string | null },
+): Record<string, any> {
+  const next = { ...dyn };
+  if (args.clear) delete next[PENDING_KEY];
+  else if (args.pending) next[PENDING_KEY] = args.pending;
+  if (args.groundedOfferId) next[GROUNDED_OFFER_KEY] = args.groundedOfferId;
+  return next;
+}
+
+/**
+ * Commit the link ledger ONLY after a successful outbound send. A failed send
+ * leaves the offer unmarked, so the link stays retryable on the next turn.
+ */
+export async function commitOfferLinkSent(contactId: string, offerId: string): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("contacts")
+    .select("dynamic_profile_fields")
+    .eq("id", contactId)
+    .maybeSingle();
+  const dyn = ((data as any)?.dynamic_profile_fields ?? {}) as Record<string, any>;
+  const next = withOfferLedger(dyn, { offerId, linkSent: true });
+  await supabaseAdmin.from("contacts").update({ dynamic_profile_fields: next } as any).eq("id", contactId);
+}
+
+export { PENDING_KEY as PENDING_PRODUCT_HANDOFF_KEY, GROUNDED_OFFER_KEY as LAST_GROUNDED_OFFER_KEY };
