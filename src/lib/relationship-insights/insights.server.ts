@@ -65,41 +65,27 @@ async function persist(args: {
   error: string | null;
   answered: string[];
 }) {
-  const { data: prev } = await db()
-    .from("relationship_ai_insights")
-    .select("version")
-    .eq("contact_id", args.contactId)
-    .order("version", { ascending: false })
-    .limit(1);
-  const version = Number((prev as any[])?.[0]?.version ?? 0) + 1;
-  await db()
-    .from("relationship_ai_insights")
-    .update({ is_current: false })
-    .eq("contact_id", args.contactId)
-    .eq("is_current", true);
-  const row = {
-    contact_id: args.contactId,
-    source_hash: args.hash,
-    version,
-    is_current: true,
-    status: args.status,
-    summary_he: args.payload.summary_he,
-    sections: args.payload.sections,
-    matching_tags: args.payload.matching_tags,
-    missing_info: args.payload.missing_info,
-    contradictions: args.payload.contradictions,
-    confidence: args.payload.confidence,
-    section_confidence: args.payload.section_confidence,
-    answered_keys: args.answered,
-    model_id: args.modelId,
-    prompt_version: INSIGHTS_PROMPT_VERSION,
-    error: args.error,
-    generated_at: new Date().toISOString(),
-  };
-  const { error } = await db()
-    .from("relationship_ai_insights")
-    .upsert(row, { onConflict: "contact_id,source_hash" });
+  // Version allocation + current-flag switching happen inside one transaction
+  // with a per-contact advisory lock, so concurrent completion and manual
+  // refresh can never violate the partial unique `is_current` index.
+  const { data, error } = await db().rpc("ri_persist_insights", {
+    p_contact_id: args.contactId,
+    p_source_hash: args.hash,
+    p_status: args.status,
+    p_summary_he: args.payload.summary_he,
+    p_sections: args.payload.sections,
+    p_matching_tags: args.payload.matching_tags,
+    p_missing_info: args.payload.missing_info,
+    p_contradictions: args.payload.contradictions,
+    p_confidence: args.payload.confidence,
+    p_section_confidence: args.payload.section_confidence,
+    p_answered_keys: args.answered,
+    p_model_id: args.modelId,
+    p_prompt_version: INSIGHTS_PROMPT_VERSION,
+    p_error: args.error,
+  });
   if (error) throw new Error(error.message);
+  const version = Number(((data as any[]) ?? [])[0]?.version ?? 0);
   return { version, status: args.status };
 }
 
@@ -111,18 +97,29 @@ export type GenerateResult = {
   source_hash?: string;
 };
 
+/** Current answer hash for a contact, or null when the questionnaire is empty. */
+export async function currentSourceHash(contactId: string): Promise<string | null> {
+  const snapshot = await loadRelationshipAnswers(contactId);
+  return answeredKeys(snapshot.answers).length ? answersSourceHash(snapshot.answers) : null;
+}
+
 /**
  * Generate insights for a contact. Idempotent by (contact_id, source_hash):
  * a duplicate trigger for the same answers is a no-op unless `force` is set.
  */
 export async function generateRelationshipInsights(
   contactId: string,
-  opts: { force?: boolean } = {},
+  opts: { force?: boolean; expectedHash?: string } = {},
 ): Promise<GenerateResult> {
   const { answers, labels, ctx } = await loadContext(contactId);
   const answered = answeredKeys(answers);
   if (!answered.length) return { generated: false, reason: "no_answers" };
   const hash = answersSourceHash(answers);
+  // The answers moved on while the job was queued: this job's work is obsolete
+  // and a newer enqueue owns the new hash. Never burn a model call on it.
+  if (opts.expectedHash && opts.expectedHash !== hash) {
+    return { generated: false, reason: "stale_job", source_hash: hash };
+  }
 
   const { data: existing } = await db()
     .from("relationship_ai_insights")
@@ -171,11 +168,17 @@ export async function generateRelationshipInsights(
   return { generated: true, ...out, source_hash: hash };
 }
 
-/** Fire-and-forget trigger used on questionnaire completion. Never throws. */
-export function triggerRelationshipInsights(contactId: string): void {
-  void generateRelationshipInsights(contactId).catch(() => {
+/**
+ * Durable trigger used on questionnaire completion: enqueues a job (awaited)
+ * and never throws, so completion succeeds even if the queue is unavailable.
+ */
+export async function triggerRelationshipInsights(contactId: string): Promise<void> {
+  try {
+    const { enqueueRelationshipInsights } = await import("./queue.server");
+    await enqueueRelationshipInsights(contactId);
+  } catch {
     /* insights must never break the questionnaire */
-  });
+  }
 }
 
 export async function getCurrentInsights(contactId: string) {
@@ -193,10 +196,13 @@ export async function getCurrentInsights(contactId: string) {
     .eq("contact_id", contactId)
     .order("version", { ascending: false })
     .limit(10);
+  const { latestInsightJob } = await import("./queue.server");
+  const job = await latestInsightJob(contactId);
   return {
     current: (data as any) ?? null,
     history: ((history as any[]) ?? []),
     stale: !!data && !!hash && data.source_hash !== hash,
     has_answers: !!hash,
+    job,
   };
 }
