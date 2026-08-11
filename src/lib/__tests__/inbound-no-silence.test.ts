@@ -72,7 +72,7 @@ vi.mock("@/lib/whatsapp-meta.server", () => ({
   verifyMetaSignature: () => true,
   verifyHubChallenge: () => null,
   parseStatusUpdates: () => [],
-  parseInboundMessages: (p: any) => p.messages ?? [],
+  parseInboundMessages: (p: any) => p?.entry?.[0]?.changes?.[0]?.value?.messages ?? [],
   toE164: (p: string) => (p ? (p.startsWith("+") ? p : `+${p}`) : null),
   isSessionWindowOpen: async () => true,
   sendWhatsAppText: async (to: string, text: string) => {
@@ -182,7 +182,9 @@ async function post(messages: any[]) {
     request: new Request("https://x/api/public/webhook/tamar", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({
+        entry: [{ changes: [{ field: "messages", value: { metadata: { phone_number_id: "pn1" }, messages } }] }],
+      }),
     }),
   });
   return res.json();
@@ -230,14 +232,14 @@ describe("no silence, no duplicates, no false succeeded", () => {
     expect(out.results[0].reply_sent).toBe(true);
   });
 
-  it("contact create race: the concurrently created row is used, no silence", async () => {
+  it("contact create race: the row created by the concurrent delivery is used", async () => {
     resolveMode = "race";
     const out = await post([msg("wamid.D", "היי", "972520000880")]);
     expect(raceContactCreated).toBe(true);
-    // resolution threw, so the turn is retryable and a guarded fallback went out
-    expect(sends.length).toBe(1);
-    expect(finished[0]!.success).toBe(false);
-    expect(out.results[0].recovery_fallback).toBe(true);
+    // The insert lost the race but the turn still runs on the existing row.
+    expect(out.results[0].reply_sent).toBe(true);
+    expect(fallbackCalls.length).toBe(0);
+    expect(finished[0]!.success).toBe(true);
   });
 
   it("a failure after the claim keeps the job retryable and the second delivery re-runs once", async () => {

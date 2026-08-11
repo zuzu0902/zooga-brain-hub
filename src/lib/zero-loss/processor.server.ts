@@ -46,6 +46,19 @@ async function recoverReply(args: {
     if (dedupe && isCompletedDedupeRow(dedupe as any)) {
       return { replied: true, no_reply_reason: null };
     }
+    if (!dedupe) {
+      // The webhook crashed before claiming: own the turn now.
+      await supabaseAdmin
+        .from("runtime_inbound_dedupe" as any)
+        .insert({
+          inbound_message_id: args.wamid,
+          contact_id: args.contactId,
+          phone: args.phone,
+          source: "zero_loss_worker",
+          state: "claimed",
+          attempt_count: 1,
+        } as any);
+    }
   }
   const { runV2Turn } = await import("@/lib/tamar-v2/engine.server");
   const v2 = await runV2Turn({
