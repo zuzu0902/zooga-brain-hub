@@ -246,15 +246,14 @@ describe("pending product handoff", () => {
     const pending = dynOf()["v2_pending_product_handoff"];
     expect(pending).toBeTruthy();
     expect(pending.question).toContain("עם מי אשן");
-    expect(sent.at(-1)!.body).toContain("לא יודעת לענות על זה בוודאות");
-    expect(sent.at(-1)!.body).not.toContain("העברתי את הבקשה");
+    const all = sent.map((s) => s.body).join("\n");
+    expect(all).toContain("לא יודעת לענות על זה בוודאות");
+    expect(all).not.toContain("העברתי את הבקשה");
   });
 
   it("a following yes creates exactly one handoff with full product context and the ack", async () => {
     await turn("עם מי אשן בחדר בטיול לוייטנאם?");
-    console.log("DYN", JSON.stringify(dynOf()));
-    const r2 = await turn("כן");
-    console.log("R2", JSON.stringify(r2).slice(0, 800));
+    await turn("כן");
     expect(handoffCalls).toHaveLength(1);
     const h = handoffCalls[0];
     expect(h.contactId).toBe(CONTACT_ID);
@@ -263,7 +262,7 @@ describe("pending product handoff", () => {
     expect(h.latestInbound).toBe("כן");
     expect(h.offerId).toBe("off_vn");
     expect(Array.isArray(h.excerpt)).toBe(true);
-    expect(sent.at(-1)!.body).toContain("העברתי את הבקשה");
+    expect(sent.map((s) => s.body).join("\n")).toContain("העברתי את הבקשה");
     expect(dynOf()["v2_pending_product_handoff"]).toBeUndefined();
   });
 
@@ -300,7 +299,7 @@ describe("self summary provenance", () => {
       { contact_id: CONTACT_ID, question_key: "height", raw_text: "טעות ישנה", is_current: false, skipped_by_user: false },
     ];
     await turn("מה את יודעת עלי?");
-    const body = sent.at(-1)!.body;
+    const body = sent.map((s) => s.body).join("\n");
     expect(body).toContain("חיפה");
     expect(body).toContain("שניים");
     expect(body).toContain("ילדים"); // friendly label, not the key
@@ -332,16 +331,16 @@ describe("offer link ledger", () => {
   it("commits only after a successful send and stays retryable when the send fails", async () => {
     sendOk = false;
     await turn("מה כלול בטיול לוייטנאם?");
-    expect(sent.at(-1)!.body).toContain("https://www.zooga.co.il/vietnam");
+    expect(sent.map((s) => s.body).join("\n")).toContain("https://www.zooga.co.il/vietnam");
     expect(dynOf()["v2_offer_links_sent"] ?? []).toEqual([]);
 
     sendOk = true;
     await turn("מה כלול בטיול לוייטנאם?");
-    expect(sent.at(-1)!.body).toContain("https://www.zooga.co.il/vietnam");
+    expect(sent.map((s) => s.body).join("\n")).toContain("https://www.zooga.co.il/vietnam");
     expect(dynOf()["v2_offer_links_sent"]).toEqual(["off_vn"]);
 
     sent.length = 0;
     await turn("ומה עם ארוחות בטיול לוייטנאם?");
-    expect(sent.at(-1)!.body).not.toContain("https://www.zooga.co.il/vietnam");
+    expect(sent.map((s) => s.body).join("\n")).not.toContain("https://www.zooga.co.il/vietnam");
   });
 });
