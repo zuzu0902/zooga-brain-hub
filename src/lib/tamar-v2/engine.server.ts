@@ -591,6 +591,9 @@ async function persistTurn(args: {
   answeredCount: number;
   offerId?: string | null;
   linkSent?: boolean;
+  pendingHandoff?: PendingProductHandoff | null;
+  clearPendingHandoff?: boolean;
+  groundedOfferId?: string | null;
   grounding?: { path: string; knowledge_ids: string[]; confidence: number };
 }) {
   const { contact, decision, interpretation, agent, message } = args;
@@ -625,10 +628,16 @@ async function persistTurn(args: {
   dyn["v2_pending_step"] = decision.ask_step_key;
   dyn["v2_ambiguity_turns"] = decision.ambiguity_turns;
   dyn["v2_answered_count"] = args.answeredCount + (Object.keys(decision.captured).length ? 1 : 0);
-  Object.assign(
-    dyn,
-    withOfferLedger(dyn, { offerId: args.offerId ?? null, linkSent: !!args.linkSent }),
-  );
+  // last-offer pointer only; the LINK ledger is committed after a successful
+  // send (commitOfferLinkSent), never here.
+  Object.assign(dyn, withOfferLedger(dyn, { offerId: args.offerId ?? null, linkSent: false }));
+  const withPending = withPendingHandoff(dyn, {
+    pending: args.pendingHandoff ?? null,
+    clear: !!args.clearPendingHandoff,
+    groundedOfferId: args.groundedOfferId ?? null,
+  });
+  for (const k of Object.keys(dyn)) if (!(k in withPending)) delete dyn[k];
+  Object.assign(dyn, withPending);
 
   const patch: Record<string, unknown> = {
     conversation_state: decision.next_state,
