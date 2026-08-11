@@ -161,6 +161,16 @@ export type RelationshipInbound = {
   messageId?: string | null;
   /** provider confidence for a voice note, when the provider returns one */
   transcriptConfidence?: number | null;
+  /**
+   * Inbound Context Gate verdict. When the gate says this message is not an
+   * answer to the current question (question / confusion / topic shift), the
+   * questionnaire NEVER stores it and NEVER advances.
+   */
+  gate?: {
+    kind: string;
+    answer_valid: boolean;
+    should_advance: boolean;
+  } | null;
 };
 
 /**
@@ -171,6 +181,9 @@ export async function planRelationshipTurn(
   contactId: string,
   inbound: RelationshipInbound | null,
 ): Promise<RelationshipTurnPlan> {
+  const gate = inbound?.gate ?? null;
+  const gateBlocks = !!gate && !gate.should_advance;
+  const gateAllowsCapture = !gate || (gate.should_advance && gate.answer_valid);
   const { data: contact } = await db()
     .from("contacts")
     .select("id,relationship_intake_status,opted_out_at,consent_status")
@@ -192,6 +205,9 @@ export async function planRelationshipTurn(
 
   // --- first turn: intro + first question ---------------------------------
   if (state.status !== "in_progress") {
+    // The customer sets the pace: never open the questionnaire on top of a
+    // question, confusion, topic shift or handoff/opt-out request.
+    if (gateBlocks) return { kind: "none", reason: `inbound_${gate!.kind}` };
     const snapshot = await loadRelationshipAnswers(contactId);
     const first = nextRelationshipQuestion(active, snapshot) ?? active[0]!;
     const now = new Date().toISOString();
@@ -220,6 +236,13 @@ export async function planRelationshipTurn(
       | { question_key: string; value: string; source: AnswerSource; message_id?: string | null }
       | null;
 
+    // Gate says this is not an answer: answer the customer first. The
+    // decision layer owns the reply; the questionnaire stays exactly where
+    // it is so nothing false is captured and no question is repeated.
+    if (gateBlocks && !(pending?.question_key && readConfirmationReply(inbound.text))) {
+      return { kind: "none", reason: `inbound_${gate!.kind}` };
+    }
+
     // --- awaiting a focused confirmation of an uncertain transcript -------
     if (pending?.question_key) {
       const reply = readConfirmationReply(inbound.text);
@@ -247,6 +270,9 @@ export async function planRelationshipTurn(
         };
       } else {
         // treat the message itself as the corrected answer
+        if (!gateAllowsCapture) {
+          return { kind: "none", reason: "inbound_not_a_valid_answer" };
+        }
         await saveRelationshipAnswer({
           contactId,
           questionKey: pending.question_key,
@@ -297,6 +323,9 @@ export async function planRelationshipTurn(
         };
       } else {
         // --- normal answer: one message may resolve several questions -----
+        if (!gateAllowsCapture) {
+          return { kind: "none", reason: "inbound_not_a_valid_answer" };
+        }
         const extracted = extractRelationshipFields(inbound.text, askedKey);
         const known = new Set(active.map((q) => q.question_key));
         for (const [key, val] of Object.entries(extracted)) {

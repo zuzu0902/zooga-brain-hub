@@ -1073,14 +1073,18 @@ export type Database = {
         Row: {
           action: string | null
           asked_field: string | null
+          classification_confidence: number | null
           contact_id: string | null
           correlation_id: string | null
           created_at: string
+          extracted_facts: Json
           facts_after: Json
           facts_before: Json
+          gate_applied: boolean
           guard_reason: string | null
           guard_verdict: string | null
           id: string
+          inbound_classification: string | null
           inbound_message_id: string | null
           loop_signal: boolean
           normalized_intent: string | null
@@ -1091,20 +1095,25 @@ export type Database = {
           repeat_count: number
           response_signature: string | null
           route: string
+          source_type: string | null
           state_after: string | null
           state_before: string | null
         }
         Insert: {
           action?: string | null
           asked_field?: string | null
+          classification_confidence?: number | null
           contact_id?: string | null
           correlation_id?: string | null
           created_at?: string
+          extracted_facts?: Json
           facts_after?: Json
           facts_before?: Json
+          gate_applied?: boolean
           guard_reason?: string | null
           guard_verdict?: string | null
           id?: string
+          inbound_classification?: string | null
           inbound_message_id?: string | null
           loop_signal?: boolean
           normalized_intent?: string | null
@@ -1115,20 +1124,25 @@ export type Database = {
           repeat_count?: number
           response_signature?: string | null
           route?: string
+          source_type?: string | null
           state_after?: string | null
           state_before?: string | null
         }
         Update: {
           action?: string | null
           asked_field?: string | null
+          classification_confidence?: number | null
           contact_id?: string | null
           correlation_id?: string | null
           created_at?: string
+          extracted_facts?: Json
           facts_after?: Json
           facts_before?: Json
+          gate_applied?: boolean
           guard_reason?: string | null
           guard_verdict?: string | null
           id?: string
+          inbound_classification?: string | null
           inbound_message_id?: string | null
           loop_signal?: boolean
           normalized_intent?: string | null
@@ -1139,6 +1153,7 @@ export type Database = {
           repeat_count?: number
           response_signature?: string | null
           route?: string
+          source_type?: string | null
           state_after?: string | null
           state_before?: string | null
         }
@@ -1369,6 +1384,72 @@ export type Database = {
           provider_event_id?: string | null
           raw_payload?: Json
           received_at?: string
+        }
+        Relationships: []
+      }
+      inbound_gate_decisions: {
+        Row: {
+          answer_valid: boolean
+          classification: string
+          classifier_status: string
+          confidence: number
+          contact_id: string | null
+          context_messages: number
+          created_at: string
+          current_question_key: string | null
+          extracted_facts: Json
+          id: string
+          inbound_message_id: string | null
+          phone_masked: string | null
+          response_priority: string | null
+          routes: Json
+          secondary_classifications: Json
+          should_advance: boolean
+          source_type: string
+          transcript: string | null
+          validator_reason: string | null
+        }
+        Insert: {
+          answer_valid?: boolean
+          classification: string
+          classifier_status?: string
+          confidence?: number
+          contact_id?: string | null
+          context_messages?: number
+          created_at?: string
+          current_question_key?: string | null
+          extracted_facts?: Json
+          id?: string
+          inbound_message_id?: string | null
+          phone_masked?: string | null
+          response_priority?: string | null
+          routes?: Json
+          secondary_classifications?: Json
+          should_advance?: boolean
+          source_type?: string
+          transcript?: string | null
+          validator_reason?: string | null
+        }
+        Update: {
+          answer_valid?: boolean
+          classification?: string
+          classifier_status?: string
+          confidence?: number
+          contact_id?: string | null
+          context_messages?: number
+          created_at?: string
+          current_question_key?: string | null
+          extracted_facts?: Json
+          id?: string
+          inbound_message_id?: string | null
+          phone_masked?: string | null
+          response_priority?: string | null
+          routes?: Json
+          secondary_classifications?: Json
+          should_advance?: boolean
+          source_type?: string
+          transcript?: string | null
+          validator_reason?: string | null
         }
         Relationships: []
       }
