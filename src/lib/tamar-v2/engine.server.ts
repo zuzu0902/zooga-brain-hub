@@ -573,7 +573,14 @@ async function persistTurn(args: {
       composition_version: `v2.${agent.version}`,
       conversation_mode: decision.next_state,
       conversation_mode_reasons: decision.reason_codes,
-      prompt_blocks_injected: { interpretation_source: interpretation.source },
+      prompt_blocks_injected: {
+        interpretation_source: interpretation.source,
+        grounding_path: args.grounding?.path ?? "none",
+        grounding_confidence: args.grounding?.confidence ?? 0,
+        knowledge_ids: args.grounding?.knowledge_ids ?? [],
+        offer_id: args.offerId ?? null,
+        offer_link_sent: !!args.linkSent,
+      },
     } as any);
   } catch { /* ignore */ }
 
