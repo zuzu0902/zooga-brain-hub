@@ -28,6 +28,25 @@ import { interpret } from "./interpreter.server";
 import { interpretDeterministic } from "./interpret-rules";
 import { deriveState } from "./state-machine";
 import { isUserQuestion } from "./classify";
+import {
+  HONEST_UNKNOWN,
+  PAST_OFFER_NOTE,
+  buildCustomerSelfSummary,
+  buildOfferGroundingBlock,
+  isSelfSummaryRequest,
+  isUnsupportedDetailQuestion,
+  offerAvailability,
+  resolveOffer,
+  shouldSendOfferLink,
+  soloPolicyReply,
+  type OfferKnowledge,
+} from "./offer-knowledge";
+import {
+  lastOfferIdFrom,
+  loadOfferKnowledgeCandidates,
+  sentOfferIdsFrom,
+  withOfferLedger,
+} from "./offer-knowledge.server";
 import type { AgentVersion, Interpretation, OutboundMessage, TurnDecision } from "./types";
 import { writeGroundedAnswer } from "./writer.server";
 
@@ -237,6 +256,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const state = deriveState(contact);
   const knownFields = knownFieldsFromContact(contact ?? {}, agent.steps);
   const offers = await loadSellableOffers();
+  const history = contact?.id ? await loadRecentTranscript(contact.id, 12) : [];
 
   const interpretation: Interpretation = input.offline
     ? interpretDeterministic(message)
@@ -244,20 +264,90 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         state,
         pendingQuestion: pendingStepKey,
         known: knownFields,
-        history: contact?.id ? await loadRecentTranscript(contact.id, 12) : [],
+        history,
         summary: (contact?.dynamic_profile_fields as any)?.["v2_summary"] ?? null,
       });
 
-  // Grounded wording is produced ONLY for real customer questions.
+  // ---- Product grounding -------------------------------------------------
+  // Resolve WHICH offer the customer is talking about, then answer only from
+  // that offer's structured knowledge + approved community knowledge.
+  const candidates: OfferKnowledge[] = await loadOfferKnowledgeCandidates().catch(() => []);
+  const resolution = resolveOffer(message, candidates, {
+    recentMessages: history,
+    lastOfferId: lastOfferIdFrom(contact),
+  });
+  const resolved = resolution.offer;
+  const availability = resolved ? offerAvailability(resolved) : { sellable: false, past: false };
+
+  const productAsked =
+    isUserQuestion(message) ||
+    interpretation.intent === "question" ||
+    interpretation.intent === "price_question";
+
   let answerText: string | null = null;
-  if (!input.offline && (isUserQuestion(message) || interpretation.intent === "question" || interpretation.intent === "price_question")) {
+  let groundingPath = "none";
+  let knowledgeIds: string[] = [];
+  let linkSent = false;
+
+  const solo = soloPolicyReply(message);
+  if (isSelfSummaryRequest(message)) {
+    // Customer-safe: ONLY explicit facts the customer supplied.
+    let relationshipAnswers: Array<{ question_key: string; raw_text: string | null }> = [];
+    if (contact?.id) {
+      const { data } = await supabaseAdmin
+        .from("relationship_intake_answers")
+        .select("question_key, raw_text")
+        .eq("contact_id", contact.id)
+        .limit(12);
+      relationshipAnswers = ((data as any[]) ?? []).map((r) => ({
+        question_key: r.question_key,
+        raw_text: r.raw_text ?? null,
+      }));
+    }
+    answerText = buildCustomerSelfSummary({ contact, relationshipAnswers });
+    groundingPath = "self_summary_explicit_facts";
+  } else if (solo) {
+    answerText = solo.text;
+    groundingPath = solo.offer_handoff ? "solo_policy_unknown" : "solo_policy_approved";
+  } else if (resolution.ambiguous && resolution.clarification) {
+    answerText = resolution.clarification;
+    groundingPath = "offer_clarification";
+  } else if (productAsked && isUnsupportedDetailQuestion(message, resolved)) {
+    answerText = HONEST_UNKNOWN;
+    groundingPath = "honest_unknown";
+  } else if (!input.offline && productAsked) {
     const hits = await retrieveKnowledge(message, 3).catch(() => []);
+    knowledgeIds = hits.map((h: any) => String(h.source_id ?? ""));
     answerText = await writeGroundedAnswer({
       agent,
       message,
       facts: hits.map((h: any) => String(h.content ?? "")),
       offers,
+      offerBlock: resolved ? buildOfferGroundingBlock(resolved) : null,
+      infoOnly: !!resolved && !availability.sellable,
     }).catch(() => null);
+    groundingPath = resolved ? "offer_knowledge" : "community_knowledge";
+  }
+
+  // A past / non-sellable offer may be discussed, never marketed.
+  if (answerText && resolved && availability.past && groundingPath === "offer_knowledge") {
+    answerText = `${PAST_OFFER_NOTE}\n${answerText}`;
+  }
+
+  // The link is sent on the first relevant recommendation, an explicit
+  // request, or a material need — never on every reply.
+  if (answerText && resolved) {
+    const link = shouldSendOfferLink({
+      offer: resolved,
+      message,
+      isRecommendation: groundingPath === "offer_knowledge",
+      sentOfferIds: sentOfferIdsFrom(contact),
+      sellable: availability.sellable,
+    });
+    if (link.send && resolved.offer_url) {
+      answerText = `${answerText}\n${resolved.offer_url}`;
+      linkSent = true;
+    }
   }
 
   const turnInput: TurnInput = {
@@ -280,7 +370,18 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const sends: V2TurnResult["sends"] = [];
   let noReplyReason: string | null = input.simulate ? "simulate" : null;
   if (!input.simulate && contact) {
-    await persistTurn({ contact, input, decision, interpretation, agent, message, answeredCount });
+    await persistTurn({
+      contact,
+      input,
+      decision,
+      interpretation,
+      agent,
+      message,
+      answeredCount,
+      offerId: resolved?.id ?? null,
+      linkSent,
+      grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence },
+    });
     const to = toE164(contact.whatsapp_number ?? contact.phone ?? input.phone) ?? "";
     if (!to) {
       const { ContactCreateError } = await import("@/lib/contact-create-error");
@@ -357,6 +458,9 @@ async function persistTurn(args: {
   agent: AgentVersion;
   message: string;
   answeredCount: number;
+  offerId?: string | null;
+  linkSent?: boolean;
+  grounding?: { path: string; knowledge_ids: string[]; confidence: number };
 }) {
   const { contact, decision, interpretation, agent, message } = args;
   const now = new Date().toISOString();
@@ -390,6 +494,10 @@ async function persistTurn(args: {
   dyn["v2_pending_step"] = decision.ask_step_key;
   dyn["v2_ambiguity_turns"] = decision.ambiguity_turns;
   dyn["v2_answered_count"] = args.answeredCount + (Object.keys(decision.captured).length ? 1 : 0);
+  Object.assign(
+    dyn,
+    withOfferLedger(dyn, { offerId: args.offerId ?? null, linkSent: !!args.linkSent }),
+  );
 
   const patch: Record<string, unknown> = {
     conversation_state: decision.next_state,
@@ -447,7 +555,7 @@ async function persistTurn(args: {
       confidence: interpretation.confidence,
       reason_codes: decision.reason_codes,
       fields_used: decision.captured,
-      offer_ids: decision.offer_ids,
+      offer_ids: args.offerId ? [...new Set([...decision.offer_ids, args.offerId])] : decision.offer_ids,
       prompt_version: `v2.${agent.version}`,
       model: interpretation.source,
     } as any);
@@ -465,7 +573,14 @@ async function persistTurn(args: {
       composition_version: `v2.${agent.version}`,
       conversation_mode: decision.next_state,
       conversation_mode_reasons: decision.reason_codes,
-      prompt_blocks_injected: { interpretation_source: interpretation.source },
+      prompt_blocks_injected: {
+        interpretation_source: interpretation.source,
+        grounding_path: args.grounding?.path ?? "none",
+        grounding_confidence: args.grounding?.confidence ?? 0,
+        knowledge_ids: args.grounding?.knowledge_ids ?? [],
+        offer_id: args.offerId ?? null,
+        offer_link_sent: !!args.linkSent,
+      },
     } as any);
   } catch { /* ignore */ }
 
