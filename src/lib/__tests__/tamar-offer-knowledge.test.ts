@@ -221,27 +221,32 @@ describe("product question during intake", () => {
 });
 
 describe("customer-safe self summary", () => {
-  it("returns only explicit customer facts", () => {
+  it("returns only explicit, current customer facts", () => {
     expect(isSelfSummaryRequest("מה את יודעת עלי?")).toBe(true);
     const text = buildCustomerSelfSummary({
-      contact: {
-        first_name: "ורדה",
-        city: "חיפה",
-        budget_sensitivity: "high",
-        engagement_score: 88,
-        dynamic_profile_fields: { interests: "טיולים", relationship_ai_summary: "היפותזה פנימית" },
-      },
-      relationshipAnswers: [{ question_key: "values", raw_text: "משפחתיות" }],
+      firstName: "ורדה",
+      explicitFacts: [
+        { field_key: "city", value: "חיפה", kind: "explicit", is_current: true, superseded_by: null },
+        { field_key: "interests", value: "טיולים", kind: "inferred", is_current: true, superseded_by: null },
+        { field_key: "budget_sensitivity", value: "high", kind: "explicit", is_current: true, superseded_by: null },
+        { field_key: "residence_city", value: "אילת", kind: "explicit", is_current: false, superseded_by: "f9" },
+      ],
+      relationshipAnswers: [
+        { question_key: "relationship_values", label: "מה עושה קשר טוב", raw_text: "משפחתיות", is_current: true, skipped_by_user: false },
+        { question_key: "children", label: "ילדים", raw_text: "דילוג", is_current: true, skipped_by_user: true },
+      ],
     });
     expect(text).toContain("ורדה");
     expect(text).toContain("חיפה");
     expect(text).toContain("משפחתיות");
-    expect(text).not.toContain("88");
-    expect(text).not.toContain("היפותזה");
+    expect(text).not.toContain("טיולים"); // inferred provenance
+    expect(text).not.toContain("אילת"); // superseded / not current
+    expect(text).not.toContain("דילוג"); // skipped answer
+    expect(text).not.toContain("relationship_values"); // never an internal key
     expect(text).not.toContain("high");
   });
 
   it("invites correction and stays warm when nothing is known", () => {
-    expect(buildCustomerSelfSummary({ contact: {} })).toContain("עוד לא סיפרת");
+    expect(buildCustomerSelfSummary({})).toContain("עוד לא סיפרת");
   });
 });
