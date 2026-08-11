@@ -37,6 +37,7 @@ describe("db-safe", () => {
   it("no source file calls .catch() directly on a supabase query builder", () => {
     const offenders: string[] = [];
     for (const file of walk("src")) {
+      if (file.includes("db-safe")) continue; // helper + this test document the bad pattern
       const src = readFileSync(file, "utf8");
       const re =
         /(?:db\(\)|supabaseAdmin|supabase)\s*\r?\n?\s*\.from\((?:[^;]|\n){0,1200}?\)\s*\r?\n?\s*\.catch\(/g;
