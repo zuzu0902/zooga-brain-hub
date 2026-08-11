@@ -246,6 +246,57 @@ async function loadRecentTranscript(contactId: string, limit = 12): Promise<stri
     .map((r) => `${String(r.source ?? "").includes("outbound") ? "תמר" : "לקוח"}: ${String(r.content ?? "").slice(0, 300)}`);
 }
 
+/**
+ * Everything the customer explicitly told us, with verified provenance:
+ * current, non-superseded EXPLICIT profile facts and current, non-skipped
+ * questionnaire answers with friendly labels.
+ */
+async function loadCustomerSuppliedProfile(contactId: string) {
+  const { RELATIONSHIP_LABELS } = await import("./self-summary-labels");
+  const facts: Array<{ field_key: string; value: string | null; kind: string | null; is_current: boolean; superseded_by: string | null }> = [];
+  try {
+    const { data } = await supabaseAdmin
+      .from("contact_profile_facts")
+      .select("field_key, value_text, explicit_or_inferred, is_current, superseded_by")
+      .eq("contact_id", contactId)
+      .eq("is_current", true)
+      .eq("explicit_or_inferred", "explicit")
+      .is("superseded_by", null)
+      .limit(30);
+    for (const r of ((data as any[]) ?? [])) {
+      facts.push({
+        field_key: r.field_key,
+        value: r.value_text ?? null,
+        kind: r.explicit_or_inferred ?? null,
+        is_current: r.is_current !== false,
+        superseded_by: r.superseded_by ?? null,
+      });
+    }
+  } catch { /* provenance missing => echo nothing */ }
+
+  const answers: Array<{ question_key: string; label: string | null; raw_text: string | null; is_current: boolean; skipped_by_user: boolean }> = [];
+  try {
+    const { data } = await supabaseAdmin
+      .from("relationship_intake_answers")
+      .select("question_key, raw_text, is_current, skipped_by_user")
+      .eq("contact_id", contactId)
+      .eq("is_current", true)
+      .eq("skipped_by_user", false)
+      .limit(12);
+    for (const r of ((data as any[]) ?? [])) {
+      answers.push({
+        question_key: r.question_key,
+        label: RELATIONSHIP_LABELS[r.question_key] ?? null,
+        raw_text: r.raw_text ?? null,
+        is_current: r.is_current !== false,
+        skipped_by_user: !!r.skipped_by_user,
+      });
+    }
+  } catch { /* ignore */ }
+
+  return { facts, answers };
+}
+
 export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const started = Date.now();
   const message = String(input.message ?? "").trim();
