@@ -17,6 +17,8 @@ const ImportInput = z.object({
   source_file_name: z.string().trim().max(255).optional().nullable(),
   consent_marketing: z.boolean(),
   consent_source: z.string().trim().min(2).max(120),
+  /** Prior permission to contact on WhatsApp — separate from marketing consent. */
+  whatsapp_opt_in: z.boolean().optional(),
   dry_run: z.boolean().optional(),
 });
 
@@ -111,6 +113,12 @@ export const importLeads = createServerFn({ method: "POST" })
         consent_marketing: data.consent_marketing,
         consent_date: data.consent_marketing ? now : null,
         consent_source: data.consent_source,
+        whatsapp_opt_in_status: data.whatsapp_opt_in ? "verified" : "unknown",
+        whatsapp_opt_in_at: data.whatsapp_opt_in ? now : null,
+        whatsapp_opt_in_source: data.whatsapp_opt_in ? data.consent_source : null,
+        whatsapp_opt_in_evidence: data.whatsapp_opt_in
+          ? `import:${data.source_file_name ?? "manual"}`
+          : null,
       }));
 
     if (newContacts.length) {
@@ -123,8 +131,8 @@ export const importLeads = createServerFn({ method: "POST" })
       result.contacts_created = created?.length ?? 0;
     }
 
-    // refresh consent on pre-existing contacts only when consent is granted
-    if (data.consent_marketing) {
+    // refresh consent / opt-in on pre-existing contacts only when granted
+    if (data.consent_marketing || data.whatsapp_opt_in) {
       const existingIds = clean
         .map((c) => contactByPhone.get(c.phone))
         .filter(Boolean) as string[];
@@ -132,8 +140,15 @@ export const importLeads = createServerFn({ method: "POST" })
         await supabaseAdmin
           .from("contacts")
           .update({
-            consent_marketing: true,
-            consent_date: now,
+            ...(data.consent_marketing ? { consent_marketing: true, consent_date: now } : {}),
+            ...(data.whatsapp_opt_in
+              ? {
+                  whatsapp_opt_in_status: "verified",
+                  whatsapp_opt_in_at: now,
+                  whatsapp_opt_in_source: data.consent_source,
+                  whatsapp_opt_in_evidence: `import:${data.source_file_name ?? "manual"}`,
+                }
+              : {}),
             consent_source: data.consent_source,
             opted_out_at: null,
           } as any)

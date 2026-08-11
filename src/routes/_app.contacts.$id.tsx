@@ -1329,6 +1329,59 @@ function OverviewTab({ contact, update }: any) {
               onCheckedChange={(v) => update({ consent_marketing: v, consent_date: v ? new Date().toISOString() : null })}
             />
           </div>
+          <div className="mt-3 p-3 rounded-lg border space-y-2">
+            <div>
+              <div className="text-sm font-medium">אישור פנייה בוואטסאפ</div>
+              <div className="text-xs text-muted-foreground">
+                {contact.whatsapp_opt_in_status === "verified"
+                  ? `מאומת — מקור: ${contact.whatsapp_opt_in_source || "חסר"}${contact.whatsapp_opt_in_at ? `, מועד: ${formatDate(contact.whatsapp_opt_in_at)}` : ", מועד חסר"}`
+                  : contact.whatsapp_opt_in_status === "denied"
+                    ? "נדחה — אין לפנות בוואטסאפ"
+                    : "לא ידוע — אין אישור מוקדם לפנייה"}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                אישור זה מתיר רק את הודעת הפתיחה לבקשת הסכמה. שליחה שיווקית עדיין דורשת הסכמה לשיווק.
+              </div>
+            </div>
+            <Select
+              value={contact.whatsapp_opt_in_status || "unknown"}
+              onValueChange={(v) =>
+                update(
+                  v === "verified"
+                    ? {
+                        whatsapp_opt_in_status: "verified",
+                        whatsapp_opt_in_at: new Date().toISOString(),
+                        whatsapp_opt_in_source: contact.whatsapp_opt_in_source || "manual_admin",
+                      }
+                    : v === "denied"
+                      ? {
+                          whatsapp_opt_in_status: "denied",
+                          whatsapp_opt_in_at: new Date().toISOString(),
+                          whatsapp_opt_in_source: "manual_admin",
+                          consent_marketing: false,
+                          opted_out_at: new Date().toISOString(),
+                        }
+                      : {
+                          whatsapp_opt_in_status: "unknown",
+                          whatsapp_opt_in_at: null,
+                          whatsapp_opt_in_source: null,
+                        },
+                )
+              }
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unknown">לא ידוע</SelectItem>
+                <SelectItem value="verified">מאומת</SelectItem>
+                <SelectItem value="denied">נדחה</SelectItem>
+              </SelectContent>
+            </Select>
+            <EditableField
+              label="מקור האישור"
+              value={contact.whatsapp_opt_in_source}
+              onSave={(v: string) => update({ whatsapp_opt_in_source: v })}
+            />
+          </div>
         </Card>
       </div>
     </div>

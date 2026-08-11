@@ -367,6 +367,51 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             continue;
           }
 
+          // ---- Consent-opening answer (zooga_opening_consent) --------------
+          // Fires only while the consent question is open. Idempotent, one
+          // reply at most, never loops.
+          {
+            const consentContactId = contactCache.id ?? null;
+            if (consentContactId) {
+              const { applyConsentAnswer } = await import("@/lib/whatsapp-optin/optin.server");
+              const res = await applyConsentAnswer({
+                contactId: consentContactId,
+                buttonId: msg.option_id ?? null,
+                buttonTitle: inboundText ?? null,
+                text: inboundText ?? null,
+                sourceMessageId: msg.wamid,
+              }).catch(() => null);
+              if (res?.handled) {
+                if (res.duplicate || !res.reply_text) {
+                  await markNoReply(msg.wamid, "consent_opening_duplicate").catch(() => {});
+                  results.push({ wamid: msg.wamid, contact_id: consentContactId, consent_opening: res.answer, duplicate: true, reply_sent: false, no_reply_reason: "consent_opening_duplicate" });
+                  continue;
+                }
+                await guardOutbound({
+                  contactId: consentContactId,
+                  phone: msg.from,
+                  route: `consent_opening_${res.answer}`,
+                  inboundMessageId: msg.wamid,
+                  inboundText,
+                  candidateText: res.reply_text,
+                  mode: "log_only",
+                  progress: { advanced_state: true },
+                }).catch(() => null);
+                const send = await sendWhatsAppText(msg.from, res.reply_text);
+                await recordDelivery({
+                  contactId: consentContactId,
+                  text: res.reply_text,
+                  result: send,
+                  inboundMessageId: msg.wamid,
+                  kind: `consent_opening_${res.answer}`,
+                });
+                await recordReply(msg.wamid, res.reply_text).catch(() => {});
+                results.push({ wamid: msg.wamid, contact_id: consentContactId, consent_opening: res.answer, reply_sent: !!send.ok });
+                continue;
+              }
+            }
+          }
+
           // ---- Two-stage opening: availability button, then consent button.
           // Deterministic and idempotent; never reaches the model.
           {
