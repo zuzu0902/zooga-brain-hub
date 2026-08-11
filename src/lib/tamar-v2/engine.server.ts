@@ -28,24 +28,34 @@ import { interpret } from "./interpreter.server";
 import { interpretDeterministic } from "./interpret-rules";
 import { deriveState } from "./state-machine";
 import { isUserQuestion } from "./classify";
+import { wantsHuman } from "./classify";
 import {
   HONEST_UNKNOWN,
   PAST_OFFER_NOTE,
+  acceptedHandoffOffer,
   buildCustomerSelfSummary,
   buildOfferGroundingBlock,
+  isPendingHandoffFresh,
+  isProductQuestion,
   isSelfSummaryRequest,
   isUnsupportedDetailQuestion,
+  mayOfferHandoff,
   offerAvailability,
   resolveOffer,
   shouldSendOfferLink,
   soloPolicyReply,
   type OfferKnowledge,
+  type PendingProductHandoff,
 } from "./offer-knowledge";
 import {
+  commitOfferLinkSent,
+  lastGroundedOfferIdFrom,
   lastOfferIdFrom,
   loadOfferKnowledgeCandidates,
+  pendingProductHandoffFrom,
   sentOfferIdsFrom,
   withOfferLedger,
+  withPendingHandoff,
 } from "./offer-knowledge.server";
 import type { AgentVersion, Interpretation, OutboundMessage, TurnDecision } from "./types";
 import { writeGroundedAnswer } from "./writer.server";
@@ -236,6 +246,57 @@ async function loadRecentTranscript(contactId: string, limit = 12): Promise<stri
     .map((r) => `${String(r.source ?? "").includes("outbound") ? "תמר" : "לקוח"}: ${String(r.content ?? "").slice(0, 300)}`);
 }
 
+/**
+ * Everything the customer explicitly told us, with verified provenance:
+ * current, non-superseded EXPLICIT profile facts and current, non-skipped
+ * questionnaire answers with friendly labels.
+ */
+async function loadCustomerSuppliedProfile(contactId: string) {
+  const { RELATIONSHIP_LABELS } = await import("./self-summary-labels");
+  const facts: Array<{ field_key: string; value: string | null; kind: string | null; is_current: boolean; superseded_by: string | null }> = [];
+  try {
+    const { data } = await supabaseAdmin
+      .from("contact_profile_facts")
+      .select("field_key, value_text, explicit_or_inferred, is_current, superseded_by")
+      .eq("contact_id", contactId)
+      .eq("is_current", true)
+      .eq("explicit_or_inferred", "explicit")
+      .is("superseded_by", null)
+      .limit(30);
+    for (const r of ((data as any[]) ?? [])) {
+      facts.push({
+        field_key: r.field_key,
+        value: r.value_text ?? null,
+        kind: r.explicit_or_inferred ?? null,
+        is_current: r.is_current !== false,
+        superseded_by: r.superseded_by ?? null,
+      });
+    }
+  } catch { /* provenance missing => echo nothing */ }
+
+  const answers: Array<{ question_key: string; label: string | null; raw_text: string | null; is_current: boolean; skipped_by_user: boolean }> = [];
+  try {
+    const { data } = await supabaseAdmin
+      .from("relationship_intake_answers")
+      .select("question_key, raw_text, is_current, skipped_by_user")
+      .eq("contact_id", contactId)
+      .eq("is_current", true)
+      .eq("skipped_by_user", false)
+      .limit(12);
+    for (const r of ((data as any[]) ?? [])) {
+      answers.push({
+        question_key: r.question_key,
+        label: RELATIONSHIP_LABELS[r.question_key] ?? null,
+        raw_text: r.raw_text ?? null,
+        is_current: r.is_current !== false,
+        skipped_by_user: !!r.skipped_by_user,
+      });
+    }
+  } catch { /* ignore */ }
+
+  return { facts, answers };
+}
+
 export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const started = Date.now();
   const message = String(input.message ?? "").trim();
@@ -272,39 +333,83 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   // Resolve WHICH offer the customer is talking about, then answer only from
   // that offer's structured knowledge + approved community knowledge.
   const candidates: OfferKnowledge[] = await loadOfferKnowledgeCandidates().catch(() => []);
-  const resolution = resolveOffer(message, candidates, {
-    recentMessages: history,
-    lastOfferId: lastOfferIdFrom(contact),
-  });
-  const resolved = resolution.offer;
-  const availability = resolved ? offerAvailability(resolved) : { sellable: false, past: false };
-
-  const productAsked =
+  // Resolution from the CURRENT message only — context is allowed to carry the
+  // offer forward only when this turn really is about a product.
+  const directResolution = resolveOffer(message, candidates);
+  const asksSomething =
     isUserQuestion(message) ||
     interpretation.intent === "question" ||
     interpretation.intent === "price_question";
+  const productGate = isProductQuestion({
+    message,
+    directResolution,
+    lastGroundedOfferId: lastGroundedOfferIdFrom(contact),
+    isQuestion: asksSomething,
+  });
+  const productAsked = productGate.product;
+  const resolution = productGate.useContext
+    ? resolveOffer(message, candidates, {
+        recentMessages: history,
+        lastOfferId: lastGroundedOfferIdFrom(contact) ?? lastOfferIdFrom(contact),
+      })
+    : directResolution;
+  const resolved = productAsked ? resolution.offer : null;
+  const availability = resolved ? offerAvailability(resolved) : { sellable: false, past: false };
 
   let answerText: string | null = null;
   let groundingPath = "none";
   let knowledgeIds: string[] = [];
   let linkSent = false;
+  let pendingHandoff: PendingProductHandoff | null = null;
+  let clearPendingHandoff = false;
+
+  // ---- Pending product handoff: the customer said yes to a human ---------
+  const pending = pendingProductHandoffFrom(contact);
+  const acceptsPending =
+    !!contact &&
+    !input.simulate &&
+    isPendingHandoffFresh(pending) &&
+    (acceptedHandoffOffer(message) || wantsHuman(message));
+  if (acceptsPending && pending) {
+    const res = await ensureHandoff({
+      contactId: contact.id,
+      customerPhone: contact.whatsapp_number ?? contact.phone ?? null,
+      customerName: contact.first_name ?? null,
+      reason: "product_question_unknown",
+      reasonCodes: ["product_question_unknown", "customer_accepted_handoff"],
+      urgency: "normal",
+      latestInbound: message,
+      suggestedResponse: `שאלה פתוחה: ${pending.question}`,
+      excerpt: history.slice(-12).map((line) => ({
+        ts: new Date().toISOString(),
+        source: line.startsWith("תמר") ? "tamar" : "customer",
+        content: line,
+      })),
+      offerId: pending.offer_id,
+      runtime: "v2",
+    }).catch(() => null);
+    if (res?.handoff_id) {
+      answerText = res.receipt_text;
+      groundingPath = "product_handoff_confirmed";
+      clearPendingHandoff = true; // cleared ONLY after durable creation
+    } else {
+      // Never claim a handoff that was not created — keep the pending offer.
+      answerText = "רגע אחד, לא הצלחתי להעביר את זה עכשיו. אני מנסה שוב ואחזור אלייך כאן.";
+      groundingPath = "product_handoff_failed";
+    }
+  }
 
   const solo = soloPolicyReply(message);
-  if (isSelfSummaryRequest(message)) {
+  if (answerText) {
+    /* pending-handoff turn already answered */
+  } else if (isSelfSummaryRequest(message)) {
     // Customer-safe: ONLY explicit facts the customer supplied.
-    let relationshipAnswers: Array<{ question_key: string; raw_text: string | null }> = [];
-    if (contact?.id) {
-      const { data } = await supabaseAdmin
-        .from("relationship_intake_answers")
-        .select("question_key, raw_text")
-        .eq("contact_id", contact.id)
-        .limit(12);
-      relationshipAnswers = ((data as any[]) ?? []).map((r) => ({
-        question_key: r.question_key,
-        raw_text: r.raw_text ?? null,
-      }));
-    }
-    answerText = buildCustomerSelfSummary({ contact, relationshipAnswers });
+    const provenance = contact?.id ? await loadCustomerSuppliedProfile(contact.id) : { facts: [], answers: [] };
+    answerText = buildCustomerSelfSummary({
+      firstName: contact?.first_name ?? null,
+      explicitFacts: provenance.facts,
+      relationshipAnswers: provenance.answers,
+    });
     groundingPath = "self_summary_explicit_facts";
   } else if (solo) {
     answerText = solo.text;
@@ -327,6 +432,24 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       infoOnly: !!resolved && !availability.sellable,
     }).catch(() => null);
     groundingPath = resolved ? "offer_knowledge" : "community_knowledge";
+  }
+
+  // ---- Offer a human ONLY for an unknown product/service question -------
+  if (
+    !clearPendingHandoff &&
+    (groundingPath === "honest_unknown" || groundingPath === "solo_policy_unknown") &&
+    mayOfferHandoff({
+      inQuestionnaire: !!pendingStepKey,
+      unknownProductQuestion: true,
+      explicitRequest: wantsHuman(message),
+    })
+  ) {
+    pendingHandoff = {
+      offer_id: resolved?.id ?? pending?.offer_id ?? null,
+      offer_title: resolved?.title ?? pending?.offer_title ?? null,
+      question: message.slice(0, 500),
+      at: new Date().toISOString(),
+    };
   }
 
   // A past / non-sellable offer may be discussed, never marketed.
@@ -380,6 +503,9 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       answeredCount,
       offerId: resolved?.id ?? null,
       linkSent,
+      pendingHandoff,
+      clearPendingHandoff,
+      groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
       grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence },
     });
     const to = toE164(contact.whatsapp_number ?? contact.phone ?? input.phone) ?? "";
@@ -435,6 +561,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         });
         if (!res.ok) break;
       }
+      // The link ledger is committed ONLY after a successful outbound send,
+      // so a failed send never suppresses the link forever.
+      if (linkSent && resolved?.id && sends.some((s) => s.ok)) {
+        await commitOfferLinkSent(contact.id, resolved.id).catch(() => undefined);
+      }
     }
   }
 
@@ -460,6 +591,9 @@ async function persistTurn(args: {
   answeredCount: number;
   offerId?: string | null;
   linkSent?: boolean;
+  pendingHandoff?: PendingProductHandoff | null;
+  clearPendingHandoff?: boolean;
+  groundedOfferId?: string | null;
   grounding?: { path: string; knowledge_ids: string[]; confidence: number };
 }) {
   const { contact, decision, interpretation, agent, message } = args;
@@ -494,10 +628,16 @@ async function persistTurn(args: {
   dyn["v2_pending_step"] = decision.ask_step_key;
   dyn["v2_ambiguity_turns"] = decision.ambiguity_turns;
   dyn["v2_answered_count"] = args.answeredCount + (Object.keys(decision.captured).length ? 1 : 0);
-  Object.assign(
-    dyn,
-    withOfferLedger(dyn, { offerId: args.offerId ?? null, linkSent: !!args.linkSent }),
-  );
+  // last-offer pointer only; the LINK ledger is committed after a successful
+  // send (commitOfferLinkSent), never here.
+  Object.assign(dyn, withOfferLedger(dyn, { offerId: args.offerId ?? null, linkSent: false }));
+  const withPending = withPendingHandoff(dyn, {
+    pending: args.pendingHandoff ?? null,
+    clear: !!args.clearPendingHandoff,
+    groundedOfferId: args.groundedOfferId ?? null,
+  });
+  for (const k of Object.keys(dyn)) if (!(k in withPending)) delete dyn[k];
+  Object.assign(dyn, withPending);
 
   const patch: Record<string, unknown> = {
     conversation_state: decision.next_state,

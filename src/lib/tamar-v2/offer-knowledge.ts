@@ -359,9 +359,70 @@ export function mayOfferHandoff(args: {
 }
 
 /** Handoff is only performed after the customer says yes / asks explicitly. */
-const YES_RE = /^(כן|בטח|אשמח|בוודאי|יאללה|ok|okay|yes|כן\s+בבקשה|אפשר)\b/i;
+// \b does not work after Hebrew letters (they are not \w), so the boundary is
+// expressed explicitly as end-of-string or a non-letter character.
+const YES_RE =
+  /^(כן|בטח|אשמח|בוודאי|יאללה|כן\s+בבקשה|אפשר|ok|okay|yes)(?=$|[\s,.!?׳"'־-])/i;
 export function acceptedHandoffOffer(message: string): boolean {
   return YES_RE.test(String(message ?? "").trim());
+}
+
+/** Durable memory of "I offered a human for THIS unanswered product question". */
+export type PendingProductHandoff = {
+  offer_id: string | null;
+  offer_title: string | null;
+  question: string;
+  at: string;
+};
+
+/** A pending offer expires so an old "כן" in another context cannot trigger it. */
+export const PENDING_HANDOFF_TTL_MS = 24 * 60 * 60 * 1000;
+
+export function isPendingHandoffFresh(
+  pending: PendingProductHandoff | null,
+  now: Date = new Date(),
+): boolean {
+  if (!pending?.at) return false;
+  const t = Date.parse(pending.at);
+  return Number.isFinite(t) && now.getTime() - t <= PENDING_HANDOFF_TTL_MS;
+}
+
+/* ------------------------------------------------------------------ */
+/* Product-question gating                                             */
+/* ------------------------------------------------------------------ */
+
+/** Explicit product/trip vocabulary. Without one of these (or a strong
+ *  current-message offer match) a question is NOT a product question. */
+const PRODUCT_SIGNAL_RE =
+  /(טיול|טיולים|נסיע|יעד|חופש|טיסה|טיסות|מלון|לינה|חדר|מסלול|מחיר|עולה|עלות|כמה\s+זה|תשלום|מקדמה|תארי[ךכ]ים|מתי\s+יוצא|יציאה|הרשמה|להירשם|מקומות|כלול|לא\s+כלול|ארוחות|קבוצה|מדריך|הצעה|אירוע|סדנה|trip|tour|price|itinerary)/i;
+
+/** Pronoun follow-up that only makes sense against a product-grounded turn. */
+const FOLLOWUP_PRONOUN_RE =
+  /^(ו?מה\s+עם\s+זה|וזה|זה|הוא|היא|שם|כמה\s+זה|ומה\s+לגבי|ומה\s+איתו|ומה\s+איתה|ועוד)\b/i;
+
+/**
+ * Is this turn really about a product? A generic question ("מי את?", "אפשר
+ * לדבר בטלפון?") must never hijack the last offer from context.
+ */
+export function isProductQuestion(args: {
+  message: string;
+  /** resolution computed from the CURRENT message only (no context carry) */
+  directResolution: OfferResolution;
+  /** the last offer that was actually grounded in a previous turn */
+  lastGroundedOfferId?: string | null;
+  isQuestion: boolean;
+}): { product: boolean; useContext: boolean; reason: string } {
+  const msg = String(args.message ?? "");
+  const strong =
+    !!args.directResolution.offer &&
+    (args.directResolution.reason === "exact" || args.directResolution.reason === "alias");
+  if (strong) return { product: true, useContext: false, reason: "direct_offer_match" };
+  if (args.directResolution.ambiguous) return { product: true, useContext: false, reason: "ambiguous_offer" };
+  if (PRODUCT_SIGNAL_RE.test(msg)) return { product: true, useContext: true, reason: "product_signal" };
+  if (args.isQuestion && args.lastGroundedOfferId && FOLLOWUP_PRONOUN_RE.test(msg.trim())) {
+    return { product: true, useContext: true, reason: "pronoun_followup" };
+  }
+  return { product: false, useContext: false, reason: "not_product" };
 }
 
 /* ------------------------------------------------------------------ */
@@ -406,27 +467,71 @@ export const SELF_SUMMARY_FORBIDDEN = [
   "hypothesis",
 ];
 
+/** A profile fact with verified provenance (contact_profile_facts row). */
+export type ExplicitFact = {
+  field_key: string;
+  value: string | null;
+  /** must be "explicit" to be echoed back */
+  kind: string | null;
+  is_current?: boolean | null;
+  superseded_by?: string | null;
+};
+
+/** A current, non-skipped questionnaire answer. */
+export type SelfSummaryAnswer = {
+  question_key: string;
+  label?: string | null;
+  raw_text: string | null;
+  is_current?: boolean | null;
+  skipped_by_user?: boolean | null;
+};
+
+export function isEchoableFact(f: ExplicitFact): boolean {
+  if (!f || SELF_SUMMARY_FORBIDDEN.some((bad) => String(f.field_key ?? "").toLowerCase().includes(bad))) return false;
+  if (f.kind !== "explicit") return false;
+  if (f.is_current === false) return false;
+  if (f.superseded_by) return false;
+  return String(f.value ?? "").trim() !== "";
+}
+
+/**
+ * Customer-safe self summary.
+ *
+ * Provenance rule: ONLY facts whose provenance is explicitly customer-supplied
+ * (contact_profile_facts.explicit_or_inferred = "explicit", current, not
+ * superseded) and current, non-skipped questionnaire answers. Contact columns
+ * and dynamic_profile_fields are never echoed, because they may be inferred,
+ * stale, or internal. Labels are friendly, never internal question keys.
+ */
 export function buildCustomerSelfSummary(args: {
-  contact: Record<string, any> | null;
-  relationshipAnswers?: Array<{ question_key: string; raw_text: string | null }>;
+  /** used ONLY for the customer's own first name */
+  firstName?: string | null;
+  explicitFacts?: ExplicitFact[];
+  relationshipAnswers?: SelfSummaryAnswer[];
 }): string {
-  const c = args.contact ?? {};
-  const dyn = (c["dynamic_profile_fields"] ?? {}) as Record<string, any>;
+  const labels = new Map(SELF_SUMMARY_FIELDS.map((f) => [f.key, f.label]));
   const bits: string[] = [];
-  for (const f of SELF_SUMMARY_FIELDS) {
-    const raw = c[f.key] ?? dyn[f.key];
-    const value = Array.isArray(raw) ? raw.filter(Boolean).join(", ") : raw;
-    if (value == null || String(value).trim() === "") continue;
-    if (typeof value === "boolean") {
-      bits.push(`${f.label}: ${value ? "כן" : "לא"}`);
-    } else {
-      bits.push(`${f.label}: ${String(value).slice(0, 120)}`);
-    }
+  const name = String(args.firstName ?? "").trim();
+  if (name) bits.push(`שם: ${name.slice(0, 60)}`);
+
+  const seen = new Set<string>();
+  for (const f of args.explicitFacts ?? []) {
+    if (!isEchoableFact(f) || seen.has(f.field_key)) continue;
+    seen.add(f.field_key);
+    const label = labels.get(f.field_key);
+    if (!label) continue; // unknown/internal key => never echoed
+    bits.push(`${label}: ${String(f.value).trim().slice(0, 120)}`);
   }
-  for (const a of (args.relationshipAnswers ?? []).slice(0, 6)) {
+
+  for (const a of (args.relationshipAnswers ?? []).slice(0, 8)) {
+    if (a?.is_current === false || a?.skipped_by_user) continue;
     const t = String(a?.raw_text ?? "").trim();
-    if (t) bits.push(`${a.question_key}: ${t.slice(0, 120)}`);
+    if (!t) continue;
+    const label = String(a.label ?? "").trim();
+    if (!label) continue; // never expose an internal question key
+    bits.push(`${label}: ${t.slice(0, 120)}`);
   }
+
   if (!bits.length) {
     return "בעצם עוד לא סיפרת לי הרבה 🙂 אשמח שתספר/י לי קצת — ואשמור רק את מה שתגיד/י לי.";
   }
