@@ -1665,6 +1665,7 @@ export type Database = {
           content: string | null
           created_at: string
           id: string
+          provider_message_id: string | null
           related_event_id: string | null
           related_offer_id: string | null
           source: string | null
@@ -1677,6 +1678,7 @@ export type Database = {
           content?: string | null
           created_at?: string
           id?: string
+          provider_message_id?: string | null
           related_event_id?: string | null
           related_offer_id?: string | null
           source?: string | null
@@ -1689,6 +1691,7 @@ export type Database = {
           content?: string | null
           created_at?: string
           id?: string
+          provider_message_id?: string | null
           related_event_id?: string | null
           related_offer_id?: string | null
           source?: string | null
@@ -1860,6 +1863,7 @@ export type Database = {
           id: string
           message_text: string
           offer_id: string | null
+          provider_message_id: string | null
           reply_text: string | null
           sent_at: string | null
           status: Database["public"]["Enums"]["message_status"]
@@ -1871,6 +1875,7 @@ export type Database = {
           id?: string
           message_text: string
           offer_id?: string | null
+          provider_message_id?: string | null
           reply_text?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
@@ -1882,6 +1887,7 @@ export type Database = {
           id?: string
           message_text?: string
           offer_id?: string | null
+          provider_message_id?: string | null
           reply_text?: string | null
           sent_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
