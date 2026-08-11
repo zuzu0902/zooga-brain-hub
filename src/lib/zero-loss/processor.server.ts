@@ -18,7 +18,77 @@ export type ProcessOutcome = {
   kind: "message" | "status" | "unknown";
   contact_id: string | null;
   identity_id: string | null;
+  /** Set for message events: did this run leave the customer answered? */
+  replied?: boolean;
+  no_reply_reason?: string | null;
+  inbound_message_id?: string | null;
 };
+
+/**
+ * Re-run the conversational reply for a message event whose turn never
+ * completed (crash / send failure after the webhook already acked).
+ * Idempotent: a dedupe row that is already `completed` is never re-sent.
+ */
+async function recoverReply(args: {
+  contactId: string;
+  phone: string;
+  text: string;
+  wamid: string | null;
+  name?: string | null;
+}): Promise<{ replied: boolean; no_reply_reason: string | null }> {
+  const { isCompletedDedupeRow, recordReply, markNoReply } = await import("@/lib/runtime-inbound-dedupe");
+  if (args.wamid) {
+    const { data: dedupe } = await supabaseAdmin
+      .from("runtime_inbound_dedupe" as any)
+      .select("state, reply_text, completed_at, no_reply_reason")
+      .eq("inbound_message_id", args.wamid)
+      .maybeSingle();
+    if (dedupe && isCompletedDedupeRow(dedupe as any)) {
+      return { replied: true, no_reply_reason: null };
+    }
+    if (!dedupe) {
+      // The webhook crashed before claiming: own the turn now.
+      await supabaseAdmin
+        .from("runtime_inbound_dedupe" as any)
+        .insert({
+          inbound_message_id: args.wamid,
+          contact_id: args.contactId,
+          phone: args.phone,
+          source: "zero_loss_worker",
+          state: "claimed",
+          attempt_count: 1,
+        } as any);
+    }
+  }
+  const { runV2Turn } = await import("@/lib/tamar-v2/engine.server");
+  const v2 = await runV2Turn({
+    phone: args.phone,
+    message: args.text,
+    name: args.name ?? undefined,
+    inbound_message_id: args.wamid ?? undefined,
+    source: "zero_loss_worker",
+  } as any);
+  const sentAll = v2.sends.length > 0 && v2.sends.every((s: any) => s.ok);
+  if (sentAll) {
+    if (args.wamid) await recordReply(args.wamid, v2.decision.messages.map((m: any) => m.body).join("\n")).catch(() => {});
+    return { replied: true, no_reply_reason: null };
+  }
+  const { isValidNoReplyReason } = await import("./turn-outcome");
+  if (isValidNoReplyReason(v2.no_reply_reason)) {
+    if (args.wamid) await markNoReply(args.wamid, String(v2.no_reply_reason)).catch(() => {});
+    return { replied: false, no_reply_reason: String(v2.no_reply_reason) };
+  }
+  const { maybeSendRecoveryFallback } = await import("@/lib/conversation-guard/fallback.server");
+  const fb = await maybeSendRecoveryFallback({
+    contactId: args.contactId,
+    phone: args.phone,
+    inboundMessageId: args.wamid,
+    inboundText: args.text,
+    error: v2.no_reply_reason ?? "worker_no_outbound",
+  }).catch(() => null);
+  if (fb?.sent) return { replied: true, no_reply_reason: null };
+  return { replied: false, no_reply_reason: null };
+}
 
 export async function processVaultEvent(args: {
   vaultId: string;
@@ -64,5 +134,37 @@ export async function processVaultEvent(args: {
     .update({ contact_id: resolution.contact_id } as any)
     .eq("id", args.vaultId);
 
-  return { kind: "message", contact_id: resolution.contact_id, identity_id: resolution.identity_id };
+  const wamid = row.raw_payload?.message?.id
+    ? String(row.raw_payload.message.id)
+    : row.raw_payload?.messages?.[0]?.id
+      ? String(row.raw_payload.messages[0].id)
+      : null;
+  const text =
+    row.raw_payload?.message?.text?.body ??
+    row.raw_payload?.messages?.[0]?.text?.body ??
+    row.raw_payload?.message?.button?.text ??
+    null;
+
+  let replied: boolean | undefined;
+  let noReplyReason: string | null = null;
+  if (args.allowSend && text) {
+    const rec = await recoverReply({
+      contactId: resolution.contact_id,
+      phone: resolution.normalized_phone!,
+      text: String(text),
+      wamid,
+      name: displayName,
+    });
+    replied = rec.replied;
+    noReplyReason = rec.no_reply_reason;
+  }
+
+  return {
+    kind: "message",
+    contact_id: resolution.contact_id,
+    identity_id: resolution.identity_id,
+    replied,
+    no_reply_reason: noReplyReason,
+    inbound_message_id: wamid,
+  };
 }

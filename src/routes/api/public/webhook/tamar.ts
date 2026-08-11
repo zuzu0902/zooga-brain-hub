@@ -13,14 +13,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { splitMetaEvents, classifyFailure } from "@/lib/zero-loss/core";
-import { classifyTurnOutcome } from "@/lib/zero-loss/turn-outcome";
+import { classifyTurnOutcome, isValidNoReplyReason } from "@/lib/zero-loss/turn-outcome";
 import { ingestEvent, leaseJobForVault, finishJob, quarantineEvent } from "@/lib/zero-loss/vault.server";
-import { registerIdentity } from "@/lib/zero-loss/identity.server";
+import { registerIdentity, resolveIdentity } from "@/lib/zero-loss/identity.server";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
 import { runV2Turn } from "@/lib/tamar-v2/engine.server";
 import { isConsentPhase } from "@/lib/tamar-v2/engine.server";
 import { v2Enabled } from "@/lib/tamar-v2/flags.server";
-import { claimInbound, recordReply } from "@/lib/runtime-inbound-dedupe";
+import { claimInbound, markNoReply, recordReply } from "@/lib/runtime-inbound-dedupe";
 import { isOptInMessage, isOptOutMessage, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from "@/lib/optout";
 import { applyOptIn, applyOptOut, applyStatusUpdate, markReplied } from "@/lib/whatsapp-status.server";
 import {
@@ -73,6 +73,45 @@ async function findContactIdByPhone(phone: string): Promise<string | null> {
     .limit(1)
     .maybeSingle();
   return (data as any)?.id ?? null;
+}
+
+/**
+ * IDEMPOTENT CONTACT RESOLUTION for one inbound turn.
+ *
+ * Every downstream layer (gate, onboarding, intake, engine) must see the same
+ * real contact row, including a brand-new number and the create race where two
+ * webhook deliveries arrive together. Resolution happens ONCE per message and
+ * the result is memoized; a hard failure is thrown so the job stays retryable
+ * instead of being closed as `succeeded` with silence.
+ */
+async function ensureContactForTurn(
+  cache: { id: string | null | undefined },
+  phone: string,
+  displayName?: string | null,
+): Promise<string | null> {
+  if (cache.id !== undefined) return cache.id;
+  try {
+    const res = await resolveIdentity({
+      phone,
+      displayName: displayName ?? null,
+      source: "meta_whatsapp",
+      createIfMissing: true,
+    });
+    cache.id = res.contact_id ?? null;
+  } catch (err: any) {
+    // The create race: another delivery inserted the row a moment ago.
+    const existing = await findContactIdByPhone(phone).catch(() => null);
+    if (existing) {
+      cache.id = existing;
+      return existing;
+    }
+    throw err;
+  }
+  if (!cache.id) {
+    const existing = await findContactIdByPhone(phone).catch(() => null);
+    cache.id = existing;
+  }
+  return cache.id ?? null;
 }
 
 export const Route = createFileRoute("/api/public/webhook/tamar")({
@@ -159,6 +198,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           const vaultRef = vaultByEventId.get(msg.wamid) ?? null;
           const jobId = vaultRef && !vaultRef.duplicate ? await leaseJobForVault(vaultRef.vault_id, "webhook") : null;
           if (jobId && vaultRef) jobByWamid.set(msg.wamid, { jobId, vaultId: vaultRef.vault_id, attempt: await jobAttempts(jobId) });
+          const contactCache: { id: string | null | undefined } = { id: undefined };
           let inboundText = msg.text;
           let inboundSource: "text" | "voice" = "text";
           let voiceConfidence: number | null = null;
@@ -179,9 +219,21 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 duplicate_detected: true,
                 reply_sent: false,
                 hit_count: claim.hit_count,
+                state: claim.state,
               },
             } as any);
-            results.push({ wamid: msg.wamid, duplicate: true, reply_sent: false, no_reply_reason: "duplicate_inbound" });
+            // An incomplete duplicate is NOT a completed turn: it must never
+            // close the job as succeeded.
+            const dupComplete = claim.state === "completed";
+            results.push({
+              wamid: msg.wamid,
+              duplicate: true,
+              reply_sent: false,
+              contact_id: claim.contact_id ?? null,
+              ...(dupComplete
+                ? { no_reply_reason: "duplicate_inbound" }
+                : { error: "duplicate_incomplete" }),
+            });
             continue;
           }
 
@@ -200,7 +252,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // ---- Inbound voice note: transcribe server-side, then continue
           // through the exact same conversational pipeline as text. ----
           if (msg.audio?.id) {
-            const voiceContactId = await findContactIdByPhone(msg.from);
+            const voiceContactId = await ensureContactForTurn(contactCache, msg.from, msg.name);
             const { transcribeInboundVoice } = await import("@/lib/voice/transcription.server");
             const voice = await transcribeInboundVoice({
               contactId: voiceContactId,
@@ -211,6 +263,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               durationSeconds: msg.audio.duration,
             }).catch(() => null);
             if (voice?.status === "duplicate") {
+              await markNoReply(msg.wamid, "duplicate_inbound").catch(() => {});
               results.push({ wamid: msg.wamid, voice: "duplicate", reply_sent: false, contact_id: voiceContactId, no_reply_reason: "duplicate_inbound" });
               continue;
             }
@@ -242,6 +295,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           }
 
           if (!inboundText) {
+            await markNoReply(msg.wamid, "unsupported_message_type").catch(() => {});
             results.push({ wamid: msg.wamid, skipped: "unsupported_message_type", reply_sent: false, no_reply_reason: "unsupported_message_type" });
             continue;
           }
@@ -250,7 +304,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // Exactly one classification per wamid, before intake /
           // relationship_intake / brain / campaign reply may act. Text,
           // button and voice transcript all pass through here.
-          const gateContactId = await findContactIdByPhone(msg.from);
+          // Contact-first: gate, intake and engine all act on a real row.
+          const gateContactId = await ensureContactForTurn(contactCache, msg.from, msg.name);
           const gated = await runInboundGate({
             contactId: gateContactId,
             phone: msg.from,
@@ -284,7 +339,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // ---- Consent commands short-circuit the engine entirely ----
           if (isOptOutMessage(inboundText) || isOptInMessage(inboundText)) {
             const optOut = isOptOutMessage(inboundText);
-            const contactId = await findContactIdByPhone(msg.from);
+            const contactId = await ensureContactForTurn(contactCache, msg.from, msg.name);
             if (optOut) await applyOptOut(msg.from, contactId);
             else await applyOptIn(msg.from, contactId);
             const confirmation = optOut ? OPT_OUT_CONFIRMATION : OPT_IN_CONFIRMATION;
@@ -315,7 +370,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // ---- Two-stage opening: availability button, then consent button.
           // Deterministic and idempotent; never reaches the model.
           {
-            const onboardingContactId = await findContactIdByPhone(msg.from);
+            const onboardingContactId = contactCache.id ?? null;
             if (onboardingContactId) {
               const { handleOnboardingButton } = await import("@/lib/onboarding/onboarding.server");
               const res = await handleOnboardingButton({
@@ -327,6 +382,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               }).catch(() => null);
               if (res?.handled) {
                 if (res.duplicate) {
+                  await markNoReply(msg.wamid, "onboarding_duplicate").catch(() => {});
                   results.push({ wamid: msg.wamid, contact_id: onboardingContactId, onboarding: res.kind, duplicate: true, reply_sent: false, no_reply_reason: "onboarding_duplicate" });
                   continue;
                 }
@@ -381,7 +437,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // until the completion message was sent. Free text and voice only,
           // one question per turn, no human-agent offer.
           {
-            const relContactId = await findContactIdByPhone(msg.from);
+            const relContactId = contactCache.id ?? null;
             // question / confusion / topic_shift / multi_intent skip the
             // questionnaire entirely and are answered by Tamar v2.
             if (relContactId && relationshipMayOwnTurn(cls)) {
@@ -443,7 +499,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // It NEVER owns a turn where the customer asked a direct question or
           // signalled a loop — answering the customer always comes first.
           {
-            const intakeContactId = await findContactIdByPhone(msg.from);
+            const intakeContactId = contactCache.id ?? null;
             const intakeMayOwnTurn = baselineMayOwnTurn({
               cls,
               looksLikeQuestion: isUserQuestion(inboundText),
@@ -461,7 +517,19 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                     messageId: msg.wamid,
                   }).catch(() => null)
                 : null;
-              const plan = await planIntakeTurn(intakeContactId).catch(() => null);
+              // A null / throwing intake plan must NEVER swallow the turn: it
+              // falls through to Tamar v2 (and then to the guarded fallback).
+              const plan = await planIntakeTurn(intakeContactId).catch(async (err: any) => {
+                await supabaseAdmin
+                  .from("webhook_logs")
+                  .insert({
+                    source: "baseline_intake",
+                    status: "intake_plan_failed_fallthrough",
+                    error: String(err?.message ?? err).slice(0, 300),
+                    payload: { inbound_message_id: msg.wamid, contact_id: intakeContactId },
+                  } as any);
+                return null;
+              });
               if (plan && plan.kind !== "none") {
                 if (plan.kind === "question") {
                   // ---- Conversation Progress Guard -----------------------
@@ -573,8 +641,27 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             await markReplied(msg.from, v2.contact_id).catch(() => {});
             await markGateRoute(msg.wamid, "tamar_v2");
             const sentAll = v2.sends.length > 0 && v2.sends.every((s) => s.ok);
-            await recordReply(msg.wamid, v2.decision.messages.map((m) => m.body).join("\n")).catch(() => {});
+            if (sentAll) {
+              await recordReply(msg.wamid, v2.decision.messages.map((m) => m.body).join("\n")).catch(() => {});
+            } else if (isValidNoReplyReason(v2.no_reply_reason)) {
+              await markNoReply(msg.wamid, String(v2.no_reply_reason)).catch(() => {});
+            }
+            // No send AND no documented reason => never silence: exactly one
+            // guarded recovery message, and the job stays retryable.
+            let v2Fallback: any = null;
+            if (!sentAll && !isValidNoReplyReason(v2.no_reply_reason)) {
+              const { maybeSendRecoveryFallback } = await import("@/lib/conversation-guard/fallback.server");
+              v2Fallback = await maybeSendRecoveryFallback({
+                contactId: v2.contact_id ?? contactCache.id ?? null,
+                phone: msg.from,
+                inboundMessageId: msg.wamid,
+                inboundText,
+                error: v2.no_reply_reason ?? "v2_no_outbound",
+              }).catch(() => null);
+            }
             results.push({
+              recovery_fallback: v2Fallback?.sent ?? undefined,
+              recovery_reason: v2Fallback?.reason ?? undefined,
               wamid: msg.wamid,
               engine: flag.enabled ? "v2" : "v2_consent_phase",
               contact_id: v2.contact_id,
@@ -614,6 +701,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 brain_reason: turn.payload?.brain_reason ?? null,
               },
             } as any);
+            await markNoReply(msg.wamid, "suppressed_brain_gate").catch(() => {});
             results.push({
               wamid: msg.wamid,
               contact_id: turn.payload?.contact_id ?? null,
@@ -707,11 +795,24 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             handoff_requested: !!turn.payload?.handoff_requested,
           });
           } catch (err: any) {
-            // A classified processing failure. Nothing is swallowed: the job
-            // below is closed as retryable, never as `succeeded`.
+            // A classified processing failure. The failure is durably logged
+            // BEFORE any recovery attempt, so a crash inside the fallback
+            // still leaves a trace. The job below is closed as retryable.
+            await supabaseAdmin
+              .from("webhook_logs")
+              .insert({
+                source: "meta_whatsapp",
+                status: "turn_failed",
+                error: String(err?.message ?? err).slice(0, 300),
+                payload: {
+                  inbound_message_id: msg.wamid,
+                  contact_id: contactCache.id ?? null,
+                  stage: "reply_pipeline",
+                },
+              } as any);
             const { maybeSendRecoveryFallback } = await import("@/lib/conversation-guard/fallback.server");
             const fb = await maybeSendRecoveryFallback({
-              contactId: await findContactIdByPhone(msg.from).catch(() => null),
+              contactId: contactCache.id ?? (await findContactIdByPhone(msg.from).catch(() => null)),
               phone: msg.from,
               inboundMessageId: msg.wamid,
               inboundText,

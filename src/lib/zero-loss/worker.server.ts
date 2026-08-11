@@ -9,6 +9,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { classifyFailure } from "./core";
 import { finishJob, quarantineEvent } from "./vault.server";
 import { processVaultEvent } from "./processor.server";
+import { classifyTurnOutcome } from "./turn-outcome";
 
 export async function runWorker(args: { worker: string; limit?: number; leaseSeconds?: number }): Promise<{
   claimed: number;
@@ -35,10 +36,23 @@ export async function runWorker(args: { worker: string; limit?: number; leaseSec
     const vaultId = String(c.vault_event_id);
     const attempts = Number(c.attempts) || 1;
     try {
-      const outcome = await processVaultEvent({ vaultId, jobId, attempt: attempts, allowSend: false });
+      // Retry runs the SAME reply pipeline as the webhook, guarded by the
+      // inbound dedupe ledger so a completed turn is never sent twice.
+      const outcome = await processVaultEvent({ vaultId, jobId, attempt: attempts, allowSend: true });
+      const turn =
+        outcome.kind === "message"
+          ? classifyTurnOutcome({
+              contactId: outcome.contact_id,
+              sends: outcome.replied ? [{ ok: true }] : [],
+              noReplyReason: outcome.no_reply_reason ?? null,
+              attempt: attempts,
+              maxAttempts: Number(c.max_attempts) || 6,
+            })
+          : { success: true, reason: outcome.kind, retryable: false, quarantine: false };
+      if (!turn.success) throw Object.assign(new Error(turn.reason), { zl_reason: turn.reason });
       await finishJob({ jobId, success: true, attempt: attempts, contactId: outcome.contact_id });
       succeeded++;
-      results.push({ job: jobId, ok: true, kind: outcome.kind });
+      results.push({ job: jobId, ok: true, kind: outcome.kind, outcome: turn.reason });
     } catch (err) {
       const reason = classifyFailure(err);
       const atMax = attempts >= (Number(c.max_attempts) || 6);
