@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Mic } from "lucide-react";
 import { getRelationshipIntake } from "@/lib/relationship-intake.functions";
 import { useT } from "@/lib/language-context";
+import { RelationshipAiInsightsCard } from "@/components/relationship-ai-insights-card";
 
 const STATUS_LABEL: Record<string, string> = {
   not_started: "טרם התחיל",
@@ -25,6 +26,7 @@ export function RelationshipIntakePanel({ contactId }: { contactId: string }) {
   const { state, questions, answers, progress, audit, voice } = data as any;
 
   return (
+    <div className="space-y-4">
     <Card className="p-6 space-y-5 shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-center gap-3">
         <h3 className="font-semibold">{t("שאלון זוגיות")}</h3>
@@ -104,5 +106,7 @@ export function RelationshipIntakePanel({ contactId }: { contactId: string }) {
         </div>
       )}
     </Card>
+    <RelationshipAiInsightsCard contactId={contactId} />
+    </div>
   );
 }
