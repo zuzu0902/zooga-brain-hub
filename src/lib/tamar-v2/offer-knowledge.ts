@@ -464,27 +464,71 @@ export const SELF_SUMMARY_FORBIDDEN = [
   "hypothesis",
 ];
 
+/** A profile fact with verified provenance (contact_profile_facts row). */
+export type ExplicitFact = {
+  field_key: string;
+  value: string | null;
+  /** must be "explicit" to be echoed back */
+  kind: string | null;
+  is_current?: boolean | null;
+  superseded_by?: string | null;
+};
+
+/** A current, non-skipped questionnaire answer. */
+export type SelfSummaryAnswer = {
+  question_key: string;
+  label?: string | null;
+  raw_text: string | null;
+  is_current?: boolean | null;
+  skipped_by_user?: boolean | null;
+};
+
+export function isEchoableFact(f: ExplicitFact): boolean {
+  if (!f || SELF_SUMMARY_FORBIDDEN.some((bad) => String(f.field_key ?? "").toLowerCase().includes(bad))) return false;
+  if (f.kind !== "explicit") return false;
+  if (f.is_current === false) return false;
+  if (f.superseded_by) return false;
+  return String(f.value ?? "").trim() !== "";
+}
+
+/**
+ * Customer-safe self summary.
+ *
+ * Provenance rule: ONLY facts whose provenance is explicitly customer-supplied
+ * (contact_profile_facts.explicit_or_inferred = "explicit", current, not
+ * superseded) and current, non-skipped questionnaire answers. Contact columns
+ * and dynamic_profile_fields are never echoed, because they may be inferred,
+ * stale, or internal. Labels are friendly, never internal question keys.
+ */
 export function buildCustomerSelfSummary(args: {
-  contact: Record<string, any> | null;
-  relationshipAnswers?: Array<{ question_key: string; raw_text: string | null }>;
+  /** used ONLY for the customer's own first name */
+  firstName?: string | null;
+  explicitFacts?: ExplicitFact[];
+  relationshipAnswers?: SelfSummaryAnswer[];
 }): string {
-  const c = args.contact ?? {};
-  const dyn = (c["dynamic_profile_fields"] ?? {}) as Record<string, any>;
+  const labels = new Map(SELF_SUMMARY_FIELDS.map((f) => [f.key, f.label]));
   const bits: string[] = [];
-  for (const f of SELF_SUMMARY_FIELDS) {
-    const raw = c[f.key] ?? dyn[f.key];
-    const value = Array.isArray(raw) ? raw.filter(Boolean).join(", ") : raw;
-    if (value == null || String(value).trim() === "") continue;
-    if (typeof value === "boolean") {
-      bits.push(`${f.label}: ${value ? "כן" : "לא"}`);
-    } else {
-      bits.push(`${f.label}: ${String(value).slice(0, 120)}`);
-    }
+  const name = String(args.firstName ?? "").trim();
+  if (name) bits.push(`שם: ${name.slice(0, 60)}`);
+
+  const seen = new Set<string>();
+  for (const f of args.explicitFacts ?? []) {
+    if (!isEchoableFact(f) || seen.has(f.field_key)) continue;
+    seen.add(f.field_key);
+    const label = labels.get(f.field_key);
+    if (!label) continue; // unknown/internal key => never echoed
+    bits.push(`${label}: ${String(f.value).trim().slice(0, 120)}`);
   }
-  for (const a of (args.relationshipAnswers ?? []).slice(0, 6)) {
+
+  for (const a of (args.relationshipAnswers ?? []).slice(0, 8)) {
+    if (a?.is_current === false || a?.skipped_by_user) continue;
     const t = String(a?.raw_text ?? "").trim();
-    if (t) bits.push(`${a.question_key}: ${t.slice(0, 120)}`);
+    if (!t) continue;
+    const label = String(a.label ?? "").trim();
+    if (!label) continue; // never expose an internal question key
+    bits.push(`${label}: ${t.slice(0, 120)}`);
   }
+
   if (!bits.length) {
     return "בעצם עוד לא סיפרת לי הרבה 🙂 אשמח שתספר/י לי קצת — ואשמור רק את מה שתגיד/י לי.";
   }
