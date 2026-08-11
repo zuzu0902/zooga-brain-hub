@@ -2811,34 +2811,46 @@ export type Database = {
       }
       runtime_inbound_dedupe: {
         Row: {
+          attempt_count: number
+          completed_at: string | null
           contact_id: string | null
           created_at: string
           hit_count: number
           inbound_message_id: string
           last_seen_at: string
+          no_reply_reason: string | null
           phone: string | null
           reply_text: string | null
           source: string | null
+          state: string
         }
         Insert: {
+          attempt_count?: number
+          completed_at?: string | null
           contact_id?: string | null
           created_at?: string
           hit_count?: number
           inbound_message_id: string
           last_seen_at?: string
+          no_reply_reason?: string | null
           phone?: string | null
           reply_text?: string | null
           source?: string | null
+          state?: string
         }
         Update: {
+          attempt_count?: number
+          completed_at?: string | null
           contact_id?: string | null
           created_at?: string
           hit_count?: number
           inbound_message_id?: string
           last_seen_at?: string
+          no_reply_reason?: string | null
           phone?: string | null
           reply_text?: string | null
           source?: string | null
+          state?: string
         }
         Relationships: [
           {

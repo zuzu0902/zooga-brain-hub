@@ -19,7 +19,10 @@ export type InboundClaim =
   | {
       duplicate: false;
       inbound_message_id: string;
-      dedupe_source: "first_seen";
+      dedupe_source: "first_seen" | "retry_incomplete";
+      /** true when a previous, never-completed attempt is being retried. */
+      retry: boolean;
+      attempt: number;
     }
   | {
       duplicate: true;
@@ -29,7 +32,28 @@ export type InboundClaim =
       first_seen_at: string;
       hit_count: number;
       dedupe_source: "runtime_inbound_dedupe";
+      /** completed = a reply was delivered or an explicit no-reply was recorded. */
+      state: string;
+      retry: false;
+      attempt: number;
     };
+
+/** A claimed-but-never-completed row may be retried once after this window. */
+export const INCOMPLETE_RETRY_AFTER_MS = 60_000;
+/** Total pipeline attempts allowed per inbound message id. */
+export const MAX_INBOUND_ATTEMPTS = 2;
+
+export function isCompletedDedupeRow(row: {
+  state?: string | null;
+  reply_text?: string | null;
+  no_reply_reason?: string | null;
+  completed_at?: string | null;
+}): boolean {
+  if (String(row.state ?? "") === "completed") return true;
+  if (row.completed_at) return true;
+  if (String(row.reply_text ?? "").trim()) return true;
+  return !!String(row.no_reply_reason ?? "").trim();
+}
 
 function pickInboundMessageId(...candidates: any[]): string | null {
   for (const c of candidates) {
@@ -67,8 +91,10 @@ export async function claimInbound(args: {
   contactId?: string | null;
   phone?: string | null;
   source?: string | null;
+  now?: number;
 }): Promise<InboundClaim> {
   const { inboundMessageId, contactId = null, phone = null, source = null } = args;
+  const now = args.now ?? Date.now();
 
   const { error } = await supabaseAdmin
     .from("runtime_inbound_dedupe" as any)
@@ -77,6 +103,8 @@ export async function claimInbound(args: {
       contact_id: contactId,
       phone,
       source,
+      state: "claimed",
+      attempt_count: 1,
     } as any);
 
   if (!error) {
@@ -84,43 +112,71 @@ export async function claimInbound(args: {
       duplicate: false,
       inbound_message_id: inboundMessageId,
       dedupe_source: "first_seen",
+      retry: false,
+      attempt: 1,
     };
   }
 
-  // Unique-violation OR any other insert error → look up the existing row.
-  // We bias toward "treat as duplicate" so we never double-send on failure.
+  // Unique-violation OR any other insert error -> inspect the existing row.
   const { data: existing } = await supabaseAdmin
     .from("runtime_inbound_dedupe" as any)
-    .select("inbound_message_id, contact_id, reply_text, created_at, hit_count")
+    .select(
+      "inbound_message_id, contact_id, reply_text, created_at, last_seen_at, hit_count, state, completed_at, attempt_count, no_reply_reason",
+    )
     .eq("inbound_message_id", inboundMessageId)
     .maybeSingle();
 
   if (existing) {
-    const nextHit = (Number((existing as any).hit_count) || 1) + 1;
+    const row: any = existing;
+    const nextHit = (Number(row.hit_count) || 1) + 1;
+    const attempts = Number(row.attempt_count) || 1;
+    const completed = isCompletedDedupeRow(row);
+    const lastSeen = new Date(row.last_seen_at ?? row.created_at ?? 0).getTime();
+    const stale = now - lastSeen >= INCOMPLETE_RETRY_AFTER_MS;
+    // Only a COMPLETED turn suppresses. An incomplete, stale claim is allowed
+    // to run the pipeline exactly once more so a crash never means silence.
+    const mayRetry = !completed && stale && attempts < MAX_INBOUND_ATTEMPTS;
+
     await supabaseAdmin
       .from("runtime_inbound_dedupe" as any)
       .update({
-        last_seen_at: new Date().toISOString(),
+        last_seen_at: new Date(now).toISOString(),
         hit_count: nextHit,
+        ...(mayRetry ? { attempt_count: attempts + 1, state: "claimed" } : {}),
       } as any)
       .eq("inbound_message_id", inboundMessageId);
+
+    if (mayRetry) {
+      return {
+        duplicate: false,
+        inbound_message_id: inboundMessageId,
+        dedupe_source: "retry_incomplete",
+        retry: true,
+        attempt: attempts + 1,
+      };
+    }
+
     return {
       duplicate: true,
       inbound_message_id: inboundMessageId,
-      cached_reply_text: (existing as any).reply_text ?? null,
-      contact_id: (existing as any).contact_id ?? null,
-      first_seen_at: (existing as any).created_at,
+      cached_reply_text: row.reply_text ?? null,
+      contact_id: row.contact_id ?? null,
+      first_seen_at: row.created_at,
       hit_count: nextHit,
       dedupe_source: "runtime_inbound_dedupe",
+      state: completed ? "completed" : String(row.state ?? "claimed"),
+      retry: false,
+      attempt: attempts,
     };
   }
 
-  // Insert failed AND no existing row — surface as first_seen so we don't
-  // silently drop a real message. Pipeline keeps going.
+  // Insert failed AND no existing row - never silently drop a real message.
   return {
     duplicate: false,
     inbound_message_id: inboundMessageId,
     dedupe_source: "first_seen",
+    retry: false,
+    attempt: 1,
   };
 }
 
@@ -134,8 +190,29 @@ export async function recordReply(
   replyText: string | null,
 ): Promise<void> {
   if (!inboundMessageId) return;
+  const text = (replyText ?? "").trim();
   await supabaseAdmin
     .from("runtime_inbound_dedupe" as any)
-    .update({ reply_text: replyText ?? null } as any)
+    .update({
+      reply_text: replyText ?? null,
+      // An empty body is NOT a completed turn: keep it retryable.
+      ...(text ? { state: "completed", completed_at: new Date().toISOString() } : {}),
+    } as any)
+    .eq("inbound_message_id", inboundMessageId);
+}
+
+/**
+ * Close a turn that legitimately produced no outbound message (opt-out,
+ * unsupported type, human-owned...). Only an allowlisted reason completes.
+ */
+export async function markNoReply(inboundMessageId: string, reason: string): Promise<void> {
+  if (!inboundMessageId || !reason) return;
+  await supabaseAdmin
+    .from("runtime_inbound_dedupe" as any)
+    .update({
+      state: "completed",
+      completed_at: new Date().toISOString(),
+      no_reply_reason: reason,
+    } as any)
     .eq("inbound_message_id", inboundMessageId);
 }
