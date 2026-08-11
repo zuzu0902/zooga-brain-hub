@@ -375,6 +375,14 @@ export async function planRelationshipTurn(
     completion_sent_at: now,
     pending_confirmation: null,
   });
+  // Internal admin-only AI profile. Async, idempotent and non-blocking: a
+  // failure here can never fail the questionnaire completion.
+  try {
+    const { triggerRelationshipInsights } = await import("@/lib/relationship-insights/insights.server");
+    triggerRelationshipInsights(contactId);
+  } catch {
+    /* ignore */
+  }
   return {
     kind: "messages",
     texts: [composeTurnText(texts[0] ?? null, config.completion_text)],
