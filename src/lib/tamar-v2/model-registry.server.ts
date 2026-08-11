@@ -10,7 +10,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-export type ModelStage = "intent_interpreter" | "response_writer" | "extractor" | "fallback";
+export type ModelStage =
+  | "intent_interpreter"
+  | "response_writer"
+  | "extractor"
+  | "fallback"
+  | "relationship_insights";
 
 export type StageConfig = {
   stage: ModelStage;
@@ -67,6 +72,19 @@ const HARD_DEFAULTS: Record<ModelStage, StageConfig> = {
     retries: 0,
     fallback_model: null,
     structured_output: false,
+    reasoning_effort: null,
+  },
+  // Internal, admin-only relationship profiling: strongest configured model,
+  // strict JSON, one call per changed answer hash.
+  relationship_insights: {
+    stage: "relationship_insights",
+    model_id: "google/gemini-2.5-pro",
+    temperature: 0.1,
+    max_tokens: 3000,
+    timeout_ms: 60000,
+    retries: 0,
+    fallback_model: "google/gemini-3.6-flash",
+    structured_output: true,
     reasoning_effort: null,
   },
 };

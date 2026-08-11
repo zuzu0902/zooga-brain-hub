@@ -2486,6 +2486,83 @@ export type Database = {
         }
         Relationships: []
       }
+      relationship_ai_insights: {
+        Row: {
+          answered_keys: Json
+          confidence: number | null
+          contact_id: string
+          contradictions: Json
+          created_at: string
+          error: string | null
+          generated_at: string | null
+          id: string
+          is_current: boolean
+          matching_tags: Json
+          missing_info: Json
+          model_id: string | null
+          prompt_version: string | null
+          section_confidence: Json
+          sections: Json
+          source_hash: string
+          status: string
+          summary_he: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          answered_keys?: Json
+          confidence?: number | null
+          contact_id: string
+          contradictions?: Json
+          created_at?: string
+          error?: string | null
+          generated_at?: string | null
+          id?: string
+          is_current?: boolean
+          matching_tags?: Json
+          missing_info?: Json
+          model_id?: string | null
+          prompt_version?: string | null
+          section_confidence?: Json
+          sections?: Json
+          source_hash: string
+          status?: string
+          summary_he?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          answered_keys?: Json
+          confidence?: number | null
+          contact_id?: string
+          contradictions?: Json
+          created_at?: string
+          error?: string | null
+          generated_at?: string | null
+          id?: string
+          is_current?: boolean
+          matching_tags?: Json
+          missing_info?: Json
+          model_id?: string | null
+          prompt_version?: string | null
+          section_confidence?: Json
+          sections?: Json
+          source_hash?: string
+          status?: string
+          summary_he?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_ai_insights_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       relationship_intake_answers: {
         Row: {
           answered_at: string
