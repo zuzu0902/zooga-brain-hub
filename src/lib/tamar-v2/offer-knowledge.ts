@@ -359,7 +359,10 @@ export function mayOfferHandoff(args: {
 }
 
 /** Handoff is only performed after the customer says yes / asks explicitly. */
-const YES_RE = /^(כן|בטח|אשמח|בוודאי|יאללה|ok|okay|yes|כן\s+בבקשה|אפשר)\b/i;
+// \b does not work after Hebrew letters (they are not \w), so the boundary is
+// expressed explicitly as end-of-string or a non-letter character.
+const YES_RE =
+  /^(כן|בטח|אשמח|בוודאי|יאללה|כן\s+בבקשה|אפשר|ok|okay|yes)(?=$|[\s,.!?׳"'־-])/i;
 export function acceptedHandoffOffer(message: string): boolean {
   return YES_RE.test(String(message ?? "").trim());
 }
