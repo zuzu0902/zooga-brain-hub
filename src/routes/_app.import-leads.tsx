@@ -73,6 +73,7 @@ function ImportLeadsPage() {
   const [paste, setPaste] = useState("");
   const [consent, setConsent] = useState(false);
   const [consentSource, setConsentSource] = useState("");
+  const [waOptIn, setWaOptIn] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -120,6 +121,7 @@ function ImportLeadsPage() {
           source_file_name: fileName,
           consent_marketing: consent,
           consent_source: consentSource.trim(),
+          whatsapp_opt_in: waOptIn,
           dry_run: dryRun,
         },
       });
@@ -202,6 +204,17 @@ function ImportLeadsPage() {
               onChange={(e) => setConsentSource(e.target.value)}
               placeholder={t("לדוגמה: טופס לידים פייסבוק — קמפיין אלבניה")}
             />
+          </div>
+        </div>
+        <div className="flex items-start gap-2 rounded-lg border p-3">
+          <Checkbox id="wa-opt-in" checked={waOptIn} onCheckedChange={(v) => setWaOptIn(!!v)} className="mt-0.5" />
+          <div>
+            <Label htmlFor="wa-opt-in" className="cursor-pointer">
+              {t("יש אישור מוקדם לפנייה בוואטסאפ (מאומת)")}
+            </Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t("אישור מאומת נשמר עם המקור והמועד שציינת למעלה. הוא מתיר רק את הודעת הפתיחה לבקשת הסכמה — לא שליחה שיווקית.")}
+            </p>
           </div>
         </div>
 

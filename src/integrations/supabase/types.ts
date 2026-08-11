@@ -758,6 +758,10 @@ export type Database = {
           updated_at: string
           vip_potential: string | null
           whatsapp_number: string | null
+          whatsapp_opt_in_at: string | null
+          whatsapp_opt_in_evidence: string | null
+          whatsapp_opt_in_source: string | null
+          whatsapp_opt_in_status: string
         }
         Insert: {
           acquisition_source?: string | null
@@ -912,6 +916,10 @@ export type Database = {
           updated_at?: string
           vip_potential?: string | null
           whatsapp_number?: string | null
+          whatsapp_opt_in_at?: string | null
+          whatsapp_opt_in_evidence?: string | null
+          whatsapp_opt_in_source?: string | null
+          whatsapp_opt_in_status?: string
         }
         Update: {
           acquisition_source?: string | null
@@ -1066,6 +1074,10 @@ export type Database = {
           updated_at?: string
           vip_potential?: string | null
           whatsapp_number?: string | null
+          whatsapp_opt_in_at?: string | null
+          whatsapp_opt_in_evidence?: string | null
+          whatsapp_opt_in_source?: string | null
+          whatsapp_opt_in_status?: string
         }
         Relationships: []
       }
