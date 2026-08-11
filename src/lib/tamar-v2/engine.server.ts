@@ -28,24 +28,34 @@ import { interpret } from "./interpreter.server";
 import { interpretDeterministic } from "./interpret-rules";
 import { deriveState } from "./state-machine";
 import { isUserQuestion } from "./classify";
+import { wantsHuman } from "./classify";
 import {
   HONEST_UNKNOWN,
   PAST_OFFER_NOTE,
+  acceptedHandoffOffer,
   buildCustomerSelfSummary,
   buildOfferGroundingBlock,
+  isPendingHandoffFresh,
+  isProductQuestion,
   isSelfSummaryRequest,
   isUnsupportedDetailQuestion,
+  mayOfferHandoff,
   offerAvailability,
   resolveOffer,
   shouldSendOfferLink,
   soloPolicyReply,
   type OfferKnowledge,
+  type PendingProductHandoff,
 } from "./offer-knowledge";
 import {
+  commitOfferLinkSent,
+  lastGroundedOfferIdFrom,
   lastOfferIdFrom,
   loadOfferKnowledgeCandidates,
+  pendingProductHandoffFrom,
   sentOfferIdsFrom,
   withOfferLedger,
+  withPendingHandoff,
 } from "./offer-knowledge.server";
 import type { AgentVersion, Interpretation, OutboundMessage, TurnDecision } from "./types";
 import { writeGroundedAnswer } from "./writer.server";
