@@ -40,12 +40,12 @@ describe("db-safe", () => {
       if (file.includes("db-safe")) continue; // helper + this test document the bad pattern
       const src = readFileSync(file, "utf8");
       // Statement-scoped scan: a supabase builder chain never spans a `;`.
-      const bad = src
-        .split(";")
-        .some(
-          (stmt) =>
-            /(?:db\(\)|supabaseAdmin|supabase)\s*\.?\s*\n?\s*\.from\(/.test(stmt) && /\.catch\(/.test(stmt),
-        );
+      // Statement-scoped scan: a supabase builder chain never spans a `;`.
+      const bad = src.split(";").some((stmt) => {
+        const from = stmt.search(/(?:db\(\)|supabaseAdmin|supabase)\s*\n?\s*\.from\(/);
+        if (from < 0) return false;
+        return stmt.indexOf(".catch(", from) > from;
+      });
       if (bad) offenders.push(file);
     }
     expect(offenders).toEqual([]);
