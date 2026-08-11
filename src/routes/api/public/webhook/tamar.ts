@@ -43,6 +43,7 @@ import {
 } from "@/lib/inbound-gate/gate.server";
 import { detectLoopSignal } from "@/lib/conversation-guard/core";
 import { isUserQuestion } from "@/lib/tamar-brain/signals";
+import { baselineMayOwnTurn, baselineMaySave, relationshipMayOwnTurn } from "@/lib/inbound-gate/route-policy";
 
 async function applyStatusUpdates(payload: any) {
   const statuses = parseStatusUpdates(payload);
@@ -381,7 +382,9 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // one question per turn, no human-agent offer.
           {
             const relContactId = await findContactIdByPhone(msg.from);
-            if (relContactId) {
+            // question / confusion / topic_shift / multi_intent skip the
+            // questionnaire entirely and are answered by Tamar v2.
+            if (relContactId && relationshipMayOwnTurn(cls)) {
               const { planRelationshipTurn } = await import("@/lib/relationship-intake/intake.server");
               const plan = await planRelationshipTurn(relContactId, {
                 text: inboundText,
@@ -395,44 +398,39 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 },
               }).catch(() => null);
               if (plan && plan.kind === "messages") {
-                let allOk = true;
-                // Guard the question-bearing message of the turn (the last one);
-                // value/intro lines are informational and pass through.
+                // ONE customer-visible message per turn: intro/value lines and
+                // the question are merged so nothing reaches the customer
+                // outside guard + ledger, and a retry cannot re-send a part.
+                const merged = plan.texts.filter(Boolean).join("\n\n");
                 const relGuard = await guardOutbound({
                   contactId: relContactId,
                   phone: msg.from,
                   route: "relationship_intake",
                   inboundMessageId: msg.wamid,
                   inboundText,
-                  candidateText: plan.texts[plan.texts.length - 1] ?? "",
+                  candidateText: merged,
                   askedField: plan.question_key ?? null,
                   progress: { advanced_state: true, saved_new_fact: true },
                   ...guardMeta,
                 });
                 await markGateRoute(msg.wamid, "relationship_intake");
-                const relTexts =
-                  relGuard.verdict === "send"
-                    ? plan.texts
-                    : [...plan.texts.slice(0, -1), relGuard.text];
-                for (const body of relTexts) {
-                  const send = await sendWhatsAppText(msg.from, body);
-                  allOk = allOk && send.ok;
-                  await recordDelivery({
-                    contactId: relContactId,
-                    text: body,
-                    result: send,
-                    inboundMessageId: msg.wamid,
-                    kind: plan.completed ? "relationship_intake_completed" : "relationship_intake_question",
-                  });
-                }
-                await recordReply(msg.wamid, plan.texts.join("\n")).catch(() => {});
+                const relBody = relGuard.verdict === "send" ? merged : relGuard.text;
+                const send = await sendWhatsAppText(msg.from, relBody);
+                await recordDelivery({
+                  contactId: relContactId,
+                  text: relBody,
+                  result: send,
+                  inboundMessageId: msg.wamid,
+                  kind: plan.completed ? "relationship_intake_completed" : "relationship_intake_question",
+                });
+                await recordReply(msg.wamid, relBody).catch(() => {});
                 results.push({
                   wamid: msg.wamid,
                   contact_id: relContactId,
                   relationship_intake: plan.question_key ?? "completed",
                   source: inboundSource,
                   guard: relGuard.verdict,
-                  reply_sent: allOk,
+                  reply_sent: send.ok,
                 });
                 continue;
               }
@@ -446,16 +444,23 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // signalled a loop — answering the customer always comes first.
           {
             const intakeContactId = await findContactIdByPhone(msg.from);
-            const intakeMayOwnTurn = !isUserQuestion(inboundText) && !detectLoopSignal(inboundText);
+            const intakeMayOwnTurn = baselineMayOwnTurn({
+              cls,
+              looksLikeQuestion: isUserQuestion(inboundText),
+              loopSignal: detectLoopSignal(inboundText),
+            });
             if (intakeContactId && intakeMayOwnTurn) {
               const { applyInboundOnboarding, planIntakeTurn } = await import(
                 "@/lib/onboarding/onboarding.server"
               );
-              const applied = await applyInboundOnboarding({
-                contactId: intakeContactId,
-                message: inboundText,
-                messageId: msg.wamid,
-              }).catch(() => null);
+              // Only a gate-validated answer may be captured / advance state.
+              const applied = baselineMaySave(cls)
+                ? await applyInboundOnboarding({
+                    contactId: intakeContactId,
+                    message: inboundText,
+                    messageId: msg.wamid,
+                  }).catch(() => null)
+                : null;
               const plan = await planIntakeTurn(intakeContactId).catch(() => null);
               if (plan && plan.kind !== "none") {
                 if (plan.kind === "question") {
