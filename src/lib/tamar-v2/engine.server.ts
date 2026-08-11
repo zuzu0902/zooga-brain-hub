@@ -503,6 +503,9 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       answeredCount,
       offerId: resolved?.id ?? null,
       linkSent,
+      pendingHandoff,
+      clearPendingHandoff,
+      groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
       grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence },
     });
     const to = toE164(contact.whatsapp_number ?? contact.phone ?? input.phone) ?? "";
@@ -557,6 +560,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           kind: `v2_${m.kind}`,
         });
         if (!res.ok) break;
+      }
+      // The link ledger is committed ONLY after a successful outbound send,
+      // so a failed send never suppresses the link forever.
+      if (linkSent && resolved?.id && sends.some((s) => s.ok)) {
+        await commitOfferLinkSent(contact.id, resolved.id).catch(() => undefined);
       }
     }
   }
