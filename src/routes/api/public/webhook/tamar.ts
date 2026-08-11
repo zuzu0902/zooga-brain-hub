@@ -35,6 +35,12 @@ import {
 } from "@/lib/whatsapp-meta.server";
 import { CONSENT_QUESTION_BUTTONS, CONSENT_QUESTION_TEXT } from "@/lib/onboarding/types";
 import { guardOutbound } from "@/lib/conversation-guard/guard.server";
+import {
+  markGateRoute,
+  recordInboundMessage,
+  runInboundGate,
+  syncGateFacts,
+} from "@/lib/inbound-gate/gate.server";
 import { detectLoopSignal } from "@/lib/conversation-guard/core";
 import { isUserQuestion } from "@/lib/tamar-brain/signals";
 
@@ -239,6 +245,41 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             continue;
           }
 
+          // ---- INBOUND CONTEXT GATE ------------------------------------
+          // Exactly one classification per wamid, before intake /
+          // relationship_intake / brain / campaign reply may act. Text,
+          // button and voice transcript all pass through here.
+          const gateContactId = await findContactIdByPhone(msg.from);
+          const gated = await runInboundGate({
+            contactId: gateContactId,
+            phone: msg.from,
+            inboundMessageId: msg.wamid,
+            text: inboundText,
+            sourceType: msg.option_id ? "button" : inboundSource === "voice" ? "voice" : "text",
+            optionId: msg.option_id ?? null,
+            transcriptConfidence: voiceConfidence,
+          });
+          const cls = gated.classification;
+          await recordInboundMessage({
+            contactId: gateContactId,
+            text: inboundText,
+            sourceType: cls.source_type,
+            classification: cls,
+            inboundMessageId: msg.wamid,
+          });
+          // Canonical facts are saved even when the message is not an answer,
+          // and never overwrite information we already trust.
+          if (Object.keys(cls.extracted_facts).length) {
+            await syncGateFacts(gateContactId, cls.extracted_facts).catch(() => null);
+          }
+          const guardMeta = {
+            classification: cls.kind,
+            classificationConfidence: cls.confidence,
+            sourceType: cls.source_type,
+            extractedFacts: cls.extracted_facts,
+            gateApplied: true,
+          };
+
           // ---- Consent commands short-circuit the engine entirely ----
           if (isOptOutMessage(inboundText) || isOptInMessage(inboundText)) {
             const optOut = isOptOutMessage(inboundText);
@@ -255,6 +296,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               inboundText,
               candidateText: confirmation,
               mode: "log_only",
+              ...guardMeta,
             });
             const ack = await sendWhatsAppText(msg.from, consentGuard.text);
             await recordDelivery({
@@ -346,6 +388,11 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 source: inboundSource,
                 messageId: msg.wamid,
                 transcriptConfidence: voiceConfidence,
+                gate: {
+                  kind: cls.kind,
+                  answer_valid: cls.answer_valid,
+                  should_advance: cls.should_advance,
+                },
               }).catch(() => null);
               if (plan && plan.kind === "messages") {
                 let allOk = true;
@@ -360,7 +407,9 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                   candidateText: plan.texts[plan.texts.length - 1] ?? "",
                   askedField: plan.question_key ?? null,
                   progress: { advanced_state: true, saved_new_fact: true },
+                  ...guardMeta,
                 });
+                await markGateRoute(msg.wamid, "relationship_intake");
                 const relTexts =
                   relGuard.verdict === "send"
                     ? plan.texts
@@ -418,10 +467,12 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                     inboundMessageId: msg.wamid,
                     inboundText,
                     candidateText: plan.text,
+                    ...guardMeta,
                     askedField: plan.field_key,
                     purpose: plan.purpose,
                     progress: { saved_new_fact: !!applied?.applied?.length },
                   });
+                  await markGateRoute(msg.wamid, "baseline_intake");
                   const send = await sendWhatsAppText(msg.from, guard.text);
                   await recordDelivery({
                     contactId: intakeContactId,
@@ -468,6 +519,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                   candidateText: plan.gate_text,
                   askedField: "relationship_gate",
                   progress: { advanced_state: true, provided_requested_info: true },
+                  ...guardMeta,
                 });
                 const valueSend = await sendWhatsAppText(msg.from, plan.value_text);
                 await recordDelivery({
@@ -514,6 +566,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               source: "meta_webhook",
             });
             await markReplied(msg.from, v2.contact_id).catch(() => {});
+            await markGateRoute(msg.wamid, "tamar_v2");
             const sentAll = v2.sends.length > 0 && v2.sends.every((s) => s.ok);
             await recordReply(msg.wamid, v2.decision.messages.map((m) => m.body).join("\n")).catch(() => {});
             results.push({

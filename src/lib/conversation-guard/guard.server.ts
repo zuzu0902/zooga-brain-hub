@@ -100,6 +100,12 @@ export async function guardOutbound(args: {
   factsAfter?: Record<string, unknown>;
   progress?: ProgressFlags | null;
   mode?: GuardMode;
+  /** Inbound Context Gate verdict for this inbound (instrumentation). */
+  classification?: string | null;
+  classificationConfidence?: number | null;
+  sourceType?: string | null;
+  extractedFacts?: Record<string, unknown> | null;
+  gateApplied?: boolean;
 }): Promise<GuardedTurn> {
   const mode: GuardMode = args.mode ?? "enforce";
 
@@ -169,6 +175,11 @@ export async function guardOutbound(args: {
           guard_reason: result.reason,
           recovery_action: result.verdict === "send" ? null : result.verdict,
           phone_masked: maskPhone(args.phone ?? null),
+          inbound_classification: args.classification ?? null,
+          classification_confidence: args.classificationConfidence ?? null,
+          source_type: args.sourceType ?? null,
+          gate_applied: args.gateApplied ?? false,
+          extracted_facts: args.extractedFacts ?? {},
         },
         { onConflict: "inbound_message_id,route", ignoreDuplicates: true } as any,
       );
