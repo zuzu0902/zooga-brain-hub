@@ -262,9 +262,11 @@ describe("insights queue — worker semantics", () => {
       const report = await q.runInsightsWorker({ worker: `w${i}` });
       expect(report.claimed).toBe(1);
       if (i < 4) {
+        const at = state.now();
         expect(state.jobs[0].state).toBe("failed");
-        expect(state.jobs[0].next_attempt_at).toBeGreaterThan(state.now());
-        state.now = () => state.jobs[0].next_attempt_at; // time passes
+        expect(state.jobs[0].next_attempt_at).toBeGreaterThan(at);
+        const due = state.jobs[0].next_attempt_at;
+        state.now = () => due; // time passes
       }
     }
     expect(state.jobs[0].state).toBe("dead_letter");
