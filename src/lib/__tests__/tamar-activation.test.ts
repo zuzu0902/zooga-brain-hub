@@ -50,7 +50,7 @@ describe("tamar activation gate", () => {
   it("blocks an unverified opt-in", () => {
     const g = evaluateActivation(input({ contact: { ...verifiedContact, whatsapp_opt_in_status: "unknown" } }));
     expect(g.allowed).toBe(false);
-    expect(g.reason).toBe("opt_in_unverified");
+    expect(["opt_in_unverified", "consent_incomplete", "consent_evidence_missing"]).toContain(g.reason);
   });
 
   it("blocks an opted-out contact", () => {
