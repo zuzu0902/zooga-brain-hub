@@ -5,6 +5,8 @@
  * re-evaluated twice — once for the preview and once again at execution time.
  */
 
+import { checkTemplateRegistry } from "@/lib/whatsapp-template-registry";
+
 export type ActivationTopic =
   | "intake_continue"
   | "community_intro"
@@ -210,6 +212,9 @@ export function evaluateActivation(input: ActivationGateInput): ActivationGate {
   }
   if (RESERVED_TEMPLATES.includes(spec.template.name))
     return block("reserved_template", "תבנית פתיחת ההסכמה אינה מיועדת לשיחות המשך");
+  const registry = checkTemplateRegistry(spec.template.name, spec.template.language, spec.key);
+  if (!registry.ok)
+    return block("template_registry_incomplete", registry.reason_he!);
   if (!input.templateApproved)
     return block("template_not_approved", "התבנית הנדרשת אינה מאושרת ב-Meta");
 

@@ -11,6 +11,11 @@ import {
   ACTIVATION_TOPICS,
   type ActivationGateInput,
 } from "@/lib/tamar-activation/core";
+import {
+  WHATSAPP_TEMPLATE_REGISTRY,
+  checkTemplateRegistry,
+  findTemplateRegistryEntry,
+} from "@/lib/whatsapp-template-registry";
 
 const verifiedContact = {
   id: "c1",
@@ -212,5 +217,72 @@ describe("release-to-Tamar affordance inside the activation dialog", () => {
     expect(evaluateActivation(before).allowed).toBe(false);
     // only after the handoff is actually closed does the gate open
     expect(evaluateActivation({ ...before, openHandoffs: 0 }).allowed).toBe(true);
+  });
+});
+
+describe("whatsapp template registry evidence", () => {
+  const base = {
+    topic: "activity_update",
+    instruction: "",
+    contact: {
+      id: "c1",
+      phone: "+972500000000",
+      whatsapp_opt_in_status: "verified",
+      whatsapp_opt_in_at: "2026-08-01T00:00:00Z",
+      whatsapp_opt_in_source: "admin",
+      consent_marketing: true,
+    },
+    sessionWindowOpen: false,
+    offerSelected: true,
+    offerSellable: true,
+    templateApproved: true,
+  };
+
+  it("approved registry entry passes outside the 24h window", () => {
+    const g = evaluateActivation(base as any);
+    expect(g.allowed).toBe(true);
+    expect(g.transport).toBe("template");
+  });
+
+  it("registry record is complete for the re-engagement template", () => {
+    const e = findTemplateRegistryEntry("zooga_reengagement_followup", "he")!;
+    expect(e.status).toBe("APPROVED");
+    expect(e.category).toBe("MARKETING");
+    expect(e.purpose).toBe("activity_update");
+    expect(e.variable_count).toBe(1);
+    expect(e.approved_source).toBe("owner_confirmed_meta_business_manager");
+    expect(e.approved_at).toBe("2026-08-12");
+    expect(e.evidence_type).toBe("admin_attestation");
+  });
+
+  it("missing source blocks with template name and field", () => {
+    const e = findTemplateRegistryEntry("zooga_reengagement_followup", "he")!;
+    const orig = e.approved_source;
+    e.approved_source = null;
+    const c = checkTemplateRegistry("zooga_reengagement_followup", "he", "activity_update");
+    expect(c.ok).toBe(false);
+    expect(c.missing).toContain("approved_source");
+    expect(c.reason_he).toContain("zooga_reengagement_followup");
+    expect(evaluateActivation(base as any).reason).toBe("template_registry_incomplete");
+    e.approved_source = orig;
+  });
+
+  it("missing date blocks", () => {
+    const e = findTemplateRegistryEntry("zooga_reengagement_followup", "he")!;
+    const orig = e.approved_at;
+    e.approved_at = null;
+    expect(checkTemplateRegistry("zooga_reengagement_followup", "he", "activity_update").missing).toContain("approved_at");
+    e.approved_at = orig;
+  });
+
+  it("wrong name, language or purpose is blocked", () => {
+    expect(checkTemplateRegistry("other_template", "he", "activity_update").ok).toBe(false);
+    expect(checkTemplateRegistry("zooga_reengagement_followup", "en", "activity_update").ok).toBe(false);
+    expect(checkTemplateRegistry("zooga_reengagement_followup", "he", "trip_event").missing).toContain("purpose");
+  });
+
+  it("does not use zooga_opening_consent", () => {
+    expect(WHATSAPP_TEMPLATE_REGISTRY.some((t) => t.name === "zooga_opening_consent")).toBe(false);
+    expect(findTemplateRegistryEntry("zooga_opening_consent", "he")).toBeNull();
   });
 });
