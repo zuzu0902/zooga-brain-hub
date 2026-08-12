@@ -11,6 +11,11 @@ import {
   ACTIVATION_TOPICS,
   type ActivationGateInput,
 } from "@/lib/tamar-activation/core";
+import {
+  WHATSAPP_TEMPLATE_REGISTRY,
+  checkTemplateRegistry,
+  findTemplateRegistryEntry,
+} from "@/lib/whatsapp-template-registry";
 
 const verifiedContact = {
   id: "c1",
