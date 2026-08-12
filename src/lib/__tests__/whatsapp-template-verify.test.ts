@@ -80,3 +80,36 @@ describe("Meta template verification", () => {
     expect(gate.reason).toContain("PENDING");
   });
 });
+
+describe("preview and create share the live verifier", () => {
+  it("gateActivation performs the live template check when the 24h window is closed", async () => {
+    vi.resetModules();
+    process.env.WHATSAPP_ACCESS_TOKEN = "x";
+    process.env.WHATSAPP_PHONE_NUMBER_ID = "111";
+    process.env.WHATSAPP_WABA_ID = "1258000000000625";
+    vi.stubGlobal("fetch", mockFetch([{ data: [TPL] }]));
+    const { gateActivation } = await import("@/lib/tamar-activation/activation.server");
+    const ctx: any = {
+      gateInput: {
+        topic: "activity_update",
+        instruction: "",
+        contact: {
+          id: "c1",
+          phone: "+972500000000",
+          whatsapp_opt_in_status: "verified",
+          whatsapp_opt_in_source: "whatsapp_button_reply",
+          whatsapp_opt_in_at: "2026-08-12T07:36:38Z",
+          consent_marketing: true,
+        },
+        sessionWindowOpen: false,
+        offerSelected: true,
+        offerSellable: true,
+      },
+    };
+    const preview = await gateActivation(ctx);
+    const create = await gateActivation(ctx);
+    expect(preview.allowed).toBe(true);
+    expect(preview.transport).toBe("template");
+    expect(create).toEqual(preview);
+  });
+});
