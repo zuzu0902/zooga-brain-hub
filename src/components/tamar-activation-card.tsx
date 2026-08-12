@@ -172,6 +172,8 @@ function TamarActivationDialog({
     transport: string | null;
   } | null>(null);
   const [gateError, setGateError] = useState<string | null>(null);
+  const [gateReason, setGateReason] = useState<string | null>(null);
+  const [releaseOpen, setReleaseOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   const { data: offers } = useQuery({
@@ -217,9 +219,11 @@ function TamarActivationDialog({
       if (!r?.gate?.allowed) {
         setPreview("");
         setGateError(r?.gate?.reason_he ?? "הפעולה נחסמה");
+        setGateReason(r?.gate?.reason ?? null);
         return;
       }
       setGateError(null);
+      setGateReason(null);
       setPreview(String(r.preview ?? ""));
       setPreviewMeta({
         template_name: r.template_name ?? null,
@@ -228,7 +232,29 @@ function TamarActivationDialog({
         transport: r.transport ?? null,
       });
     },
-    onError: (e: any) => setGateError(String(e?.message ?? e)),
+    onError: (e: any) => {
+      setGateError(String(e?.message ?? e));
+      setGateReason(null);
+    },
+  });
+
+  // Reuses the existing safe "החזר לתמר" action: it resolves only this
+  // contact's open handoffs and drops the human lock. It never sends anything,
+  // and never starts the activation — that stays a separate, explicit click.
+  const releaseFn = useServerFn(releaseContactToTamar);
+  const release = useMutation({
+    mutationFn: () => releaseFn({ data: { contactId, resetIntake: false } }) as Promise<any>,
+    onSuccess: (r) => {
+      if (!r?.released) {
+        toast.error("ההחזרה לא בוצעה — השיחה עדיין בטיפול אנושי");
+        return;
+      }
+      toast.success(`השיחה הוחזרה לתמר · ${r.resolved_handoffs ?? 0} פניות נסגרו`);
+      setReleaseOpen(false);
+      onDone?.();
+      runPreview.mutate();
+    },
+    onError: (e: any) => toast.error("ההחזרה נכשלה: " + String(e?.message ?? e)),
   });
 
   // The route preview is produced as soon as a purpose is chosen (and again on
