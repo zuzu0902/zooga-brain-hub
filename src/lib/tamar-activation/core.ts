@@ -217,6 +217,16 @@ export function evaluateActivation(input: ActivationGateInput): ActivationGate {
 }
 
 /** Israel-local wall clock → UTC ISO. The UI always works in Israel time. */
+/**
+ * Blocks the admin can clear from the dialog with the existing, safe
+ * "החזר לתמר" action. Everything else stays a hard block.
+ */
+export const RELEASABLE_BLOCK_REASONS = ["human_owned", "open_handoff"] as const;
+
+export function isReleasableBlock(reason: string | null | undefined): boolean {
+  return !!reason && (RELEASABLE_BLOCK_REASONS as readonly string[]).includes(reason);
+}
+
 export function isFutureSchedule(iso: string | null | undefined, now: Date = new Date()): boolean {
   if (!iso) return false;
   const t = new Date(iso).getTime();

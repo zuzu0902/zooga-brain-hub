@@ -27,11 +27,13 @@ import {
   ACTIVATION_TOPICS,
   activationFormBlockers,
   effectiveInstruction,
+  isReleasableBlock,
   MIN_INSTRUCTION_LENGTH,
   STATUS_LABELS_HE,
   topicSpec,
   type ActivationStatus,
 } from "@/lib/tamar-activation/core";
+import { releaseContactToTamar } from "@/lib/handoff.functions";
 import {
   cancelTamarActivation,
   previewTamarActivation,
@@ -172,6 +174,8 @@ function TamarActivationDialog({
     transport: string | null;
   } | null>(null);
   const [gateError, setGateError] = useState<string | null>(null);
+  const [gateReason, setGateReason] = useState<string | null>(null);
+  const [releaseOpen, setReleaseOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   const { data: offers } = useQuery({
@@ -217,9 +221,11 @@ function TamarActivationDialog({
       if (!r?.gate?.allowed) {
         setPreview("");
         setGateError(r?.gate?.reason_he ?? "הפעולה נחסמה");
+        setGateReason(r?.gate?.reason ?? null);
         return;
       }
       setGateError(null);
+      setGateReason(null);
       setPreview(String(r.preview ?? ""));
       setPreviewMeta({
         template_name: r.template_name ?? null,
@@ -228,7 +234,29 @@ function TamarActivationDialog({
         transport: r.transport ?? null,
       });
     },
-    onError: (e: any) => setGateError(String(e?.message ?? e)),
+    onError: (e: any) => {
+      setGateError(String(e?.message ?? e));
+      setGateReason(null);
+    },
+  });
+
+  // Reuses the existing safe "החזר לתמר" action: it resolves only this
+  // contact's open handoffs and drops the human lock. It never sends anything,
+  // and never starts the activation — that stays a separate, explicit click.
+  const releaseFn = useServerFn(releaseContactToTamar);
+  const release = useMutation({
+    mutationFn: () => releaseFn({ data: { contactId, resetIntake: false } }) as Promise<any>,
+    onSuccess: (r) => {
+      if (!r?.released) {
+        toast.error("ההחזרה לא בוצעה — השיחה עדיין בטיפול אנושי");
+        return;
+      }
+      toast.success(`השיחה הוחזרה לתמר · ${r.resolved_handoffs ?? 0} פניות נסגרו`);
+      setReleaseOpen(false);
+      onDone?.();
+      runPreview.mutate();
+    },
+    onError: (e: any) => toast.error("ההחזרה נכשלה: " + String(e?.message ?? e)),
   });
 
   // The route preview is produced as soon as a purpose is chosen (and again on
@@ -275,6 +303,8 @@ function TamarActivationDialog({
       setScheduleLocal("");
       setPreview("");
       setGateError(null);
+      setGateReason(null);
+      setReleaseOpen(false);
       setConfirming(false);
     }
     onOpenChange(v);
@@ -395,7 +425,16 @@ function TamarActivationDialog({
                   <RefreshCw className="h-3 w-3" /> {runPreview.isPending ? "מכינה..." : preview ? "רענון" : "צור תצוגה מקדימה"}
                 </Button>
               </div>
-              {gateError && <div className="rounded-md border border-destructive/50 p-2.5 text-destructive">{gateError}</div>}
+              {gateError && (
+                <div className="rounded-md border border-destructive/50 p-2.5 text-destructive space-y-2">
+                  <div>{gateError}</div>
+                  {isReleasableBlock(gateReason) && (
+                    <Button type="button" size="sm" variant="outline" onClick={() => setReleaseOpen(true)}>
+                      החזר לתמר
+                    </Button>
+                  )}
+                </div>
+              )}
               {preview && (
                 <Textarea rows={4} value={preview} onChange={(e) => setPreview(e.target.value)} />
               )}
@@ -436,6 +475,23 @@ function TamarActivationDialog({
           )}
         </DialogFooter>
       </DialogContent>
+
+      <Dialog open={releaseOpen} onOpenChange={(v) => !release.isPending && setReleaseOpen(v)}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>החזר לתמר</DialogTitle>
+            <DialogDescription>
+              להחזיר את השיחה לתמר? הפעולה תסגור את הטיפול האנושי הפעיל, אך לא תשלח הודעה.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setReleaseOpen(false)} disabled={release.isPending}>ביטול</Button>
+            <Button onClick={() => release.mutate()} disabled={release.isPending}>
+              {release.isPending ? "מחזירה..." : "אשר והחזר לתמר"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

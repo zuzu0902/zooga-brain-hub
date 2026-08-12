@@ -7,6 +7,7 @@ import {
   resolveTopic,
   effectiveInstruction,
   activationFormBlockers,
+  isReleasableBlock,
   ACTIVATION_TOPICS,
   type ActivationGateInput,
 } from "@/lib/tamar-activation/core";
@@ -181,5 +182,35 @@ describe("activity_update route", () => {
     expect(
       activationFormBlockers({ topic: "free_topic", instruction: "", when: "now", previewReady: true, now }),
     ).toContain("יש לכתוב הוראה לתמר");
+  });
+});
+
+describe("release-to-Tamar affordance inside the activation dialog", () => {
+  it("offers the release button only for the human-hold blocks", () => {
+    const humanOwned = evaluateActivation(
+      input({ contact: { ...verifiedContact, human_owned: true } }),
+    );
+    expect(humanOwned.reason).toBe("human_owned");
+    expect(isReleasableBlock(humanOwned.reason)).toBe(true);
+    expect(isReleasableBlock(evaluateActivation(input({ openHandoffs: 1 })).reason)).toBe(true);
+  });
+
+  it("never offers release for unrelated blocks", () => {
+    for (const g of [
+      evaluateActivation(input({ contact: { ...verifiedContact, opted_out_at: "2026-01-01T00:00:00Z" } })),
+      evaluateActivation(input({ duplicateContacts: 2 })),
+      evaluateActivation(input({ instruction: "  ", topic: "free_topic" })),
+    ]) {
+      expect(isReleasableBlock(g.reason)).toBe(false);
+    }
+    expect(isReleasableBlock(null)).toBe(false);
+  });
+
+  it("a failed release keeps the activation blocked (no partial state)", () => {
+    // release did not happen -> the gate input is unchanged -> still blocked
+    const before = input({ openHandoffs: 1 });
+    expect(evaluateActivation(before).allowed).toBe(false);
+    // only after the handoff is actually closed does the gate open
+    expect(evaluateActivation({ ...before, openHandoffs: 0 }).allowed).toBe(true);
   });
 });
