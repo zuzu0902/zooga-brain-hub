@@ -11,6 +11,7 @@ import { quiet } from "@/lib/db-safe";
 import { isSessionWindowOpen, recordDelivery, sendWhatsAppText, sendWhatsAppTemplate } from "@/lib/whatsapp-meta.server";
 import { validateTemplateForLaunch } from "@/lib/whatsapp-templates.server";
 import { isOfferSellable } from "@/lib/offer-sellable";
+import type { ConsentEvidence } from "@/lib/whatsapp-optin/consent-resolver";
 import { callStage } from "@/lib/tamar-v2/model-registry.server";
 import {
   activationIdempotencyKey,
@@ -56,7 +57,7 @@ export async function loadActivationContext(args: {
   const { data: contact } = await supabaseAdmin
     .from("contacts")
     .select(
-      "id, first_name, full_name, phone, whatsapp_number, consent_marketing, opted_out_at, human_owned, opening_status, whatsapp_opt_in_status, whatsapp_opt_in_at, whatsapp_opt_in_source, baseline_intake_status, conversation_state, city, age, notes",
+      "id, first_name, full_name, phone, whatsapp_number, consent_marketing, consent_date, consent_source, opted_out_at, human_owned, opening_status, whatsapp_opt_in_status, whatsapp_opt_in_at, whatsapp_opt_in_source, whatsapp_opt_in_evidence, baseline_intake_status, conversation_state, city, age, notes",
     )
     .eq("id", args.contactId)
     .maybeSingle();
@@ -82,6 +83,7 @@ export async function loadActivationContext(args: {
     .limit(10);
 
   const sessionWindowOpen = await isSessionWindowOpen(args.contactId);
+  const consentEvidence = await loadConsentEvidence(args.contactId, phone);
 
   let offer: any = null;
   if (args.offerId) {
@@ -156,6 +158,7 @@ export async function loadActivationContext(args: {
       topic: args.topic,
       instruction: args.instruction,
       contact: c,
+      consentEvidence,
       duplicateContacts,
       openHandoffs: ((handoffs as any[]) ?? []).length,
       sessionWindowOpen,
