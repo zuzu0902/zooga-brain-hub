@@ -149,6 +149,8 @@ export type ActivationGateInput = {
   sessionWindowOpen: boolean;
   /** an approved Meta template exists AND matches this topic exactly */
   templateApproved?: boolean;
+  /** exact, human-readable reason from the live Meta verifier when it refused */
+  templateCheckReasonHe?: string | null;
   offerSelected?: boolean;
   offerSellable?: boolean;
   /** a pending draft/scheduled/processing activation already exists */
@@ -226,7 +228,11 @@ export function evaluateActivation(input: ActivationGateInput): ActivationGate {
   if (!registry.ok)
     return block("template_registry_incomplete", registry.reason_he!);
   if (!input.templateApproved)
-    return block("template_not_approved", "התבנית הנדרשת אינה מאושרת ב-Meta");
+    return block(
+      "template_not_approved",
+      input.templateCheckReasonHe?.trim() ||
+        `התבנית "${spec.template.name}" (${spec.template.language}) לא אומתה מול Meta — יש להריץ אימות תבנית לפני שליחה`,
+    );
 
   return { allowed: true, reason: null, reason_he: null, transport: "template", consent };
 }
