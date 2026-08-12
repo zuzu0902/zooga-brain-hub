@@ -24,6 +24,50 @@ import {
 
 const RECENT_DUPLICATE_MINUTES = 60;
 
+/**
+ * Finds an explicit reply to the stored consent question. Only an answer that
+ * is linked to a stored consent question counts — a generic inbound message
+ * never becomes consent.
+ */
+async function loadConsentEvidence(contactId: string, phone: string): Promise<ConsentEvidence | null> {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  const { data: question } = await supabaseAdmin
+    .from("interactions")
+    .select("id, timestamp, content")
+    .eq("contact_id", contactId)
+    .eq("source", "tamar_outbound")
+    .ilike("content", "%מאשר%")
+    .order("timestamp", { ascending: false })
+    .limit(1);
+  const questionStored = !!((question as any[]) ?? []).length;
+  if (!questionStored) return null;
+
+  const { data: events } = await supabaseAdmin
+    .from("inbound_event_vault" as any)
+    .select("id, event_type, raw_payload, created_at")
+    .like("normalized_phone", `%${digits.slice(-9)}%`)
+    .eq("event_type", "message.interactive")
+    .order("created_at", { ascending: true })
+    .limit(5);
+  const ev = ((events as any[]) ?? []).find(
+    (e) => e?.raw_payload?.message?.interactive?.button_reply?.id,
+  );
+  if (!ev) return null;
+  const reply = ev.raw_payload.message.interactive.button_reply;
+  const ts = Number(ev.raw_payload?.message?.timestamp);
+  return {
+    id: String(ev.id),
+    at: Number.isFinite(ts) ? new Date(ts * 1000).toISOString() : (ev.created_at ?? null),
+    buttonId: reply.id ?? null,
+    buttonTitle: reply.title ?? null,
+    text: null,
+    repliesToConsentQuestion: true,
+    questionStored: true,
+    source: "whatsapp_button_reply",
+  };
+}
+
 export type ActivationContext = {
   contact: any | null;
   gateInput: ActivationGateInput;
