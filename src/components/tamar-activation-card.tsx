@@ -27,11 +27,13 @@ import {
   ACTIVATION_TOPICS,
   activationFormBlockers,
   effectiveInstruction,
+  isReleasableBlock,
   MIN_INSTRUCTION_LENGTH,
   STATUS_LABELS_HE,
   topicSpec,
   type ActivationStatus,
 } from "@/lib/tamar-activation/core";
+import { releaseContactToTamar } from "@/lib/handoff.functions";
 import {
   cancelTamarActivation,
   previewTamarActivation,
@@ -301,6 +303,8 @@ function TamarActivationDialog({
       setScheduleLocal("");
       setPreview("");
       setGateError(null);
+      setGateReason(null);
+      setReleaseOpen(false);
       setConfirming(false);
     }
     onOpenChange(v);
@@ -421,7 +425,16 @@ function TamarActivationDialog({
                   <RefreshCw className="h-3 w-3" /> {runPreview.isPending ? "מכינה..." : preview ? "רענון" : "צור תצוגה מקדימה"}
                 </Button>
               </div>
-              {gateError && <div className="rounded-md border border-destructive/50 p-2.5 text-destructive">{gateError}</div>}
+              {gateError && (
+                <div className="rounded-md border border-destructive/50 p-2.5 text-destructive space-y-2">
+                  <div>{gateError}</div>
+                  {isReleasableBlock(gateReason) && (
+                    <Button type="button" size="sm" variant="outline" onClick={() => setReleaseOpen(true)}>
+                      החזר לתמר
+                    </Button>
+                  )}
+                </div>
+              )}
               {preview && (
                 <Textarea rows={4} value={preview} onChange={(e) => setPreview(e.target.value)} />
               )}
