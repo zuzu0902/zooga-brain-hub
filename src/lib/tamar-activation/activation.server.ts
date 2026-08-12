@@ -16,6 +16,7 @@ import {
   activationIdempotencyKey,
   evaluateActivation,
   topicSpec,
+  templateFirstName,
   type ActivationGate,
   type ActivationGateInput,
 } from "./core";
@@ -28,6 +29,8 @@ export type ActivationContext = {
   offer: any | null;
   intakeCompleted: boolean;
   facts: string[];
+  resolvedOfferId?: string | null;
+  autoResolvedOfferId?: string | null;
 };
 
 async function auditActivation(action: string, details: Record<string, unknown>) {
@@ -89,6 +92,20 @@ export async function loadActivationContext(args: {
       .maybeSingle();
     offer = data ?? null;
   }
+  // Topics that promise "a new activity" must be backed by a real active one.
+  // When the admin picked none, resolve the nearest active, non-expired offer.
+  const spec0 = topicSpec(args.topic);
+  let autoOfferId: string | null = null;
+  if (!offer && spec0?.requires_active_offer) {
+    const { data: candidates } = await supabaseAdmin
+      .from("offers")
+      .select("id, title, offer_url, description, status, event_date, event_end_date")
+      .eq("status", "active")
+      .order("event_date", { ascending: true })
+      .limit(25);
+    offer = ((candidates as any[]) ?? []).find((o) => isOfferSellable(o)) ?? null;
+    autoOfferId = offer?.id ?? null;
+  }
 
   let pendingQuery = supabaseAdmin
     .from("tamar_activations" as any)
@@ -133,6 +150,8 @@ export async function loadActivationContext(args: {
     offer,
     intakeCompleted,
     facts,
+    resolvedOfferId: offer?.id ?? args.offerId ?? null,
+    autoResolvedOfferId: autoOfferId,
     gateInput: {
       topic: args.topic,
       instruction: args.instruction,
@@ -140,7 +159,7 @@ export async function loadActivationContext(args: {
       duplicateContacts,
       openHandoffs: ((handoffs as any[]) ?? []).length,
       sessionWindowOpen,
-      offerSelected: !!args.offerId,
+      offerSelected: !!offer,
       offerSellable: offer ? isOfferSellable(offer) : false,
       pendingActivation: (((pending as any[]) ?? []).length) > 0,
       recentDuplicateMessage,
@@ -215,6 +234,9 @@ export type ActivationPreview = {
   transport: "session" | "template" | null;
   intake_completed: boolean;
   offer_title: string | null;
+  offer_id: string | null;
+  offer_auto_selected: boolean;
+  template_name: string | null;
 };
 
 /** Preview never sends and never mutates the contact. */
@@ -226,15 +248,25 @@ export async function previewActivation(args: {
 }): Promise<ActivationPreview> {
   const ctx = await loadActivationContext(args);
   const gate = await gateActivation(ctx);
-  const preview = gate.allowed
-    ? await composeActivationMessage({ ctx, topic: args.topic, instruction: args.instruction })
-    : null;
+  const spec = topicSpec(args.topic);
+  const templateName = gate.transport === "template" ? (spec?.template?.name ?? null) : null;
+  const preview = !gate.allowed
+    ? null
+    : gate.transport === "template"
+      ? // Outside the window the wording is fixed by the approved template.
+        `תישלח התבנית המאושרת ${spec?.template?.name} עם השם "${templateFirstName(
+          ctx.contact?.first_name ?? ctx.contact?.full_name,
+        )}". פרטי הפעילות יישלחו רק אחרי שהלקוח יענה.`
+      : await composeActivationMessage({ ctx, topic: args.topic, instruction: args.instruction });
   return {
     gate,
     preview,
     transport: gate.transport,
     intake_completed: ctx.intakeCompleted,
     offer_title: ctx.offer?.title ?? null,
+    offer_id: ctx.resolvedOfferId ?? null,
+    offer_auto_selected: !!ctx.autoResolvedOfferId,
+    template_name: templateName,
   };
 }
 
@@ -367,9 +399,13 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
       return { ...base, status: "blocked", reason: gate.reason, reason_he: gate.reason_he };
     }
 
+    const specNow = topicSpec(row.topic);
+    const nameParam = templateFirstName(ctx.contact?.first_name ?? ctx.contact?.full_name);
     const message =
-      String(row.preview ?? "").trim() ||
-      (await composeActivationMessage({ ctx, topic: row.topic, instruction: row.instruction }));
+      gate.transport === "template"
+        ? `[תבנית ${specNow?.template?.name}] {{1}}=${nameParam}`
+        : String(row.preview ?? "").trim() ||
+          (await composeActivationMessage({ ctx, topic: row.topic, instruction: row.instruction }));
 
     if (opts.dryRun) {
       await supabaseAdmin
@@ -381,17 +417,16 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
 
     const to = String(ctx.contact.whatsapp_number || ctx.contact.phone);
     const spec = topicSpec(row.topic);
-    const firstName = ctx.contact.first_name || String(ctx.contact.full_name ?? "").split(" ")[0] || "";
     const res =
       gate.transport === "session"
         ? await sendWhatsAppText(to, message)
         : await sendWhatsAppTemplate(to, spec!.template!.name, spec!.template!.language, [
-            { type: "body", parameters: [{ type: "text", text: firstName || "שלום" }] },
+            { type: "body", parameters: [{ type: "text", text: nameParam }] },
           ]);
 
     await recordDelivery({
       contactId: row.contact_id,
-      offerId: row.offer_id ?? null,
+      offerId: ctx.resolvedOfferId ?? row.offer_id ?? null,
       text: message,
       result: res,
       kind: "tamar_activation",
@@ -418,15 +453,28 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
         attempts,
         actual_message: message,
         transport: gate.transport,
+        offer_id: ctx.resolvedOfferId ?? row.offer_id ?? null,
         provider_message_id: res.provider_message_id ?? null,
         executed_at: new Date().toISOString(),
         last_error: null,
       } as any)
       .eq("id", id);
+    // Re-engagement: the next inbound message is routed by the follow-up policy.
+    if (topicSpec(row.topic)?.requires_active_offer && gate.transport === "template") {
+      const { markPendingReengagement } = await import("./followup.server");
+      await markPendingReengagement({
+        contactId: row.contact_id,
+        activationId: id,
+        offerId: ctx.resolvedOfferId ?? row.offer_id ?? null,
+      }).catch(() => undefined);
+    }
     await auditActivation("activation_sent", {
       activation_id: id,
       contact_id: row.contact_id,
       transport: gate.transport,
+      topic: row.topic,
+      template: gate.transport === "template" ? topicSpec(row.topic)?.template?.name ?? null : null,
+      offer_id: ctx.resolvedOfferId ?? row.offer_id ?? null,
     });
 
     return {

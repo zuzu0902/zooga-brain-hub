@@ -11,6 +11,7 @@ export type ActivationTopic =
   | "trip_event"
   | "relationship_survey"
   | "scheduled_followup"
+  | "activity_update"
   | "free_topic";
 
 export type TopicSpec = {
@@ -20,6 +21,12 @@ export type TopicSpec = {
   requires_marketing_consent: boolean;
   /** approved Meta template usable OUTSIDE the 24h window for this topic */
   template: { name: string; language: string } | null;
+  /**
+   * The topic may only run when a real, active (sellable) offer backs it.
+   * Enforced strictly outside the service window, where the template promises
+   * "פעילות חדשה" without naming it.
+   */
+  requires_active_offer?: boolean;
 };
 
 /**
@@ -28,12 +35,34 @@ export type TopicSpec = {
  */
 export const RESERVED_TEMPLATES = ["zooga_opening_consent"];
 
+/**
+ * Approved (Meta, Hebrew) re-engagement template. Allowed ONLY for renewing
+ * contact around a real active activity, outside the 24h service window.
+ * Body: "היי {{1}}, כאן תמר ... רוצה שאשלח לך את הפרטים?"
+ * {{1}} = first name, with a respectful fallback. No activity details inside
+ * the template itself — those are sent only after the customer replies.
+ */
+export const REENGAGEMENT_TEMPLATE = { name: "zooga_reengagement_followup", language: "he" } as const;
+
+/** Respectful fallback for the template's {{1}} parameter. */
+export function templateFirstName(name: string | null | undefined): string {
+  const n = String(name ?? "").trim().split(/\s+/)[0] ?? "";
+  return n || "חבר/ה יקר/ה";
+}
+
 export const ACTIVATION_TOPICS: TopicSpec[] = [
   { key: "intake_continue", label_he: "המשך אינטייק", requires_marketing_consent: false, template: null },
   { key: "community_intro", label_he: "היכרות עם הקהילה", requires_marketing_consent: false, template: null },
   { key: "trip_event", label_he: "טיול / אירוע", requires_marketing_consent: true, template: null },
   { key: "relationship_survey", label_he: "שאלון זוגיות", requires_marketing_consent: false, template: null },
   { key: "scheduled_followup", label_he: "חזרה מתוזמנת", requires_marketing_consent: false, template: null },
+  {
+    key: "activity_update",
+    label_he: "עדכון על פעילות חדשה",
+    requires_marketing_consent: true,
+    template: { ...REENGAGEMENT_TEMPLATE },
+    requires_active_offer: true,
+  },
   { key: "free_topic", label_he: "נושא חופשי", requires_marketing_consent: false, template: null },
 ];
 
@@ -134,6 +163,9 @@ export function evaluateActivation(input: ActivationGateInput): ActivationGate {
 
   if (input.offerSelected && !input.offerSellable)
     return block("offer_not_sellable", "המוצר שנבחר אינו פעיל למכירה");
+
+  if (spec.requires_active_offer && !(input.offerSelected && input.offerSellable))
+    return block("no_active_offer", "אין פעילות פעילה שאפשר לעדכן עליה — יש לבחור מוצר/אירוע פעיל שלא פג");
 
   if (input.pendingActivation) return block("duplicate_activation", "כבר קיימת הפעלה ממתינה לאיש הקשר");
   if (input.recentDuplicateMessage)
