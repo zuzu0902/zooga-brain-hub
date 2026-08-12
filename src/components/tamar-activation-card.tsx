@@ -231,6 +231,16 @@ function TamarActivationDialog({
     onError: (e: any) => setGateError(String(e?.message ?? e)),
   });
 
+  // The route preview is produced as soon as a purpose is chosen (and again on
+  // offer changes), so the admin never faces a dead button with no explanation.
+  const previewMutate = runPreview.mutate;
+  useEffect(() => {
+    if (!open || !instructionValid) return;
+    const t = setTimeout(() => previewMutate(), 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, topic, offerId, instructionValid]);
+
   const start = useMutation({
     mutationFn: () =>
       startFn({
