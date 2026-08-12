@@ -402,7 +402,7 @@ function TamarActivationDialog({
             <>
               <Button variant="ghost" onClick={() => close(false)}>ביטול</Button>
               <Button
-                disabled={!instructionValid || !scheduleValid || !preview || !!gateError}
+                disabled={blockers.length > 0}
                 onClick={() => setConfirming(true)}
               >
                 אשר והפעל את תמר
