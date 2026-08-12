@@ -42,7 +42,16 @@ export const Route = createFileRoute("/api/public/cron/zero-loss-worker")({
           } catch (err: any) {
             insights = { error: String(err?.message ?? err) };
           }
-          return Response.json({ ok: true, ...res, insights });
+          // Scheduled manual Tamar activations drain on the same cron. A
+          // failure here never fails the zero-loss drain.
+          let activations: unknown = null;
+          try {
+            const { drainDueActivations } = await import("@/lib/tamar-activation/activation.server");
+            activations = await drainDueActivations(10);
+          } catch (err: any) {
+            activations = { error: String(err?.message ?? err) };
+          }
+          return Response.json({ ok: true, ...res, insights, activations });
         } catch (err: any) {
           return new Response(JSON.stringify({ ok: false, error: String(err?.message ?? err) }), {
             status: 503,
