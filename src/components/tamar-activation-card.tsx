@@ -5,7 +5,7 @@
  * full safety gate), then asks for an explicit confirmation before the send or
  * the scheduling.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -25,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { isOfferSellable } from "@/lib/offer-sellable";
 import {
   ACTIVATION_TOPICS,
+  activationFormBlockers,
+  effectiveInstruction,
   MIN_INSTRUCTION_LENGTH,
   STATUS_LABELS_HE,
   topicSpec,
@@ -190,8 +192,16 @@ function TamarActivationDialog({
   const startFn = useServerFn(startTamarActivation);
 
   const scheduledAt = useMemo(() => (when === "later" ? localToIso(scheduleLocal) : null), [when, scheduleLocal]);
-  const instructionValid = instruction.trim().length >= MIN_INSTRUCTION_LENGTH;
-  const scheduleValid = when === "now" || (!!scheduledAt && new Date(scheduledAt).getTime() > Date.now());
+  const instructionOptional = !!topicSpec(topic)?.instruction_optional;
+  const instructionValid = effectiveInstruction(topic, instruction).length >= MIN_INSTRUCTION_LENGTH;
+  const blockers = activationFormBlockers({
+    topic,
+    instruction,
+    when,
+    scheduledAt,
+    previewReady: !!preview,
+    gateReasonHe: gateError,
+  });
 
   const runPreview = useMutation({
     mutationFn: () =>
