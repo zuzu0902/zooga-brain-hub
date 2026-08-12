@@ -41,6 +41,7 @@ import { useT, useLanguage } from "@/lib/language-context";
 import { OnboardingPanel } from "@/components/onboarding-panel";
 import { RelationshipIntakePanel } from "@/components/relationship-intake-panel";
 import { ContactResetDialog } from "@/components/contact-reset-dialog";
+import { TamarActivationCard } from "@/components/tamar-activation-card";
 import { ContactDeleteDialog } from "@/components/contact-delete-dialog";
 import { ContactReleaseDialog } from "@/components/contact-release-dialog";
 import { HumanLockBanner } from "@/components/human-lock-banner";
@@ -164,6 +165,9 @@ function ContactProfile() {
 
         {/* === HUMAN LOCK: who holds this thread, and the way back to Tamar === */}
         <HumanLockBanner contactId={id} onRelease={() => setReleaseOpen(true)} />
+
+        {/* === MANUAL TAMAR ACTIVATION === */}
+        <TamarActivationCard contactId={id} contactName={contact.full_name} />
 
         {/* === AI RELATIONSHIP SUMMARY === */}
         <AIRelationshipSummary contact={contact} />
