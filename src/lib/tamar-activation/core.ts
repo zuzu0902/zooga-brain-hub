@@ -6,6 +6,7 @@
  */
 
 export type ActivationTopic =
+  ;
   | "intake_continue"
   | "community_intro"
   | "trip_event"
