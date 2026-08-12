@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { effectiveInstruction, resolveTopic } from "@/lib/tamar-activation/core";
 
 const baseInput = z.object({
   contact_id: z.string().uuid(),
   topic: z.string().min(2).max(40),
-  instruction: z.string().trim().min(6).max(1200),
+  instruction: z.string().trim().max(1200).optional().default(""),
   offer_id: z.string().uuid().optional().nullable(),
   scheduled_at: z.string().datetime().optional().nullable(),
 });
@@ -17,8 +18,8 @@ export const previewTamarActivation = createServerFn({ method: "POST" })
     const { previewActivation } = await import("@/lib/tamar-activation/activation.server");
     return previewActivation({
       contactId: data.contact_id,
-      topic: data.topic,
-      instruction: data.instruction,
+      topic: resolveTopic(data.topic),
+      instruction: effectiveInstruction(data.topic, data.instruction),
       offerId: data.offer_id ?? null,
     });
   });
@@ -31,8 +32,8 @@ export const startTamarActivation = createServerFn({ method: "POST" })
     const { createActivation, executeActivation } = await import("@/lib/tamar-activation/activation.server");
     const created = await createActivation({
       contactId: data.contact_id,
-      topic: data.topic,
-      instruction: data.instruction,
+      topic: resolveTopic(data.topic),
+      instruction: effectiveInstruction(data.topic, data.instruction),
       offerId: data.offer_id ?? null,
       scheduledAt: data.scheduled_at ?? null,
       preview: data.preview ?? null,

@@ -10,7 +10,6 @@ export type ActivationTopic =
   | "community_intro"
   | "trip_event"
   | "relationship_survey"
-  | "scheduled_followup"
   | "activity_update"
   | "free_topic";
 
@@ -27,7 +26,33 @@ export type TopicSpec = {
    * "פעילות חדשה" without naming it.
    */
   requires_active_offer?: boolean;
+  /** the free-text instruction may stay empty — a safe internal one is used */
+  instruction_optional?: boolean;
 };
+
+/**
+ * Legacy / renamed topics. "חזרה מתוזמנת" is not a separate purpose: a future
+ * date lives in the schedule field, so it maps to the re-engagement route.
+ */
+export const TOPIC_ALIASES: Record<string, ActivationTopic> = {
+  scheduled_followup: "activity_update",
+};
+
+export function resolveTopic(topic: string): string {
+  return TOPIC_ALIASES[topic] ?? topic;
+}
+
+/** Safe internal instruction used when the admin leaves the field empty. */
+export const DEFAULT_INSTRUCTIONS: Record<string, string> = {
+  activity_update:
+    "לחדש קשר בעדינות סביב פעילות פעילה ורלוונטית. אין להמציא תוכן, תאריך, מחיר או קישור — פרטים נשלחים רק אחרי תגובה חיובית.",
+};
+
+export function effectiveInstruction(topic: string, instruction: string | null | undefined): string {
+  const s = String(instruction ?? "").trim();
+  if (s) return s;
+  return DEFAULT_INSTRUCTIONS[resolveTopic(topic)] ?? "";
+}
 
 /**
  * zooga_opening_consent is reserved for the consent opening only. It must
@@ -55,19 +80,20 @@ export const ACTIVATION_TOPICS: TopicSpec[] = [
   { key: "community_intro", label_he: "היכרות עם הקהילה", requires_marketing_consent: false, template: null },
   { key: "trip_event", label_he: "טיול / אירוע", requires_marketing_consent: true, template: null },
   { key: "relationship_survey", label_he: "שאלון זוגיות", requires_marketing_consent: false, template: null },
-  { key: "scheduled_followup", label_he: "חזרה מתוזמנת", requires_marketing_consent: false, template: null },
   {
     key: "activity_update",
-    label_he: "עדכון על פעילות חדשה",
+    label_he: "חידוש שיחה – עדכון על פעילות חדשה",
     requires_marketing_consent: true,
     template: { ...REENGAGEMENT_TEMPLATE },
     requires_active_offer: true,
+    instruction_optional: true,
   },
   { key: "free_topic", label_he: "נושא חופשי", requires_marketing_consent: false, template: null },
 ];
 
 export function topicSpec(topic: string): TopicSpec | null {
-  return ACTIVATION_TOPICS.find((t) => t.key === topic) ?? null;
+  const key = resolveTopic(topic);
+  return ACTIVATION_TOPICS.find((t) => t.key === key) ?? null;
 }
 
 export const MIN_INSTRUCTION_LENGTH = 6;
@@ -140,7 +166,8 @@ const block = (reason: string, he: string): ActivationGate => ({
 export function evaluateActivation(input: ActivationGateInput): ActivationGate {
   const spec = topicSpec(input.topic);
   if (!spec) return block("unknown_topic", "מטרת השיחה אינה מוכרת");
-  if (String(input.instruction ?? "").trim().length < MIN_INSTRUCTION_LENGTH)
+  const instruction = effectiveInstruction(input.topic, input.instruction);
+  if (instruction.length < MIN_INSTRUCTION_LENGTH)
     return block("instruction_missing", "יש לכתוב הוראה לתמר");
 
   const c = input.contact;
@@ -222,4 +249,29 @@ function hash(s: string): string {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0).toString(36);
+}
+
+/**
+ * Exact, always-visible reasons the "activate" button is disabled. Pure so the
+ * dialog never shows a dead button without an explanation.
+ */
+export function activationFormBlockers(args: {
+  topic: string;
+  instruction: string;
+  when: "now" | "later";
+  scheduledAt?: string | null;
+  previewReady: boolean;
+  gateReasonHe?: string | null;
+  now?: Date;
+}): string[] {
+  const out: string[] = [];
+  const spec = topicSpec(args.topic);
+  if (!spec) out.push("מטרת השיחה אינה מוכרת");
+  if (effectiveInstruction(args.topic, args.instruction).length < MIN_INSTRUCTION_LENGTH)
+    out.push("יש לכתוב הוראה לתמר");
+  if (args.when === "later" && !isFutureSchedule(args.scheduledAt ?? null, args.now ?? new Date()))
+    out.push("יש לבחור מועד עתידי תקין");
+  if (args.gateReasonHe) out.push(args.gateReasonHe);
+  else if (!args.previewReady) out.push("יש ליצור תצוגה מקדימה");
+  return out;
 }

@@ -5,7 +5,7 @@
  * full safety gate), then asks for an explicit confirmation before the send or
  * the scheduling.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -25,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { isOfferSellable } from "@/lib/offer-sellable";
 import {
   ACTIVATION_TOPICS,
+  activationFormBlockers,
+  effectiveInstruction,
   MIN_INSTRUCTION_LENGTH,
   STATUS_LABELS_HE,
   topicSpec,
@@ -190,8 +192,16 @@ function TamarActivationDialog({
   const startFn = useServerFn(startTamarActivation);
 
   const scheduledAt = useMemo(() => (when === "later" ? localToIso(scheduleLocal) : null), [when, scheduleLocal]);
-  const instructionValid = instruction.trim().length >= MIN_INSTRUCTION_LENGTH;
-  const scheduleValid = when === "now" || (!!scheduledAt && new Date(scheduledAt).getTime() > Date.now());
+  const instructionOptional = !!topicSpec(topic)?.instruction_optional;
+  const instructionValid = effectiveInstruction(topic, instruction).length >= MIN_INSTRUCTION_LENGTH;
+  const blockers = activationFormBlockers({
+    topic,
+    instruction,
+    when,
+    scheduledAt,
+    previewReady: !!preview,
+    gateReasonHe: gateError,
+  });
 
   const runPreview = useMutation({
     mutationFn: () =>
@@ -220,6 +230,16 @@ function TamarActivationDialog({
     },
     onError: (e: any) => setGateError(String(e?.message ?? e)),
   });
+
+  // The route preview is produced as soon as a purpose is chosen (and again on
+  // offer changes), so the admin never faces a dead button with no explanation.
+  const previewMutate = runPreview.mutate;
+  useEffect(() => {
+    if (!open || !instructionValid) return;
+    const t = setTimeout(() => previewMutate(), 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, topic, offerId, instructionValid]);
 
   const start = useMutation({
     mutationFn: () =>
@@ -310,13 +330,19 @@ function TamarActivationDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="activation-instruction">הוראה לתמר (חובה)</Label>
+              <Label htmlFor="activation-instruction">
+                {instructionOptional ? "הוראה לתמר (אופציונלי)" : "הוראה לתמר (חובה)"}
+              </Label>
               <Textarea
                 id="activation-instruction"
                 rows={3}
                 value={instruction}
                 onChange={(e) => { setInstruction(e.target.value); setPreview(""); }}
-                placeholder="לדוגמה: תשאלי אם היא רוצה לשמוע על הטיול לאלבניה בספטמבר"
+                placeholder={
+                  instructionOptional
+                    ? "אפשר להשאיר ריק — תמר תחדש קשר סביב הפעילות הפעילה, בלי להמציא פרטים"
+                    : "לדוגמה: תשאלי אם היא רוצה לשמוע על הטיול לאלבניה בספטמבר"
+                }
               />
             </div>
 
@@ -377,6 +403,15 @@ function TamarActivationDialog({
                 אפשר לערוך את ההוראה ולרענן. ההודעה נשארת מבוססת עובדות בלבד.
               </div>
             </div>
+
+            {blockers.length > 0 && (
+              <div className="rounded-md border border-border bg-muted/40 p-2.5 text-xs space-y-1">
+                <div className="font-medium">כדי להפעיל את תמר צריך להשלים:</div>
+                <ul className="list-disc pr-4 space-y-0.5 text-muted-foreground">
+                  {blockers.map((b) => <li key={b}>{b}</li>)}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
@@ -392,7 +427,7 @@ function TamarActivationDialog({
             <>
               <Button variant="ghost" onClick={() => close(false)}>ביטול</Button>
               <Button
-                disabled={!instructionValid || !scheduleValid || !preview || !!gateError}
+                disabled={blockers.length > 0}
                 onClick={() => setConfirming(true)}
               >
                 אשר והפעל את תמר

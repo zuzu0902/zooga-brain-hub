@@ -4,6 +4,10 @@ import {
   evaluateActivation,
   isFutureSchedule,
   topicSpec,
+  resolveTopic,
+  effectiveInstruction,
+  activationFormBlockers,
+  ACTIVATION_TOPICS,
   type ActivationGateInput,
 } from "@/lib/tamar-activation/core";
 
@@ -103,5 +107,79 @@ describe("tamar activation gate", () => {
     const c = activationIdempotencyKey({ contactId: "c1", topic: "trip_event", instruction: "בדיקה שתיים" });
     expect(a).toBe(b);
     expect(a).not.toBe(c);
+  });
+});
+describe("activity_update route", () => {
+  const base = {
+    ...verifiedContact,
+    consent_marketing: true,
+  };
+  const au = (over: Partial<ActivationGateInput> = {}) =>
+    evaluateActivation({
+      topic: "activity_update",
+      instruction: "",
+      contact: base,
+      duplicateContacts: 1,
+      openHandoffs: 0,
+      sessionWindowOpen: true,
+      offerSelected: true,
+      offerSellable: true,
+      ...over,
+    });
+
+  it("maps the legacy 'scheduled followup' topic to activity_update", () => {
+    expect(resolveTopic("scheduled_followup")).toBe("activity_update");
+    expect(topicSpec("scheduled_followup")?.key).toBe("activity_update");
+    expect(ACTIVATION_TOPICS.some((t) => t.key === ("scheduled_followup" as any))).toBe(false);
+  });
+
+  it("accepts an empty instruction with a safe internal default", () => {
+    expect(effectiveInstruction("activity_update", "").length).toBeGreaterThan(6);
+    expect(effectiveInstruction("free_topic", "")).toBe("");
+    expect(au().allowed).toBe(true);
+  });
+
+  it("blocks clearly when no active offer backs the update", () => {
+    const g = au({ offerSelected: false, offerSellable: false });
+    expect(g.reason).toBe("no_active_offer");
+    expect(g.reason_he).toContain("אין פעילות פעילה");
+  });
+
+  it("uses free text inside the window and the approved template outside it", () => {
+    expect(au().transport).toBe("session");
+    const out = au({ sessionWindowOpen: false, templateApproved: true });
+    expect(out.allowed).toBe(true);
+    expect(out.transport).toBe("template");
+    expect(topicSpec("activity_update")?.template?.name).toBe("zooga_reengagement_followup");
+  });
+
+  it("lists exact blockers and accepts only a future schedule", () => {
+    const now = new Date("2026-08-12T10:00:00Z");
+    expect(
+      activationFormBlockers({ topic: "activity_update", instruction: "", when: "now", previewReady: true, now }),
+    ).toEqual([]);
+    const late = activationFormBlockers({
+      topic: "activity_update",
+      instruction: "",
+      when: "later",
+      scheduledAt: "2026-08-12T09:00:00Z",
+      previewReady: false,
+      now,
+    });
+    expect(late).toContain("יש לבחור מועד עתידי תקין");
+    expect(late).toContain("יש ליצור תצוגה מקדימה");
+    expect(
+      activationFormBlockers({
+        topic: "activity_update",
+        instruction: "",
+        when: "later",
+        scheduledAt: "2026-08-12T11:00:00Z",
+        previewReady: true,
+        now,
+      }),
+    ).toEqual([]);
+    expect(
+      activationFormBlockers({ topic: "free_topic", instruction: "", when: "now", previewReady: true, now }),
+    ).toContain("יש לכתוב הוראה לתמר");
   });
 });
