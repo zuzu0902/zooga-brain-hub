@@ -475,6 +475,23 @@ function TamarActivationDialog({
           )}
         </DialogFooter>
       </DialogContent>
+
+      <Dialog open={releaseOpen} onOpenChange={(v) => !release.isPending && setReleaseOpen(v)}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>החזר לתמר</DialogTitle>
+            <DialogDescription>
+              להחזיר את השיחה לתמר? הפעולה תסגור את הטיפול האנושי הפעיל, אך לא תשלח הודעה.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setReleaseOpen(false)} disabled={release.isPending}>ביטול</Button>
+            <Button onClick={() => release.mutate()} disabled={release.isPending}>
+              {release.isPending ? "מחזירה..." : "אשר והחזר לתמר"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
