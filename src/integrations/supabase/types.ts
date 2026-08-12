@@ -2874,6 +2874,89 @@ export type Database = {
           },
         ]
       }
+      tamar_activations: {
+        Row: {
+          actual_message: string | null
+          attempts: number
+          block_reason: string | null
+          block_reason_he: string | null
+          cancelled_at: string | null
+          contact_id: string
+          created_at: string
+          created_by: string | null
+          created_by_label: string | null
+          executed_at: string | null
+          id: string
+          idempotency_key: string
+          instruction: string
+          last_error: string | null
+          offer_id: string | null
+          preview: string | null
+          provider_message_id: string | null
+          scheduled_at: string | null
+          status: string
+          topic: string
+          transport: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_message?: string | null
+          attempts?: number
+          block_reason?: string | null
+          block_reason_he?: string | null
+          cancelled_at?: string | null
+          contact_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_label?: string | null
+          executed_at?: string | null
+          id?: string
+          idempotency_key: string
+          instruction: string
+          last_error?: string | null
+          offer_id?: string | null
+          preview?: string | null
+          provider_message_id?: string | null
+          scheduled_at?: string | null
+          status?: string
+          topic: string
+          transport?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_message?: string | null
+          attempts?: number
+          block_reason?: string | null
+          block_reason_he?: string | null
+          cancelled_at?: string | null
+          contact_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_label?: string | null
+          executed_at?: string | null
+          id?: string
+          idempotency_key?: string
+          instruction?: string
+          last_error?: string | null
+          offer_id?: string | null
+          preview?: string | null
+          provider_message_id?: string | null
+          scheduled_at?: string | null
+          status?: string
+          topic?: string
+          transport?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_activations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tamar_admin_audit_log: {
         Row: {
           action: string
