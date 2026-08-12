@@ -175,6 +175,7 @@ function TamarActivationDialog({
   } | null>(null);
   const [gateError, setGateError] = useState<string | null>(null);
   const [gateReason, setGateReason] = useState<string | null>(null);
+  const [consent, setConsent] = useState<any>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -218,6 +219,7 @@ function TamarActivationDialog({
         },
       }) as Promise<any>,
     onSuccess: (r) => {
+      setConsent(r?.gate?.consent ?? null);
       if (!r?.gate?.allowed) {
         setPreview("");
         setGateError(r?.gate?.reason_he ?? "הפעולה נחסמה");
