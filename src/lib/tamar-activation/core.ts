@@ -250,3 +250,28 @@ function hash(s: string): string {
   }
   return (h >>> 0).toString(36);
 }
+
+/**
+ * Exact, always-visible reasons the "activate" button is disabled. Pure so the
+ * dialog never shows a dead button without an explanation.
+ */
+export function activationFormBlockers(args: {
+  topic: string;
+  instruction: string;
+  when: "now" | "later";
+  scheduledAt?: string | null;
+  previewReady: boolean;
+  gateReasonHe?: string | null;
+  now?: Date;
+}): string[] {
+  const out: string[] = [];
+  const spec = topicSpec(args.topic);
+  if (!spec) out.push("מטרת השיחה אינה מוכרת");
+  if (effectiveInstruction(args.topic, args.instruction).length < MIN_INSTRUCTION_LENGTH)
+    out.push("יש לכתוב הוראה לתמר");
+  if (args.when === "later" && !isFutureSchedule(args.scheduledAt ?? null, args.now ?? new Date()))
+    out.push("יש לבחור מועד עתידי תקין");
+  if (args.gateReasonHe) out.push(args.gateReasonHe);
+  else if (!args.previewReady) out.push("יש ליצור תצוגה מקדימה");
+  return out;
+}
