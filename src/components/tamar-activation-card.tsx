@@ -63,7 +63,14 @@ export function TamarActivationCard({ contactId, contactName }: { contactId: str
         .eq("contact_id", contactId)
         .order("created_at", { ascending: false })
         .limit(15);
-      return (data as any[]) ?? [];
+      const rows = (data as any[]) ?? [];
+      const ids = Array.from(new Set(rows.map((r) => r.offer_id).filter(Boolean)));
+      let titles: Record<string, string> = {};
+      if (ids.length) {
+        const { data: offers } = await supabase.from("offers").select("id, title").in("id", ids as string[]);
+        titles = Object.fromEntries(((offers as any[]) ?? []).map((o) => [o.id, o.title]));
+      }
+      return rows.map((r) => ({ ...r, offer_title: r.offer_id ? (titles[r.offer_id] ?? null) : null }));
     },
   });
 
@@ -105,6 +112,10 @@ export function TamarActivationCard({ contactId, contactName }: { contactId: str
                     {a.executed_at ? `נשלח ${fmt(a.executed_at)}` : a.scheduled_at ? `מתוזמן ל-${fmt(a.scheduled_at)}` : fmt(a.created_at)}
                   </span>
                   {a.transport && <span className="text-muted-foreground">· {a.transport === "template" ? "תבנית" : "חלון שירות"}</span>}
+                  {a.transport === "template" && topicSpec(a.topic)?.template?.name && (
+                    <span className="text-muted-foreground">· {topicSpec(a.topic)!.template!.name}</span>
+                  )}
+                  {a.offer_title && <span className="text-muted-foreground">· {a.offer_title}</span>}
                   {["draft", "scheduled"].includes(a.status) && (
                     <Button
                       size="sm"
@@ -152,6 +163,12 @@ function TamarActivationDialog({
   const [when, setWhen] = useState<"now" | "later">("now");
   const [scheduleLocal, setScheduleLocal] = useState("");
   const [preview, setPreview] = useState<string>("");
+  const [previewMeta, setPreviewMeta] = useState<{
+    template_name: string | null;
+    offer_title: string | null;
+    offer_auto_selected: boolean;
+    transport: string | null;
+  } | null>(null);
   const [gateError, setGateError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -194,6 +211,12 @@ function TamarActivationDialog({
       }
       setGateError(null);
       setPreview(String(r.preview ?? ""));
+      setPreviewMeta({
+        template_name: r.template_name ?? null,
+        offer_title: r.offer_title ?? null,
+        offer_auto_selected: !!r.offer_auto_selected,
+        transport: r.transport ?? null,
+      });
     },
     onError: (e: any) => setGateError(String(e?.message ?? e)),
   });
@@ -252,6 +275,16 @@ function TamarActivationDialog({
             <div className="rounded-md border border-border p-3 space-y-1">
               <div><span className="text-muted-foreground">נמען: </span>{contactName ?? contactId}</div>
               <div><span className="text-muted-foreground">מטרה: </span>{topicSpec(topic)?.label_he}</div>
+            {previewMeta?.template_name && (
+              <div><span className="text-muted-foreground">תבנית מאושרת: </span>{previewMeta.template_name}</div>
+            )}
+            {previewMeta?.offer_title && (
+              <div>
+                <span className="text-muted-foreground">פעילות מקושרת: </span>
+                {previewMeta.offer_title}
+                {previewMeta.offer_auto_selected ? " (נבחרה אוטומטית)" : ""}
+              </div>
+            )}
               <div>
                 <span className="text-muted-foreground">מועד: </span>
                 {when === "now" ? "עכשיו" : fmt(scheduledAt)}

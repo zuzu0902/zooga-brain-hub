@@ -402,6 +402,15 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const solo = soloPolicyReply(message);
   if (answerText) {
     /* pending-handoff turn already answered */
+  } else if (!input.simulate && contact && (await (async () => {
+    const { handleReengagementReply } = await import("@/lib/tamar-activation/followup.server");
+    const r = await handleReengagementReply({ contact, message }).catch(() => null);
+    if (!r) return false;
+    answerText = r.text;
+    groundingPath = r.path;
+    return true;
+  })())) {
+    /* re-engagement reply already answered from stored facts */
   } else if (isSelfSummaryRequest(message)) {
     // Customer-safe: ONLY explicit facts the customer supplied.
     const provenance = contact?.id ? await loadCustomerSuppliedProfile(contact.id) : { facts: [], answers: [] };
