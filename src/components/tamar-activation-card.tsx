@@ -175,6 +175,7 @@ function TamarActivationDialog({
   } | null>(null);
   const [gateError, setGateError] = useState<string | null>(null);
   const [gateReason, setGateReason] = useState<string | null>(null);
+  const [consent, setConsent] = useState<any>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -218,6 +219,7 @@ function TamarActivationDialog({
         },
       }) as Promise<any>,
     onSuccess: (r) => {
+      setConsent(r?.gate?.consent ?? null);
       if (!r?.gate?.allowed) {
         setPreview("");
         setGateError(r?.gate?.reason_he ?? "הפעולה נחסמה");
@@ -237,6 +239,7 @@ function TamarActivationDialog({
     onError: (e: any) => {
       setGateError(String(e?.message ?? e));
       setGateReason(null);
+      setConsent(null);
     },
   });
 
@@ -306,6 +309,7 @@ function TamarActivationDialog({
       setGateReason(null);
       setReleaseOpen(false);
       setConfirming(false);
+      setConsent(null);
     }
     onOpenChange(v);
   }
@@ -425,6 +429,20 @@ function TamarActivationDialog({
                   <RefreshCw className="h-3 w-3" /> {runPreview.isPending ? "מכינה..." : preview ? "רענון" : "צור תצוגה מקדימה"}
                 </Button>
               </div>
+              {consent && (
+                <div className="rounded-md border border-border bg-muted/30 p-2.5 text-xs">
+                  {consent.verified ? (
+                    <span>
+                      הסכמה מאומתת · מקור: {consent.source ?? "—"} · מועד: {fmt(consent.at)}
+                    </span>
+                  ) : (
+                    <span className="text-destructive">
+                      {consent.reason_he ?? "אין הסכמה מאומתת"}
+                      {consent.missing?.length ? ` — חסר: ${consent.missing.join(", ")}` : ""}
+                    </span>
+                  )}
+                </div>
+              )}
               {gateError && (
                 <div className="rounded-md border border-destructive/50 p-2.5 text-destructive space-y-2">
                   <div>{gateError}</div>

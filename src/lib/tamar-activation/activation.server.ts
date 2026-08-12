@@ -11,6 +11,7 @@ import { quiet } from "@/lib/db-safe";
 import { isSessionWindowOpen, recordDelivery, sendWhatsAppText, sendWhatsAppTemplate } from "@/lib/whatsapp-meta.server";
 import { validateTemplateForLaunch } from "@/lib/whatsapp-templates.server";
 import { isOfferSellable } from "@/lib/offer-sellable";
+import type { ConsentEvidence } from "@/lib/whatsapp-optin/consent-resolver";
 import { callStage } from "@/lib/tamar-v2/model-registry.server";
 import {
   activationIdempotencyKey,
@@ -22,6 +23,50 @@ import {
 } from "./core";
 
 const RECENT_DUPLICATE_MINUTES = 60;
+
+/**
+ * Finds an explicit reply to the stored consent question. Only an answer that
+ * is linked to a stored consent question counts — a generic inbound message
+ * never becomes consent.
+ */
+async function loadConsentEvidence(contactId: string, phone: string): Promise<ConsentEvidence | null> {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  const { data: question } = await supabaseAdmin
+    .from("interactions")
+    .select("id, timestamp, content")
+    .eq("contact_id", contactId)
+    .eq("source", "tamar_outbound")
+    .ilike("content", "%מאשר%")
+    .order("timestamp", { ascending: false })
+    .limit(1);
+  const questionStored = !!((question as any[]) ?? []).length;
+  if (!questionStored) return null;
+
+  const { data: events } = await supabaseAdmin
+    .from("inbound_event_vault" as any)
+    .select("id, event_type, raw_payload, created_at")
+    .like("normalized_phone", `%${digits.slice(-9)}%`)
+    .eq("event_type", "message.interactive")
+    .order("created_at", { ascending: true })
+    .limit(5);
+  const ev = ((events as any[]) ?? []).find(
+    (e) => e?.raw_payload?.message?.interactive?.button_reply?.id,
+  );
+  if (!ev) return null;
+  const reply = ev.raw_payload.message.interactive.button_reply;
+  const ts = Number(ev.raw_payload?.message?.timestamp);
+  return {
+    id: String(ev.id),
+    at: Number.isFinite(ts) ? new Date(ts * 1000).toISOString() : (ev.created_at ?? null),
+    buttonId: reply.id ?? null,
+    buttonTitle: reply.title ?? null,
+    text: null,
+    repliesToConsentQuestion: true,
+    questionStored: true,
+    source: "whatsapp_button_reply",
+  };
+}
 
 export type ActivationContext = {
   contact: any | null;
@@ -56,7 +101,7 @@ export async function loadActivationContext(args: {
   const { data: contact } = await supabaseAdmin
     .from("contacts")
     .select(
-      "id, first_name, full_name, phone, whatsapp_number, consent_marketing, opted_out_at, human_owned, opening_status, whatsapp_opt_in_status, whatsapp_opt_in_at, whatsapp_opt_in_source, baseline_intake_status, conversation_state, city, age, notes",
+      "id, first_name, full_name, phone, whatsapp_number, consent_marketing, consent_date, consent_source, opted_out_at, human_owned, opening_status, whatsapp_opt_in_status, whatsapp_opt_in_at, whatsapp_opt_in_source, whatsapp_opt_in_evidence, baseline_intake_status, conversation_state, city, age, notes",
     )
     .eq("id", args.contactId)
     .maybeSingle();
@@ -82,6 +127,7 @@ export async function loadActivationContext(args: {
     .limit(10);
 
   const sessionWindowOpen = await isSessionWindowOpen(args.contactId);
+  const consentEvidence = await loadConsentEvidence(args.contactId, phone);
 
   let offer: any = null;
   if (args.offerId) {
@@ -156,6 +202,7 @@ export async function loadActivationContext(args: {
       topic: args.topic,
       instruction: args.instruction,
       contact: c,
+      consentEvidence,
       duplicateContacts,
       openHandoffs: ((handoffs as any[]) ?? []).length,
       sessionWindowOpen,

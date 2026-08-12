@@ -6,6 +6,11 @@
  */
 
 import { checkTemplateRegistry } from "@/lib/whatsapp-template-registry";
+import {
+  verifiedWhatsAppConsent,
+  type ConsentEvidence,
+  type ResolvedConsent,
+} from "@/lib/whatsapp-optin/consent-resolver";
 
 export type ActivationTopic =
   | "intake_continue"
@@ -129,10 +134,15 @@ export type ActivationGateInput = {
     whatsapp_opt_in_status?: string | null;
     whatsapp_opt_in_at?: string | null;
     whatsapp_opt_in_source?: string | null;
+    whatsapp_opt_in_evidence?: string | null;
     consent_marketing?: boolean | null;
+    consent_date?: string | null;
+    consent_source?: string | null;
     opted_out_at?: string | null;
     human_owned?: boolean | null;
   } | null;
+  /** explicit inbound reply linked to the stored consent question */
+  consentEvidence?: ConsentEvidence | null;
   /** more than one contact row resolves to this phone */
   duplicateContacts?: number;
   openHandoffs?: number;
@@ -152,6 +162,7 @@ export type ActivationGate = {
   reason: string | null;
   reason_he: string | null;
   transport: "session" | "template" | null;
+  consent?: ResolvedConsent;
 };
 
 const block = (reason: string, he: string): ActivationGate => ({
@@ -177,12 +188,11 @@ export function evaluateActivation(input: ActivationGateInput): ActivationGate {
   if ((input.duplicateContacts ?? 1) > 1)
     return block("duplicate_contacts", "קיימות רשומות כפולות למספר הזה — יש לאחד לפני שליחה");
   if (!(c.whatsapp_number || c.phone)) return block("missing_phone", "אין מספר טלפון");
-  if (c.opted_out_at) return block("opted_out", "הלקוח ביקש להפסיק קבלת הודעות");
 
-  const status = String(c.whatsapp_opt_in_status ?? "unknown");
-  if (status === "denied") return block("opt_in_denied", "אישור הפנייה בוואטסאפ נדחה");
-  if (status !== "verified" || !c.whatsapp_opt_in_source || !c.whatsapp_opt_in_at)
-    return block("opt_in_unverified", "אין אישור מאומת לפנייה בוואטסאפ (נדרש מקור ומועד)");
+  // One resolver for consent — identical for preview and for execution.
+  const consent = verifiedWhatsAppConsent({ contact: c, evidence: input.consentEvidence ?? null });
+  if (!consent.verified)
+    return { ...block(consent.reason ?? "opt_in_unverified", consent.reason_he ?? "אין הסכמה מאומתת"), consent };
 
   if (c.human_owned) return block("human_owned", "השיחה בטיפול אנושי");
   if ((input.openHandoffs ?? 0) > 0) return block("open_handoff", "קיימת פנייה פתוחה לנציג");
@@ -201,7 +211,7 @@ export function evaluateActivation(input: ActivationGateInput): ActivationGate {
     return block("duplicate_message", "הודעה זהה כבר נשלחה לאחרונה");
 
   if (input.sessionWindowOpen) {
-    return { allowed: true, reason: null, reason_he: null, transport: "session" };
+    return { allowed: true, reason: null, reason_he: null, transport: "session", consent };
   }
 
   if (!spec.template) {
@@ -218,7 +228,7 @@ export function evaluateActivation(input: ActivationGateInput): ActivationGate {
   if (!input.templateApproved)
     return block("template_not_approved", "התבנית הנדרשת אינה מאושרת ב-Meta");
 
-  return { allowed: true, reason: null, reason_he: null, transport: "template" };
+  return { allowed: true, reason: null, reason_he: null, transport: "template", consent };
 }
 
 /** Israel-local wall clock → UTC ISO. The UI always works in Israel time. */
