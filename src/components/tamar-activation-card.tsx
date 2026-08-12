@@ -320,13 +320,19 @@ function TamarActivationDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="activation-instruction">הוראה לתמר (חובה)</Label>
+              <Label htmlFor="activation-instruction">
+                {instructionOptional ? "הוראה לתמר (אופציונלי)" : "הוראה לתמר (חובה)"}
+              </Label>
               <Textarea
                 id="activation-instruction"
                 rows={3}
                 value={instruction}
                 onChange={(e) => { setInstruction(e.target.value); setPreview(""); }}
-                placeholder="לדוגמה: תשאלי אם היא רוצה לשמוע על הטיול לאלבניה בספטמבר"
+                placeholder={
+                  instructionOptional
+                    ? "אפשר להשאיר ריק — תמר תחדש קשר סביב הפעילות הפעילה, בלי להמציא פרטים"
+                    : "לדוגמה: תשאלי אם היא רוצה לשמוע על הטיול לאלבניה בספטמבר"
+                }
               />
             </div>
 
@@ -387,6 +393,15 @@ function TamarActivationDialog({
                 אפשר לערוך את ההוראה ולרענן. ההודעה נשארת מבוססת עובדות בלבד.
               </div>
             </div>
+
+            {blockers.length > 0 && (
+              <div className="rounded-md border border-border bg-muted/40 p-2.5 text-xs space-y-1">
+                <div className="font-medium">כדי להפעיל את תמר צריך להשלים:</div>
+                <ul className="list-disc pr-4 space-y-0.5 text-muted-foreground">
+                  {blockers.map((b) => <li key={b}>{b}</li>)}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
