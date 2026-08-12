@@ -214,24 +214,30 @@ export async function loadActivationContext(args: {
   };
 }
 
-async function templateGateFor(topic: string): Promise<boolean> {
+async function templateGateFor(topic: string): Promise<{ ok: boolean; reason_he: string | null }> {
   const spec = topicSpec(topic);
-  if (!spec?.template) return false;
+  if (!spec?.template) return { ok: false, reason_he: "אין תבנית מאושרת שמתאימה למטרה הזו" };
   const res = await validateTemplateForLaunch(spec.template.name, spec.template.language);
-  return !!res.ok;
+  return { ok: !!res.ok, reason_he: res.ok ? null : res.reason };
 }
 
-/** Full gate, including the (network) Meta template check when required. */
+/**
+ * Full gate, including the (network) Meta template check when required.
+ * The dry run never sets templateApproved, so a closed service window always
+ * needs the live verification round — preview and create run this same path.
+ */
 export async function gateActivation(ctx: ActivationContext): Promise<ActivationGate> {
   const dry = evaluateActivation(ctx.gateInput);
-  if (dry.allowed || dry.reason !== "template_not_approved") {
-    if (!ctx.gateInput.sessionWindowOpen && topicSpec(ctx.gateInput.topic)?.template) {
-      const approved = await templateGateFor(ctx.gateInput.topic);
-      return evaluateActivation({ ...ctx.gateInput, templateApproved: approved });
-    }
-    return dry;
-  }
-  return dry;
+  const needsTemplate = !ctx.gateInput.sessionWindowOpen && !!topicSpec(ctx.gateInput.topic)?.template;
+  // Any block other than the template one is decided without a network call.
+  if (!needsTemplate) return dry;
+  if (!dry.allowed && dry.reason !== "template_not_approved") return dry;
+  const check = await templateGateFor(ctx.gateInput.topic);
+  return evaluateActivation({
+    ...ctx.gateInput,
+    templateApproved: check.ok,
+    templateCheckReasonHe: check.reason_he,
+  });
 }
 
 /** Grounded opening text. Never invents facts, asks at most one question. */
