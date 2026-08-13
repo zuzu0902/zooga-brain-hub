@@ -299,6 +299,12 @@ export type ActivationPreview = {
   offer_id: string | null;
   offer_auto_selected: boolean;
   template_name: string | null;
+  session_window: {
+    open: boolean;
+    last_inbound_at: string | null;
+    open_until: string | null;
+    source: string | null;
+  };
 };
 
 /** Preview never sends and never mutates the contact. */
@@ -329,6 +335,12 @@ export async function previewActivation(args: {
     offer_id: ctx.resolvedOfferId ?? null,
     offer_auto_selected: !!ctx.autoResolvedOfferId,
     template_name: templateName,
+    session_window: ctx.sessionWindow ?? {
+      open: false,
+      last_inbound_at: null,
+      open_until: null,
+      source: null,
+    },
   };
 }
 
