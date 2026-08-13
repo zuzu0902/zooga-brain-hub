@@ -321,47 +321,15 @@ export async function recordInboundMessage(args: {
   route?: string | null;
 }) {
   if (!args.contactId) return;
-  try {
-    // One row per provider message id: the unique partial index on
-    // provider_message_id makes a webhook retry a no-op.
-    const pid = args.inboundMessageId ?? null;
-    await db()
-      .from("messages")
-      .upsert(
-        {
-          contact_id: args.contactId,
-          channel: "WhatsApp",
-          message_text: args.text.slice(0, 4000),
-          reply_text: args.text.slice(0, 4000),
-          status: "replied",
-          provider_message_id: pid,
-        },
-        { onConflict: "provider_message_id", ignoreDuplicates: true } as any,
-      );
-    await db()
-      .from("interactions")
-      .upsert(
-        {
-          contact_id: args.contactId,
-          type: "whatsapp_message",
-          source: `inbound_${args.sourceType}`,
-          provider_message_id: pid,
-          content: JSON.stringify({
-            text: args.text.slice(0, 500),
-            source_type: args.sourceType,
-            classification: args.classification.kind,
-            confidence: args.classification.confidence,
-            answer_valid: args.classification.answer_valid,
-            facts: args.classification.extracted_facts,
-            route: args.route ?? null,
-            inbound_message_id: pid,
-          }).slice(0, 2000),
-        },
-        { onConflict: "provider_message_id", ignoreDuplicates: true } as any,
-      );
-  } catch {
-    /* the ledger must never break the reply path */
-  }
+  // One row per provider message id. The ledger does its own idempotency and
+  // logs failures instead of swallowing them, and it opens the 24h window.
+  const { recordInboundLedger } = await import("@/lib/inbound-ledger.server");
+  await recordInboundLedger({
+    contactId: args.contactId,
+    text: args.text,
+    inboundMessageId: args.inboundMessageId ?? null,
+    source: `inbound_${args.sourceType}`,
+  });
 }
 
 /**
