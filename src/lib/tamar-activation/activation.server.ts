@@ -76,6 +76,12 @@ export type ActivationContext = {
   facts: string[];
   resolvedOfferId?: string | null;
   autoResolvedOfferId?: string | null;
+  sessionWindow?: {
+    open: boolean;
+    last_inbound_at: string | null;
+    open_until: string | null;
+    source: string | null;
+  };
 };
 
 async function auditActivation(action: string, details: Record<string, unknown>) {
