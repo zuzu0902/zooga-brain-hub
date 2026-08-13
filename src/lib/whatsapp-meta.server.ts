@@ -336,16 +336,79 @@ export function metaConfigPresence() {
 export async function isSessionWindowOpen(contactId: string | null): Promise<boolean> {
   if (!contactId) return false;
   try {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data } = await supabaseAdmin
-      .from("interactions")
-      .select("id")
-      .eq("contact_id", contactId)
-      .eq("source", "tamar_inbound")
-      .gte("timestamp", since)
-      .limit(1);
-    return !!(data as any[])?.length;
+    return (await sessionWindowState(contactId)).open;
   } catch {
     return false;
   }
+}
+
+/**
+ * The window with its evidence, so the UI can explain a template-only block
+ * instead of showing an unexplained disabled button.
+ *
+ * Any inbound source counts (`tamar_inbound` and the gate's `inbound_*`), and
+ * the raw event vault is used as a backstop so a missing CRM row can never
+ * silently close a window the customer really opened.
+ */
+export async function sessionWindowState(
+  contactId: string | null,
+): Promise<{ open: boolean; last_inbound_at: string | null; open_until: string | null; source: string | null }> {
+  const closed = { open: false, last_inbound_at: null, open_until: null, source: null };
+  if (!contactId) return closed;
+  const windowMs = 24 * 60 * 60 * 1000;
+  const since = new Date(Date.now() - windowMs).toISOString();
+
+  const mark = (iso: string | null, source: string) =>
+    iso
+      ? {
+          open: new Date(iso).getTime() > Date.now() - windowMs,
+          last_inbound_at: iso,
+          open_until: new Date(new Date(iso).getTime() + windowMs).toISOString(),
+          source,
+        }
+      : null;
+
+  try {
+    const { data } = await supabaseAdmin
+      .from("interactions")
+      .select("timestamp, source")
+      .eq("contact_id", contactId)
+      .or("source.eq.tamar_inbound,source.like.inbound_%")
+      .gte("timestamp", since)
+      .order("timestamp", { ascending: false })
+      .limit(1);
+    const row = (data as any[])?.[0];
+    const hit = mark(row?.timestamp ?? null, `interactions:${row?.source ?? "inbound"}`);
+    if (hit?.open) return hit;
+  } catch {
+    /* fall through to the other sources */
+  }
+
+  try {
+    const { data: contact } = await supabaseAdmin
+      .from("contacts")
+      .select("last_inbound_at, phone, whatsapp_number")
+      .eq("id", contactId)
+      .maybeSingle();
+    const hit = mark((contact as any)?.last_inbound_at ?? null, "contacts.last_inbound_at");
+    if (hit?.open) return hit;
+
+    const phone = String((contact as any)?.whatsapp_number ?? (contact as any)?.phone ?? "").replace(/\D/g, "");
+    if (phone) {
+      const { data: vault } = await supabaseAdmin
+        .from("inbound_event_vault" as any)
+        .select("created_at, event_type, normalized_phone")
+        .like("normalized_phone", `%${phone.slice(-9)}`)
+        .like("event_type", "message.%")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const v = (vault as any[])?.[0];
+      const vaultHit = mark(v?.created_at ?? null, "inbound_event_vault");
+      if (vaultHit?.open) return vaultHit;
+    }
+  } catch {
+    /* closed is the safe default */
+  }
+  return closed;
 }

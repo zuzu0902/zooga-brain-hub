@@ -76,6 +76,12 @@ export type ActivationContext = {
   facts: string[];
   resolvedOfferId?: string | null;
   autoResolvedOfferId?: string | null;
+  sessionWindow?: {
+    open: boolean;
+    last_inbound_at: string | null;
+    open_until: string | null;
+    source: string | null;
+  };
 };
 
 async function auditActivation(action: string, details: Record<string, unknown>) {
@@ -126,7 +132,9 @@ export async function loadActivationContext(args: {
     .in("status", ["open", "pending", "queued", "in_progress"])
     .limit(10);
 
-  const sessionWindowOpen = await isSessionWindowOpen(args.contactId);
+  const { sessionWindowState } = await import("@/lib/whatsapp-meta.server");
+  const sessionWindow = await sessionWindowState(args.contactId);
+  const sessionWindowOpen = sessionWindow.open;
   const consentEvidence = await loadConsentEvidence(args.contactId, phone);
 
   let offer: any = null;
@@ -198,6 +206,7 @@ export async function loadActivationContext(args: {
     facts,
     resolvedOfferId: offer?.id ?? args.offerId ?? null,
     autoResolvedOfferId: autoOfferId,
+    sessionWindow,
     gateInput: {
       topic: args.topic,
       instruction: args.instruction,
@@ -290,6 +299,12 @@ export type ActivationPreview = {
   offer_id: string | null;
   offer_auto_selected: boolean;
   template_name: string | null;
+  session_window: {
+    open: boolean;
+    last_inbound_at: string | null;
+    open_until: string | null;
+    source: string | null;
+  };
 };
 
 /** Preview never sends and never mutates the contact. */
@@ -320,6 +335,12 @@ export async function previewActivation(args: {
     offer_id: ctx.resolvedOfferId ?? null,
     offer_auto_selected: !!ctx.autoResolvedOfferId,
     template_name: templateName,
+    session_window: ctx.sessionWindow ?? {
+      open: false,
+      last_inbound_at: null,
+      open_until: null,
+      source: null,
+    },
   };
 }
 

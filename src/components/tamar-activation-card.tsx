@@ -172,6 +172,7 @@ function TamarActivationDialog({
     offer_title: string | null;
     offer_auto_selected: boolean;
     transport: string | null;
+    session_window: { open: boolean; last_inbound_at: string | null; open_until: string | null } | null;
   } | null>(null);
   const [gateError, setGateError] = useState<string | null>(null);
   const [gateReason, setGateReason] = useState<string | null>(null);
@@ -222,6 +223,13 @@ function TamarActivationDialog({
       setConsent(r?.gate?.consent ?? null);
       if (!r?.gate?.allowed) {
         setPreview("");
+        setPreviewMeta((prev) => ({
+          template_name: prev?.template_name ?? null,
+          offer_title: prev?.offer_title ?? null,
+          offer_auto_selected: prev?.offer_auto_selected ?? false,
+          transport: r?.transport ?? null,
+          session_window: r?.session_window ?? null,
+        }));
         setGateError(r?.gate?.reason_he ?? "הפעולה נחסמה");
         setGateReason(r?.gate?.reason ?? null);
         return;
@@ -234,6 +242,7 @@ function TamarActivationDialog({
         offer_title: r.offer_title ?? null,
         offer_auto_selected: !!r.offer_auto_selected,
         transport: r.transport ?? null,
+        session_window: r.session_window ?? null,
       });
     },
     onError: (e: any) => {
@@ -450,6 +459,23 @@ function TamarActivationDialog({
                     <Button type="button" size="sm" variant="outline" onClick={() => setReleaseOpen(true)}>
                       החזר לתמר
                     </Button>
+                  )}
+                </div>
+              )}
+              {previewMeta?.session_window && (
+                <div className="rounded-md border border-border p-2.5 text-xs text-muted-foreground">
+                  {previewMeta.session_window.open ? (
+                    <>
+                      חלון 24 השעות פתוח — אפשר טקסט חופשי
+                      {previewMeta.session_window.open_until ? ` (עד ${fmt(previewMeta.session_window.open_until)})` : ""}
+                    </>
+                  ) : (
+                    <>
+                      חלון 24 השעות סגור — השליחה תתבצע בתבנית מאושרת בלבד
+                      {previewMeta.session_window.last_inbound_at
+                        ? ` · הודעה נכנסת אחרונה: ${fmt(previewMeta.session_window.last_inbound_at)}`
+                        : " · לא נמצאה הודעה נכנסת"}
+                    </>
                   )}
                 </div>
               )}
