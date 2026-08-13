@@ -224,11 +224,43 @@ export function ageFromBirthDate(iso: string, today = new Date()): number | null
 
 // ------------------------------------------------- free-text multi-fill
 
-const REGION_WORDS = [
-  "תל אביב", "ירושלים", "חיפה", "באר שבע", "ראשון לציון", "נתניה", "פתח תקווה", "אשדוד",
-  "רעננה", "הרצליה", "מודיעין", "אילת", "רמת גן", "גבעתיים", "כפר סבא", "רחובות",
-  "השרון", "הצפון", "הדרום", "המרכז", "השפלה",
+/** Named regions of Israel — a valid answer to "באיזה אזור בארץ?". */
+export const REGION_WORDS = [
+  "השפלה", "השרון", "הצפון", "הדרום", "המרכז", "הגליל", "הנגב", "ירושלים והסביבה",
+  "גוש דן", "עמק יזרעאל", "השומרון", "יהודה ושומרון", "הערבה", "הכרמל",
 ];
+
+/** City -> region, used to infer a region with high confidence from a city. */
+export const CITY_TO_REGION: Record<string, string> = {
+  "רמלה": "השפלה", "לוד": "השפלה", "רחובות": "השפלה", "נס ציונה": "השפלה",
+  "ראשון לציון": "השפלה", "יבנה": "השפלה", "מודיעין": "השפלה", "גדרה": "השפלה",
+  "תל אביב": "גוש דן", "רמת גן": "גוש דן", "גבעתיים": "גוש דן", "בני ברק": "גוש דן",
+  "חולון": "גוש דן", "בת ים": "גוש דן", "פתח תקווה": "גוש דן",
+  "הרצליה": "השרון", "רעננה": "השרון", "כפר סבא": "השרון", "נתניה": "השרון", "הוד השרון": "השרון",
+  "חיפה": "הצפון", "קריות": "הצפון", "עכו": "הצפון", "נהריה": "הצפון", "טבריה": "הצפון", "צפת": "הצפון", "כרמיאל": "הצפון",
+  "באר שבע": "הדרום", "אשדוד": "הדרום", "אשקלון": "הדרום", "אילת": "הדרום", "דימונה": "הדרום", "נתיבות": "הדרום", "אופקים": "הדרום",
+  "ירושלים": "ירושלים והסביבה", "בית שמש": "ירושלים והסביבה", "מעלה אדומים": "ירושלים והסביבה",
+};
+
+const CITY_WORDS = Object.keys(CITY_TO_REGION);
+
+/** The region a free-text location answer belongs to, or null. */
+function namedRegionIn(s: string): string | null {
+  // Hebrew glues prefixes onto the noun ("שבשפלה", "בשרון"), so match the
+  // stem without its definite article rather than the literal word.
+  return (
+    REGION_WORDS.find((w) => s.includes(w) || s.includes(w.replace(/^ה/, ""))) ?? null
+  );
+}
+
+export function regionForLocation(raw: string): string | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const region = namedRegionIn(s);
+  if (region) return region;
+  const city = CITY_WORDS.find((w) => s.includes(w));
+  return city ? CITY_TO_REGION[city]! : null;
+}
 
 const INTEREST_WORDS: Array<[RegExp, string]> = [
   [/טיול(ים)? (ב)?חו"?״?ל|חו"?״?ל/, "טיולים בחו״ל"],
@@ -301,10 +333,28 @@ export function extractFieldsFromFreeText(
   else if (askedField === "first_name" && /^[\u0590-\u05FFA-Za-z]{2,20}$/.test(s))
     out["first_name"] = { value: s, kind: "explicit", confidence: 95, evidence: ev };
 
-  const city = REGION_WORDS.find((w) => s.includes(w));
-  if (city) out["city"] = { value: city, kind: "explicit", confidence: 90, evidence: ev };
-  else if (askedField === "city" && s.length <= 30 && !/\d/.test(s))
+  // A location answer may be a city ("רמלה"), a region ("השפלה") or both.
+  // A city is stored as the city and the region is INFERRED from it; a bare
+  // region is stored as the region and never faked into a city.
+  const namedCity = CITY_WORDS.find((w) => s.includes(w));
+  const namedRegion = namedRegionIn(s);
+  if (namedCity) {
+    out["city"] = { value: namedCity, kind: "explicit", confidence: 92, evidence: ev };
+    const inferred = namedRegion ?? CITY_TO_REGION[namedCity]!;
+    out["region"] = {
+      value: inferred,
+      kind: namedRegion ? "explicit" : "inferred",
+      confidence: namedRegion ? 92 : 85,
+      evidence: ev,
+    };
+  } else if (namedRegion) {
+    out["region"] = { value: namedRegion, kind: "explicit", confidence: 92, evidence: ev };
+    // A region IS a valid answer to the city question; keep it as the
+    // location answer so intake advances instead of re-asking.
+    if (askedField === "city") out["city"] = { value: namedRegion, kind: "explicit", confidence: 80, evidence: ev };
+  } else if (askedField === "city" && s.length <= 30 && !/\d/.test(s)) {
     out["city"] = { value: s, kind: "explicit", confidence: 85, evidence: ev };
+  }
 
   const interests = INTEREST_WORDS.filter(([re]) => re.test(s)).map(([, label]) => label);
   if (interests.length)

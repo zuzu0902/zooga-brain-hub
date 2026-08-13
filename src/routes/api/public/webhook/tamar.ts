@@ -616,6 +616,22 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                         .update({ intake_deferred_fields: [...cur, plan.field_key] } as any)
                         .eq("id", intakeContactId);
                     }
+                    // A blocked third ask is an anomaly, not routine: record it.
+                    await supabaseAdmin
+                      .from("zero_loss_audit_log" as any)
+                      .insert({
+                        actor_label: "baseline_intake",
+                        action: "intake_question_exhausted",
+                        target_kind: "contact",
+                        target_id: intakeContactId,
+                        details: {
+                          field_key: plan.field_key,
+                          inbound_message_id: msg.wamid,
+                          guard_reason: guard.reason,
+                          repeat_count: guard.repeat_count,
+                        },
+                      } as any)
+                      .then(() => undefined, () => undefined);
                   }
                   await recordReply(msg.wamid, guard.text).catch(() => {});
                   results.push({
