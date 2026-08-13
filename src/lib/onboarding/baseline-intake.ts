@@ -245,10 +245,18 @@ export const CITY_TO_REGION: Record<string, string> = {
 const CITY_WORDS = Object.keys(CITY_TO_REGION);
 
 /** The region a free-text location answer belongs to, or null. */
+function namedRegionIn(s: string): string | null {
+  // Hebrew glues prefixes onto the noun ("שבשפלה", "בשרון"), so match the
+  // stem without its definite article rather than the literal word.
+  return (
+    REGION_WORDS.find((w) => s.includes(w) || s.includes(w.replace(/^ה/, ""))) ?? null
+  );
+}
+
 export function regionForLocation(raw: string): string | null {
   const s = String(raw ?? "").trim();
   if (!s) return null;
-  const region = REGION_WORDS.find((w) => s.includes(w));
+  const region = namedRegionIn(s);
   if (region) return region;
   const city = CITY_WORDS.find((w) => s.includes(w));
   return city ? CITY_TO_REGION[city]! : null;
@@ -329,7 +337,7 @@ export function extractFieldsFromFreeText(
   // A city is stored as the city and the region is INFERRED from it; a bare
   // region is stored as the region and never faked into a city.
   const namedCity = CITY_WORDS.find((w) => s.includes(w));
-  const namedRegion = REGION_WORDS.find((w) => s.includes(w));
+  const namedRegion = namedRegionIn(s);
   if (namedCity) {
     out["city"] = { value: namedCity, kind: "explicit", confidence: 92, evidence: ev };
     const inferred = namedRegion ?? CITY_TO_REGION[namedCity]!;
