@@ -462,6 +462,23 @@ function TamarActivationDialog({
                   )}
                 </div>
               )}
+              {previewMeta?.session_window && (
+                <div className="rounded-md border border-border p-2.5 text-xs text-muted-foreground">
+                  {previewMeta.session_window.open ? (
+                    <>
+                      חלון 24 השעות פתוח — אפשר טקסט חופשי
+                      {previewMeta.session_window.open_until ? ` (עד ${fmt(previewMeta.session_window.open_until)})` : ""}
+                    </>
+                  ) : (
+                    <>
+                      חלון 24 השעות סגור — השליחה תתבצע בתבנית מאושרת בלבד
+                      {previewMeta.session_window.last_inbound_at
+                        ? ` · הודעה נכנסת אחרונה: ${fmt(previewMeta.session_window.last_inbound_at)}`
+                        : " · לא נמצאה הודעה נכנסת"}
+                    </>
+                  )}
+                </div>
+              )}
               {preview && (
                 <Textarea rows={4} value={preview} onChange={(e) => setPreview(e.target.value)} />
               )}
