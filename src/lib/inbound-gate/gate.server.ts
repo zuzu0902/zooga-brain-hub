@@ -41,7 +41,7 @@ export type InboundContext = {
 };
 
 const CONTACT_COLUMNS =
-  "id,conversation_state,consent_status,opted_out_at,human_owned,residence_city,looking_for_relationship,likes_travel,travel_scope,last_trip_destination,intake_last_question_key,intake_missing_fields,relationship_intake_status";
+  "id,conversation_state,consent_status,opted_out_at,human_owned,residence_city,looking_for_relationship,likes_travel,travel_scope,last_trip_destination,intake_last_question_key,intake_last_step_id,intake_missing_fields,relationship_intake_status";
 
 export async function loadInboundContext(
   contactId: string | null,
@@ -103,10 +103,14 @@ export async function loadInboundContext(
   };
   ctx.open_handoff = !!((handoffs as any[]) ?? []).length;
   ctx.offers_available = ((offers as any[]) ?? []).length;
+  // Baseline intake pins the asked field in `intake_last_step_id`; the legacy
+  // engine uses `intake_last_question_key`. Reading only one of them left the
+  // gate with no current question, so a perfectly valid answer was classified
+  // "no_current_question" and the same question was asked forever.
   ctx.current_question_key =
     (relState as any)?.status === "in_progress"
       ? ((relState as any)?.current_question_key ?? null)
-      : (c.intake_last_question_key ?? null);
+      : (c.intake_last_question_key ?? c.intake_last_step_id ?? null);
 
   const rows = ((msgs as any[]) ?? []).slice().reverse();
   ctx.transcript = rows.map((m) => ({
