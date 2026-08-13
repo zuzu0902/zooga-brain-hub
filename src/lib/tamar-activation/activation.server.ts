@@ -126,7 +126,9 @@ export async function loadActivationContext(args: {
     .in("status", ["open", "pending", "queued", "in_progress"])
     .limit(10);
 
-  const sessionWindowOpen = await isSessionWindowOpen(args.contactId);
+  const { sessionWindowState } = await import("@/lib/whatsapp-meta.server");
+  const sessionWindow = await sessionWindowState(args.contactId);
+  const sessionWindowOpen = sessionWindow.open;
   const consentEvidence = await loadConsentEvidence(args.contactId, phone);
 
   let offer: any = null;
@@ -198,6 +200,7 @@ export async function loadActivationContext(args: {
     facts,
     resolvedOfferId: offer?.id ?? args.offerId ?? null,
     autoResolvedOfferId: autoOfferId,
+    sessionWindow,
     gateInput: {
       topic: args.topic,
       instruction: args.instruction,
