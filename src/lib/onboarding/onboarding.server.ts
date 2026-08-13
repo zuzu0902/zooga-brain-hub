@@ -8,6 +8,7 @@ import { normalizePhone, splitName } from "@/lib/phone";
 import { routeConversationStart } from "./decision-router";
 import { completeness, DEFAULT_INTAKE_FIELDS, nextIntakeStep } from "./baseline-intake";
 import { extractFieldsFromFreeText } from "./baseline-intake";
+import { getNextMissingIntakeQuestion, planIntakeState } from "@/lib/intake-next-question";
 import { mergeFact, type IncomingFact } from "./profile-facts";
 import {
   CONSENT_VERSION,
@@ -481,8 +482,8 @@ export async function getOnboardingSnapshot(contactId: string) {
   const skipped: string[] = Array.isArray(row.intake_deferred_fields) ? row.intake_deferred_fields.map(String) : [];
   const snap = { facts, skipped };
   const comp = completeness(defs, snap);
-  const next = nextIntakeStep(defs, snap);
-  const { nextProgressiveStep } = await import("./baseline-intake");
+  const plan = planIntakeState(defs, snap);
+  const next = plan.next?.stage === "baseline" ? plan.next : null;
   const { data: events } = await db()
     .from("onboarding_events")
     .select("event_type,stage,button_id,button_title,created_at")
@@ -495,7 +496,13 @@ export async function getOnboardingSnapshot(contactId: string) {
     facts: Object.values(facts),
     completeness: comp,
     next_step: next,
-    next_progressive_step: nextProgressiveStep(defs, snap),
+    next_progressive_step: plan.next?.stage === "progressive" ? plan.next : null,
+    /** canonical — every surface must render this, never its own derivation */
+    next_question: plan.next,
+    intake_status: plan.status,
+    intake_stage: plan.stage,
+    intake_known: plan.known,
+    intake_missing: plan.missing,
     relationship_intake: {
       status: (row.relationship_intake_status ?? "not_offered") as RelationshipIntakeStatus,
       offered_at: row.relationship_intake_offered_at ?? null,
@@ -536,11 +543,15 @@ export async function planIntakeTurn(contactId: string): Promise<IntakeTurnPlan>
   const deferred: string[] = Array.isArray(row.intake_deferred_fields) ? row.intake_deferred_fields.map(String) : [];
   const snap = { facts, skipped: deferred };
 
-  const next = nextIntakeStep(defs, snap);
-  if (next) {
+  const next = getNextMissingIntakeQuestion(defs, snap);
+  if (next && next.stage === "baseline") {
     await db()
       .from("contacts")
-      .update({ intake_last_step_id: next.field_key, baseline_intake_status: "in_progress" })
+      .update({
+        intake_last_step_id: next.field_key,
+        intake_stage: next.field_key,
+        baseline_intake_status: "in_progress",
+      })
       .eq("id", contactId);
     return { kind: "question", field_key: next.field_key, text: next.question_text, purpose: next.purpose_text ?? null };
   }
