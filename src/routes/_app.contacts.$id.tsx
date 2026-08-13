@@ -39,6 +39,8 @@ import { TamarDecisionStrip } from "@/components/tamar-decision-strip";
 import { ContactConversation } from "@/components/contact-conversation";
 import { useT, useLanguage } from "@/lib/language-context";
 import { OnboardingPanel } from "@/components/onboarding-panel";
+import { useServerFn } from "@tanstack/react-start";
+import { getContactOnboarding } from "@/lib/onboarding.functions";
 import { RelationshipIntakePanel } from "@/components/relationship-intake-panel";
 import { ContactResetDialog } from "@/components/contact-reset-dialog";
 import { TamarActivationCard } from "@/components/tamar-activation-card";
