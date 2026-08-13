@@ -39,6 +39,8 @@ import { TamarDecisionStrip } from "@/components/tamar-decision-strip";
 import { ContactConversation } from "@/components/contact-conversation";
 import { useT, useLanguage } from "@/lib/language-context";
 import { OnboardingPanel } from "@/components/onboarding-panel";
+import { useServerFn } from "@tanstack/react-start";
+import { getContactOnboarding } from "@/lib/onboarding.functions";
 import { RelationshipIntakePanel } from "@/components/relationship-intake-panel";
 import { ContactResetDialog } from "@/components/contact-reset-dialog";
 import { TamarActivationCard } from "@/components/tamar-activation-card";
@@ -1914,17 +1916,20 @@ const INTAKE_STATE_TONE: Record<string, string> = {
 };
 
 function IntakeProgressCard({ contact, contactId }: { contact: any; contactId: string }) {
-  const state = contact?.intake_state ?? "not_started";
-  const stage = contact?.intake_stage ?? "identity";
-  const completed: string[] = Array.isArray(contact?.intake_completed_fields)
-    ? contact!.intake_completed_fields
-    : [];
-  const missing: string[] = Array.isArray(contact?.intake_missing_fields)
-    ? contact!.intake_missing_fields
-    : [];
-  const total = completed.length + missing.length || 8;
-  const score = contact?.intake_completion_score ?? Math.round((completed.length / total) * 100);
-  const nextField = missing.find((k) => k !== "source_attribution") ?? null;
+  // CANONICAL source — same server plan the webhook engine and stored state
+  // use. Never derive intake progress from stale contact columns here.
+  const loadOnboarding = useServerFn(getContactOnboarding);
+  const { data: onboarding } = useQuery({
+    queryKey: ["onboarding", contactId],
+    queryFn: () => loadOnboarding({ data: { contactId } }) as any,
+  });
+  const completed: string[] = (onboarding?.intake_known as string[]) ?? [];
+  const missing: string[] = (onboarding?.intake_missing as string[]) ?? [];
+  const state = onboarding?.intake_status ?? "not_started";
+  const stage = onboarding?.intake_stage ?? "—";
+  const total = completed.length + missing.length || 1;
+  const score = onboarding?.completeness?.percent ?? Math.round((completed.length / total) * 100);
+  const nextQuestion = (onboarding?.next_question as any) ?? null;
   const birthdayKnown = !!(contact?.birth_date || (contact?.birthday_day && contact?.birthday_month));
 
   const { data: captures } = useQuery({
@@ -1964,8 +1969,11 @@ function IntakeProgressCard({ contact, contactId }: { contact: any; contactId: s
         ) : (
           <Badge variant="outline" className="text-muted-foreground">birthday trigger missing</Badge>
         )}
-        {nextField && (
-          <Badge variant="outline">השאלה הבאה: {INTAKE_FIELD_LABELS[nextField] ?? nextField}</Badge>
+        {nextQuestion && (
+          <Badge variant="outline" className="whitespace-normal text-right">
+            השאלה הבאה: {nextQuestion.question_text}
+            {nextQuestion.optional ? " (אופציונלי)" : ""}
+          </Badge>
         )}
       </div>
 
