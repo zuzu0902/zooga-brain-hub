@@ -500,6 +500,92 @@ function TamarActivationDialog({
                   <RefreshCw className="h-3 w-3" /> {runPreview.isPending ? "מכינה..." : preview ? "רענון" : "צור תצוגה מקדימה"}
                 </Button>
               </div>
+            </div>
+
+            <div className="space-y-2 rounded-md border border-border p-2.5">
+              <div className="flex items-center justify-between">
+                <Label>תבנית WhatsApp מאושרת</Label>
+                <Button type="button" size="sm" variant="ghost" className="gap-1" disabled={sync.isPending}
+                  onClick={() => sync.mutate()}>
+                  <RefreshCw className="h-3 w-3" /> {sync.isPending ? "מסנכרן..." : "סנכרון מ-Meta"}
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {picker
+                  ? windowOpen
+                    ? "חלון 24 השעות פתוח — אפשר טקסט חופשי, ותבנית היא אופציונלית."
+                    : "חלון 24 השעות סגור — שליחה אפשרית בתבנית מאושרת בלבד."
+                  : "טוען תבניות..."}
+              </div>
+              <Select
+                value={templateId || "__none__"}
+                onValueChange={(v) => {
+                  const id = v === "__none__" ? "" : v;
+                  setTemplateId(id);
+                  const t = ((picker?.templates as any[]) ?? []).find((x) => x.id === id);
+                  setParams(t?.suggested_params ?? []);
+                  setPreview("");
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="בחירת תבנית" /></SelectTrigger>
+                <SelectContent>
+                  {windowOpen && <SelectItem value="__none__">ללא תבנית (טקסט חופשי)</SelectItem>}
+                  {usableTemplates.map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} · {t.language} · {t.category ?? "—"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedTemplate && (
+                <div className="space-y-2 text-xs">
+                  <div className="text-muted-foreground">
+                    סטטוס Meta: {selectedTemplate.status} · נבדק: {fmt(selectedTemplate.last_checked_at)}
+                  </div>
+                  {selectedTemplate.header?.text && (
+                    <div className="font-medium">{selectedTemplate.header.text}</div>
+                  )}
+                  <div className="whitespace-pre-wrap rounded bg-muted/40 p-2">
+                    {String(selectedTemplate.body_text ?? "").replace(/\{\{\s*(\d+)\s*\}\}/g, (_m: string, d: string) =>
+                      params[Number(d) - 1] || `{{${d}}}`,
+                    )}
+                  </div>
+                  {selectedTemplate.footer_text && (
+                    <div className="text-muted-foreground">{selectedTemplate.footer_text}</div>
+                  )}
+                  {!!selectedTemplate.buttons?.length && (
+                    <div className="text-muted-foreground">
+                      כפתורים: {selectedTemplate.buttons.map((b: any) => b.text).join(" · ")}
+                    </div>
+                  )}
+                  {(selectedTemplate.variable_schema ?? []).map((v: any, i: number) => (
+                    <div key={v.index} className="space-y-1">
+                      <Label className="text-xs">{`ערך למשתנה {{${v.index}}}`}</Label>
+                      <Input
+                        value={params[i] ?? ""}
+                        onChange={(e) => {
+                          const next = [...params];
+                          next[i] = e.target.value;
+                          setParams(next);
+                          setPreview("");
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!!blockedTemplates.length && (
+                <ul className="list-disc pr-4 text-xs text-muted-foreground space-y-0.5">
+                  {blockedTemplates.slice(0, 5).map((t: any) => (
+                    <li key={t.id}>{t.name}: {t.block_reason_he}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               {consent && (
                 <div className="rounded-md border border-border bg-muted/30 p-2.5 text-xs">
                   {consent.verified ? (
