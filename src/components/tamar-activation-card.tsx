@@ -36,8 +36,10 @@ import {
 import { releaseContactToTamar } from "@/lib/handoff.functions";
 import {
   cancelTamarActivation,
+  listActivationTemplates,
   previewTamarActivation,
   startTamarActivation,
+  syncWhatsAppTemplatesFn,
 } from "@/lib/tamar-activation.functions";
 
 const NO_OFFER = "__none__";
@@ -179,6 +181,8 @@ function TamarActivationDialog({
   const [consent, setConsent] = useState<any>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [templateId, setTemplateId] = useState<string>("");
+  const [params, setParams] = useState<string[]>([]);
 
   const { data: offers } = useQuery({
     queryKey: ["sellable-offers"],
@@ -196,6 +200,43 @@ function TamarActivationDialog({
 
   const previewFn = useServerFn(previewTamarActivation);
   const startFn = useServerFn(startTamarActivation);
+  const templatesFn = useServerFn(listActivationTemplates);
+  const syncFn = useServerFn(syncWhatsAppTemplatesFn);
+
+  const { data: picker, refetch: refetchTemplates } = useQuery({
+    queryKey: ["activation-templates", contactId, topic, offerId],
+    enabled: open,
+    queryFn: () =>
+      templatesFn({
+        data: { contact_id: contactId, topic, offer_id: offerId === NO_OFFER ? null : offerId },
+      }) as Promise<any>,
+  });
+
+  const windowOpen = !!picker?.session_window?.open;
+  const usableTemplates = ((picker?.templates as any[]) ?? []).filter((t) => t.usable);
+  const blockedTemplates = ((picker?.templates as any[]) ?? []).filter((t) => !t.usable);
+  const selectedTemplate = ((picker?.templates as any[]) ?? []).find((t) => t.id === templateId) ?? null;
+
+  const sync = useMutation({
+    mutationFn: () => syncFn({}) as Promise<any>,
+    onSuccess: (r) => {
+      if (r?.ok) toast.success(`סונכרנו ${r.upserted} תבניות מ-Meta`);
+      else toast.error("סנכרון התבניות נכשל: " + (r?.error ?? ""));
+      refetchTemplates();
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e)),
+  });
+
+  // Default template + auto-filled parameters; any change invalidates the preview.
+  useEffect(() => {
+    if (!open) return;
+    if (templateId && usableTemplates.some((t) => t.id === templateId)) return;
+    const next = usableTemplates.find((t) => t.is_default) ?? usableTemplates[0] ?? null;
+    setTemplateId(next?.id ?? "");
+    setParams(next?.suggested_params ?? []);
+    setPreview("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, picker]);
 
   const scheduledAt = useMemo(() => (when === "later" ? localToIso(scheduleLocal) : null), [when, scheduleLocal]);
   const instructionOptional = !!topicSpec(topic)?.instruction_optional;
@@ -217,6 +258,8 @@ function TamarActivationDialog({
           topic,
           instruction: instruction.trim(),
           offer_id: offerId === NO_OFFER ? null : offerId,
+          template_id: templateId || null,
+          template_params: params.length ? params : null,
         },
       }) as Promise<any>,
     onSuccess: (r) => {
@@ -279,7 +322,7 @@ function TamarActivationDialog({
     const t = setTimeout(() => previewMutate(), 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, topic, offerId, instructionValid]);
+  }, [open, topic, offerId, instructionValid, templateId, params.join("|")]);
 
   const start = useMutation({
     mutationFn: () =>
@@ -291,6 +334,8 @@ function TamarActivationDialog({
           offer_id: offerId === NO_OFFER ? null : offerId,
           scheduled_at: scheduledAt,
           preview: preview || null,
+          template_id: templateId || null,
+          template_params: params.length ? params : null,
         },
       }) as Promise<any>,
     onSuccess: (r) => {
@@ -319,6 +364,8 @@ function TamarActivationDialog({
       setReleaseOpen(false);
       setConfirming(false);
       setConsent(null);
+      setTemplateId("");
+      setParams([]);
     }
     onOpenChange(v);
   }
