@@ -172,6 +172,24 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               });
             }
             if (ev.phone) await registerIdentity(ev.phone, null, "meta_whatsapp").catch(() => null);
+
+            // ---- TAMAR LITE SHADOW DUAL-WRITE (never blocks the live flow) --
+            // Signature verified + durable vault write already done. This is a
+            // pure ledger insert: no model call, no send, no state change.
+            try {
+              const { recordLiteEvent } = await import("@/lib/tamar-lite/events.server");
+              await recordLiteEvent({
+                providerEventId: ev.provider_event_id ?? res.vault_id,
+                kind: ev.kind === "message" ? "message" : ev.kind === "status" ? "status" : "unknown",
+                contactId: null,
+                phoneMasked: maskPhone(ev.phone ?? null),
+                metaTimestamp: (ev as any).occurred_at ?? (ev as any).timestamp ?? null,
+                payload: { event_type: ev.event_type, text: (ev as any).text ?? null },
+              });
+            } catch (liteErr: any) {
+              const { logLiteFailure } = await import("@/lib/tamar-lite/events.server");
+              await logLiteFailure("webhook_dual_write", String(liteErr?.message ?? liteErr));
+            }
           }
         } catch (err: any) {
           // NOT acknowledged: Meta will redeliver.
