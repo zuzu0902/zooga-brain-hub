@@ -151,12 +151,30 @@ export type ActivationGateInput = {
   templateApproved?: boolean;
   /** exact, human-readable reason from the live Meta verifier when it refused */
   templateCheckReasonHe?: string | null;
+  /** admin-picked template from the canonical DB source (Meta is the authority) */
+  selectedTemplate?: SelectedTemplateInput | null;
   offerSelected?: boolean;
   offerSellable?: boolean;
   /** a pending draft/scheduled/processing activation already exists */
   pendingActivation?: boolean;
   /** an identical activation was already sent recently */
   recentDuplicateMessage?: boolean;
+};
+
+/** One picked template plus every decision already computed about it. */
+export type SelectedTemplateInput = {
+  id: string;
+  name: string;
+  language: string;
+  status: string;
+  category: string | null;
+  /** eligibility (availability, status, purpose, offer, reserved) — null = usable */
+  blockReasonHe: string | null;
+  paramsValid: boolean;
+  paramsReasonHe: string | null;
+  /** live Meta re-check at gate time */
+  liveApproved: boolean;
+  liveReasonHe: string | null;
 };
 
 export type ActivationGate = {
@@ -216,10 +234,29 @@ export function evaluateActivation(input: ActivationGateInput): ActivationGate {
     return { allowed: true, reason: null, reason_he: null, transport: "session", consent };
   }
 
+  // Outside the 24h window only an APPROVED Meta template may be sent.
+  const selected = input.selectedTemplate;
+  if (selected) {
+    if (RESERVED_TEMPLATES.includes(selected.name))
+      return block("reserved_template", "תבנית פתיחת ההסכמה אינה מיועדת לשיחות המשך");
+    if (selected.blockReasonHe) return block("template_not_usable", selected.blockReasonHe);
+    if (!selected.paramsValid)
+      return block("template_params_invalid", selected.paramsReasonHe ?? "משתני התבנית אינם תקינים");
+    if (String(selected.category ?? "").toUpperCase() === "MARKETING" && !c.consent_marketing)
+      return block("no_marketing_consent", "תבנית שיווקית דורשת הסכמה שיווקית מאומתת");
+    if (!selected.liveApproved)
+      return block(
+        "template_not_approved",
+        selected.liveReasonHe?.trim() ||
+          `התבנית "${selected.name}" (${selected.language}) לא אומתה מול Meta`,
+      );
+    return { allowed: true, reason: null, reason_he: null, transport: "template", consent };
+  }
+
   if (!spec.template) {
     return block(
       "no_service_window_no_template",
-      "חלון 24 השעות סגור ואין תבנית מאושרת שמתאימה למטרה הזו — לא ניתן לשלוח טקסט חופשי",
+      "חלון 24 השעות סגור — לא ניתן לשלוח טקסט חופשי. יש לבחור תבנית מאושרת מהרשימה",
     );
   }
   if (RESERVED_TEMPLATES.includes(spec.template.name))

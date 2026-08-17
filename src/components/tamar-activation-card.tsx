@@ -36,8 +36,10 @@ import {
 import { releaseContactToTamar } from "@/lib/handoff.functions";
 import {
   cancelTamarActivation,
+  listActivationTemplates,
   previewTamarActivation,
   startTamarActivation,
+  syncWhatsAppTemplatesFn,
 } from "@/lib/tamar-activation.functions";
 
 const NO_OFFER = "__none__";
@@ -179,6 +181,8 @@ function TamarActivationDialog({
   const [consent, setConsent] = useState<any>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [templateId, setTemplateId] = useState<string>("");
+  const [params, setParams] = useState<string[]>([]);
 
   const { data: offers } = useQuery({
     queryKey: ["sellable-offers"],
@@ -196,6 +200,43 @@ function TamarActivationDialog({
 
   const previewFn = useServerFn(previewTamarActivation);
   const startFn = useServerFn(startTamarActivation);
+  const templatesFn = useServerFn(listActivationTemplates);
+  const syncFn = useServerFn(syncWhatsAppTemplatesFn);
+
+  const { data: picker, refetch: refetchTemplates } = useQuery({
+    queryKey: ["activation-templates", contactId, topic, offerId],
+    enabled: open,
+    queryFn: () =>
+      templatesFn({
+        data: { contact_id: contactId, topic, offer_id: offerId === NO_OFFER ? null : offerId },
+      }) as Promise<any>,
+  });
+
+  const windowOpen = !!picker?.session_window?.open;
+  const usableTemplates = ((picker?.templates as any[]) ?? []).filter((t) => t.usable);
+  const blockedTemplates = ((picker?.templates as any[]) ?? []).filter((t) => !t.usable);
+  const selectedTemplate = ((picker?.templates as any[]) ?? []).find((t) => t.id === templateId) ?? null;
+
+  const sync = useMutation({
+    mutationFn: () => syncFn({}) as Promise<any>,
+    onSuccess: (r) => {
+      if (r?.ok) toast.success(`סונכרנו ${r.upserted} תבניות מ-Meta`);
+      else toast.error("סנכרון התבניות נכשל: " + (r?.error ?? ""));
+      refetchTemplates();
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e)),
+  });
+
+  // Default template + auto-filled parameters; any change invalidates the preview.
+  useEffect(() => {
+    if (!open) return;
+    if (templateId && usableTemplates.some((t) => t.id === templateId)) return;
+    const next = usableTemplates.find((t) => t.is_default) ?? usableTemplates[0] ?? null;
+    setTemplateId(next?.id ?? "");
+    setParams(next?.suggested_params ?? []);
+    setPreview("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, picker]);
 
   const scheduledAt = useMemo(() => (when === "later" ? localToIso(scheduleLocal) : null), [when, scheduleLocal]);
   const instructionOptional = !!topicSpec(topic)?.instruction_optional;
@@ -208,6 +249,21 @@ function TamarActivationDialog({
     previewReady: !!preview,
     gateReasonHe: gateError,
   });
+  const templateBlockers: string[] = [];
+  if (picker && !windowOpen && !templateId)
+    templateBlockers.push(
+      usableTemplates.length
+        ? "חלון 24 השעות סגור — יש לבחור תבנית מאושרת"
+        : "חלון 24 השעות סגור ואין תבנית מאושרת המשויכת למטרה הזו — יש לסנכרן ולשייך תבנית",
+    );
+  if (selectedTemplate) {
+    const missing = (selectedTemplate.variable_schema ?? [])
+      .map((v: any, i: number) => (String(params[i] ?? "").trim() ? null : `{{${v.index}}}`))
+      .filter(Boolean);
+    if (missing.length)
+      templateBlockers.push(`חסרים ערכים למשתני התבנית "${selectedTemplate.name}": ${missing.join(", ")}`);
+  }
+  const allBlockers = Array.from(new Set([...templateBlockers, ...blockers]));
 
   const runPreview = useMutation({
     mutationFn: () =>
@@ -217,6 +273,8 @@ function TamarActivationDialog({
           topic,
           instruction: instruction.trim(),
           offer_id: offerId === NO_OFFER ? null : offerId,
+          template_id: templateId || null,
+          template_params: params.length ? params : null,
         },
       }) as Promise<any>,
     onSuccess: (r) => {
@@ -279,7 +337,7 @@ function TamarActivationDialog({
     const t = setTimeout(() => previewMutate(), 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, topic, offerId, instructionValid]);
+  }, [open, topic, offerId, instructionValid, templateId, params.join("|")]);
 
   const start = useMutation({
     mutationFn: () =>
@@ -291,6 +349,8 @@ function TamarActivationDialog({
           offer_id: offerId === NO_OFFER ? null : offerId,
           scheduled_at: scheduledAt,
           preview: preview || null,
+          template_id: templateId || null,
+          template_params: params.length ? params : null,
         },
       }) as Promise<any>,
     onSuccess: (r) => {
@@ -319,6 +379,8 @@ function TamarActivationDialog({
       setReleaseOpen(false);
       setConfirming(false);
       setConsent(null);
+      setTemplateId("");
+      setParams([]);
     }
     onOpenChange(v);
   }
@@ -438,6 +500,92 @@ function TamarActivationDialog({
                   <RefreshCw className="h-3 w-3" /> {runPreview.isPending ? "מכינה..." : preview ? "רענון" : "צור תצוגה מקדימה"}
                 </Button>
               </div>
+            </div>
+
+            <div className="space-y-2 rounded-md border border-border p-2.5">
+              <div className="flex items-center justify-between">
+                <Label>תבנית WhatsApp מאושרת</Label>
+                <Button type="button" size="sm" variant="ghost" className="gap-1" disabled={sync.isPending}
+                  onClick={() => sync.mutate()}>
+                  <RefreshCw className="h-3 w-3" /> {sync.isPending ? "מסנכרן..." : "סנכרון מ-Meta"}
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {picker
+                  ? windowOpen
+                    ? "חלון 24 השעות פתוח — אפשר טקסט חופשי, ותבנית היא אופציונלית."
+                    : "חלון 24 השעות סגור — שליחה אפשרית בתבנית מאושרת בלבד."
+                  : "טוען תבניות..."}
+              </div>
+              <Select
+                value={templateId || "__none__"}
+                onValueChange={(v) => {
+                  const id = v === "__none__" ? "" : v;
+                  setTemplateId(id);
+                  const t = ((picker?.templates as any[]) ?? []).find((x) => x.id === id);
+                  setParams(t?.suggested_params ?? []);
+                  setPreview("");
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="בחירת תבנית" /></SelectTrigger>
+                <SelectContent>
+                  {windowOpen && <SelectItem value="__none__">ללא תבנית (טקסט חופשי)</SelectItem>}
+                  {usableTemplates.map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name} · {t.language} · {t.category ?? "—"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selectedTemplate && (
+                <div className="space-y-2 text-xs">
+                  <div className="text-muted-foreground">
+                    סטטוס Meta: {selectedTemplate.status} · נבדק: {fmt(selectedTemplate.last_checked_at)}
+                  </div>
+                  {selectedTemplate.header?.text && (
+                    <div className="font-medium">{selectedTemplate.header.text}</div>
+                  )}
+                  <div className="whitespace-pre-wrap rounded bg-muted/40 p-2">
+                    {String(selectedTemplate.body_text ?? "").replace(/\{\{\s*(\d+)\s*\}\}/g, (_m: string, d: string) =>
+                      params[Number(d) - 1] || `{{${d}}}`,
+                    )}
+                  </div>
+                  {selectedTemplate.footer_text && (
+                    <div className="text-muted-foreground">{selectedTemplate.footer_text}</div>
+                  )}
+                  {!!selectedTemplate.buttons?.length && (
+                    <div className="text-muted-foreground">
+                      כפתורים: {selectedTemplate.buttons.map((b: any) => b.text).join(" · ")}
+                    </div>
+                  )}
+                  {(selectedTemplate.variable_schema ?? []).map((v: any, i: number) => (
+                    <div key={v.index} className="space-y-1">
+                      <Label className="text-xs">{`ערך למשתנה {{${v.index}}}`}</Label>
+                      <Input
+                        value={params[i] ?? ""}
+                        onChange={(e) => {
+                          const next = [...params];
+                          next[i] = e.target.value;
+                          setParams(next);
+                          setPreview("");
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!!blockedTemplates.length && (
+                <ul className="list-disc pr-4 text-xs text-muted-foreground space-y-0.5">
+                  {blockedTemplates.slice(0, 5).map((t: any) => (
+                    <li key={t.id}>{t.name}: {t.block_reason_he}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
               {consent && (
                 <div className="rounded-md border border-border bg-muted/30 p-2.5 text-xs">
                   {consent.verified ? (
@@ -487,11 +635,28 @@ function TamarActivationDialog({
               </div>
             </div>
 
-            {blockers.length > 0 && (
+            {confirming && (
+              <div className="rounded-md border border-primary/40 p-2.5 text-xs space-y-1">
+                <div className="font-medium">אישור אחרון לפני שליחה</div>
+                <div>
+                  ערוץ: {previewMeta?.transport === "template" ? "תבנית מאושרת" : "טקסט חופשי בחלון 24 שעות"}
+                </div>
+                {selectedTemplate && (
+                  <div>
+                    תבנית: {selectedTemplate.name} · {selectedTemplate.language} · {selectedTemplate.category ?? "—"} ·{" "}
+                    {selectedTemplate.status}
+                  </div>
+                )}
+                {!!params.length && <div>משתנים: {params.join(" | ")}</div>}
+                <div className="whitespace-pre-wrap">{preview}</div>
+              </div>
+            )}
+
+            {allBlockers.length > 0 && (
               <div className="rounded-md border border-border bg-muted/40 p-2.5 text-xs space-y-1">
                 <div className="font-medium">כדי להפעיל את תמר צריך להשלים:</div>
                 <ul className="list-disc pr-4 space-y-0.5 text-muted-foreground">
-                  {blockers.map((b) => <li key={b}>{b}</li>)}
+                  {allBlockers.map((b) => <li key={b}>{b}</li>)}
                 </ul>
               </div>
             )}
@@ -510,7 +675,7 @@ function TamarActivationDialog({
             <>
               <Button variant="ghost" onClick={() => close(false)}>ביטול</Button>
               <Button
-                disabled={blockers.length > 0}
+                disabled={allBlockers.length > 0}
                 onClick={() => setConfirming(true)}
               >
                 אשר והפעל את תמר

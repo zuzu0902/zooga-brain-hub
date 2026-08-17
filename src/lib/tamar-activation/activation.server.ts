@@ -10,6 +10,15 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { quiet } from "@/lib/db-safe";
 import { isSessionWindowOpen, recordDelivery, sendWhatsAppText, sendWhatsAppTemplate } from "@/lib/whatsapp-meta.server";
 import { validateTemplateForLaunch } from "@/lib/whatsapp-templates.server";
+import { checkTemplateApprovalLive } from "@/lib/whatsapp-templates.server";
+import {
+  autofillParams,
+  buildTemplateComponents,
+  renderTemplatePreview,
+  templateBlockReason,
+  validateTemplateParams,
+  type TemplateRecord,
+} from "@/lib/whatsapp-templates/schema";
 import { isOfferSellable } from "@/lib/offer-sellable";
 import type { ConsentEvidence } from "@/lib/whatsapp-optin/consent-resolver";
 import { callStage } from "@/lib/tamar-v2/model-registry.server";
@@ -76,6 +85,8 @@ export type ActivationContext = {
   facts: string[];
   resolvedOfferId?: string | null;
   autoResolvedOfferId?: string | null;
+  template?: TemplateRecord | null;
+  templateParams?: string[];
   sessionWindow?: {
     open: boolean;
     last_inbound_at: string | null;
@@ -103,6 +114,8 @@ export async function loadActivationContext(args: {
   instruction: string;
   offerId?: string | null;
   ignoreActivationId?: string | null;
+  templateId?: string | null;
+  templateParams?: string[] | null;
 }): Promise<ActivationContext> {
   const { data: contact } = await supabaseAdmin
     .from("contacts")
@@ -189,6 +202,43 @@ export async function loadActivationContext(args: {
     String(c?.baseline_intake_status ?? "").toLowerCase(),
   );
 
+  // Canonical DB template (admin picked). Meta status stays the authority.
+  let template: TemplateRecord | null = null;
+  let templateParams: string[] = [];
+  let templateBlockHe: string | null = null;
+  let paramsValid = true;
+  let paramsReasonHe: string | null = null;
+  if (args.templateId) {
+    const { getStoredTemplate } = await import("@/lib/whatsapp-templates/sync.server");
+    template = await getStoredTemplate(args.templateId);
+    if (!template) {
+      templateBlockHe = "התבנית שנבחרה לא נמצאה במאגר התבניות — יש לרענן סנכרון מול Meta";
+      paramsValid = false;
+      paramsReasonHe = templateBlockHe;
+    } else {
+      templateBlockHe = templateBlockReason(template, {
+        topic: args.topic,
+        language: template.language,
+        offerSellable: offer ? isOfferSellable(offer) : false,
+        offerCategory: (offer as any)?.category ?? null,
+      });
+      const filled =
+        args.templateParams && args.templateParams.length
+          ? args.templateParams.map((p) => String(p ?? ""))
+          : autofillParams(template, {
+              firstName: c?.first_name ?? c?.full_name ?? null,
+              contactName: c?.full_name ?? c?.first_name ?? null,
+              offerTitle: offer?.title ?? null,
+              offerUrl: offer?.offer_url ?? null,
+              offerDate: offer?.event_date ?? null,
+            });
+      const check = validateTemplateParams(template, filled);
+      templateParams = check.params;
+      paramsValid = check.ok;
+      paramsReasonHe = check.reason_he;
+    }
+  }
+
   const facts: string[] = [];
   if (c?.first_name || c?.full_name) facts.push(`שם: ${c.first_name || c.full_name}`);
   if (c?.city) facts.push(`עיר: ${c.city}`);
@@ -206,6 +256,8 @@ export async function loadActivationContext(args: {
     facts,
     resolvedOfferId: offer?.id ?? args.offerId ?? null,
     autoResolvedOfferId: autoOfferId,
+    template,
+    templateParams,
     sessionWindow,
     gateInput: {
       topic: args.topic,
@@ -219,6 +271,33 @@ export async function loadActivationContext(args: {
       offerSellable: offer ? isOfferSellable(offer) : false,
       pendingActivation: (((pending as any[]) ?? []).length) > 0,
       recentDuplicateMessage,
+      selectedTemplate: template
+        ? {
+            id: template.id,
+            name: template.name,
+            language: template.language,
+            status: template.status,
+            category: template.category,
+            blockReasonHe: templateBlockHe,
+            paramsValid,
+            paramsReasonHe,
+            liveApproved: false,
+            liveReasonHe: null,
+          }
+        : args.templateId
+          ? {
+              id: String(args.templateId),
+              name: "",
+              language: "",
+              status: "UNKNOWN",
+              category: null,
+              blockReasonHe: templateBlockHe,
+              paramsValid: false,
+              paramsReasonHe,
+              liveApproved: false,
+              liveReasonHe: null,
+            }
+          : null,
     },
   };
 }
@@ -237,10 +316,19 @@ async function templateGateFor(topic: string): Promise<{ ok: boolean; reason_he:
  */
 export async function gateActivation(ctx: ActivationContext): Promise<ActivationGate> {
   const dry = evaluateActivation(ctx.gateInput);
-  const needsTemplate = !ctx.gateInput.sessionWindowOpen && !!topicSpec(ctx.gateInput.topic)?.template;
+  const selected = ctx.gateInput.selectedTemplate ?? null;
+  const needsTemplate =
+    !ctx.gateInput.sessionWindowOpen && (!!selected || !!topicSpec(ctx.gateInput.topic)?.template);
   // Any block other than the template one is decided without a network call.
   if (!needsTemplate) return dry;
   if (!dry.allowed && dry.reason !== "template_not_approved") return dry;
+  if (selected && ctx.template) {
+    const live = await checkTemplateApprovalLive(ctx.template.name, ctx.template.language);
+    return evaluateActivation({
+      ...ctx.gateInput,
+      selectedTemplate: { ...selected, liveApproved: live.ok, liveReasonHe: live.reason_he },
+    });
+  }
   const check = await templateGateFor(ctx.gateInput.topic);
   return evaluateActivation({
     ...ctx.gateInput,
@@ -299,6 +387,20 @@ export type ActivationPreview = {
   offer_id: string | null;
   offer_auto_selected: boolean;
   template_name: string | null;
+  template: {
+    id: string;
+    name: string;
+    language: string;
+    category: string | null;
+    status: string;
+    body_text: string;
+    header: any;
+    footer_text: string | null;
+    buttons: any[];
+    variable_count: number;
+    last_checked_at: string | null;
+  } | null;
+  template_params: string[];
   session_window: {
     open: boolean;
     last_inbound_at: string | null;
@@ -313,15 +415,20 @@ export async function previewActivation(args: {
   topic: string;
   instruction: string;
   offerId?: string | null;
+  templateId?: string | null;
+  templateParams?: string[] | null;
 }): Promise<ActivationPreview> {
   const ctx = await loadActivationContext(args);
   const gate = await gateActivation(ctx);
   const spec = topicSpec(args.topic);
-  const templateName = gate.transport === "template" ? (spec?.template?.name ?? null) : null;
+  const templateName =
+    gate.transport === "template" ? (ctx.template?.name ?? spec?.template?.name ?? null) : null;
   const preview = !gate.allowed
     ? null
     : gate.transport === "template"
-      ? // Outside the window the wording is fixed by the approved template.
+      ? ctx.template
+        ? renderTemplatePreview(ctx.template, ctx.templateParams ?? [])
+        : // Outside the window the wording is fixed by the approved template.
         `תישלח התבנית המאושרת ${spec?.template?.name} עם השם "${templateFirstName(
           ctx.contact?.first_name ?? ctx.contact?.full_name,
         )}". פרטי הפעילות יישלחו רק אחרי שהלקוח יענה.`
@@ -335,6 +442,22 @@ export async function previewActivation(args: {
     offer_id: ctx.resolvedOfferId ?? null,
     offer_auto_selected: !!ctx.autoResolvedOfferId,
     template_name: templateName,
+    template: ctx.template
+      ? {
+          id: ctx.template.id,
+          name: ctx.template.name,
+          language: ctx.template.language,
+          category: ctx.template.category,
+          status: ctx.template.status,
+          body_text: ctx.template.body_text,
+          header: ctx.template.header,
+          footer_text: ctx.template.footer_text,
+          buttons: ctx.template.buttons,
+          variable_count: ctx.template.variable_count,
+          last_checked_at: ctx.template.last_checked_at,
+        }
+      : null,
+    template_params: ctx.templateParams ?? [],
     session_window: ctx.sessionWindow ?? {
       open: false,
       last_inbound_at: null,
@@ -355,15 +478,34 @@ export async function createActivation(args: {
   scheduledAt?: string | null;
   preview?: string | null;
   createdBy?: string | null;
+  templateId?: string | null;
+  templateParams?: string[] | null;
 }): Promise<{ ok: boolean; activation: ActivationRow | null; error?: string }> {
   const key = activationIdempotencyKey({
     contactId: args.contactId,
     topic: args.topic,
-    instruction: args.instruction,
+    instruction: `${args.instruction}|tpl:${args.templateId ?? "none"}|${(args.templateParams ?? []).join("~")}`,
     offerId: args.offerId ?? null,
     scheduledAt: args.scheduledAt ?? null,
   });
   const scheduled = !!args.scheduledAt && new Date(args.scheduledAt).getTime() > Date.now();
+
+  let templateSnapshot: Record<string, any> = {};
+  if (args.templateId) {
+    const { getStoredTemplate } = await import("@/lib/whatsapp-templates/sync.server");
+    const t = await getStoredTemplate(args.templateId);
+    if (!t) return { ok: false, activation: null, error: "התבנית שנבחרה לא נמצאה" };
+    templateSnapshot = {
+      template_id: t.id,
+      template_name: t.name,
+      template_language: t.language,
+      template_category: t.category,
+      meta_template_id: t.meta_template_id,
+      template_params: args.templateParams ?? [],
+      template_components: t.components,
+      rendered_preview: renderTemplatePreview(t, args.templateParams ?? []),
+    };
+  }
 
   const { data, error } = await supabaseAdmin
     .from("tamar_activations" as any)
@@ -377,6 +519,7 @@ export async function createActivation(args: {
       preview: args.preview ?? null,
       status: scheduled ? "scheduled" : "draft",
       idempotency_key: key,
+      ...templateSnapshot,
     } as any)
     .select("*")
     .maybeSingle();
@@ -457,6 +600,8 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
       instruction: row.instruction,
       offerId: row.offer_id,
       ignoreActivationId: id,
+      templateId: row.template_id ?? null,
+      templateParams: Array.isArray(row.template_params) ? row.template_params : null,
     });
     const gate = await gateActivation(ctx);
     if (!gate.allowed) {
@@ -477,7 +622,9 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
     const nameParam = templateFirstName(ctx.contact?.first_name ?? ctx.contact?.full_name);
     const message =
       gate.transport === "template"
-        ? `[תבנית ${specNow?.template?.name}] {{1}}=${nameParam}`
+        ? ctx.template
+          ? renderTemplatePreview(ctx.template, ctx.templateParams ?? [])
+          : `[תבנית ${specNow?.template?.name}] {{1}}=${nameParam}`
         : String(row.preview ?? "").trim() ||
           (await composeActivationMessage({ ctx, topic: row.topic, instruction: row.instruction }));
 
@@ -494,9 +641,16 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
     const res =
       gate.transport === "session"
         ? await sendWhatsAppText(to, message)
-        : await sendWhatsAppTemplate(to, spec!.template!.name, spec!.template!.language, [
-            { type: "body", parameters: [{ type: "text", text: nameParam }] },
-          ]);
+        : ctx.template
+          ? await sendWhatsAppTemplate(
+              to,
+              ctx.template.name,
+              ctx.template.language,
+              buildTemplateComponents(ctx.templateParams ?? []),
+            )
+          : await sendWhatsAppTemplate(to, spec!.template!.name, spec!.template!.language, [
+              { type: "body", parameters: [{ type: "text", text: nameParam }] },
+            ]);
 
     await recordDelivery({
       contactId: row.contact_id,
@@ -527,6 +681,8 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
         attempts,
         actual_message: message,
         transport: gate.transport,
+        rendered_preview: gate.transport === "template" ? message : null,
+        template_params: ctx.templateParams ?? [],
         offer_id: ctx.resolvedOfferId ?? row.offer_id ?? null,
         provider_message_id: res.provider_message_id ?? null,
         executed_at: new Date().toISOString(),
