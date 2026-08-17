@@ -249,6 +249,21 @@ function TamarActivationDialog({
     previewReady: !!preview,
     gateReasonHe: gateError,
   });
+  const templateBlockers: string[] = [];
+  if (picker && !windowOpen && !templateId)
+    templateBlockers.push(
+      usableTemplates.length
+        ? "חלון 24 השעות סגור — יש לבחור תבנית מאושרת"
+        : "חלון 24 השעות סגור ואין תבנית מאושרת המשויכת למטרה הזו — יש לסנכרן ולשייך תבנית",
+    );
+  if (selectedTemplate) {
+    const missing = (selectedTemplate.variable_schema ?? [])
+      .map((v: any, i: number) => (String(params[i] ?? "").trim() ? null : `{{${v.index}}}`))
+      .filter(Boolean);
+    if (missing.length)
+      templateBlockers.push(`חסרים ערכים למשתני התבנית "${selectedTemplate.name}": ${missing.join(", ")}`);
+  }
+  const allBlockers = Array.from(new Set([...templateBlockers, ...blockers]));
 
   const runPreview = useMutation({
     mutationFn: () =>
