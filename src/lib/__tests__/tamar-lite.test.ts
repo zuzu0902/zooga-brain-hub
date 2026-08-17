@@ -1,3 +1,4 @@
+import { LITE_CONTACT_COLUMNS, isOptedOut, resolveLiteConsent } from "@/lib/tamar-lite/consent";
 import { describe, it, expect } from "vitest";
 import { reduceLite } from "@/lib/tamar-lite/reducer";
 import { selectLiteOffers, isLitePurchasable } from "@/lib/tamar-lite/sales-selector";
@@ -349,5 +350,34 @@ describe("tamar lite stage 1 — ordering, recovery, types", () => {
     const src = await read("src/lib/tamar-lite/processor.server.ts");
     expect(src).toContain("p_worker_id: worker");
     expect(src).toContain('.eq("worker_id", worker)');
+  });
+});
+
+describe("lite consent resolution (bug: everyone got consent_missing)", () => {
+  it("accepts consent_status granted", () => {
+    expect(resolveLiteConsent({ consent_status: "granted" })).toBe(true);
+  });
+  it("accepts legacy consent_marketing", () => {
+    expect(resolveLiteConsent({ consent_marketing: true })).toBe(true);
+  });
+  it("accepts a fully verified opt-in", () => {
+    expect(
+      resolveLiteConsent({
+        whatsapp_opt_in_status: "verified",
+        whatsapp_opt_in_source: "whatsapp_button",
+        whatsapp_opt_in_at: "2026-08-12T07:36:43.000Z",
+      }),
+    ).toBe(true);
+  });
+  it("opt-out always wins", () => {
+    expect(resolveLiteConsent({ consent_status: "granted", opted_out_at: "2026-08-13T00:00:00Z" })).toBe(false);
+    expect(isOptedOut({ consent_status: "denied" })).toBe(true);
+  });
+  it("a missing contact never counts as consent, and is not a fake decision", () => {
+    expect(resolveLiteConsent(null)).toBe(false);
+  });
+  it("does not select columns that do not exist on contacts", () => {
+    expect(LITE_CONTACT_COLUMNS).not.toContain("primary_goal");
+    expect(LITE_CONTACT_COLUMNS).toContain("consent_status");
   });
 });
