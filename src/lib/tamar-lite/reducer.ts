@@ -57,7 +57,13 @@ export function reduceLite(input: ReducerInput): LiteDecision {
     after = { ...after, phase: "opted_out", current_question_key: null };
     action = emptyAction(["opt_out"]);
     action.kind = "stop";
-  } else if (input.humanOwned || before.human_owned || inbound.is_handoff_request) {
+  } else if (
+    // An explicit refusal never flips ownership, and Tamar merely offering a
+    // representative is not a request either.
+    input.humanOwned ||
+    before.human_owned ||
+    (inbound.is_handoff_request && !inbound.handoff_declined)
+  ) {
     after = { ...after, phase: "human_owned", human_owned: true };
     action = emptyAction([inbound.is_handoff_request ? "handoff_requested" : "human_owned"]);
     action.kind = "handoff";
