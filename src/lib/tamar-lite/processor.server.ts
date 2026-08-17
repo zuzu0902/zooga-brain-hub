@@ -203,26 +203,6 @@ async function loadConversation(contactId: string): Promise<LiteConversation> {
   };
 }
 
-/** Optimistic version write: a concurrent worker's write is never clobbered. */
-async function saveConversation(next: LiteConversation): Promise<boolean> {
-  const expectedPrev = next.version - 1;
-  const patch = {
-    phase: next.phase,
-    current_question_key: next.current_question_key,
-    version: next.version,
-    last_inbound_wamid: next.last_inbound_wamid,
-    last_outbound_key: next.last_outbound_key,
-    human_owned: next.human_owned,
-  };
-  const { data } = await db()
-    .from("tamar_lite_conversations")
-    .update(patch)
-    .eq("contact_id", next.contact_id)
-    .eq("version", expectedPrev)
-    .select("contact_id");
-  if (Array.isArray(data) && data.length) return true;
-  const { error } = await db()
-    .from("tamar_lite_conversations")
-    .insert({ contact_id: next.contact_id, ...patch });
-  return !error;
-}
+// Conversation state is committed ONLY inside `tamar_lite_commit_decision`,
+// together with the decision and the event's processed flag. There is no
+// separate write path, so a version conflict can never leave a decision behind.
