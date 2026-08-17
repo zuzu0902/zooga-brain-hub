@@ -1,0 +1,50 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+async function assertAdmin(context: any) {
+  const { data, error } = await context.supabase.rpc("has_role", {
+    _user_id: context.userId,
+    _role: "admin",
+  });
+  if (error || !data) throw new Response("Forbidden", { status: 403 });
+}
+
+/** Read-only Tamar Lite shadow status. No send path exists in stage 1. */
+export const getTamarLiteStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const count = async (state?: string) => {
+      let q = db.from("tamar_lite_events").select("id", { count: "exact", head: true });
+      if (state) q = q.eq("processing_state", state);
+      const { count: c } = await q;
+      return c ?? 0;
+    };
+    const [settings, total, backlog, processed, failed, decisions, outbox] = await Promise.all([
+      db.from("tamar_lite_settings").select("mode,kill_switch,updated_at").eq("id", true).maybeSingle(),
+      count(),
+      count("pending"),
+      count("processed"),
+      count("failed"),
+      db
+        .from("tamar_lite_decisions")
+        .select("id,contact_id,action,reason_codes,offer_ids,created_at")
+        .order("created_at", { ascending: false })
+        .limit(20),
+      db.from("tamar_lite_outbox").select("id", { count: "exact", head: true }),
+    ]);
+    const { data: conflictRows } = await db
+      .from("tamar_lite_events")
+      .select("id", { count: "exact", head: true })
+      .eq("processing_state", "processing");
+    void conflictRows;
+    return {
+      mode: settings.data?.mode ?? "shadow",
+      kill_switch: settings.data?.kill_switch !== false,
+      totals: { total, backlog, processed, failures: failed, duplicates: Math.max(0, total - backlog - processed - failed) },
+      outbox_rows: outbox.count ?? 0,
+      decisions: (decisions.data ?? []) as any[],
+    };
+  });
