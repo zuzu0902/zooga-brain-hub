@@ -12,6 +12,9 @@ import { reduceLite } from "./reducer";
 import { selectLiteOffers, type LiteOffer } from "./sales-selector";
 import { logLiteFailure } from "./events.server";
 import { LITE_CONTACT_COLUMNS, isOptedOut, resolveLiteConsent } from "./consent";
+import { loadCatalog } from "@/lib/offer-catalog/catalog.server";
+import { matchOffer } from "@/lib/offer-catalog/match";
+import { activeOfferFrom } from "@/lib/offer-catalog/active-offer";
 import type { LiteConversation, LiteInbound } from "./types";
 
 const db = () => supabaseAdmin as any;
@@ -141,7 +144,7 @@ export async function processLiteBacklog(limit = 20, workerPrefix = "shadow"): P
                 return r.data;
               }),
         // single canonical catalog — identical source for live engine, V2 and Lite
-        loadCatalog().then((c) => c.rows),
+        loadCatalog().then((c: { rows: any[] }) => c.rows),
       ]);
 
       const facts: Record<string, any> = {};
