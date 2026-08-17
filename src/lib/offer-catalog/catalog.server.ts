@@ -18,6 +18,25 @@ export function invalidateOfferCatalog(): void {
   cache = null;
 }
 
+/**
+ * Removal safety net.
+ *
+ * The cache is invalidated by the products screen after every write, but that
+ * call can fail (offline tab, worker restart, another instance). A product
+ * that was deleted / marked full / archived must NEVER be offered anyway, so
+ * every resolution re-verifies the chosen product against `offers_sellable`
+ * before it is returned. One indexed lookup per resolved turn.
+ */
+async function stillSellable(offerId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("offers_sellable")
+    .select("id")
+    .eq("id", offerId)
+    .maybeSingle();
+  if (error) return false; // fail closed: never offer a product we cannot verify
+  return !!data;
+}
+
 export async function loadCatalog(force = false): Promise<{ rows: OfferRow[]; entries: CatalogEntry[] }> {
   const now = Date.now();
   if (!force && cache && now - cache.at < CATALOG_TTL_MS) return { rows: cache.rows, entries: cache.entries };
@@ -92,6 +111,18 @@ export async function resolveCatalogOffer(args: {
           : activeEntry?.id ?? null;
 
   const entry = chosenId ? entries.find((e) => e.id === chosenId) ?? null : null;
+  if (entry && !(await stillSellable(entry.id))) {
+    // stale cache entry for a product that is gone / full / archived / expired
+    invalidateOfferCatalog();
+    return {
+      match: { ...match, status: "none", offer_id: null, reasons: [...match.reasons, "offer_no_longer_sellable"] },
+      offer: null,
+      entry: null,
+      active_offer_id: null,
+      changed: true,
+      reason: "offer_no_longer_sellable",
+    };
+  }
   return {
     match,
     offer: entry ? rows.find((r) => r.id === entry.id) ?? null : null,
