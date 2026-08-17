@@ -2950,11 +2950,19 @@ export type Database = {
           idempotency_key: string
           instruction: string
           last_error: string | null
+          meta_template_id: string | null
           offer_id: string | null
           preview: string | null
           provider_message_id: string | null
+          rendered_preview: string | null
           scheduled_at: string | null
           status: string
+          template_category: string | null
+          template_components: Json | null
+          template_id: string | null
+          template_language: string | null
+          template_name: string | null
+          template_params: Json
           topic: string
           transport: string | null
           updated_at: string
@@ -2974,11 +2982,19 @@ export type Database = {
           idempotency_key: string
           instruction: string
           last_error?: string | null
+          meta_template_id?: string | null
           offer_id?: string | null
           preview?: string | null
           provider_message_id?: string | null
+          rendered_preview?: string | null
           scheduled_at?: string | null
           status?: string
+          template_category?: string | null
+          template_components?: Json | null
+          template_id?: string | null
+          template_language?: string | null
+          template_name?: string | null
+          template_params?: Json
           topic: string
           transport?: string | null
           updated_at?: string
@@ -2998,11 +3014,19 @@ export type Database = {
           idempotency_key?: string
           instruction?: string
           last_error?: string | null
+          meta_template_id?: string | null
           offer_id?: string | null
           preview?: string | null
           provider_message_id?: string | null
+          rendered_preview?: string | null
           scheduled_at?: string | null
           status?: string
+          template_category?: string | null
+          template_components?: Json | null
+          template_id?: string | null
+          template_language?: string | null
+          template_name?: string | null
+          template_params?: Json
           topic?: string
           transport?: string | null
           updated_at?: string
@@ -3013,6 +3037,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tamar_activations_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -4346,6 +4377,102 @@ export type Database = {
           payload?: Json | null
           source?: string
           status?: string
+        }
+        Relationships: []
+      }
+      whatsapp_templates: {
+        Row: {
+          allowed_offer_categories: string[]
+          body_text: string | null
+          buttons: Json
+          category: string | null
+          components: Json
+          created_at: string
+          footer_text: string | null
+          header: Json | null
+          id: string
+          is_available: boolean
+          is_default: boolean
+          language: string
+          language_base: string
+          last_checked_at: string | null
+          last_synced_at: string | null
+          meta_template_id: string | null
+          name: string
+          purpose: string | null
+          removed_at: string | null
+          requires_active_offer: boolean
+          status: string
+          sync_error: string | null
+          topics: string[]
+          updated_at: string
+          variable_count: number
+          variable_defaults: Json
+          variable_mappings: Json
+          variable_schema: Json
+          waba_masked: string | null
+        }
+        Insert: {
+          allowed_offer_categories?: string[]
+          body_text?: string | null
+          buttons?: Json
+          category?: string | null
+          components?: Json
+          created_at?: string
+          footer_text?: string | null
+          header?: Json | null
+          id?: string
+          is_available?: boolean
+          is_default?: boolean
+          language: string
+          language_base: string
+          last_checked_at?: string | null
+          last_synced_at?: string | null
+          meta_template_id?: string | null
+          name: string
+          purpose?: string | null
+          removed_at?: string | null
+          requires_active_offer?: boolean
+          status?: string
+          sync_error?: string | null
+          topics?: string[]
+          updated_at?: string
+          variable_count?: number
+          variable_defaults?: Json
+          variable_mappings?: Json
+          variable_schema?: Json
+          waba_masked?: string | null
+        }
+        Update: {
+          allowed_offer_categories?: string[]
+          body_text?: string | null
+          buttons?: Json
+          category?: string | null
+          components?: Json
+          created_at?: string
+          footer_text?: string | null
+          header?: Json | null
+          id?: string
+          is_available?: boolean
+          is_default?: boolean
+          language?: string
+          language_base?: string
+          last_checked_at?: string | null
+          last_synced_at?: string | null
+          meta_template_id?: string | null
+          name?: string
+          purpose?: string | null
+          removed_at?: string | null
+          requires_active_offer?: boolean
+          status?: string
+          sync_error?: string | null
+          topics?: string[]
+          updated_at?: string
+          variable_count?: number
+          variable_defaults?: Json
+          variable_mappings?: Json
+          variable_schema?: Json
+          waba_masked?: string | null
         }
         Relationships: []
       }
