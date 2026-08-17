@@ -50,6 +50,8 @@ function TamarLitePage() {
         <Stat label="Backlog" value={data?.totals.backlog ?? 0} />
         <Stat label="עובדו" value={data?.totals.processed ?? 0} />
         <Stat label="כשלים" value={data?.totals.failures ?? 0} />
+        <Stat label="כפילויות" value={data?.totals.duplicates ?? 0} />
+        <Stat label="התנגשויות" value={data?.totals.conflicts ?? 0} />
         <Stat label="Outbox (לא נשלח)" value={data?.outbox_rows ?? 0} />
       </div>
 
