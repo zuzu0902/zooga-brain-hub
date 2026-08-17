@@ -16,6 +16,7 @@ import { CATEGORY_LABELS, INTEREST_LABELS, ALL_INTERESTS, SPENDING_LABELS, forma
 import { ContextBanner } from "@/components/context-banner";
 import { CURRENCIES, formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
+import { notifyCatalogChanged } from "@/lib/offer-catalog/notify";
 import { useT, useLanguage } from "@/lib/language-context";
 import { validateOfferDates, validateReactivation } from "@/lib/offer-sellable";
 
@@ -97,6 +98,7 @@ function OfferDetailPage() {
     if (!confirm(t("למחוק את ההצעה? קמפיינים מקושרים יישארו ללא הצעה."))) return;
     const { error } = await supabase.from("offers").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
+    await notifyCatalogChanged({ kind: "delete", offerId: id });
     toast.success(t("נמחק"));
     navigate({ to: "/offers" });
   }
@@ -265,6 +267,8 @@ function OfferEditForm({ offer, onSaved, onCancel }: any) {
     }).eq("id", offer.id);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
+    // status archived / draft removes the product from every engine immediately
+    await notifyCatalogChanged({ kind: s.status === "active" ? "update" : "archive", offerId: offer.id });
     toast.success(t("נשמר"));
     onSaved();
   }
