@@ -3677,9 +3677,11 @@ export type Database = {
           meta_timestamp: string | null
           payload: Json
           phone_masked: string | null
+          processing_started_at: string | null
           processing_state: string
           provider_event_id: string
           updated_at: string
+          worker_id: string | null
         }
         Insert: {
           attempts?: number
@@ -3694,9 +3696,11 @@ export type Database = {
           meta_timestamp?: string | null
           payload?: Json
           phone_masked?: string | null
+          processing_started_at?: string | null
           processing_state?: string
           provider_event_id: string
           updated_at?: string
+          worker_id?: string | null
         }
         Update: {
           attempts?: number
@@ -3711,9 +3715,11 @@ export type Database = {
           meta_timestamp?: string | null
           payload?: Json
           phone_masked?: string | null
+          processing_started_at?: string | null
           processing_state?: string
           provider_event_id?: string
           updated_at?: string
+          worker_id?: string | null
         }
         Relationships: []
       }
@@ -4601,6 +4607,39 @@ export type Database = {
         Args: { p_provider_event_id: string }
         Returns: number
       }
+      tamar_lite_claim_next: {
+        Args: {
+          p_limit?: number
+          p_max_attempts?: number
+          p_stale_seconds?: number
+          p_worker: string
+        }
+        Returns: {
+          attempts: number
+          conflict_count: number
+          contact_id: string | null
+          created_at: string
+          duplicate_count: number
+          error: string | null
+          event_kind: string
+          id: string
+          linked_contact_at: string | null
+          meta_timestamp: string | null
+          payload: Json
+          phone_masked: string | null
+          processing_started_at: string | null
+          processing_state: string
+          provider_event_id: string
+          updated_at: string
+          worker_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "tamar_lite_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       tamar_lite_commit_decision: {
         Args: {
           p_action: Json
@@ -4616,6 +4655,10 @@ export type Database = {
           p_state_before: Json
         }
         Returns: Json
+      }
+      tamar_lite_recover_stale: {
+        Args: { p_max_attempts?: number; p_stale_seconds?: number }
+        Returns: number
       }
       zl_claim_jobs: {
         Args: { p_lease_seconds: number; p_limit: number; p_worker: string }
