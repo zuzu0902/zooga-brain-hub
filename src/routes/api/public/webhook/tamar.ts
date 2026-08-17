@@ -356,8 +356,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               text: inboundText,
               source_type: cls.source_type === "voice" ? "voice" : msg.option_id ? "interactive" : "text",
               is_opt_out: isOptOutMessage(inboundText),
-              is_handoff_request: cls.kind === "handoff_request",
-              is_direct_question: cls.kind === "direct_question",
+              is_handoff_request: cls.kind === "handoff",
+              is_direct_question: cls.kind === "question",
               is_topic_shift: cls.kind === "topic_shift",
               consent_granted: isOptInMessage(inboundText),
             });
