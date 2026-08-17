@@ -8,10 +8,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const invalidateCatalogCache = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .inputValidator((input: { offerId?: string | null; removed?: boolean } | undefined) => input ?? {})
+  .handler(async ({ data }) => {
     const { invalidateOfferCatalog } = await import("@/lib/offer-catalog/catalog.server");
     invalidateOfferCatalog();
-    return { ok: true };
+    return { ok: true, offerId: data.offerId ?? null, removed: !!data.removed };
   });
 
 export const refreshCatalogMeta = createServerFn({ method: "POST" })
