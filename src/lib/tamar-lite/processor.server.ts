@@ -15,6 +15,10 @@ import { LITE_CONTACT_COLUMNS, isOptedOut, resolveLiteConsent } from "./consent"
 import { loadCatalog } from "@/lib/offer-catalog/catalog.server";
 import { matchOffer } from "@/lib/offer-catalog/match";
 import { activeOfferFrom } from "@/lib/offer-catalog/active-offer";
+import { resolveActiveOfferLock } from "@/lib/offer-catalog/active-offer-lock";
+import { deriveCanonicalState, toLiteConversation } from "@/lib/canonical-state/state";
+import { detectTopic, shouldAskIntakeQuestion } from "@/lib/intake-suppression";
+import { getNextMissingIntakeQuestion } from "@/lib/intake-next-question";
 import type { LiteConversation, LiteInbound } from "./types";
 
 const db = () => supabaseAdmin as any;
@@ -172,26 +176,53 @@ export async function processLiteBacklog(limit = 20, workerPrefix = "shadow"): P
       // Lite and the live engine always land on the SAME product.
       const liteInbound = toInbound(row);
       const { entries } = await loadCatalog();
+      const sellableOfferIds = entries.filter((e: any) => e.sellable).map((e: any) => String(e.id));
       const catalogMatch = matchOffer({
         message: liteInbound.text,
         catalog: entries,
         activeOfferId: activeOfferFrom(contact)?.offer_id ?? null,
       });
-      if (catalogMatch.offer_id) {
-        const pinned = { offer_id: catalogMatch.offer_id, score: 999, match_facts: catalogMatch.reasons };
-        candidates = [pinned, ...candidates.filter((c) => c.offer_id !== catalogMatch.offer_id)];
+      // The lock keeps the conversation on ONE product across follow-ups and
+      // complaints, and only a confident explicit shift may replace it.
+      const lock = resolveActiveOfferLock({
+        active: activeOfferFrom(contact),
+        match: catalogMatch,
+        message: liteInbound.text,
+        sellableOfferIds,
+      });
+      if (lock.offer_id) {
+        const pinned = { offer_id: lock.offer_id, score: 999, match_facts: [lock.reason, ...catalogMatch.reasons] };
+        candidates = [pinned, ...candidates.filter((c) => c.offer_id !== lock.offer_id)];
       }
 
+      // ONE canonical state: live (`contacts`) and lite agree by construction.
+      const snapshot = { facts, skipped: [] as string[] };
+      const nextQuestion = getNextMissingIntakeQuestion(DEFAULT_INTAKE_FIELDS, snapshot);
+      const suppression = shouldAskIntakeQuestion({
+        questionKey: nextQuestion?.field_key ?? null,
+        topic: detectTopic(liteInbound.text),
+        directQuestion: liteInbound.is_direct_question,
+      });
+      const canonical = deriveCanonicalState({
+        contact: { ...contact, id: contactId },
+        lite: conversation,
+        sellableOfferIds,
+        nextQuestionKey: suppression.ask ? (nextQuestion?.field_key ?? null) : null,
+        salesTurn: !!lock.offer_id || liteInbound.is_direct_question,
+      });
+      const aligned = toLiteConversation(canonical, conversation);
+
       const decision = reduceLite({
-        conversation,
+        conversation: { ...aligned, version: conversation.version },
         inbound: liteInbound,
         defs: DEFAULT_INTAKE_FIELDS,
-        snapshot: { facts, skipped: [] },
+        snapshot,
         consentGranted: resolveLiteConsent(contact as any),
         optedOut: isOptedOut(contact as any),
         humanOwned: !!contact?.human_owned,
         offerCandidates: candidates.map((c) => c.offer_id),
       });
+      if (!suppression.ask) decision.reason_codes = [...decision.reason_codes, `intake_suppressed:${suppression.reason}`];
 
       // ONE atomic commit: conversation version + decision + event processed.
       const { data: commit, error: commitError } = await db().rpc("tamar_lite_commit_decision", {
