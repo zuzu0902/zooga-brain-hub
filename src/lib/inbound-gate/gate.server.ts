@@ -9,6 +9,7 @@
  * that consumed it — which is the instrumentation proving that each reply
  * route went through gate + Conversation Progress Guard.
  */
+import { assistantOfferedHandoff } from "@/lib/handoff-intent";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { maskPhone } from "@/lib/zero-loss/core";
 import { quiet } from "@/lib/db-safe";
