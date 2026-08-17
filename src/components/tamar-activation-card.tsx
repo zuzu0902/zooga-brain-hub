@@ -635,11 +635,28 @@ function TamarActivationDialog({
               </div>
             </div>
 
-            {blockers.length > 0 && (
+            {confirming && (
+              <div className="rounded-md border border-primary/40 p-2.5 text-xs space-y-1">
+                <div className="font-medium">אישור אחרון לפני שליחה</div>
+                <div>
+                  ערוץ: {previewMeta?.transport === "template" ? "תבנית מאושרת" : "טקסט חופשי בחלון 24 שעות"}
+                </div>
+                {selectedTemplate && (
+                  <div>
+                    תבנית: {selectedTemplate.name} · {selectedTemplate.language} · {selectedTemplate.category ?? "—"} ·{" "}
+                    {selectedTemplate.status}
+                  </div>
+                )}
+                {!!params.length && <div>משתנים: {params.join(" | ")}</div>}
+                <div className="whitespace-pre-wrap">{preview}</div>
+              </div>
+            )}
+
+            {allBlockers.length > 0 && (
               <div className="rounded-md border border-border bg-muted/40 p-2.5 text-xs space-y-1">
                 <div className="font-medium">כדי להפעיל את תמר צריך להשלים:</div>
                 <ul className="list-disc pr-4 space-y-0.5 text-muted-foreground">
-                  {blockers.map((b) => <li key={b}>{b}</li>)}
+                  {allBlockers.map((b) => <li key={b}>{b}</li>)}
                 </ul>
               </div>
             )}
@@ -658,7 +675,7 @@ function TamarActivationDialog({
             <>
               <Button variant="ghost" onClick={() => close(false)}>ביטול</Button>
               <Button
-                disabled={blockers.length > 0}
+                disabled={allBlockers.length > 0}
                 onClick={() => setConfirming(true)}
               >
                 אשר והפעל את תמר
