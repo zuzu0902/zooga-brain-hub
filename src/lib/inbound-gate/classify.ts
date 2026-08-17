@@ -12,6 +12,7 @@
  */
 import { isOptInMessage, isOptOutMessage } from "@/lib/optout";
 import { detectHandoffSignal, isUserQuestion } from "@/lib/tamar-brain/signals";
+import type { HandoffIntent } from "@/lib/handoff-intent";
 import { detectLoopSignal, isDontKnowAnswer, normalizeText } from "@/lib/conversation-guard/core";
 
 export const INBOUND_KINDS = [
@@ -55,6 +56,8 @@ export type InboundClassification = {
   source_type: SourceType;
   loop_signal: boolean;
   classifier_status: "ok" | "model_refined" | "model_failed";
+  /** none / requested / confirmed may change ownership; declined never does */
+  handoff_intent: HandoffIntent;
 };
 
 // ------------------------------------------------------------- validators
@@ -162,6 +165,8 @@ export type ClassifyInput = {
   currentQuestionKey?: string | null;
   currentQuestionText?: string | null;
   consentPending?: boolean;
+  /** did Tamar's previous outbound offer a human representative? */
+  offeredHandoff?: boolean;
 };
 
 function priorityFor(kind: InboundKind): ResponsePriority {
@@ -195,7 +200,8 @@ export function classifyInbound(input: ClassifyInput): InboundClassification {
   const kinds: InboundKind[] = [];
 
   if (isOptOutMessage(text)) kinds.push("opt_out");
-  if (detectHandoffSignal(text).handoff) kinds.push("handoff");
+  const handoffSignal = detectHandoffSignal(text, { offeredHandoff: input.offeredHandoff });
+  if (handoffSignal.handoff) kinds.push("handoff");
   if (
     input.consentPending &&
     (CONSENT_YES_RE.test(norm) || CONSENT_NO_RE.test(norm) || isOptInMessage(text) || sourceType === "button")
@@ -251,6 +257,7 @@ export function classifyInbound(input: ClassifyInput): InboundClassification {
     source_type: sourceType,
     loop_signal: loop,
     classifier_status: "ok",
+    handoff_intent: handoffSignal.intent ?? "none",
   };
 }
 
@@ -268,5 +275,6 @@ export function failedClassification(sourceType: SourceType = "text"): InboundCl
     source_type: sourceType,
     loop_signal: false,
     classifier_status: "model_failed",
+    handoff_intent: "none",
   };
 }
