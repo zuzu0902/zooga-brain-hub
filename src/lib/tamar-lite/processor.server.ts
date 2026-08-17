@@ -175,6 +175,10 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
       });
       if (commitError) throw new Error(commitError.message ?? String(commitError));
       if (commit?.committed) processed++;
+      else if (commit?.rejected) {
+        skipped++;
+        await logLiteFailure("commit_rejected", `event=${row.id} reason=${commit.rejected}`);
+      }
       else {
         conflicts++;
         await logLiteFailure("commit_conflict", `event=${row.id} version=${decision.state_before.version}`);
@@ -187,6 +191,8 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
         .update({
           processing_state: attempts >= MAX_ATTEMPTS ? "failed" : "pending",
           attempts,
+          processing_started_at: null,
+          worker_id: null,
           error: String(err?.message ?? err).slice(0, 500),
         })
         .eq("id", row.id);
