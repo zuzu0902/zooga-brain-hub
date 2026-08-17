@@ -32,6 +32,10 @@ export type LiteInbound = {
   /** deterministic signals resolved before the reducer runs */
   is_opt_out: boolean;
   is_handoff_request: boolean;
+  /** explicit refusal of a transfer — never changes ownership */
+  handoff_declined?: boolean;
+  /** Tamar offered a human on the previous turn (context only) */
+  assistant_offered_handoff?: boolean;
   is_direct_question: boolean;
   is_topic_shift: boolean;
   consent_granted: boolean;
