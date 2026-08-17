@@ -3574,6 +3574,217 @@ export type Database = {
           },
         ]
       }
+      tamar_lite_conversations: {
+        Row: {
+          contact_id: string
+          created_at: string
+          current_question_key: string | null
+          human_owned: boolean
+          last_inbound_wamid: string | null
+          last_outbound_key: string | null
+          phase: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          current_question_key?: string | null
+          human_owned?: boolean
+          last_inbound_wamid?: string | null
+          last_outbound_key?: string | null
+          phase?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          current_question_key?: string | null
+          human_owned?: boolean
+          last_inbound_wamid?: string | null
+          last_outbound_key?: string | null
+          phase?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      tamar_lite_decisions: {
+        Row: {
+          action: Json
+          contact_id: string | null
+          created_at: string
+          event_id: string
+          facts: Json
+          id: string
+          model_metadata: Json
+          offer_ids: string[]
+          reason_codes: string[]
+          shadow: boolean
+          state_after: Json
+          state_before: Json
+        }
+        Insert: {
+          action?: Json
+          contact_id?: string | null
+          created_at?: string
+          event_id: string
+          facts?: Json
+          id?: string
+          model_metadata?: Json
+          offer_ids?: string[]
+          reason_codes?: string[]
+          shadow?: boolean
+          state_after?: Json
+          state_before?: Json
+        }
+        Update: {
+          action?: Json
+          contact_id?: string | null
+          created_at?: string
+          event_id?: string
+          facts?: Json
+          id?: string
+          model_metadata?: Json
+          offer_ids?: string[]
+          reason_codes?: string[]
+          shadow?: boolean
+          state_after?: Json
+          state_before?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_lite_decisions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "tamar_lite_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tamar_lite_events: {
+        Row: {
+          attempts: number
+          contact_id: string | null
+          created_at: string
+          error: string | null
+          event_kind: string
+          id: string
+          meta_timestamp: string | null
+          payload: Json
+          phone_masked: string | null
+          processing_state: string
+          provider_event_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          contact_id?: string | null
+          created_at?: string
+          error?: string | null
+          event_kind?: string
+          id?: string
+          meta_timestamp?: string | null
+          payload?: Json
+          phone_masked?: string | null
+          processing_state?: string
+          provider_event_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          contact_id?: string | null
+          created_at?: string
+          error?: string | null
+          event_kind?: string
+          id?: string
+          meta_timestamp?: string | null
+          payload?: Json
+          phone_masked?: string | null
+          processing_state?: string
+          provider_event_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tamar_lite_outbox: {
+        Row: {
+          attempts: number
+          contact_id: string | null
+          created_at: string
+          event_id: string | null
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          next_attempt_at: string | null
+          payload: Json
+          provider_message_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          contact_id?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          idempotency_key: string
+          last_error?: string | null
+          next_attempt_at?: string | null
+          payload?: Json
+          provider_message_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          contact_id?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          idempotency_key?: string
+          last_error?: string | null
+          next_attempt_at?: string | null
+          payload?: Json
+          provider_message_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_lite_outbox_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "tamar_lite_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tamar_lite_settings: {
+        Row: {
+          id: boolean
+          kill_switch: boolean
+          mode: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: boolean
+          kill_switch?: boolean
+          mode?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: boolean
+          kill_switch?: boolean
+          mode?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tamar_manager_window: {
         Row: {
           id: string
