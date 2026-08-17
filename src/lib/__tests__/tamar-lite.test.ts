@@ -119,7 +119,12 @@ describe("tamar lite reducer — deterministic, shadow only", () => {
     const facts = Object.fromEntries(
       DEFAULT_INTAKE_FIELDS.filter((d) => d.stage !== "progressive").map((d) => [d.field_key, fact("x")]),
     );
-    const d = reduceLite({ ...base, snapshot: { facts, skipped: [] }, offerCandidates: ["o1", "o2", "o3", "o4"] });
+    const d = reduceLite({
+      ...base,
+      inbound: inbound(),
+      snapshot: { facts, skipped: [] },
+      offerCandidates: ["o1", "o2", "o3", "o4"],
+    });
     expect(["present_offers", "ask_intake_question"]).toContain(d.action.kind);
     if (d.action.kind === "present_offers") expect(d.action.offer_ids).toHaveLength(3);
   });
