@@ -8,7 +8,7 @@ const { notifyCatalogChanged, isRemovalKind } = await import("@/lib/offer-catalo
 
 const read = (p: string) => readFile(p, "utf8");
 
-beforeEach(() => invalidateCatalogCache.mockReset());
+beforeEach(() => invalidateCatalogCache.mockClear());
 
 describe("catalog invalidation helper", () => {
   it("invalidates immediately on a successful mutation notification", async () => {
