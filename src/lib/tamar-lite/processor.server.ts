@@ -60,15 +60,19 @@ function toInbound(row: any): LiteInbound {
   };
 }
 
+const MAX_ATTEMPTS = 5;
+
 export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise<{
   processed: number;
   skipped: number;
   failures: number;
+  conflicts: number;
 }> {
   const settings = await getLiteSettings();
   let processed = 0;
   let skipped = 0;
   let failures = 0;
+  let conflicts = 0;
 
   const { data: rows } = await db()
     .from("tamar_lite_events")
@@ -90,12 +94,15 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
         contactId
           ? db()
               .from("contacts")
-              .select("consent_status,opted_out_at,human_owned,residence_city,region,interests,primary_goal")
+              .select(
+                "consent_status,opted_out_at,human_owned,residence_city,region,interests,primary_goal,last_presented_offers",
+              )
               .eq("id", contactId)
               .maybeSingle()
               .then((r: any) => r.data)
           : Promise.resolve(null),
-        db().from("offers").select("*").eq("status", "active").limit(100).then((r: any) => r.data ?? []),
+        // single source of truth for sellability
+        db().from("offers_sellable").select("*").limit(100).then((r: any) => r.data ?? []),
       ]);
 
       const facts: Record<string, any> = {};
@@ -107,6 +114,7 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
       put("interests", Array.isArray(contact?.interests) ? contact.interests.join(", ") : contact?.interests);
       put("primary_goal", contact?.primary_goal);
 
+      const previouslyOffered = extractPreviouslyOffered(contact?.last_presented_offers);
       const candidates = selectLiteOffers(
         (offers as LiteOffer[]) ?? [],
         {
@@ -114,7 +122,7 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
           region: (contact as any)?.region ?? null,
           prefers_abroad: null,
           style: null,
-          previously_offered: [],
+          previously_offered: previouslyOffered,
         },
       );
 
@@ -129,34 +137,34 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
         offerCandidates: candidates.map((c) => c.offer_id),
       });
 
-      await db()
-        .from("tamar_lite_decisions")
-        .upsert(
-          {
-            event_id: row.id,
-            contact_id: contactId,
-            state_before: decision.state_before,
-            state_after: decision.state_after,
-            action: decision.action,
-            facts: decision.facts,
-            offer_ids: decision.action.offer_ids,
-            reason_codes: decision.reason_codes,
-            model_metadata: { adapter: "noop-shadow", mode: settings.mode, kill_switch: settings.kill_switch },
-            shadow: true,
-          },
-          { onConflict: "event_id" } as any,
-        );
-
-      if (contactId) await saveConversation(decision.state_after);
-      await db().from("tamar_lite_events").update({ processing_state: "processed" }).eq("id", row.id);
-      processed++;
+      // ONE atomic commit: conversation version + decision + event processed.
+      const { data: commit, error: commitError } = await db().rpc("tamar_lite_commit_decision", {
+        p_event_id: row.id,
+        p_contact_id: contactId,
+        p_expected_version: decision.state_before.version,
+        p_state_before: decision.state_before,
+        p_state_after: decision.state_after,
+        p_action: decision.action,
+        p_facts: decision.facts,
+        p_offer_ids: decision.action.offer_ids,
+        p_reason_codes: decision.reason_codes,
+        p_model_metadata: { adapter: "noop-shadow", mode: settings.mode, kill_switch: settings.kill_switch },
+        p_max_attempts: MAX_ATTEMPTS,
+      });
+      if (commitError) throw new Error(commitError.message ?? String(commitError));
+      if (commit?.committed) processed++;
+      else {
+        conflicts++;
+        await logLiteFailure("commit_conflict", `event=${row.id} version=${decision.state_before.version}`);
+      }
     } catch (err: any) {
       failures++;
+      const attempts = (row.attempts ?? 0) + 1;
       await db()
         .from("tamar_lite_events")
         .update({
-          processing_state: "pending",
-          attempts: (row.attempts ?? 0) + 1,
+          processing_state: attempts >= MAX_ATTEMPTS ? "failed" : "pending",
+          attempts,
           error: String(err?.message ?? err).slice(0, 500),
         })
         .eq("id", row.id);
@@ -164,7 +172,21 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
     }
   }
 
-  return { processed, skipped, failures };
+  return { processed, skipped, failures, conflicts };
+}
+
+/** contacts.last_presented_offers is jsonb: ids or objects with an offer id. */
+export function extractPreviouslyOffered(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string") ids.push(item);
+    else if (item && typeof item === "object") {
+      const id = (item as any).offer_id ?? (item as any).id;
+      if (typeof id === "string") ids.push(id);
+    }
+  }
+  return ids;
 }
 
 async function loadConversation(contactId: string): Promise<LiteConversation> {
@@ -181,26 +203,6 @@ async function loadConversation(contactId: string): Promise<LiteConversation> {
   };
 }
 
-/** Optimistic version write: a concurrent worker's write is never clobbered. */
-async function saveConversation(next: LiteConversation): Promise<boolean> {
-  const expectedPrev = next.version - 1;
-  const patch = {
-    phase: next.phase,
-    current_question_key: next.current_question_key,
-    version: next.version,
-    last_inbound_wamid: next.last_inbound_wamid,
-    last_outbound_key: next.last_outbound_key,
-    human_owned: next.human_owned,
-  };
-  const { data } = await db()
-    .from("tamar_lite_conversations")
-    .update(patch)
-    .eq("contact_id", next.contact_id)
-    .eq("version", expectedPrev)
-    .select("contact_id");
-  if (Array.isArray(data) && data.length) return true;
-  const { error } = await db()
-    .from("tamar_lite_conversations")
-    .insert({ contact_id: next.contact_id, ...patch });
-  return !error;
-}
+// Conversation state is committed ONLY inside `tamar_lite_commit_decision`,
+// together with the decision and the event's processed flag. There is no
+// separate write path, so a version conflict can never leave a decision behind.

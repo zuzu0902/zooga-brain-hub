@@ -3666,11 +3666,14 @@ export type Database = {
       tamar_lite_events: {
         Row: {
           attempts: number
+          conflict_count: number
           contact_id: string | null
           created_at: string
+          duplicate_count: number
           error: string | null
           event_kind: string
           id: string
+          linked_contact_at: string | null
           meta_timestamp: string | null
           payload: Json
           phone_masked: string | null
@@ -3680,11 +3683,14 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          conflict_count?: number
           contact_id?: string | null
           created_at?: string
+          duplicate_count?: number
           error?: string | null
           event_kind?: string
           id?: string
+          linked_contact_at?: string | null
           meta_timestamp?: string | null
           payload?: Json
           phone_masked?: string | null
@@ -3694,11 +3700,14 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          conflict_count?: number
           contact_id?: string | null
           created_at?: string
+          duplicate_count?: number
           error?: string | null
           event_kind?: string
           id?: string
+          linked_contact_at?: string | null
           meta_timestamp?: string | null
           payload?: Json
           phone_masked?: string | null
@@ -4579,6 +4588,34 @@ export type Database = {
           status: string
           version: number
         }[]
+      }
+      tamar_lite_attach_contact: {
+        Args: {
+          p_contact_id: string
+          p_payload?: Json
+          p_provider_event_id: string
+        }
+        Returns: string
+      }
+      tamar_lite_bump_duplicate: {
+        Args: { p_provider_event_id: string }
+        Returns: number
+      }
+      tamar_lite_commit_decision: {
+        Args: {
+          p_action: Json
+          p_contact_id: string
+          p_event_id: string
+          p_expected_version: number
+          p_facts: Json
+          p_max_attempts?: number
+          p_model_metadata: Json
+          p_offer_ids: string[]
+          p_reason_codes: string[]
+          p_state_after: Json
+          p_state_before: Json
+        }
+        Returns: Json
       }
       zl_claim_jobs: {
         Args: { p_lease_seconds: number; p_limit: number; p_worker: string }

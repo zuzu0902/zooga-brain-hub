@@ -22,28 +22,28 @@ export const getTamarLiteStatus = createServerFn({ method: "GET" })
       const { count: c } = await q;
       return c ?? 0;
     };
-    const [settings, total, backlog, processed, failed, decisions, outbox] = await Promise.all([
+    const [settings, total, backlog, processed, failed, processing, decisions, outbox, counters] = await Promise.all([
       db.from("tamar_lite_settings").select("mode,kill_switch,updated_at").eq("id", true).maybeSingle(),
       count(),
       count("pending"),
       count("processed"),
       count("failed"),
+      count("processing"),
       db
         .from("tamar_lite_decisions")
         .select("id,contact_id,action,reason_codes,offer_ids,created_at")
         .order("created_at", { ascending: false })
         .limit(20),
       db.from("tamar_lite_outbox").select("id", { count: "exact", head: true }),
+      db.from("tamar_lite_events").select("duplicate_count,conflict_count"),
     ]);
-    const { data: conflictRows } = await db
-      .from("tamar_lite_events")
-      .select("id", { count: "exact", head: true })
-      .eq("processing_state", "processing");
-    void conflictRows;
+    const rows = (counters.data ?? []) as { duplicate_count: number | null; conflict_count: number | null }[];
+    const duplicates = rows.reduce((s, r) => s + (r.duplicate_count ?? 0), 0);
+    const conflicts = rows.reduce((s, r) => s + (r.conflict_count ?? 0), 0);
     return {
       mode: settings.data?.mode ?? "shadow",
       kill_switch: settings.data?.kill_switch !== false,
-      totals: { total, backlog, processed, failures: failed, duplicates: Math.max(0, total - backlog - processed - failed) },
+      totals: { total, backlog, processed, failures: failed, in_flight: processing, duplicates, conflicts },
       outbox_rows: outbox.count ?? 0,
       decisions: (decisions.data ?? []) as any[],
     };

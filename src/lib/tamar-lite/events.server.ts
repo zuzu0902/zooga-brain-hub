@@ -34,7 +34,11 @@ export async function recordLiteEvent(input: LiteEventInput): Promise<{ ok: bool
       });
     if (error) {
       const duplicate = String(error.code) === "23505" || /duplicate key/i.test(error.message ?? "");
-      if (duplicate) return { ok: true, duplicate: true };
+      if (duplicate) {
+        // real duplicate telemetry: the row is kept, the counter grows
+        await db().rpc("tamar_lite_bump_duplicate", { p_provider_event_id: input.providerEventId });
+        return { ok: true, duplicate: true };
+      }
       await logLiteFailure("insert_event", error.message ?? String(error));
       return { ok: false, duplicate: false };
     }
@@ -42,6 +46,44 @@ export async function recordLiteEvent(input: LiteEventInput): Promise<{ ok: bool
   } catch (err: any) {
     await logLiteFailure("insert_event_throw", String(err?.message ?? err));
     return { ok: false, duplicate: false };
+  }
+}
+
+export type LiteSignals = {
+  text?: string | null;
+  source_type?: "text" | "voice" | "interactive";
+  is_opt_out?: boolean;
+  is_handoff_request?: boolean;
+  is_direct_question?: boolean;
+  is_topic_shift?: boolean;
+  consent_granted?: boolean;
+};
+
+/**
+ * Idempotently link an already-stored lite event to the resolved contact and
+ * merge the deterministic signals into its payload. Never touches CRM data;
+ * every failure is swallowed and logged.
+ */
+export async function attachLiteEvent(
+  providerEventId: string,
+  contactId: string | null,
+  signals: LiteSignals = {},
+): Promise<string | null> {
+  if (!providerEventId) return null;
+  try {
+    const { data, error } = await db().rpc("tamar_lite_attach_contact", {
+      p_provider_event_id: providerEventId,
+      p_contact_id: contactId,
+      p_payload: signals as any,
+    });
+    if (error) {
+      await logLiteFailure("attach_contact", error.message ?? String(error));
+      return null;
+    }
+    return (data as string) ?? null;
+  } catch (err: any) {
+    await logLiteFailure("attach_contact_throw", String(err?.message ?? err));
+    return null;
   }
 }
 
