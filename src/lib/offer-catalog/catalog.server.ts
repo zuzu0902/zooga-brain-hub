@@ -79,7 +79,7 @@ export async function resolveCatalogOffer(args: {
 
   if (args.explicitOfferId) {
     const entry = entries.find((e) => e.id === args.explicitOfferId) ?? null;
-    if (entry) {
+    if (entry && (await stillSellable(entry.id))) {
       return {
         match: {
           status: "match",
