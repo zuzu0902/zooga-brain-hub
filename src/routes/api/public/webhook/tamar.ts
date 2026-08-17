@@ -361,6 +361,31 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             await syncGateFacts(gateContactId, cls.extracted_facts).catch(() => null);
           }
 
+          // ---- Durable fact-extraction audit (text AND voice) ----
+          // Deterministic facts + the gate's AI facts, merged through the
+          // canonical truth hierarchy. An empty value never deletes anything.
+          try {
+            const { proposeFacts } = await import("@/lib/fact-audit/extract");
+            const { recordFactExtraction } = await import("@/lib/fact-audit/persist.server");
+            const sourceType = cls.source_type === "voice" ? "voice" : msg.option_id ? "interactive" : "text";
+            await recordFactExtraction({
+              contactId: gateContactId,
+              proposed: proposeFacts({
+                text: inboundText ?? "",
+                sourceType,
+                aiFacts: (cls.extracted_facts ?? {}) as Record<string, string | null>,
+              }),
+              source: {
+                source: "webhook_inbound",
+                source_message_id: msg.wamid,
+                source_type: sourceType,
+                observed_at: new Date().toISOString(),
+              },
+            });
+          } catch {
+            /* audit is never allowed to break a live turn */
+          }
+
           // ---- TAMAR LITE SHADOW: link event to contact + process (DB only) --
           // No model call, no send. Failures are swallowed and logged; the
           // legacy flow and the webhook response are never affected.
