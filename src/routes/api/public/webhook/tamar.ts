@@ -346,6 +346,28 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           if (Object.keys(cls.extracted_facts).length) {
             await syncGateFacts(gateContactId, cls.extracted_facts).catch(() => null);
           }
+
+          // ---- TAMAR LITE SHADOW: link event to contact + process (DB only) --
+          // No model call, no send. Failures are swallowed and logged; the
+          // legacy flow and the webhook response are never affected.
+          try {
+            const { attachLiteEvent } = await import("@/lib/tamar-lite/events.server");
+            await attachLiteEvent(msg.wamid, gateContactId, {
+              text: inboundText,
+              source_type: cls.source_type === "voice" ? "voice" : msg.option_id ? "interactive" : "text",
+              is_opt_out: isOptOutMessage(inboundText),
+              is_handoff_request: cls.kind === "handoff_request",
+              is_direct_question: cls.kind === "direct_question",
+              is_topic_shift: cls.kind === "topic_shift",
+              consent_granted: isOptInMessage(inboundText),
+            });
+            const { processLiteBacklog } = await import("@/lib/tamar-lite/processor.server");
+            await processLiteBacklog(5, "webhook-shadow");
+          } catch (liteErr: any) {
+            const { logLiteFailure } = await import("@/lib/tamar-lite/events.server");
+            await logLiteFailure("webhook_shadow_process", String(liteErr?.message ?? liteErr)).catch(() => {});
+          }
+
           const guardMeta = {
             classification: cls.kind,
             classificationConfidence: cls.confidence,
