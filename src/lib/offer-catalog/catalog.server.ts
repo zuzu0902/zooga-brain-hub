@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildCatalog, buildCatalogEntry, type CatalogEntry, type OfferRow } from "./normalize";
 import { matchOffer, shouldReleaseActiveOffer, type MatchResult } from "./match";
 import { activeOfferFrom, withActiveOffer } from "./active-offer";
+import { extractConversationFacts, mergeConversationFacts, type ConversationFacts } from "./facts";
 
 const CATALOG_TTL_MS = 60_000;
 
@@ -102,6 +103,33 @@ export async function resolveCatalogOffer(args: {
 }
 
 /** Persist the lock. Idempotent; never touches any other contact field. */
+export const CONVERSATION_FACTS_KEY = "conversation_facts";
+
+/**
+ * Extract facts from a customer turn (typed text OR voice transcript) and
+ * merge them into the contact. Never erases a previously known value.
+ */
+export async function commitConversationFacts(args: {
+  contactId: string | null | undefined;
+  text: string;
+}): Promise<ConversationFacts | null> {
+  if (!args.contactId || !String(args.text ?? "").trim()) return null;
+  const next = extractConversationFacts(args.text);
+  const { data } = await supabaseAdmin
+    .from("contacts")
+    .select("dynamic_profile_fields")
+    .eq("id", args.contactId)
+    .maybeSingle();
+  const dyn = ((data as any)?.dynamic_profile_fields ?? {}) as Record<string, any>;
+  const merged = mergeConversationFacts(dyn[CONVERSATION_FACTS_KEY] ?? null, next);
+  if (JSON.stringify(merged) === JSON.stringify(dyn[CONVERSATION_FACTS_KEY] ?? null)) return merged;
+  await supabaseAdmin
+    .from("contacts")
+    .update({ dynamic_profile_fields: { ...dyn, [CONVERSATION_FACTS_KEY]: merged } } as any)
+    .eq("id", args.contactId);
+  return merged;
+}
+
 export async function commitActiveOffer(args: {
   contactId: string | null | undefined;
   offerId: string | null;
