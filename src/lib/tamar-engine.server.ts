@@ -11,8 +11,11 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
 import { buildPricingStateBlock } from "@/lib/offer-pricing-block";
-import { resolveCatalogOffer, commitActiveOffer } from "@/lib/offer-catalog/catalog.server";
-import { commitConversationFacts } from "@/lib/offer-catalog/catalog.server";
+import {
+  resolveCatalogOffer,
+  commitActiveOffer,
+  commitConversationFacts,
+} from "@/lib/offer-catalog/catalog.server";
 import {
   computeIntakeSnapshot,
   selectNextIntakeField,
@@ -555,6 +558,10 @@ async function resolveCampaignAndOffer(
   if (catalogLatch && catalogRes?.offer) {
     offer = catalogRes.offer;
     trail.push(`catalog_${catalogRes.match.status}`);
+  }
+  if (contact?.id) {
+    // facts from text or voice transcript; never erases a known value
+    await commitConversationFacts({ contactId: contact.id, text: message }).catch(() => null);
   }
 
   // 4
