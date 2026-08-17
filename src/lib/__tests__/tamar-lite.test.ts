@@ -222,3 +222,63 @@ describe("tamar lite has no send path", () => {
     expect(files.length).toBeGreaterThan(0);
   });
 });
+
+describe("tamar lite stage 1 hardening", () => {
+  const read = async (p: string) => (await import("node:fs")).readFileSync(p, "utf8");
+
+  it("commits conversation + decision + processed in one atomic RPC", async () => {
+    const src = await read("src/lib/tamar-lite/processor.server.ts");
+    expect(src).toContain("tamar_lite_commit_decision");
+    // no separate decision write and no separate processed flag
+    expect(src).not.toMatch(/from\("tamar_lite_decisions"\)/);
+    expect(src).not.toMatch(/processing_state: "processed"/);
+    expect(src).not.toContain("saveConversation");
+  });
+
+  it("a conflict never writes a decision and never marks the event processed", async () => {
+    const src = await read("src/lib/tamar-lite/processor.server.ts");
+    expect(src).toMatch(/if \(commit\?\.committed\) processed\+\+/);
+    expect(src).toMatch(/conflicts\+\+/);
+  });
+
+  it("failures are bounded and the event is never lost", async () => {
+    const src = await read("src/lib/tamar-lite/processor.server.ts");
+    expect(src).toContain("MAX_ATTEMPTS");
+    expect(src).toMatch(/attempts >= MAX_ATTEMPTS \? "failed" : "pending"/);
+  });
+
+  it("sales reads offers_sellable and real offer history", async () => {
+    const src = await read("src/lib/tamar-lite/processor.server.ts");
+    expect(src).toContain('from("offers_sellable")');
+    expect(src).not.toMatch(/from\("offers"\)/);
+    expect(src).toContain("previously_offered: previouslyOffered");
+  });
+
+  it("parses previously offered ids from both shapes", async () => {
+    const { extractPreviouslyOffered } = await import("@/lib/tamar-lite/processor.server");
+    expect(extractPreviouslyOffered(["a", { offer_id: "b" }, { id: "c" }, 7])).toEqual(["a", "b", "c"]);
+    expect(extractPreviouslyOffered(null)).toEqual([]);
+  });
+
+  it("duplicate provider_event_id increments real telemetry", async () => {
+    const src = await read("src/lib/tamar-lite/events.server.ts");
+    expect(src).toContain("tamar_lite_bump_duplicate");
+    expect(src).toContain("tamar_lite_attach_contact");
+  });
+
+  it("the webhook links the event to the contact and processes in shadow, swallowing errors", async () => {
+    const src = await read("src/routes/api/public/webhook/tamar.ts");
+    expect(src).toContain("attachLiteEvent");
+    expect(src).toContain("processLiteBacklog");
+    expect(src).toContain("webhook_shadow_process");
+  });
+
+  it("nothing in tamar-lite writes to the outbox or calls a model", async () => {
+    const fs = await import("node:fs");
+    for (const f of fs.readdirSync("src/lib/tamar-lite")) {
+      const src = fs.readFileSync(`src/lib/tamar-lite/${f}`, "utf8");
+      expect(src).not.toMatch(/from\("tamar_lite_outbox"\)/);
+      expect(src).not.toMatch(/lovable|openai|ai_gateway|generateText/i);
+    }
+  });
+});
