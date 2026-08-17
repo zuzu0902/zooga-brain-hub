@@ -4653,6 +4653,7 @@ export type Database = {
           p_reason_codes: string[]
           p_state_after: Json
           p_state_before: Json
+          p_worker_id?: string
         }
         Returns: Json
       }
