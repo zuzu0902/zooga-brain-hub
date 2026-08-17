@@ -141,7 +141,7 @@ function gateInput(over: Partial<ActivationGateInput> = {}): ActivationGateInput
       id: "c1",
       phone: "+972500000000",
       consent_marketing: true,
-      whatsapp_opt_in_status: "granted",
+      whatsapp_opt_in_status: "verified",
       whatsapp_opt_in_at: "2026-08-01T00:00:00.000Z",
       whatsapp_opt_in_source: "whatsapp_button_reply",
     },
