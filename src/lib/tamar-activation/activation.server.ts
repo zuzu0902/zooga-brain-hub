@@ -387,6 +387,20 @@ export type ActivationPreview = {
   offer_id: string | null;
   offer_auto_selected: boolean;
   template_name: string | null;
+  template: {
+    id: string;
+    name: string;
+    language: string;
+    category: string | null;
+    status: string;
+    body_text: string;
+    header: any;
+    footer_text: string | null;
+    buttons: any[];
+    variable_count: number;
+    last_checked_at: string | null;
+  } | null;
+  template_params: string[];
   session_window: {
     open: boolean;
     last_inbound_at: string | null;
@@ -401,15 +415,20 @@ export async function previewActivation(args: {
   topic: string;
   instruction: string;
   offerId?: string | null;
+  templateId?: string | null;
+  templateParams?: string[] | null;
 }): Promise<ActivationPreview> {
   const ctx = await loadActivationContext(args);
   const gate = await gateActivation(ctx);
   const spec = topicSpec(args.topic);
-  const templateName = gate.transport === "template" ? (spec?.template?.name ?? null) : null;
+  const templateName =
+    gate.transport === "template" ? (ctx.template?.name ?? spec?.template?.name ?? null) : null;
   const preview = !gate.allowed
     ? null
     : gate.transport === "template"
-      ? // Outside the window the wording is fixed by the approved template.
+      ? ctx.template
+        ? renderTemplatePreview(ctx.template, ctx.templateParams ?? [])
+        : // Outside the window the wording is fixed by the approved template.
         `תישלח התבנית המאושרת ${spec?.template?.name} עם השם "${templateFirstName(
           ctx.contact?.first_name ?? ctx.contact?.full_name,
         )}". פרטי הפעילות יישלחו רק אחרי שהלקוח יענה.`
@@ -423,6 +442,22 @@ export async function previewActivation(args: {
     offer_id: ctx.resolvedOfferId ?? null,
     offer_auto_selected: !!ctx.autoResolvedOfferId,
     template_name: templateName,
+    template: ctx.template
+      ? {
+          id: ctx.template.id,
+          name: ctx.template.name,
+          language: ctx.template.language,
+          category: ctx.template.category,
+          status: ctx.template.status,
+          body_text: ctx.template.body_text,
+          header: ctx.template.header,
+          footer_text: ctx.template.footer_text,
+          buttons: ctx.template.buttons,
+          variable_count: ctx.template.variable_count,
+          last_checked_at: ctx.template.last_checked_at,
+        }
+      : null,
+    template_params: ctx.templateParams ?? [],
     session_window: ctx.sessionWindow ?? {
       open: false,
       last_inbound_at: null,
@@ -443,15 +478,34 @@ export async function createActivation(args: {
   scheduledAt?: string | null;
   preview?: string | null;
   createdBy?: string | null;
+  templateId?: string | null;
+  templateParams?: string[] | null;
 }): Promise<{ ok: boolean; activation: ActivationRow | null; error?: string }> {
   const key = activationIdempotencyKey({
     contactId: args.contactId,
     topic: args.topic,
-    instruction: args.instruction,
+    instruction: `${args.instruction}|tpl:${args.templateId ?? "none"}|${(args.templateParams ?? []).join("~")}`,
     offerId: args.offerId ?? null,
     scheduledAt: args.scheduledAt ?? null,
   });
   const scheduled = !!args.scheduledAt && new Date(args.scheduledAt).getTime() > Date.now();
+
+  let templateSnapshot: Record<string, any> = {};
+  if (args.templateId) {
+    const { getStoredTemplate } = await import("@/lib/whatsapp-templates/sync.server");
+    const t = await getStoredTemplate(args.templateId);
+    if (!t) return { ok: false, activation: null, error: "התבנית שנבחרה לא נמצאה" };
+    templateSnapshot = {
+      template_id: t.id,
+      template_name: t.name,
+      template_language: t.language,
+      template_category: t.category,
+      meta_template_id: t.meta_template_id,
+      template_params: args.templateParams ?? [],
+      template_components: t.components,
+      rendered_preview: renderTemplatePreview(t, args.templateParams ?? []),
+    };
+  }
 
   const { data, error } = await supabaseAdmin
     .from("tamar_activations" as any)
@@ -465,6 +519,7 @@ export async function createActivation(args: {
       preview: args.preview ?? null,
       status: scheduled ? "scheduled" : "draft",
       idempotency_key: key,
+      ...templateSnapshot,
     } as any)
     .select("*")
     .maybeSingle();
@@ -545,6 +600,8 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
       instruction: row.instruction,
       offerId: row.offer_id,
       ignoreActivationId: id,
+      templateId: row.template_id ?? null,
+      templateParams: Array.isArray(row.template_params) ? row.template_params : null,
     });
     const gate = await gateActivation(ctx);
     if (!gate.allowed) {
@@ -565,7 +622,9 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
     const nameParam = templateFirstName(ctx.contact?.first_name ?? ctx.contact?.full_name);
     const message =
       gate.transport === "template"
-        ? `[תבנית ${specNow?.template?.name}] {{1}}=${nameParam}`
+        ? ctx.template
+          ? renderTemplatePreview(ctx.template, ctx.templateParams ?? [])
+          : `[תבנית ${specNow?.template?.name}] {{1}}=${nameParam}`
         : String(row.preview ?? "").trim() ||
           (await composeActivationMessage({ ctx, topic: row.topic, instruction: row.instruction }));
 
@@ -582,9 +641,16 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
     const res =
       gate.transport === "session"
         ? await sendWhatsAppText(to, message)
-        : await sendWhatsAppTemplate(to, spec!.template!.name, spec!.template!.language, [
-            { type: "body", parameters: [{ type: "text", text: nameParam }] },
-          ]);
+        : ctx.template
+          ? await sendWhatsAppTemplate(
+              to,
+              ctx.template.name,
+              ctx.template.language,
+              buildTemplateComponents(ctx.templateParams ?? []),
+            )
+          : await sendWhatsAppTemplate(to, spec!.template!.name, spec!.template!.language, [
+              { type: "body", parameters: [{ type: "text", text: nameParam }] },
+            ]);
 
     await recordDelivery({
       contactId: row.contact_id,
@@ -615,6 +681,8 @@ export async function executeActivation(id: string, opts: { dryRun?: boolean } =
         attempts,
         actual_message: message,
         transport: gate.transport,
+        rendered_preview: gate.transport === "template" ? message : null,
+        template_params: ctx.templateParams ?? [],
         offer_id: ctx.resolvedOfferId ?? row.offer_id ?? null,
         provider_message_id: res.provider_message_id ?? null,
         executed_at: new Date().toISOString(),
