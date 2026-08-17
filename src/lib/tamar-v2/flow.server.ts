@@ -67,11 +67,10 @@ export async function loadAgentVersion(versionId?: string | null): Promise<Agent
 
 /** Only sellable offers may ever be recommended. */
 export async function loadSellableOffers(limit = 12): Promise<SellableOffer[]> {
-  const { data } = await supabaseAdmin
-    .from("offers_sellable" as any)
-    .select("id,title,offer_url,ai_summary,description")
-    .limit(limit);
-  return ((data as any[]) ?? []).map((o) => ({
+  // canonical catalog — same source of truth as the live engine and Lite
+  const { loadCatalog } = await import("@/lib/offer-catalog/catalog.server");
+  const { rows } = await loadCatalog();
+  return (rows as any[]).slice(0, limit).map((o) => ({
     id: o.id,
     title: o.title,
     offer_url: o.offer_url ?? null,
