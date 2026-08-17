@@ -18,6 +18,10 @@ export type TemplateLookup =
   | { ok: true; templates: TemplateInfo[]; account: string | null; fetched_at: string }
   | { ok: false; error: string; templates: []; account: string | null; fetched_at: string };
 
+export type TemplateRawLookup =
+  | { ok: true; raw: any[]; account: string | null; fetched_at: string; error: null }
+  | { ok: false; raw: []; account: string | null; fetched_at: string; error: string };
+
 /** Never expose a full WABA id in UI copy or logs. */
 export function maskAccount(id: string | null | undefined): string | null {
   const s = String(id ?? "").trim();
@@ -28,6 +32,7 @@ export function maskAccount(id: string | null | undefined): string | null {
 
 const CACHE_TTL_MS = 60_000;
 let _cache: { at: number; value: TemplateLookup } | null = null;
+let _rawCache: { at: number; value: TemplateRawLookup } | null = null;
 
 function countVars(body: string): number {
   const found = new Set<string>();
@@ -62,21 +67,47 @@ export async function listMetaTemplates(): Promise<TemplateLookup> {
 }
 
 async function fetchMetaTemplates(): Promise<TemplateLookup> {
+  const lookup = await fetchMetaTemplatesRaw();
+  if (!lookup.ok)
+    return { ok: false, error: lookup.error, templates: [], account: lookup.account, fetched_at: lookup.fetched_at };
+  const templates: TemplateInfo[] = lookup.raw.map((tpl: any) => {
+    const body = (tpl?.components ?? []).find((c: any) => c?.type === "BODY");
+    const text = String(body?.text ?? "");
+    return {
+      name: String(tpl?.name ?? ""),
+      language: String(tpl?.language ?? ""),
+      status: String(tpl?.status ?? "UNKNOWN"),
+      variable_count: countVars(text),
+      body_preview: text ? text.slice(0, 300) : null,
+    };
+  });
+  return { ok: true, templates, account: lookup.account, fetched_at: lookup.fetched_at };
+}
+
+/** Raw Meta payload (id, category, full components) — the DB sync source. */
+export async function listMetaTemplatesRaw(opts: { force?: boolean } = {}): Promise<TemplateRawLookup> {
+  if (!opts.force && _rawCache && Date.now() - _rawCache.at < CACHE_TTL_MS) return _rawCache.value;
+  const value = await fetchMetaTemplatesRaw();
+  if (value.ok) _rawCache = { at: Date.now(), value };
+  return value;
+}
+
+async function fetchMetaTemplatesRaw(): Promise<TemplateRawLookup> {
   const fetched_at = new Date().toISOString();
   const token = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   if (!token || !phoneId)
-    return { ok: false, error: "whatsapp_credentials_missing", templates: [], account: null, fetched_at };
+    return { ok: false, error: "whatsapp_credentials_missing", raw: [], account: null, fetched_at };
 
   const wabaId = await resolveWabaId(token, phoneId);
   if (!wabaId)
-    return { ok: false, error: "waba_id_unavailable_set_WHATSAPP_WABA_ID", templates: [], account: null, fetched_at };
+    return { ok: false, error: "waba_id_unavailable_set_WHATSAPP_WABA_ID", raw: [], account: null, fetched_at };
   const account = maskAccount(wabaId);
 
   try {
-    const templates: TemplateInfo[] = [];
+    const raw: any[] = [];
     let url: string | null =
-      `https://graph.facebook.com/${GRAPH_VERSION}/${wabaId}/message_templates?limit=200&fields=name,status,language,components`;
+      `https://graph.facebook.com/${GRAPH_VERSION}/${wabaId}/message_templates?limit=200&fields=id,name,status,language,category,components`;
     let pages = 0;
     while (url && pages < 20) {
       const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -85,29 +116,61 @@ async function fetchMetaTemplates(): Promise<TemplateLookup> {
         return {
           ok: false,
           error: String(json?.error?.message ?? `meta_${res.status}`).slice(0, 200),
-          templates: [],
+          raw: [],
           account,
           fetched_at,
         };
       }
-      for (const tpl of json?.data ?? []) {
-        const body = (tpl?.components ?? []).find((c: any) => c?.type === "BODY");
-        const text = String(body?.text ?? "");
-        templates.push({
-          name: String(tpl?.name ?? ""),
-          language: String(tpl?.language ?? ""),
-          status: String(tpl?.status ?? "UNKNOWN"),
-          variable_count: countVars(text),
-          body_preview: text ? text.slice(0, 300) : null,
-        });
-      }
+      for (const tpl of json?.data ?? []) raw.push(tpl);
       url = json?.paging?.next ?? null;
       pages++;
     }
-    return { ok: true, templates, account, fetched_at };
+    return { ok: true, raw, account, fetched_at, error: null };
   } catch (e: any) {
-    return { ok: false, error: String(e?.message ?? e).slice(0, 200), templates: [], account, fetched_at };
+    return { ok: false, error: String(e?.message ?? e).slice(0, 200), raw: [], account, fetched_at };
   }
+}
+
+/**
+ * Live approval check for an already-selected template. Unlike
+ * validateTemplateForLaunch it does not cap the variable count — the exact
+ * schema is validated separately against the admin's parameters.
+ */
+export async function checkTemplateApprovalLive(
+  name: string,
+  language: string,
+): Promise<{ ok: boolean; status: string | null; reason_he: string | null; lookup_failed: boolean; checked_at: string }> {
+  const lookup = await listMetaTemplates();
+  const checked_at = lookup.fetched_at;
+  if (!lookup.ok)
+    return {
+      ok: false,
+      status: null,
+      lookup_failed: true,
+      checked_at,
+      reason_he: `לא ניתן לאמת את התבנית "${name}" מול Meta: ${lookup.error}`,
+    };
+  const base = (l: string) => l.toLowerCase().replace(/-/g, "_").split("_")[0];
+  const match =
+    lookup.templates.find((t) => t.name === name && t.language.toLowerCase() === language.toLowerCase()) ??
+    lookup.templates.find((t) => t.name === name && base(t.language) === base(language));
+  if (!match)
+    return {
+      ok: false,
+      status: null,
+      lookup_failed: false,
+      checked_at,
+      reason_he: `התבנית "${name}" (${language}) לא נמצאה בחשבון ה-WhatsApp המחובר`,
+    };
+  if (match.status.toUpperCase() !== "APPROVED")
+    return {
+      ok: false,
+      status: match.status,
+      lookup_failed: false,
+      checked_at,
+      reason_he: `התבנית "${name}" בסטטוס ${match.status} במטא ואינה מאושרת לשליחה`,
+    };
+  return { ok: true, status: "APPROVED", lookup_failed: false, checked_at, reason_he: null };
 }
 
 export type TemplateGate = {
