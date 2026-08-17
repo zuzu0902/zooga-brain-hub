@@ -7,7 +7,7 @@
  * and never writes to contacts / conversation_state / intake tables.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { INTAKE_FIELD_DEFS } from "@/lib/onboarding/baseline-intake";
+import { DEFAULT_INTAKE_FIELDS } from "@/lib/onboarding/baseline-intake";
 import { reduceLite } from "./reducer";
 import { selectLiteOffers, type LiteOffer } from "./sales-selector";
 import { logLiteFailure } from "./events.server";
@@ -121,7 +121,7 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
       const decision = reduceLite({
         conversation,
         inbound: toInbound(row),
-        defs: INTAKE_FIELD_DEFS,
+        defs: DEFAULT_INTAKE_FIELDS,
         snapshot: { facts, skipped: [] },
         consentGranted: contact?.consent_status === "granted",
         optedOut: !!contact?.opted_out_at || contact?.consent_status === "denied",
