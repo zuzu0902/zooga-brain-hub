@@ -1234,6 +1234,57 @@ export type Database = {
         }
         Relationships: []
       }
+      fact_extraction_audit: {
+        Row: {
+          accepted: boolean
+          confidence: number
+          contact_id: string | null
+          created_at: string
+          field_key: string
+          id: string
+          kind: string
+          observed_at: string
+          previous_value: string | null
+          proposed_value: string | null
+          reason: string
+          source: string
+          source_message_id: string | null
+          source_type: string
+        }
+        Insert: {
+          accepted?: boolean
+          confidence?: number
+          contact_id?: string | null
+          created_at?: string
+          field_key: string
+          id?: string
+          kind?: string
+          observed_at?: string
+          previous_value?: string | null
+          proposed_value?: string | null
+          reason?: string
+          source?: string
+          source_message_id?: string | null
+          source_type?: string
+        }
+        Update: {
+          accepted?: boolean
+          confidence?: number
+          contact_id?: string | null
+          created_at?: string
+          field_key?: string
+          id?: string
+          kind?: string
+          observed_at?: string
+          previous_value?: string | null
+          proposed_value?: string | null
+          reason?: string
+          source?: string
+          source_message_id?: string | null
+          source_type?: string
+        }
+        Relationships: []
+      }
       imported_leads: {
         Row: {
           attempts: number
