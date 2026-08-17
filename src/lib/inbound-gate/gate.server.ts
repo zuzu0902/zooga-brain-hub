@@ -155,6 +155,7 @@ function fromRow(row: any, context: InboundContext): GateResult {
       source_type: (row.source_type ?? "text") as SourceType,
       loop_signal: false,
       classifier_status: row.classifier_status ?? "ok",
+      handoff_intent: row.handoff_intent ?? "none",
     },
   };
 }
