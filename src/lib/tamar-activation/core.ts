@@ -237,7 +237,7 @@ export function evaluateActivation(input: ActivationGateInput): ActivationGate {
   // Outside the 24h window only an APPROVED Meta template may be sent.
   const selected = input.selectedTemplate;
   if (selected) {
-    if (RESERVED_TEMPLATES.includes(selected.name) && spec.key !== "consent_opening")
+    if (RESERVED_TEMPLATES.includes(selected.name))
       return block("reserved_template", "תבנית פתיחת ההסכמה אינה מיועדת לשיחות המשך");
     if (selected.blockReasonHe) return block("template_not_usable", selected.blockReasonHe);
     if (!selected.paramsValid)
