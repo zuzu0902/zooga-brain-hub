@@ -223,6 +223,7 @@ export async function runInboundGate(args: {
       currentQuestionKey: context.current_question_key,
       currentQuestionText: context.current_question_text,
       consentPending: context.consent_pending,
+      offeredHandoff: assistantOfferedHandoff(context.current_question_text),
     });
     // A low-confidence voice transcript is never treated as a captured answer.
     if (
