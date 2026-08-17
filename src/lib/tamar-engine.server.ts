@@ -673,6 +673,17 @@ async function resolveCampaignAndOffer(
   };
 }
 
+/** Persist the conversation's active-offer lock after a resolution. */
+async function persistActiveOffer(contactId: string | null | undefined, offer: any) {
+  if (!contactId || !offer?.id) return;
+  await commitActiveOffer({
+    contactId,
+    offerId: offer.id,
+    title: offer.title ?? null,
+    reason: "engine_resolution",
+  }).catch(() => undefined);
+}
+
 async function callModel(messages: Array<{ role: string; content: string }>) {
 
   const apiKey = process.env.LOVABLE_API_KEY;
