@@ -16,18 +16,21 @@ export const getTamarLiteStatus = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
-    const count = async (state?: string) => {
+    const count = async (state?: string, messagesOnly = false) => {
       let q = db.from("tamar_lite_events").select("id", { count: "exact", head: true });
       if (state) q = q.eq("processing_state", state);
+      if (messagesOnly) q = q.eq("event_kind", "message");
       const { count: c } = await q;
       return c ?? 0;
     };
     const staleCutoff = new Date(Date.now() - 300_000).toISOString();
-    const [settings, total, backlog, processed, failed, processing, decisions, outbox, counters, stale, recovered] =
+    const [settings, total, backlog, recorded, processed, failed, processing, decisions, outbox, counters, stale, recovered] =
       await Promise.all([
       db.from("tamar_lite_settings").select("mode,kill_switch,updated_at").eq("id", true).maybeSingle(),
       count(),
-      count("pending"),
+      // backlog = ONLY inbound messages still awaiting processing
+      count("pending", true),
+      count("recorded"),
       count("processed"),
       count("failed"),
       count("processing"),
@@ -57,6 +60,7 @@ export const getTamarLiteStatus = createServerFn({ method: "GET" })
       totals: {
         total,
         backlog,
+        recorded,
         processed,
         failures: failed,
         in_flight: processing,

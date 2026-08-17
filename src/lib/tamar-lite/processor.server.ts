@@ -85,12 +85,25 @@ function toInbound(row: any): LiteInbound {
 
 const MAX_ATTEMPTS = 5;
 
-export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise<{
+/** Unique, unguessable lease token per run. Two runs never share a token. */
+export function makeWorkerToken(prefix = "shadow"): string {
+  const rand =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return `${prefix}:${rand}`.slice(0, 200);
+}
+
+export async function processLiteBacklog(limit = 20, workerPrefix = "shadow"): Promise<{
   processed: number;
   skipped: number;
   failures: number;
   conflicts: number;
 }> {
+  // Fencing token: the claim stamps it on the row and the commit verifies it,
+  // so a worker that wakes up after its lease expired can never commit onto a
+  // lease that has since been re-claimed by somebody else.
+  const worker = makeWorkerToken(workerPrefix);
   const settings = await getLiteSettings();
   let processed = 0;
   let skipped = 0;
@@ -172,6 +185,7 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
         p_reason_codes: decision.reason_codes,
         p_model_metadata: { adapter: "noop-shadow", mode: settings.mode, kill_switch: settings.kill_switch },
         p_max_attempts: MAX_ATTEMPTS,
+        p_worker_id: worker,
       });
       if (commitError) throw new Error(commitError.message ?? String(commitError));
       if (commit?.committed) processed++;
@@ -195,7 +209,9 @@ export async function processLiteBacklog(limit = 20, worker = "shadow"): Promise
           worker_id: null,
           error: String(err?.message ?? err).slice(0, 500),
         })
-        .eq("id", row.id);
+        .eq("id", row.id)
+        // only release a lease we still own
+        .eq("worker_id", worker);
       await logLiteFailure("process_event", String(err?.message ?? err));
     }
   }

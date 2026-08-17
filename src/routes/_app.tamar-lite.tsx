@@ -47,7 +47,8 @@ function TamarLitePage() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="אירועים" value={data?.totals.total ?? (isLoading ? "…" : 0)} />
-        <Stat label="Backlog" value={data?.totals.backlog ?? 0} />
+        <Stat label="Backlog (הודעות בהמתנה)" value={data?.totals.backlog ?? 0} />
+        <Stat label="רשומים בלבד (status)" value={data?.totals.recorded ?? 0} />
         <Stat label="עובדו" value={data?.totals.processed ?? 0} />
         <Stat label="כשלים" value={data?.totals.failures ?? 0} />
         <Stat label="כפילויות" value={data?.totals.duplicates ?? 0} />

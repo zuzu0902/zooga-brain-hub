@@ -325,4 +325,29 @@ describe("tamar lite stage 1 — ordering, recovery, types", () => {
     expect(o.tags).toEqual(["טיולים", "מוזיקה"]);
     expect(isLitePurchasable(o)).toBe(true);
   });
+
+  it("only message events enter the pending backlog; status/unknown are final 'recorded'", async () => {
+    const src = await read("src/lib/tamar-lite/events.server.ts");
+    expect(src).toContain('input.kind === "message" ? "pending" : "recorded"');
+  });
+
+  it("backlog telemetry counts only pending message events", async () => {
+    const src = await read("src/lib/tamar-lite.functions.ts");
+    expect(src).toContain('count("pending", true)');
+    expect(src).toContain('q.eq("event_kind", "message")');
+  });
+
+  it("each backlog run gets a unique fencing worker token", async () => {
+    const { makeWorkerToken } = await import("@/lib/tamar-lite/processor.server");
+    const a = makeWorkerToken("webhook-shadow:wamid.X");
+    const b = makeWorkerToken("webhook-shadow:wamid.X");
+    expect(a).not.toBe(b);
+    expect(a.startsWith("webhook-shadow:wamid.X:")).toBe(true);
+  });
+
+  it("commit passes the worker token and failure only releases our own lease", async () => {
+    const src = await read("src/lib/tamar-lite/processor.server.ts");
+    expect(src).toContain("p_worker_id: worker");
+    expect(src).toContain('.eq("worker_id", worker)');
+  });
 });
