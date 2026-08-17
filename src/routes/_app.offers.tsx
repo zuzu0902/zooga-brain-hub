@@ -196,6 +196,9 @@ function OfferDialog({ open, onOpenChange, onCreated }: any) {
       // The offer exists; analysis can be retried from the detail page.
       toast.warning(e?.message || t("ההצעה נוצרה אך הניתוח האוטומטי נכשל — אפשר לנסות שוב מתוך ההצעה"));
     }
+    // Analysis already invalidates on success; notify anyway so a failed
+    // analysis still puts the new product in front of Tamar immediately.
+    await notifyCatalogChanged({ kind: "create", offerId: created.id });
     setBusy("idle");
     onOpenChange(false);
     reset();
