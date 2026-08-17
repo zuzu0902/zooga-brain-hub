@@ -878,6 +878,7 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
   } = await resolveCampaignAndOffer(contact, body, message, {
     browseIntent: browseIntentDetected,
   });
+  await persistActiveOffer(contact?.id, offer);
 
   const { mode: conversationMode, reasons: conversationModeReasons } = decideConversationMode({
     message,
