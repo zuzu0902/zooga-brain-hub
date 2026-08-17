@@ -11,6 +11,8 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
 import { buildPricingStateBlock } from "@/lib/offer-pricing-block";
+import { resolveCatalogOffer, commitActiveOffer } from "@/lib/offer-catalog/catalog.server";
+import { extractConversationFacts, mergeConversationFacts } from "@/lib/offer-catalog/facts";
 import {
   computeIntakeSnapshot,
   selectNextIntakeField,
