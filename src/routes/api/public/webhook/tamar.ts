@@ -365,6 +365,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
           // Deterministic facts + the gate's AI facts, merged through the
           // canonical truth hierarchy. An empty value never deletes anything.
           try {
+            if (!gateContactId) throw new Error("no_contact_for_fact_audit");
             const { proposeFacts } = await import("@/lib/fact-audit/extract");
             const { recordFactExtraction } = await import("@/lib/fact-audit/persist.server");
             const sourceType = cls.source_type === "voice" ? "voice" : msg.option_id ? "interactive" : "text";
