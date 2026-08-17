@@ -362,7 +362,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               consent_granted: isOptInMessage(inboundText),
             });
             const { processLiteBacklog } = await import("@/lib/tamar-lite/processor.server");
-            await processLiteBacklog(5, "webhook-shadow");
+            await processLiteBacklog(5, `webhook-shadow:${msg.wamid}`);
           } catch (liteErr: any) {
             const { logLiteFailure } = await import("@/lib/tamar-lite/events.server");
             await logLiteFailure("webhook_shadow_process", String(liteErr?.message ?? liteErr)).catch(() => {});

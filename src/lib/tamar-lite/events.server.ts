@@ -30,7 +30,10 @@ export async function recordLiteEvent(input: LiteEventInput): Promise<{ ok: bool
         phone_masked: input.phoneMasked ?? null,
         meta_timestamp: input.metaTimestamp ?? null,
         payload: input.payload ?? {},
-        processing_state: "pending",
+        // Only inbound messages are processable. status/unknown events are
+        // ledger-only and go straight to the FINAL state "recorded", so the
+        // pending backlog can never inflate with rows nobody will ever process.
+        processing_state: input.kind === "message" ? "pending" : "recorded",
       });
     if (error) {
       const duplicate = String(error.code) === "23505" || /duplicate key/i.test(error.message ?? "");
