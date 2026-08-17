@@ -40,6 +40,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
       { to: "/manager-alerts", label: "Manager Alerts", icon: BellRing },
       { to: "/runtime-trace", label: "Runtime Trace", icon: Activity },
       { to: "/zero-loss", label: "Zero-Loss Control", icon: ShieldCheck },
+      { to: "/tamar-lite", label: "Tamar Lite (Shadow)", icon: Bot },
     ],
   },
   {
