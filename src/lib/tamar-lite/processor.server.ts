@@ -11,6 +11,7 @@ import { DEFAULT_INTAKE_FIELDS } from "@/lib/onboarding/baseline-intake";
 import { reduceLite } from "./reducer";
 import { selectLiteOffers, type LiteOffer } from "./sales-selector";
 import { logLiteFailure } from "./events.server";
+import { LITE_CONTACT_COLUMNS, isOptedOut, resolveLiteConsent } from "./consent";
 import type { LiteConversation, LiteInbound } from "./types";
 
 const db = () => supabaseAdmin as any;
@@ -130,12 +131,15 @@ export async function processLiteBacklog(limit = 20, workerPrefix = "shadow"): P
       const [contact, offers] = await Promise.all([
         db()
               .from("contacts")
-              .select(
-                "consent_status,opted_out_at,human_owned,residence_city,region,interests,primary_goal,last_presented_offers",
-              )
+              .select(LITE_CONTACT_COLUMNS)
               .eq("id", contactId)
               .maybeSingle()
-              .then((r: any) => r.data),
+              .then((r: any) => {
+                // never swallow: a failed read must retry, not look like "no consent"
+                if (r.error) throw new Error(`contact_query_failed: ${r.error.message ?? r.error}`);
+                if (!r.data) throw new Error("contact_query_failed: contact_not_found");
+                return r.data;
+              }),
         // single source of truth for sellability
         db().from("offers_sellable").select("*").limit(100).then((r: any) => r.data ?? []),
       ]);
@@ -147,7 +151,6 @@ export async function processLiteBacklog(limit = 20, workerPrefix = "shadow"): P
       put("city", contact?.residence_city);
       put("region", (contact as any)?.region);
       put("interests", Array.isArray(contact?.interests) ? contact.interests.join(", ") : contact?.interests);
-      put("primary_goal", contact?.primary_goal);
 
       const previouslyOffered = extractPreviouslyOffered(contact?.last_presented_offers);
       const candidates = selectLiteOffers(
@@ -166,8 +169,8 @@ export async function processLiteBacklog(limit = 20, workerPrefix = "shadow"): P
         inbound: toInbound(row),
         defs: DEFAULT_INTAKE_FIELDS,
         snapshot: { facts, skipped: [] },
-        consentGranted: contact?.consent_status === "granted",
-        optedOut: !!contact?.opted_out_at || contact?.consent_status === "denied",
+        consentGranted: resolveLiteConsent(contact as any),
+        optedOut: isOptedOut(contact as any),
         humanOwned: !!contact?.human_owned,
         offerCandidates: candidates.map((c) => c.offer_id),
       });
