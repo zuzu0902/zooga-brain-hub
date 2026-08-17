@@ -373,7 +373,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               proposed: proposeFacts({
                 text: inboundText ?? "",
                 sourceType,
-                aiFacts: (cls.extracted_facts ?? {}) as Record<string, string | null>,
+                aiFacts: (cls.extracted_facts ?? {}) as Record<string, string>,
               }),
               source: {
                 source: "webhook_inbound",
