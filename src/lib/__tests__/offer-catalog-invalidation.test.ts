@@ -29,7 +29,7 @@ describe("catalog invalidation helper", () => {
   });
 
   it("never throws when the invalidation call fails — the mutation still succeeds", async () => {
-    invalidateCatalogCache.mockRejectedValue(new Error("network down"));
+    invalidateCatalogCache.mockImplementation(async () => { throw new Error("network down"); });
     const r = await notifyCatalogChanged({ kind: "delete", offerId: "o1" });
     expect(r.ok).toBe(false);
     expect(r.removed).toBe(true);
