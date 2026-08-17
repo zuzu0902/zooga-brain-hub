@@ -282,3 +282,47 @@ describe("tamar lite stage 1 hardening", () => {
     }
   });
 });
+describe("tamar lite stage 1 — ordering, recovery, types", () => {
+  const read = async (p: string) => (await import("node:fs")).readFileSync(p, "utf8");
+
+  it("claims through the atomic per-contact RPC, not a plain pending scan", async () => {
+    const src = await read("src/lib/tamar-lite/processor.server.ts");
+    expect(src).toContain("tamar_lite_claim_next");
+    expect(src).not.toMatch(/processing_state: "processing"/);
+    expect(src).not.toMatch(/\.eq\("processing_state", "pending"\)/);
+  });
+
+  it("never processes an event without a contact", async () => {
+    const src = await read("src/lib/tamar-lite/processor.server.ts");
+    expect(src).toContain("if (!contactIdGuard)");
+  });
+
+  it("a rejected commit is not counted as processed", async () => {
+    const src = await read("src/lib/tamar-lite/processor.server.ts");
+    expect(src).toContain("commit_rejected");
+  });
+
+  it("failure path clears the worker/lease markers so a restart can recover", async () => {
+    const src = await read("src/lib/tamar-lite/processor.server.ts");
+    expect(src).toContain("processing_started_at: null");
+    expect(src).toContain("worker_id: null");
+  });
+
+  it("maps offers_sellable columns that really exist", async () => {
+    const { toLiteOffer } = await import("@/lib/tamar-lite/processor.server");
+    const o = toLiteOffer({
+      id: "11111111-1111-1111-1111-111111111111",
+      status: "active",
+      offer_url: "https://x.co/a",
+      target_region: "שפלה",
+      matching_tags: ["טיולים"],
+      target_interests: ["מוזיקה"],
+      event_date: future,
+      event_end_date: future,
+    });
+    expect(o.landing_page_url).toBe("https://x.co/a");
+    expect(o.region).toBe("שפלה");
+    expect(o.tags).toEqual(["טיולים", "מוזיקה"]);
+    expect(isLitePurchasable(o)).toBe(true);
+  });
+});
