@@ -248,11 +248,13 @@ describe("tamar lite stage 1 hardening", () => {
     expect(src).toMatch(/attempts >= MAX_ATTEMPTS \? "failed" : "pending"/);
   });
 
-  it("sales reads offers_sellable and real offer history", async () => {
+  it("sales reads the canonical catalog (offers_sellable) and real offer history", async () => {
     const src = await read("src/lib/tamar-lite/processor.server.ts");
-    expect(src).toContain('from("offers_sellable")');
+    expect(src).toContain("loadCatalog()");
     expect(src).not.toMatch(/from\("offers"\)/);
     expect(src).toContain("previously_offered: previouslyOffered");
+    const catalog = await read("src/lib/offer-catalog/catalog.server.ts");
+    expect(catalog).toContain('from("offers_sellable")');
   });
 
   it("parses previously offered ids from both shapes", async () => {

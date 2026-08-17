@@ -1939,6 +1939,9 @@ export type Database = {
         Row: {
           ai_summary: string | null
           base_price_per_person: number | null
+          catalog_analyzed_at: string | null
+          catalog_meta: Json
+          catalog_source_hash: string | null
           category: Database["public"]["Enums"]["offer_category"]
           couple_price: number | null
           created_at: string
@@ -1982,6 +1985,9 @@ export type Database = {
         Insert: {
           ai_summary?: string | null
           base_price_per_person?: number | null
+          catalog_analyzed_at?: string | null
+          catalog_meta?: Json
+          catalog_source_hash?: string | null
           category: Database["public"]["Enums"]["offer_category"]
           couple_price?: number | null
           created_at?: string
@@ -2025,6 +2031,9 @@ export type Database = {
         Update: {
           ai_summary?: string | null
           base_price_per_person?: number | null
+          catalog_analyzed_at?: string | null
+          catalog_meta?: Json
+          catalog_source_hash?: string | null
           category?: Database["public"]["Enums"]["offer_category"]
           couple_price?: number | null
           created_at?: string
@@ -4379,6 +4388,9 @@ export type Database = {
         Row: {
           ai_summary: string | null
           base_price_per_person: number | null
+          catalog_analyzed_at: string | null
+          catalog_meta: Json | null
+          catalog_source_hash: string | null
           category: Database["public"]["Enums"]["offer_category"] | null
           couple_price: number | null
           created_at: string | null
@@ -4422,6 +4434,9 @@ export type Database = {
         Insert: {
           ai_summary?: string | null
           base_price_per_person?: number | null
+          catalog_analyzed_at?: string | null
+          catalog_meta?: Json | null
+          catalog_source_hash?: string | null
           category?: Database["public"]["Enums"]["offer_category"] | null
           couple_price?: number | null
           created_at?: string | null
@@ -4465,6 +4480,9 @@ export type Database = {
         Update: {
           ai_summary?: string | null
           base_price_per_person?: number | null
+          catalog_analyzed_at?: string | null
+          catalog_meta?: Json | null
+          catalog_source_hash?: string | null
           category?: Database["public"]["Enums"]["offer_category"] | null
           couple_price?: number | null
           created_at?: string | null

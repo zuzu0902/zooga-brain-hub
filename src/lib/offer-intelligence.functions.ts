@@ -320,7 +320,14 @@ ${combined}
       const { error: updErr } = await sb.from("offers").update(update as any).eq("id", offerId);
       if (updErr) throw new Error(updErr.message);
 
-      return { success: true, offerId, ...update };
+      // Normalized catalog metadata (destination / holiday / months / audience)
+      // is derived deterministically from the fields we just wrote — no extra
+      // AI call — and every engine cache is invalidated immediately.
+      const { refreshOfferCatalogMeta } = await import("@/lib/offer-catalog/catalog.server");
+      const { data: fresh } = await sb.from("offers").select("*").eq("id", offerId).maybeSingle();
+      const catalog = fresh ? await refreshOfferCatalogMeta(fresh as any).catch(() => null) : null;
+
+      return { success: true, offerId, ...update, catalog_meta: catalog };
     } catch (e: any) {
       await sb
         .from("offers")

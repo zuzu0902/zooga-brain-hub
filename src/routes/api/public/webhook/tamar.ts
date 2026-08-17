@@ -27,8 +27,8 @@ import {
   parseInboundMessages,
   parseStatusUpdates,
   recordDelivery,
-  sendWhatsAppButtons,
-  sendWhatsAppText,
+  sendWhatsAppButtons as sendWhatsAppButtonsRaw,
+  sendWhatsAppText as sendWhatsAppTextRaw,
   toE164,
   verifyHubChallenge,
   verifyMetaSignature,
@@ -214,6 +214,20 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
         const jobByWamid = new Map<string, { jobId: string; vaultId: string; attempt: number }>();
         for (const msg of messages) {
           const vaultRef = vaultByEventId.get(msg.wamid) ?? null;
+          // ---- One reply per inbound (provider_message_id) ----
+          // Sales path and recommendation path can both fire in one turn; only
+          // the first send for this wamid is allowed to leave the system.
+          let repliedForWamid = false;
+          const sendWhatsAppText: typeof sendWhatsAppTextRaw = async (...args) => {
+            if (repliedForWamid) return { ok: false, skipped: "duplicate_reply_for_wamid" } as any;
+            repliedForWamid = true;
+            return sendWhatsAppTextRaw(...args);
+          };
+          const sendWhatsAppButtons: typeof sendWhatsAppButtonsRaw = async (...args) => {
+            if (repliedForWamid) return { ok: false, skipped: "duplicate_reply_for_wamid" } as any;
+            repliedForWamid = true;
+            return sendWhatsAppButtonsRaw(...args);
+          };
           const jobId = vaultRef && !vaultRef.duplicate ? await leaseJobForVault(vaultRef.vault_id, "webhook") : null;
           if (jobId && vaultRef) jobByWamid.set(msg.wamid, { jobId, vaultId: vaultRef.vault_id, attempt: await jobAttempts(jobId) });
           const contactCache: { id: string | null | undefined } = { id: undefined };

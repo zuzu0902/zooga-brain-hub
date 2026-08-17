@@ -12,6 +12,11 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
 import { buildPricingStateBlock } from "@/lib/offer-pricing-block";
 import {
+  resolveCatalogOffer,
+  commitActiveOffer,
+  commitConversationFacts,
+} from "@/lib/offer-catalog/catalog.server";
+import {
   computeIntakeSnapshot,
   selectNextIntakeField,
   composeIntakeDirective,
@@ -545,8 +550,22 @@ async function resolveCampaignAndOffer(
       if (offer) trail.push("contact_last_touch_offer");
     }
   }
+  // 3.5 — CANONICAL CATALOG: a real destination/product intent in THIS message
+  // (or a still-valid active_offer lock) always beats any sticky historical
+  // latch such as latest_interaction_offer.
+  const catalogRes = await resolveCatalogOffer({ message, contact }).catch(() => null);
+  const catalogLatch = !offer && !!catalogRes?.offer;
+  if (catalogLatch && catalogRes?.offer) {
+    offer = catalogRes.offer;
+    trail.push(`catalog_${catalogRes.match.status}`);
+  }
+  if (contact?.id) {
+    // facts from text or voice transcript; never erases a known value
+    await commitConversationFacts({ contactId: contact.id, text: message }).catch(() => null);
+  }
+
   // 4
-  if ((!campaign || !offer) && contact?.id) {
+  if ((!campaign || !offer) && contact?.id && !catalogLatch) {
     const { data: latest } = await supabaseAdmin
       .from("interactions")
       .select("campaign_id, related_offer_id, timestamp")
@@ -605,7 +624,10 @@ async function resolveCampaignAndOffer(
     activeOffersAll = (activeOffers as any[]) ?? [];
   }
 
-  const keywordMatched = keywordMatchOffer(message, activeOffersAll);
+  const keywordMatched =
+    catalogRes?.match.status === "match" && catalogRes.offer
+      ? catalogRes.offer
+      : keywordMatchOffer(message, activeOffersAll);
   let destinationOverride = false;
 
   // 6 + 7
@@ -646,7 +668,20 @@ async function resolveCampaignAndOffer(
     activeOffersAll,
     keywordMatchedOfferId: keywordMatched?.id ?? null,
     destinationOverride,
+    catalogMatch: catalogRes?.match ?? null,
+    catalogClarification: catalogRes?.match.status === "ambiguous" ? catalogRes.match.clarification : null,
   };
+}
+
+/** Persist the conversation's active-offer lock after a resolution. */
+async function persistActiveOffer(contactId: string | null | undefined, offer: any) {
+  if (!contactId || !offer?.id) return;
+  await commitActiveOffer({
+    contactId,
+    offerId: offer.id,
+    title: offer.title ?? null,
+    reason: "engine_resolution",
+  }).catch(() => undefined);
 }
 
 async function callModel(messages: Array<{ role: string; content: string }>) {
@@ -843,6 +878,7 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
   } = await resolveCampaignAndOffer(contact, body, message, {
     browseIntent: browseIntentDetected,
   });
+  await persistActiveOffer(contact?.id, offer);
 
   const { mode: conversationMode, reasons: conversationModeReasons } = decideConversationMode({
     message,
