@@ -15,6 +15,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppZeroLossRouteImport } from './routes/_app.zero-loss'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
+import { Route as AppTamarLiteRouteImport } from './routes/_app.tamar-lite'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
@@ -98,6 +99,11 @@ const AppZeroLossRoute = AppZeroLossRouteImport.update({
 const AppTasksRoute = AppTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTamarLiteRoute = AppTamarLiteRouteImport.update({
+  id: '/tamar-lite',
+  path: '/tamar-lite',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSendOfferRoute = AppSendOfferRouteImport.update({
@@ -416,6 +422,7 @@ export interface FileRoutesByFullPath {
   '/offers': typeof AppOffersRouteWithChildren
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
+  '/tamar-lite': typeof AppTamarLiteRoute
   '/tasks': typeof AppTasksRoute
   '/zero-loss': typeof AppZeroLossRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -477,6 +484,7 @@ export interface FileRoutesByTo {
   '/offers': typeof AppOffersRouteWithChildren
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
+  '/tamar-lite': typeof AppTamarLiteRoute
   '/tasks': typeof AppTasksRoute
   '/zero-loss': typeof AppZeroLossRoute
   '/': typeof AppIndexRoute
@@ -541,6 +549,7 @@ export interface FileRoutesById {
   '/_app/offers': typeof AppOffersRouteWithChildren
   '/_app/runtime-trace': typeof AppRuntimeTraceRoute
   '/_app/send-offer': typeof AppSendOfferRoute
+  '/_app/tamar-lite': typeof AppTamarLiteRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/zero-loss': typeof AppZeroLossRoute
   '/_app/': typeof AppIndexRoute
@@ -606,6 +615,7 @@ export interface FileRouteTypes {
     | '/offers'
     | '/runtime-trace'
     | '/send-offer'
+    | '/tamar-lite'
     | '/tasks'
     | '/zero-loss'
     | '/.lovable/oauth/consent'
@@ -667,6 +677,7 @@ export interface FileRouteTypes {
     | '/offers'
     | '/runtime-trace'
     | '/send-offer'
+    | '/tamar-lite'
     | '/tasks'
     | '/zero-loss'
     | '/'
@@ -730,6 +741,7 @@ export interface FileRouteTypes {
     | '/_app/offers'
     | '/_app/runtime-trace'
     | '/_app/send-offer'
+    | '/_app/tamar-lite'
     | '/_app/tasks'
     | '/_app/zero-loss'
     | '/_app/'
@@ -860,6 +872,13 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof AppTasksRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tamar-lite': {
+      id: '/_app/tamar-lite'
+      path: '/tamar-lite'
+      fullPath: '/tamar-lite'
+      preLoaderRoute: typeof AppTamarLiteRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/send-offer': {
@@ -1300,6 +1319,7 @@ interface AppRouteChildren {
   AppOffersRoute: typeof AppOffersRouteWithChildren
   AppRuntimeTraceRoute: typeof AppRuntimeTraceRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
+  AppTamarLiteRoute: typeof AppTamarLiteRoute
   AppTasksRoute: typeof AppTasksRoute
   AppZeroLossRoute: typeof AppZeroLossRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1322,6 +1342,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOffersRoute: AppOffersRouteWithChildren,
   AppRuntimeTraceRoute: AppRuntimeTraceRoute,
   AppSendOfferRoute: AppSendOfferRoute,
+  AppTamarLiteRoute: AppTamarLiteRoute,
   AppTasksRoute: AppTasksRoute,
   AppZeroLossRoute: AppZeroLossRoute,
   AppIndexRoute: AppIndexRoute,
