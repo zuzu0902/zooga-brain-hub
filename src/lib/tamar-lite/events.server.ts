@@ -57,6 +57,7 @@ export type LiteSignals = {
   source_type?: "text" | "voice" | "interactive";
   is_opt_out?: boolean;
   is_handoff_request?: boolean;
+  handoff_declined?: boolean;
   is_direct_question?: boolean;
   is_topic_shift?: boolean;
   consent_granted?: boolean;

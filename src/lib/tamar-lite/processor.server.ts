@@ -81,6 +81,7 @@ function toInbound(row: any): LiteInbound {
     source_type: (p.source_type ?? "text") as LiteInbound["source_type"],
     is_opt_out: !!p.is_opt_out,
     is_handoff_request: !!p.is_handoff_request,
+    handoff_declined: !!p.handoff_declined,
     is_direct_question: !!p.is_direct_question,
     is_topic_shift: !!p.is_topic_shift,
     consent_granted: !!p.consent_granted,

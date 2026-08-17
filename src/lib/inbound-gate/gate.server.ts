@@ -9,6 +9,7 @@
  * that consumed it — which is the instrumentation proving that each reply
  * route went through gate + Conversation Progress Guard.
  */
+import { assistantOfferedHandoff } from "@/lib/handoff-intent";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { maskPhone } from "@/lib/zero-loss/core";
 import { quiet } from "@/lib/db-safe";
@@ -155,6 +156,7 @@ function fromRow(row: any, context: InboundContext): GateResult {
       source_type: (row.source_type ?? "text") as SourceType,
       loop_signal: false,
       classifier_status: row.classifier_status ?? "ok",
+      handoff_intent: row.handoff_intent ?? "none",
     },
   };
 }
@@ -222,6 +224,7 @@ export async function runInboundGate(args: {
       currentQuestionKey: context.current_question_key,
       currentQuestionText: context.current_question_text,
       consentPending: context.consent_pending,
+      offeredHandoff: assistantOfferedHandoff(context.current_question_text),
     });
     // A low-confidence voice transcript is never treated as a captured answer.
     if (

@@ -4,11 +4,15 @@
  * and never depend on the model.
  */
 
+import { classifyHandoffIntent, isHandoffDecline } from "@/lib/handoff-intent";
+
 export type HandoffSignal = {
   handoff: boolean;
   urgency: "low" | "normal" | "high";
   reason: string;
   reason_codes: string[];
+  /** requested / confirmed / declined / none — ownership may change on the first two */
+  intent?: "none" | "requested" | "declined" | "confirmed";
 };
 
 const EXPLICIT_HUMAN_RE =
@@ -23,11 +27,18 @@ const PAYMENT_RE =
 const DISTRESS_RE =
   /(מדוכא|דיכאון|בודד\s+מאוד|אני\s+בודדה?\s+נורא|לא\s+רוצה\s+לחיות|אובדני|מצוקה|משבר|חרדה\s+קשה|אלמן|אלמנה|נפטר|התאבד|suicid|depress|crisis)/i;
 
-/** Deterministic handoff triggers on the INBOUND message. */
-export function detectHandoffSignal(message: string | null | undefined): HandoffSignal {
+/**
+ * Deterministic handoff triggers on the INBOUND message.
+ * An explicit refusal ("אבל לא ביקשתי לעבור מנהל") NEVER produces a handoff.
+ */
+export function detectHandoffSignal(
+  message: string | null | undefined,
+  opts?: { offeredHandoff?: boolean },
+): HandoffSignal {
   const text = String(message ?? "");
   const codes: string[] = [];
   let urgency: HandoffSignal["urgency"] = "normal";
+  const declined = isHandoffDecline(text);
 
   if (DISTRESS_RE.test(text)) {
     codes.push("distress");
@@ -41,15 +52,24 @@ export function detectHandoffSignal(message: string | null | undefined): Handoff
     codes.push("payment_issue");
     urgency = "high";
   }
-  if (EXPLICIT_HUMAN_RE.test(text)) {
-    codes.push("explicit_human_request");
-  }
+  const intentRes = classifyHandoffIntent({
+    text,
+    offeredHandoff: opts?.offeredHandoff,
+    explicitRequest: EXPLICIT_HUMAN_RE.test(text),
+  });
+  if (intentRes.positive) codes.push("explicit_human_request");
+  if (declined) codes.push("handoff_declined");
+
+  const positiveCodes = codes.filter((c) => c !== "handoff_declined");
+  // A correction like "לא ביקשתי מנהל" must not escalate on its own.
+  const handoff = declined ? positiveCodes.some((c) => c !== "explicit_human_request") : positiveCodes.length > 0;
 
   return {
-    handoff: codes.length > 0,
+    handoff,
     urgency,
-    reason: codes[0] ?? "none",
+    reason: (handoff ? positiveCodes[0] : codes[0]) ?? "none",
     reason_codes: codes,
+    intent: intentRes.intent,
   };
 }
 

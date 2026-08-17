@@ -1,0 +1,1 @@
+ALTER VIEW public.offers_sellable SET (security_invoker = on);
