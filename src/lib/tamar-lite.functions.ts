@@ -22,7 +22,9 @@ export const getTamarLiteStatus = createServerFn({ method: "GET" })
       const { count: c } = await q;
       return c ?? 0;
     };
-    const [settings, total, backlog, processed, failed, processing, decisions, outbox, counters] = await Promise.all([
+    const staleCutoff = new Date(Date.now() - 300_000).toISOString();
+    const [settings, total, backlog, processed, failed, processing, decisions, outbox, counters, stale, recovered] =
+      await Promise.all([
       db.from("tamar_lite_settings").select("mode,kill_switch,updated_at").eq("id", true).maybeSingle(),
       count(),
       count("pending"),
@@ -36,6 +38,15 @@ export const getTamarLiteStatus = createServerFn({ method: "GET" })
         .limit(20),
       db.from("tamar_lite_outbox").select("id", { count: "exact", head: true }),
       db.from("tamar_lite_events").select("duplicate_count,conflict_count"),
+      db
+        .from("tamar_lite_events")
+        .select("id", { count: "exact", head: true })
+        .eq("processing_state", "processing")
+        .lt("processing_started_at", staleCutoff),
+      db
+        .from("tamar_lite_events")
+        .select("id", { count: "exact", head: true })
+        .eq("error", "recovered_stale_processing"),
     ]);
     const rows = (counters.data ?? []) as { duplicate_count: number | null; conflict_count: number | null }[];
     const duplicates = rows.reduce((s, r) => s + (r.duplicate_count ?? 0), 0);
@@ -43,7 +54,17 @@ export const getTamarLiteStatus = createServerFn({ method: "GET" })
     return {
       mode: settings.data?.mode ?? "shadow",
       kill_switch: settings.data?.kill_switch !== false,
-      totals: { total, backlog, processed, failures: failed, in_flight: processing, duplicates, conflicts },
+      totals: {
+        total,
+        backlog,
+        processed,
+        failures: failed,
+        in_flight: processing,
+        duplicates,
+        conflicts,
+        stale: stale.count ?? 0,
+        recovered: recovered.count ?? 0,
+      },
       outbox_rows: outbox.count ?? 0,
       decisions: (decisions.data ?? []) as any[],
     };

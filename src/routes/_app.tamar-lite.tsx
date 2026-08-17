@@ -52,6 +52,8 @@ function TamarLitePage() {
         <Stat label="כשלים" value={data?.totals.failures ?? 0} />
         <Stat label="כפילויות" value={data?.totals.duplicates ?? 0} />
         <Stat label="התנגשויות" value={data?.totals.conflicts ?? 0} />
+        <Stat label="תקועים (stale)" value={data?.totals.stale ?? 0} />
+        <Stat label="שוחזרו" value={data?.totals.recovered ?? 0} />
         <Stat label="Outbox (לא נשלח)" value={data?.outbox_rows ?? 0} />
       </div>
 
