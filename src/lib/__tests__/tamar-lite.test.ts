@@ -29,7 +29,16 @@ const inbound = (over: Partial<LiteInbound> = {}): LiteInbound => ({
   ...over,
 });
 
-const fact = (v: string) => ({ value_text: v, explicit_or_inferred: "explicit" as const, confidence: 100 });
+const fact = (v: string): any => ({
+  field_key: "x",
+  value_text: v,
+  explicit_or_inferred: "explicit",
+  confidence: 100,
+  source: "test",
+  source_message_id: null,
+  evidence: null,
+  observed_at: new Date().toISOString(),
+});
 
 const base = {
   conversation: conv(),
