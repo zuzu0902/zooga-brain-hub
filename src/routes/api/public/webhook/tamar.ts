@@ -12,7 +12,7 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { splitMetaEvents, classifyFailure } from "@/lib/zero-loss/core";
+import { splitMetaEvents, classifyFailure, maskPhone } from "@/lib/zero-loss/core";
 import { classifyTurnOutcome, isValidNoReplyReason } from "@/lib/zero-loss/turn-outcome";
 import { ingestEvent, leaseJobForVault, finishJob, quarantineEvent } from "@/lib/zero-loss/vault.server";
 import { registerIdentity, resolveIdentity } from "@/lib/zero-loss/identity.server";
