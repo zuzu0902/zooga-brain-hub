@@ -14,6 +14,7 @@ import { Check, ChevronsUpDown, Plus, Tag, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORY_LABELS } from "@/lib/i18n";
 import { toast } from "sonner";
+import { notifyCatalogChanged } from "@/lib/offer-catalog/notify";
 import { CURRENCIES, formatPrice } from "@/lib/currency";
 import { useT, useLanguage } from "@/lib/language-context";
 import { validateOfferDates } from "@/lib/offer-sellable";

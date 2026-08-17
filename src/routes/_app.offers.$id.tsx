@@ -16,6 +16,7 @@ import { CATEGORY_LABELS, INTEREST_LABELS, ALL_INTERESTS, SPENDING_LABELS, forma
 import { ContextBanner } from "@/components/context-banner";
 import { CURRENCIES, formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
+import { notifyCatalogChanged } from "@/lib/offer-catalog/notify";
 import { useT, useLanguage } from "@/lib/language-context";
 import { validateOfferDates, validateReactivation } from "@/lib/offer-sellable";
 

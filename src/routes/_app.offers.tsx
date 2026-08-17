@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { notifyCatalogChanged } from "@/lib/offer-catalog/notify";
 import { CATEGORY_LABELS, INTEREST_LABELS } from "@/lib/i18n";
 import { ContextBanner } from "@/components/context-banner";
 import { formatPrice } from "@/lib/currency";
