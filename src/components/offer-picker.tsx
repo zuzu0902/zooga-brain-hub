@@ -149,6 +149,7 @@ function CreateOfferDialog({ open, onOpenChange, onCreated }: any) {
     }).select("id").single();
     setSaving(false);
     if (error) { toast.error(error.message); return; }
+    await notifyCatalogChanged({ kind: "create", offerId: data?.id ?? null });
     toast.success(t("הצעה נוצרה ושויכה"));
     onOpenChange(false);
     setS({ title: "", description: "", category: "event", price: "", currency: "ILS", status: "active", event_date: "", event_end_date: "" });
