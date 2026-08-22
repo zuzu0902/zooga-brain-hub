@@ -64,21 +64,28 @@ async function loadSurfaces(contactIds?: string[]) {
     : await liteQuery;
   const lite = ((liteRows as any[]) ?? []).filter((l) => !isProtected(l.contact_id));
 
-  const ids = Array.from(
-    new Set([...(contactIds ?? []), ...lite.map((l) => String(l.contact_id))].filter(Boolean)),
-  ).filter((id) => !isProtected(id));
-
-  const { data: contactRows } = ids.length
-    ? await supabaseAdmin.from("contacts").select("*").in("id", ids)
-    : { data: [] as any[] };
-  const contacts = ((contactRows as any[]) ?? []);
-
   const { data: handoffRows } = await supabaseAdmin
     .from("manager_handoffs")
     .select("id, contact_id, status, resolved_at, updated_at, notes")
     .in("status", OPEN_HANDOFF_STATUSES)
     .limit(500);
   const handoffs = ((handoffRows as any[]) ?? []).filter((h) => !isProtected(h.contact_id));
+
+  const ids = Array.from(
+    new Set(
+      [
+        ...(contactIds ?? []),
+        ...lite.map((l) => String(l.contact_id)),
+        // handoff owners must be loaded too, or their canonical state is unknown
+        ...handoffs.map((h) => (h.contact_id ? String(h.contact_id) : "")),
+      ].filter(Boolean),
+    ),
+  ).filter((id) => !isProtected(id));
+
+  const { data: contactRows } = ids.length
+    ? await supabaseAdmin.from("contacts").select("*").in("id", ids)
+    : { data: [] as any[] };
+  const contacts = ((contactRows as any[]) ?? []);
 
   const { data: eventRows } = await supabaseAdmin
     .from("tamar_lite_events" as any)
@@ -89,6 +96,7 @@ async function loadSurfaces(contactIds?: string[]) {
 
   return { contacts, lite, handoffs, pendingEvents };
 }
+
 
 async function sellableIds(): Promise<string[]> {
   try {
