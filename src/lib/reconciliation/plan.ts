@@ -138,10 +138,14 @@ export function planLiteAlign(surface: ContactSurface): ReconcileAction | null {
     sellableOfferIds: surface.sellableOfferIds,
     nextQuestionKey: surface.nextQuestionKey,
   });
+  const nextKey =
+    canonical.phase === "intake" && !LEGACY_QUESTION_KEYS.includes(String(canonical.current_question_key ?? ""))
+      ? canonical.current_question_key
+      : null;
   const target = {
     phase: canonical.phase,
     human_owned: canonical.human_owned,
-    current_question_key: canonical.phase === "intake" ? canonical.current_question_key : null,
+    current_question_key: nextKey,
   };
   const before = {
     phase: lite.phase ?? null,
