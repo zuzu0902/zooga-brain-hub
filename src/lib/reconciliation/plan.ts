@@ -127,6 +127,17 @@ export function planOfferLockClear(contact: any): ReconcileAction | null {
   };
 }
 
+/**
+ * Legacy relationship-intake questions: never re-armed by reconciliation.
+ * The live resolver picks the next question on the next real inbound.
+ */
+export const LEGACY_QUESTION_KEYS = [
+  "looking_for_relationship",
+  "relationship_status",
+  "partner_status",
+  "relationship_goal",
+];
+
 /** Align the Lite mirror with the canonical state derived from `contacts`. */
 export function planLiteAlign(surface: ContactSurface): ReconcileAction | null {
   const { contact, lite } = surface;
