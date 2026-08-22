@@ -235,6 +235,17 @@ describe("canonical reconciliation — planner", () => {
     expect(actions).toEqual([]);
   });
 
+  it("a legacy relationship question is never re-armed", () => {
+    const a = planLiteAlign({
+      contact: contact2620,
+      lite: lite2620,
+      nextQuestionKey: "looking_for_relationship",
+      sellableOfferIds: [],
+    })!;
+    expect((a.after as any).phase).toBe("intake");
+    expect((a.after as any).current_question_key).toBeNull();
+  });
+
   it("summary counts every planned action kind", () => {
     const s = summarize(planReconciliation(baseInput()));
     expect(s.offer_lock_conflict_clear).toBe(1);
