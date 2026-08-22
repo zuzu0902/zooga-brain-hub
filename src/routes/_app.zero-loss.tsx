@@ -23,6 +23,7 @@ import {
   runZeroLossBackfill,
   searchIdentities,
 } from "@/lib/zero-loss.functions";
+import { runCanonicalReconciliationFn } from "@/lib/reconciliation.functions";
 
 export const Route = createFileRoute("/_app/zero-loss")({
   component: ZeroLossPage,
@@ -108,6 +109,22 @@ function ZeroLossPage() {
       ),
   });
 
+
+  const [canonReport, setCanonReport] = useState<any>(null);
+  const canonical = useMutation({
+    mutationFn: useServerFn(runCanonicalReconciliationFn),
+    onSuccess: (r: any) => {
+      setCanonReport(r);
+      toast.success(
+        r.dry_run
+          ? `Dry-run: ${r.actions.length} פעולות מוצעות (ללא כתיבה)`
+          : `בוצעו ${r.applied} תיקונים · ${r.failed} כשלים`,
+      );
+      invalidate();
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e)),
+  });
+
   const m = overview.data?.metrics;
   const gate = overview.data?.gate;
   const banner = overview.data?.health_banner;
@@ -130,6 +147,64 @@ function ZeroLossPage() {
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Canonical Reconciliation (contacts ↔ Lite ↔ handoffs ↔ events)</CardTitle>
+          <div className="text-xs text-muted-foreground">
+            dry-run תחילה · אידמפוטנטי · ללא שליחה, ללא activation, ללא מחיקה · audit מלא ב-zero_loss_audit_log
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              disabled={canonical.isPending}
+              onClick={() => canonical.mutate({ data: { apply: false } })}
+            >
+              Dry-run
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={canonical.isPending}
+              onClick={() => {
+                if (confirm("להחיל את התיקונים הקנוניים? נשמר audit מלא before/after.")) {
+                  canonical.mutate({ data: { apply: true } });
+                }
+              }}
+            >
+              Apply
+            </Button>
+          </div>
+          {canonReport && (
+            <div className="space-y-2 text-sm">
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(canonReport.summary ?? {}).map(([k, v]: any) => (
+                  <Badge key={k} variant={v ? "default" : "outline"}>
+                    {k}: {v}
+                  </Badge>
+                ))}
+                <Badge variant="outline">{canonReport.dry_run ? "DRY-RUN" : `APPLIED ${canonReport.applied}`}</Badge>
+              </div>
+              {(canonReport.actions ?? []).map((a: any, i: number) => (
+                <div key={i} className="rounded-md border border-border p-2 text-xs space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{a.kind}</Badge>
+                    <span className="font-mono">{a.table}</span>
+                    <span className="font-mono">{a.row_id_masked}</span>
+                    <span className="text-muted-foreground">{a.reason}</span>
+                    {a.applied && <Badge>applied</Badge>}
+                    {a.error && <Badge variant="destructive">{a.error}</Badge>}
+                  </div>
+                  <div className="text-muted-foreground break-all">before: {JSON.stringify(a.before)}</div>
+                  <div className="break-all">after: {JSON.stringify(a.after)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
       {banner && banner !== "ok" && (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
