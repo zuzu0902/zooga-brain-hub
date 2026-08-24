@@ -398,13 +398,39 @@ function BroadcastsPage() {
                   </Button>
                 ))}
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  className="max-w-xs"
+                  placeholder="חיפוש קבוצה לפי שם או חלק מהשם…"
+                  value={groupQuery}
+                  onChange={(e) => setGroupQuery(e.target.value)}
+                />
+                {!!groupQuery && (
+                  <Button size="sm" variant="ghost" onClick={() => setGroupQuery("")}>
+                    ניקוי חיפוש
+                  </Button>
+                )}
+                <Badge variant="secondary">{visibleGroups.length} מוצגות</Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ms-auto"
+                  disabled={syncGroups.isPending}
+                  onClick={() => syncGroups.mutate({} as any)}
+                >
+                  {syncGroups.isPending ? "מרענן…" : "רענון רשימת קבוצות"}
+                </Button>
+              </div>
               {!groups.length && (
                 <div className="text-sm text-muted-foreground">
-                  אין קבוצות מסונכרנות. סנכרון הקבוצות יתבצע ע״י הגשר החיצוני לאחר חיבורו.
+                  אין קבוצות מסונכרנות. יש ללחוץ על ״רענון רשימת קבוצות״ לאחר חיבור הגשר.
                 </div>
               )}
+              {!!groups.length && !visibleGroups.length && (
+                <div className="text-sm text-muted-foreground">לא נמצאו קבוצות שתואמות לחיפוש</div>
+              )}
               <div className="grid gap-2 sm:grid-cols-2">
-                {groups.map((g) => (
+                {visibleGroups.map((g) => (
                   <label
                     key={g.id}
                     className="flex items-center gap-3 rounded-md border border-border p-2 text-sm"
