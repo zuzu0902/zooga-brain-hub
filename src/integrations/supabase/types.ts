@@ -5234,6 +5234,10 @@ export type Database = {
         Args: { p_base_backoff_seconds?: number; p_error: string; p_id: string }
         Returns: undefined
       }
+      zooga_verify_scheduler_token_hash: {
+        Args: { _candidate_hash: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "user"
