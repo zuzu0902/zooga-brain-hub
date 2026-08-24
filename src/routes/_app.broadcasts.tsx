@@ -27,7 +27,10 @@ import {
   validateBroadcastDraft,
   type WaConnection,
 } from "@/lib/whatsapp-broadcast/core";
+import { getBridgeStatus } from "@/lib/whatsapp-bridge.functions";
+import { BRIDGE_STATE_LABELS, type BridgeStatus } from "@/lib/zooga-whatsapp-bridge/bridge-contract";
 import { formatDate } from "@/lib/i18n";
+
 
 export const Route = createFileRoute("/_app/broadcasts")({
   component: BroadcastsPage,
@@ -53,7 +56,15 @@ function BroadcastsPage() {
   const groupsQ = useQuery({ queryKey: ["wa", "groups"], queryFn: () => groupsFn({}) });
   const historyQ = useQuery({ queryKey: ["wa", "broadcasts"], queryFn: () => historyFn({}) });
 
+  const bridgeStatusFn = useServerFn(getBridgeStatus);
+  const bridgeStatusQ = useQuery({
+    queryKey: ["wa", "bridge", "status"],
+    queryFn: () => bridgeStatusFn({}),
+    refetchInterval: 30_000,
+  });
+  const bridgeStatus = bridgeStatusQ.data as BridgeStatus | undefined;
   const bridge = ((connections.data ?? []) as WaConnection[]).find(canOwnGroupBroadcast) ?? null;
+
   const groups = useMemo(
     () => ((groupsQ.data ?? []) as any[]).filter((g) => bridge && g.connection_id === bridge.id),
     [groupsQ.data, bridge],
@@ -132,9 +143,27 @@ function BroadcastsPage() {
         </div>
       )}
 
-      <div className="rounded-md border border-border bg-muted/40 p-3 text-xs">
-        מצב Control Plane: יצירה או תזמון של הפצה אינם שולחים דבר. סטטוס «בתור» הוא מצב בקרה בלבד עד לחיבור הגשר החיצוני.
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 p-3 text-xs">
+        <span className="font-semibold">גשר Alex Personal:</span>
+        {!bridgeStatus?.configured ? (
+          <Badge variant="outline" className="bg-muted text-muted-foreground">שרת הגשר אינו מוגדר</Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className={
+              bridgeStatus.connected
+                ? "bg-green-500/10 text-green-700 border-green-500/30"
+                : "bg-destructive/10 text-destructive border-destructive/30"
+            }
+          >
+            {BRIDGE_STATE_LABELS[bridgeStatus.state]}
+          </Badge>
+        )}
+        <span>
+          מצב Control Plane: יצירה או תזמון של הפצה אינם שולחים דבר. שליחה חיה תתאפשר רק כשהגשר מחובר ומופעל בשרת.
+        </span>
       </div>
+
 
       <Tabs defaultValue="compose" dir="rtl">
         <TabsList>
