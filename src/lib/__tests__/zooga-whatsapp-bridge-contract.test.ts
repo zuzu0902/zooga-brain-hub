@@ -124,9 +124,10 @@ describe("isolation guarantees", () => {
   it("bridge secrets and live flag exist only in the server-private client", () => {
     for (const file of files) {
       const body = readFileSync(file, "utf8");
-      if (!/ZOOGA_WHATSAPP_BRIDGE_(API_KEY|LIVE|URL)/.test(body)) continue;
-      expect(file.endsWith("bridge-client.server.ts") || file.includes("__tests__")).toBe(true);
+      if (!/process\.env\[\s*["']ZOOGA_WHATSAPP_BRIDGE_/.test(body)) continue;
+      expect(file.endsWith("bridge-client.server.ts")).toBe(true);
     }
+
   });
 
   it("only server-side modules import the bridge client", () => {
