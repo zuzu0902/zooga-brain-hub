@@ -25,7 +25,26 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
   const t = useT();
   const [status, setStatus] = useState<GatewayStatus | null>(initialStatus);
   const [loading, setLoading] = useState(false);
+  const [draining, setDraining] = useState(false);
   const lastFetch = useRef(0);
+
+  const drain = useCallback(async () => {
+    setDraining(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch("/api/zooga/gateway-status", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: "no-store",
+      });
+      setStatus((await res.json()) as GatewayStatus);
+    } catch {
+      /* status-only action: a failure changes nothing */
+    } finally {
+      setDraining(false);
+    }
+  }, []);
 
   const load = useCallback(async (force = false) => {
     const now = Date.now();
