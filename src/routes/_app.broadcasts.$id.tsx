@@ -70,6 +70,54 @@ function BroadcastDetailsPage() {
           </Card>
 
           <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">תצוגת הצלחת שליחה</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {(() => {
+                const total = b.total_groups || 0;
+                const sent = b.success_count ?? 0;
+                const failed = b.failed_count ?? 0;
+                const pending = b.pending_count ?? 0;
+                const done = sent + failed;
+                const pct = total ? Math.round((done / total) * 100) : 0;
+                const rate = done ? Math.round((sent / done) * 100) : 0;
+                return (
+                  <>
+                    <div className="flex flex-wrap items-baseline gap-3">
+                      <span className="text-3xl font-semibold">{rate}%</span>
+                      <span className="text-muted-foreground">שיעור הצלחה ({sent} מתוך {done} שבוצעו)</span>
+                    </div>
+                    <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div className="h-full bg-success" style={{ width: `${total ? (sent / total) * 100 : 0}%` }} />
+                      <div className="h-full bg-destructive" style={{ width: `${total ? (failed / total) * 100 : 0}%` }} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div className="rounded-md border border-border p-2 text-center">
+                        <div className="text-lg font-semibold">{total}</div>
+                        <div className="text-xs text-muted-foreground">סה״כ קבוצות</div>
+                      </div>
+                      <div className="rounded-md border border-border p-2 text-center">
+                        <div className="text-lg font-semibold text-success">{sent}</div>
+                        <div className="text-xs text-muted-foreground">נשלחו</div>
+                      </div>
+                      <div className="rounded-md border border-border p-2 text-center">
+                        <div className="text-lg font-semibold text-destructive">{failed}</div>
+                        <div className="text-xs text-muted-foreground">נכשלו</div>
+                      </div>
+                      <div className="rounded-md border border-border p-2 text-center">
+                        <div className="text-lg font-semibold">{pending}</div>
+                        <div className="text-xs text-muted-foreground">ממתינות</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">התקדמות כוללת: {pct}%</div>
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardContent className="p-0">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs text-muted-foreground">
