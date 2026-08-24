@@ -301,8 +301,10 @@ function BroadcastsPage() {
         <TabsList>
           <TabsTrigger value="compose">הפצה חדשה</TabsTrigger>
           <TabsTrigger value="groups">קבוצות ({groups.length})</TabsTrigger>
+          <TabsTrigger value="queue">תור מתוזמן ({queued.length})</TabsTrigger>
           <TabsTrigger value="history">היסטוריה</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="compose" className="space-y-4 pt-4">
           <Card>
