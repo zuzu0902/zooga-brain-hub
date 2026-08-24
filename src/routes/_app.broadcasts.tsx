@@ -330,6 +330,59 @@ function BroadcastsPage() {
                   onChange={(e) => setScheduledFor(e.target.value)}
                 />
               </div>
+
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) void uploadMedia(file);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`cursor-pointer rounded-md border-2 border-dashed p-4 text-center text-sm transition-colors ${
+                  dragOver ? "border-primary bg-primary/5" : "border-border bg-muted/20"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadMedia(file);
+                    e.target.value = "";
+                  }}
+                />
+                {uploading ? (
+                  <span className="text-muted-foreground">מעלה תמונה…</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    גררו לכאן תמונה/באנר או לחצו לבחירת קובץ (עד 15MB)
+                  </span>
+                )}
+              </div>
+              {!!mediaUrl && (
+                <div className="flex items-center gap-3 rounded-md border border-border p-2">
+                  <img
+                    src={mediaUrl}
+                    alt="תצוגה מקדימה של מדיית ההפצה"
+                    loading="lazy"
+                    className="h-16 w-16 rounded object-cover"
+                  />
+                  <span className="flex-1 truncate text-xs text-muted-foreground" dir="ltr">
+                    {mediaUrl}
+                  </span>
+                  <Button size="sm" variant="ghost" onClick={() => setMediaUrl("")}>
+                    הסרה
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
