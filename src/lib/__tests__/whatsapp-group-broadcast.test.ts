@@ -111,7 +111,7 @@ describe("WhatsApp group broadcast — control plane only", () => {
 
   it("server functions gate every entry point on admin and reject non-bridge connections", () => {
     const src = readFileSync(join(ROOT, "src/lib/whatsapp-broadcast.functions.ts"), "utf8");
-    const handlers = src.match(/createServerFn/g) ?? [];
+    const handlers = src.match(/createServerFn\(\{/g) ?? [];
     const gates = src.match(/assertAdmin\(context\)/g) ?? [];
     expect(gates.length).toBe(handlers.length);
     expect(src).toContain("canOwnGroupBroadcast");
