@@ -12,7 +12,7 @@ import {
   validateBroadcastDraft,
   type WaConnection,
 } from "@/lib/whatsapp-broadcast/core";
-import { validateFolderName } from "@/lib/whatsapp-broadcast/folders";
+import { DEFAULT_BROADCAST_INTERVAL_SECONDS, validateFolderName } from "@/lib/whatsapp-broadcast/folders";
 
 async function assertAdmin(context: any) {
   const { data, error } = await context.supabase.rpc("has_role", {
