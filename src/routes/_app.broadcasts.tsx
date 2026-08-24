@@ -5,7 +5,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,8 +36,13 @@ import {
   validateFolderName,
   type GroupFolder,
 } from "@/lib/whatsapp-broadcast/folders";
-import { getBridgeStatus } from "@/lib/whatsapp-bridge.functions";
-import { BRIDGE_STATE_LABELS, type BridgeStatus } from "@/lib/zooga-whatsapp-bridge/bridge-contract";
+import { getBridgeStatus, syncBridgeGroups } from "@/lib/whatsapp-bridge.functions";
+import {
+  BRIDGE_ERROR_LABELS,
+  BRIDGE_STATE_LABELS,
+  type BridgeStatus,
+} from "@/lib/zooga-whatsapp-bridge/bridge-contract";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/i18n";
 
 
@@ -95,11 +100,67 @@ function BroadcastsPage() {
   const [message, setMessage] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
+  const [groupQuery, setGroupQuery] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const categories = useMemo(
     () => Array.from(new Set(groups.map((g) => g.category).filter(Boolean))) as string[],
     [groups],
   );
+
+  const visibleGroups = useMemo(() => {
+    const q = groupQuery.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) =>
+      [g.current_name, g.category].filter(Boolean).some((v: string) => String(v).toLowerCase().includes(q)),
+    );
+  }, [groups, groupQuery]);
+
+  const syncGroups = useMutation({
+    mutationFn: useServerFn(syncBridgeGroups),
+    onSuccess: (r: any) => {
+      if (r?.ok === false) {
+        toast.error(BRIDGE_ERROR_LABELS[r.code] ?? "רענון הקבוצות נכשל");
+        return;
+      }
+      toast.success("רשימת הקבוצות רועננה");
+      qc.invalidateQueries({ queryKey: ["wa", "groups"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "רענון הקבוצות נכשל"),
+  });
+
+  const uploadMedia = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("ניתן להעלות קובץ תמונה בלבד");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("הקובץ גדול מדי (עד 15MB)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `broadcasts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("broadcast-media").upload(path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+      if (error) throw error;
+      const { data, error: signErr } = await supabase.storage
+        .from("broadcast-media")
+        .createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (signErr || !data?.signedUrl) throw signErr ?? new Error("יצירת קישור נכשלה");
+      setMediaUrl(data.signedUrl);
+      toast.success("התמונה הועלתה וצורפה להפצה");
+    } catch (e: any) {
+      toast.error(e?.message ?? "העלאת המדיה נכשלה");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const create = useMutation({
     mutationFn: useServerFn(createBroadcast),
@@ -269,6 +330,59 @@ function BroadcastsPage() {
                   onChange={(e) => setScheduledFor(e.target.value)}
                 />
               </div>
+
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) void uploadMedia(file);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`cursor-pointer rounded-md border-2 border-dashed p-4 text-center text-sm transition-colors ${
+                  dragOver ? "border-primary bg-primary/5" : "border-border bg-muted/20"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadMedia(file);
+                    e.target.value = "";
+                  }}
+                />
+                {uploading ? (
+                  <span className="text-muted-foreground">מעלה תמונה…</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    גררו לכאן תמונה/באנר או לחצו לבחירת קובץ (עד 15MB)
+                  </span>
+                )}
+              </div>
+              {!!mediaUrl && (
+                <div className="flex items-center gap-3 rounded-md border border-border p-2">
+                  <img
+                    src={mediaUrl}
+                    alt="תצוגה מקדימה של מדיית ההפצה"
+                    loading="lazy"
+                    className="h-16 w-16 rounded object-cover"
+                  />
+                  <span className="flex-1 truncate text-xs text-muted-foreground" dir="ltr">
+                    {mediaUrl}
+                  </span>
+                  <Button size="sm" variant="ghost" onClick={() => setMediaUrl("")}>
+                    הסרה
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -337,13 +451,39 @@ function BroadcastsPage() {
                   </Button>
                 ))}
               </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  className="max-w-xs"
+                  placeholder="חיפוש קבוצה לפי שם או חלק מהשם…"
+                  value={groupQuery}
+                  onChange={(e) => setGroupQuery(e.target.value)}
+                />
+                {!!groupQuery && (
+                  <Button size="sm" variant="ghost" onClick={() => setGroupQuery("")}>
+                    ניקוי חיפוש
+                  </Button>
+                )}
+                <Badge variant="secondary">{visibleGroups.length} מוצגות</Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ms-auto"
+                  disabled={syncGroups.isPending}
+                  onClick={() => syncGroups.mutate({} as any)}
+                >
+                  {syncGroups.isPending ? "מרענן…" : "רענון רשימת קבוצות"}
+                </Button>
+              </div>
               {!groups.length && (
                 <div className="text-sm text-muted-foreground">
-                  אין קבוצות מסונכרנות. סנכרון הקבוצות יתבצע ע״י הגשר החיצוני לאחר חיבורו.
+                  אין קבוצות מסונכרנות. יש ללחוץ על ״רענון רשימת קבוצות״ לאחר חיבור הגשר.
                 </div>
               )}
+              {!!groups.length && !visibleGroups.length && (
+                <div className="text-sm text-muted-foreground">לא נמצאו קבוצות שתואמות לחיפוש</div>
+              )}
               <div className="grid gap-2 sm:grid-cols-2">
-                {groups.map((g) => (
+                {visibleGroups.map((g) => (
                   <label
                     key={g.id}
                     className="flex items-center gap-3 rounded-md border border-border p-2 text-sm"
