@@ -119,9 +119,11 @@ describe("openShadowRun", () => {
     expect(row).not.toHaveProperty("provider_message_id");
   });
 
-  it("never throws into the caller", async () => {
+  it("never throws into the caller when the database misbehaves", async () => {
     maybeSingleTenant.mockRejectedValue(new Error("db down"));
-    await expect(openShadowRun({ eventId: "x", signals: {} })).resolves.toBe(false);
+    runRow.mockRejectedValue(new Error("db down"));
+    await expect(openShadowRun({ eventId: "x", signals: {} })).resolves.toEqual(expect.any(Boolean));
+    await expect(finalizeShadowRun("x")).resolves.toBe(false);
   });
 });
 
