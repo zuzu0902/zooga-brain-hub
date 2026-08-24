@@ -67,6 +67,7 @@ import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/w
 import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
 import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
+import { Route as ApiPublicCronZoogaShadowDrainRouteImport } from './routes/api/public/cron/zooga-shadow-drain'
 import { Route as ApiPublicCronZeroLossWorkerRouteImport } from './routes/api/public/cron/zero-loss-worker'
 import { Route as ApiPublicCronZeroLossReconcileRouteImport } from './routes/api/public/cron/zero-loss-reconcile'
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
@@ -381,6 +382,12 @@ const ApiPublicIntelligenceExtractRoute =
     path: '/api/public/intelligence/extract',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronZoogaShadowDrainRoute =
+  ApiPublicCronZoogaShadowDrainRouteImport.update({
+    id: '/api/public/cron/zooga-shadow-drain',
+    path: '/api/public/cron/zooga-shadow-drain',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronZeroLossWorkerRoute =
   ApiPublicCronZeroLossWorkerRouteImport.update({
     id: '/api/public/cron/zero-loss-worker',
@@ -470,6 +477,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
   '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
+  '/api/public/cron/zooga-shadow-drain': typeof ApiPublicCronZoogaShadowDrainRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -534,6 +542,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
   '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
+  '/api/public/cron/zooga-shadow-drain': typeof ApiPublicCronZoogaShadowDrainRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -600,6 +609,7 @@ export interface FileRoutesById {
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
   '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
   '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
+  '/api/public/cron/zooga-shadow-drain': typeof ApiPublicCronZoogaShadowDrainRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
@@ -666,6 +676,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/retry-handoffs'
     | '/api/public/cron/zero-loss-reconcile'
     | '/api/public/cron/zero-loss-worker'
+    | '/api/public/cron/zooga-shadow-drain'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
@@ -730,6 +741,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/retry-handoffs'
     | '/api/public/cron/zero-loss-reconcile'
     | '/api/public/cron/zero-loss-worker'
+    | '/api/public/cron/zooga-shadow-drain'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
@@ -795,6 +807,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/retry-handoffs'
     | '/api/public/cron/zero-loss-reconcile'
     | '/api/public/cron/zero-loss-worker'
+    | '/api/public/cron/zooga-shadow-drain'
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
@@ -837,6 +850,7 @@ export interface RootRouteChildren {
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
   ApiPublicCronZeroLossReconcileRoute: typeof ApiPublicCronZeroLossReconcileRoute
   ApiPublicCronZeroLossWorkerRoute: typeof ApiPublicCronZeroLossWorkerRoute
+  ApiPublicCronZoogaShadowDrainRoute: typeof ApiPublicCronZoogaShadowDrainRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeConversationDebugRoute: typeof ApiPublicRuntimeConversationDebugRoute
   ApiPublicRuntimeTamarTurnRoute: typeof ApiPublicRuntimeTamarTurnRoute
@@ -1251,6 +1265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicIntelligenceExtractRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/zooga-shadow-drain': {
+      id: '/api/public/cron/zooga-shadow-drain'
+      path: '/api/public/cron/zooga-shadow-drain'
+      fullPath: '/api/public/cron/zooga-shadow-drain'
+      preLoaderRoute: typeof ApiPublicCronZoogaShadowDrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/zero-loss-worker': {
       id: '/api/public/cron/zero-loss-worker'
       path: '/api/public/cron/zero-loss-worker'
@@ -1412,6 +1433,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
   ApiPublicCronZeroLossReconcileRoute: ApiPublicCronZeroLossReconcileRoute,
   ApiPublicCronZeroLossWorkerRoute: ApiPublicCronZeroLossWorkerRoute,
+  ApiPublicCronZoogaShadowDrainRoute: ApiPublicCronZoogaShadowDrainRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
   ApiPublicRuntimeConversationDebugRoute:
     ApiPublicRuntimeConversationDebugRoute,
