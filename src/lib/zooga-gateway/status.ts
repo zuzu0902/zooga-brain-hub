@@ -71,9 +71,10 @@ export function sanitizeGatewayStatus(
     return emptyStatus(opts.checkedAt, "invalid_response", opts.latencyMs);
   }
   const r = raw as Record<string, unknown>;
-  const integrations = (r["integrations"] && typeof r["integrations"] === "object" && !Array.isArray(r["integrations"])
-    ? (r["integrations"] as Record<string, unknown>)
-    : {}) as Record<string, unknown>;
+  const obj = (v: unknown): Record<string, unknown> =>
+    v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+  const integrations = obj(r["integrations"]);
+  const execution = obj(r["execution"]);
 
   return {
     reachable: true,
@@ -81,10 +82,12 @@ export function sanitizeGatewayStatus(
     latency_ms: opts.latencyMs,
     system: asStr(r["system"]),
     environment: asStr(r["environment"]),
-    tenant: asStr(r["tenant"]),
+    // Gateway sends default_tenant; `tenant` kept as backward-compatible fallback.
+    tenant: asStr(r["default_tenant"]) ?? asStr(r["tenant"]),
     live_traffic: asBool(r["live_traffic"]),
-    inbound_enabled: asBool(r["inbound_enabled"]),
-    outbound_enabled: asBool(r["outbound_enabled"]),
+    // Gateway nests the execution flags; top-level kept as fallback.
+    inbound_enabled: asBool(execution["inbound_enabled"]) || asBool(r["inbound_enabled"]),
+    outbound_enabled: asBool(execution["outbound_enabled"]) || asBool(r["outbound_enabled"]),
     integrations: {
       supabase: asBool(integrations["supabase"]),
       whatsapp: asBool(integrations["whatsapp"]),
