@@ -68,12 +68,24 @@ export function isTamarConversationChannel(
 
 const SECRET_KEY_RE = /(secret|token|password|qr|session|api_?key|credential|auth)/i;
 
+/**
+ * Non-secret endpoint metadata keys. Bridge route paths (e.g. `qr_path`,
+ * `logout_path`) are plain URL paths, never credentials — allow them explicitly
+ * so the generic secret heuristic does not reject the operator form.
+ */
+const SAFE_CONFIG_KEY_RE = /^(bridge_base_url|[a-z0-9_]+_path)$/;
+
+function isSecretLikeKey(k: string): boolean {
+  if (SAFE_CONFIG_KEY_RE.test(k)) return false;
+  return SECRET_KEY_RE.test(k);
+}
+
 /** Drops any secret-like key. Only non-secret endpoint metadata survives. */
 export function sanitizeConnectionConfig(raw: unknown): Record<string, string | null> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const out: Record<string, string | null> = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    if (SECRET_KEY_RE.test(k)) continue;
+    if (isSecretLikeKey(k)) continue;
     if (v === null || v === undefined) out[k] = null;
     else if (typeof v === "string") out[k] = v.slice(0, 300);
   }
@@ -82,7 +94,7 @@ export function sanitizeConnectionConfig(raw: unknown): Record<string, string | 
 
 export function hasSecretLikeKey(raw: unknown): boolean {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
-  return Object.keys(raw as Record<string, unknown>).some((k) => SECRET_KEY_RE.test(k));
+  return Object.keys(raw as Record<string, unknown>).some((k) => isSecretLikeKey(k));
 }
 
 export type BroadcastDraftInput = {
