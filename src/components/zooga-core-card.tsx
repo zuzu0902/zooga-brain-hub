@@ -201,6 +201,60 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
         </div>
       </div>
 
+      <div className="mt-4 rounded-md border p-3" data-testid="zooga-brain-metrics">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs font-medium">{t("מוח Shadow (Hostinger, תצוגה בלבד)")}</div>
+          <Pill on={!!s?.brain?.enabled} onLabel="ON" offLabel="OFF" safeOff />
+        </div>
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
+          <div>
+            <div className="text-muted-foreground text-xs">{t("מודל")}</div>
+            <div className="font-medium">{s?.brain?.model_id ?? "—"}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("גרסת מודל")}</div>
+            <div className="font-medium">{s?.brain?.model_version ?? "—"}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("גרסת פרומפט")}</div>
+            <div className="font-medium">{s?.brain?.prompt_version ?? "—"}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("בקשות היום")}</div>
+            <div className="font-medium">
+              {s?.brain?.requests_today ?? 0}/{s?.brain?.daily_request_limit ?? 0}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("טוקנים קלט")}</div>
+            <div className="font-medium">
+              {s?.brain?.input_tokens_today ?? 0}/{s?.brain?.daily_input_token_limit ?? 0}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("טוקנים פלט")}</div>
+            <div className="font-medium">
+              {s?.brain?.output_tokens_today ?? 0}/{s?.brain?.daily_output_token_limit ?? 0}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("עלות משוערת היום")}</div>
+            <div className="font-medium">
+              ${(s?.brain?.cost_usd_today ?? 0).toFixed(4)}/${(s?.brain?.daily_cost_limit_usd ?? 0).toFixed(4)}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("הצלחות / שגיאות / בעיבוד")}</div>
+            <div className="font-medium">
+              {s?.brain?.successes_today ?? 0} / {s?.brain?.errors_today ?? 0} / {s?.brain?.leased_runs ?? 0}
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-muted-foreground">
+          {t("המוח כבוי כברירת מחדל ורץ רק ב-Gateway של Zooga. אין מפתח API ואין קריאת מודל מכאן.")}
+        </div>
+      </div>
+
       <div className="mt-4 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
         <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
         <span>{t("מצב בטיחות: תעבורה חיה כבויה, inbound ו-outbound כבויים. תצוגת סטטוס בלבד.")}</span>

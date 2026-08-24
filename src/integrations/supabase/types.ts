@@ -4685,6 +4685,124 @@ export type Database = {
           },
         ]
       }
+      zooga_shadow_brain_config: {
+        Row: {
+          created_at: string
+          daily_cost_limit_usd: number
+          daily_input_token_limit: number
+          daily_output_token_limit: number
+          daily_request_limit: number
+          enabled: boolean
+          input_cost_per_1k_usd: number
+          lease_seconds: number
+          max_output_tokens: number
+          max_runs_per_cycle: number
+          model_id: string
+          model_version: string
+          output_cost_per_1k_usd: number
+          prompt_version: string
+          request_timeout_ms: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_cost_limit_usd?: number
+          daily_input_token_limit?: number
+          daily_output_token_limit?: number
+          daily_request_limit?: number
+          enabled?: boolean
+          input_cost_per_1k_usd?: number
+          lease_seconds?: number
+          max_output_tokens?: number
+          max_runs_per_cycle?: number
+          model_id?: string
+          model_version?: string
+          output_cost_per_1k_usd?: number
+          prompt_version?: string
+          request_timeout_ms?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_cost_limit_usd?: number
+          daily_input_token_limit?: number
+          daily_output_token_limit?: number
+          daily_request_limit?: number
+          enabled?: boolean
+          input_cost_per_1k_usd?: number
+          lease_seconds?: number
+          max_output_tokens?: number
+          max_runs_per_cycle?: number
+          model_id?: string
+          model_version?: string
+          output_cost_per_1k_usd?: number
+          prompt_version?: string
+          request_timeout_ms?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zooga_shadow_brain_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zooga_shadow_brain_usage: {
+        Row: {
+          cost_usd: number
+          created_at: string
+          errors: number
+          id: string
+          input_tokens: number
+          output_tokens: number
+          requests: number
+          successes: number
+          tenant_id: string
+          updated_at: string
+          usage_date: string
+        }
+        Insert: {
+          cost_usd?: number
+          created_at?: string
+          errors?: number
+          id?: string
+          input_tokens?: number
+          output_tokens?: number
+          requests?: number
+          successes?: number
+          tenant_id: string
+          updated_at?: string
+          usage_date?: string
+        }
+        Update: {
+          cost_usd?: number
+          created_at?: string
+          errors?: number
+          id?: string
+          input_tokens?: number
+          output_tokens?: number
+          requests?: number
+          successes?: number
+          tenant_id?: string
+          updated_at?: string
+          usage_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zooga_shadow_brain_usage_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zooga_shadow_events: {
         Row: {
           correlation_id: string
@@ -4806,6 +4924,11 @@ export type Database = {
       zooga_shadow_runs: {
         Row: {
           attempts: number
+          brain_attempts: number
+          brain_lease_until: string | null
+          brain_leased_by: string | null
+          brain_max_attempts: number
+          brain_state: string
           canonical_action: string | null
           canonical_decision_ref: string | null
           canonical_reason_codes: string[]
@@ -4841,6 +4964,11 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          brain_attempts?: number
+          brain_lease_until?: string | null
+          brain_leased_by?: string | null
+          brain_max_attempts?: number
+          brain_state?: string
           canonical_action?: string | null
           canonical_decision_ref?: string | null
           canonical_reason_codes?: string[]
@@ -4876,6 +5004,11 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          brain_attempts?: number
+          brain_lease_until?: string | null
+          brain_leased_by?: string | null
+          brain_max_attempts?: number
+          brain_state?: string
           canonical_action?: string | null
           canonical_decision_ref?: string | null
           canonical_reason_codes?: string[]
@@ -5318,6 +5451,48 @@ export type Database = {
           p_value_hash: string
         }
         Returns: string
+      }
+      zooga_brain_claim_runs: {
+        Args: { _gateway_token: string; _limit?: number }
+        Returns: {
+          canonical_action: string
+          canonical_reason_codes: string[]
+          canonical_state_after: string
+          canonical_state_before: string
+          event_id: string
+          input_signals: Json
+          max_output_tokens: number
+          model_id: string
+          model_version: string
+          prompt_version: string
+          request_timeout_ms: number
+          run_id: string
+        }[]
+      }
+      zooga_brain_record_proposal: {
+        Args: {
+          _action: string
+          _confidence: number
+          _error_code?: string
+          _gateway_token: string
+          _input_tokens: number
+          _latency_ms: number
+          _model_id: string
+          _model_version: string
+          _output_tokens: number
+          _reason_codes: string[]
+          _run_id: string
+          _state_after: string
+        }
+        Returns: Json
+      }
+      zooga_brain_release_run: {
+        Args: { _error_code?: string; _gateway_token: string; _run_id: string }
+        Returns: Json
+      }
+      zooga_brain_usage_today: {
+        Args: { _gateway_token: string }
+        Returns: Json
       }
       zooga_control_plane_config: {
         Args: never
