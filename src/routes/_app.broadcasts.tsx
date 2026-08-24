@@ -100,11 +100,67 @@ function BroadcastsPage() {
   const [message, setMessage] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
+  const [groupQuery, setGroupQuery] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const categories = useMemo(
     () => Array.from(new Set(groups.map((g) => g.category).filter(Boolean))) as string[],
     [groups],
   );
+
+  const visibleGroups = useMemo(() => {
+    const q = groupQuery.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter((g) =>
+      [g.current_name, g.category].filter(Boolean).some((v: string) => String(v).toLowerCase().includes(q)),
+    );
+  }, [groups, groupQuery]);
+
+  const syncGroups = useMutation({
+    mutationFn: useServerFn(syncBridgeGroups),
+    onSuccess: (r: any) => {
+      if (r?.ok === false) {
+        toast.error(BRIDGE_ERROR_LABELS[r.code] ?? "רענון הקבוצות נכשל");
+        return;
+      }
+      toast.success("רשימת הקבוצות רועננה");
+      qc.invalidateQueries({ queryKey: ["wa", "groups"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "רענון הקבוצות נכשל"),
+  });
+
+  const uploadMedia = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("ניתן להעלות קובץ תמונה בלבד");
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("הקובץ גדול מדי (עד 15MB)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `broadcasts/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("broadcast-media").upload(path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+      if (error) throw error;
+      const { data, error: signErr } = await supabase.storage
+        .from("broadcast-media")
+        .createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (signErr || !data?.signedUrl) throw signErr ?? new Error("יצירת קישור נכשלה");
+      setMediaUrl(data.signedUrl);
+      toast.success("התמונה הועלתה וצורפה להפצה");
+    } catch (e: any) {
+      toast.error(e?.message ?? "העלאת המדיה נכשלה");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const create = useMutation({
     mutationFn: useServerFn(createBroadcast),
