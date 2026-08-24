@@ -1,0 +1,29 @@
+{
+  "name": "zooga-whatsapp-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ZOOGA OS external WhatsApp Web bridge (Alex Personal identity only). Not an official WhatsApp API.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "node --experimental-strip-types src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "healthcheck": "node scripts/healthcheck.mjs"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "qrcode": "1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "@types/qrcode": "^1.5.5",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
+  }
+}
