@@ -401,6 +401,50 @@ function BroadcastsPage() {
               <p className="text-xs text-muted-foreground">
                 התיקייה נשמרת במסד הנתונים ומשויכת ל-Alex Personal בלבד. מחיקת תיקייה אינה מוחקת קבוצות, והפצות קיימות שומרות את רשימת הקבוצות שנקבעה בזמן יצירתן.
               </p>
+
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium">בחירת קבוצות לתיקייה</span>
+                  <Badge variant="secondary">{selected.length} נבחרו</Badge>
+                  <div className="ms-auto flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelected(groups.filter((g) => g.send_enabled).map((g) => g.id))}
+                    >
+                      בחר הכל
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
+                      נקה בחירה
+                    </Button>
+                  </div>
+                </div>
+                {!groups.length ? (
+                  <div className="text-xs text-muted-foreground">
+                    אין קבוצות מסונכרנות. יש לסנכרן קבוצות מהגשר לפני יצירת קהל שמור.
+                  </div>
+                ) : (
+                  <div className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
+                    {groups.map((g) => (
+                      <label
+                        key={g.id}
+                        className="flex items-center gap-3 rounded-md border border-border p-2 text-sm"
+                      >
+                        <Checkbox
+                          checked={selected.includes(g.id)}
+                          disabled={!g.send_enabled}
+                          onCheckedChange={(v) =>
+                            setSelected((prev) => (v ? [...prev, g.id] : prev.filter((x) => x !== g.id)))
+                          }
+                        />
+                        <span className="flex-1 truncate">{g.current_name}</span>
+                        {g.category && <Badge variant="secondary">{g.category}</Badge>}
+                        {!g.send_enabled && <Badge variant="outline">חסום לשליחה</Badge>}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="space-y-2">
                 {folders.map((f) => {
                   const counts = folderCounts(f, groups as any);
