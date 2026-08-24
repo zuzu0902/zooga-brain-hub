@@ -187,8 +187,10 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 providerEventPresent: !!ev.provider_event_id,
                 duplicate: res.duplicate,
               });
-            } catch (shadowErr: any) {
-              console.warn("[zooga-shadow] enqueue failed:", String(shadowErr?.message ?? shadowErr).slice(0, 200));
+            } catch {
+              // Fixed, non-sensitive code only: never log exception text,
+              // payload or credentials from the shadow transport path.
+              console.warn("[zooga-shadow] enqueue_failed");
             }
 
             // ---- TAMAR LITE SHADOW DUAL-WRITE (never blocks the live flow) --
