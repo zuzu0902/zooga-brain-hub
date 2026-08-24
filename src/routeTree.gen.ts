@@ -29,6 +29,7 @@ import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
 import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as ApiZoogaGatewayStatusRouteImport } from './routes/api/zooga/gateway-status'
 import { Route as ApiIntrospectUiGapsRouteImport } from './routes/api/introspect/ui-gaps'
 import { Route as ApiIntrospectTamarRoutingRouteImport } from './routes/api/introspect/tamar-routing'
 import { Route as ApiIntrospectTamarConfigRouteImport } from './routes/api/introspect/tamar-config'
@@ -173,6 +174,11 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiZoogaGatewayStatusRoute = ApiZoogaGatewayStatusRouteImport.update({
+  id: '/api/zooga/gateway-status',
+  path: '/api/zooga/gateway-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiIntrospectUiGapsRoute = ApiIntrospectUiGapsRouteImport.update({
   id: '/api/introspect/ui-gaps',
   path: '/api/introspect/ui-gaps',
@@ -458,6 +464,7 @@ export interface FileRoutesByFullPath {
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
+  '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -521,6 +528,7 @@ export interface FileRoutesByTo {
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
+  '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -586,6 +594,7 @@ export interface FileRoutesById {
   '/api/introspect/tamar-config': typeof ApiIntrospectTamarConfigRoute
   '/api/introspect/tamar-routing': typeof ApiIntrospectTamarRoutingRoute
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
+  '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -651,6 +660,7 @@ export interface FileRouteTypes {
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
     | '/api/introspect/ui-gaps'
+    | '/api/zooga/gateway-status'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -714,6 +724,7 @@ export interface FileRouteTypes {
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
     | '/api/introspect/ui-gaps'
+    | '/api/zooga/gateway-status'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -778,6 +789,7 @@ export interface FileRouteTypes {
     | '/api/introspect/tamar-config'
     | '/api/introspect/tamar-routing'
     | '/api/introspect/ui-gaps'
+    | '/api/zooga/gateway-status'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -819,6 +831,7 @@ export interface RootRouteChildren {
   ApiIntrospectTamarConfigRoute: typeof ApiIntrospectTamarConfigRoute
   ApiIntrospectTamarRoutingRoute: typeof ApiIntrospectTamarRoutingRoute
   ApiIntrospectUiGapsRoute: typeof ApiIntrospectUiGapsRoute
+  ApiZoogaGatewayStatusRoute: typeof ApiZoogaGatewayStatusRoute
   ApiPublicAdminBackfillMemoriesRoute: typeof ApiPublicAdminBackfillMemoriesRoute
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
@@ -970,6 +983,13 @@ declare module '@tanstack/react-router' {
       path: '/.mcp/list-tools'
       fullPath: '/.mcp/list-tools'
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/zooga/gateway-status': {
+      id: '/api/zooga/gateway-status'
+      path: '/api/zooga/gateway-status'
+      fullPath: '/api/zooga/gateway-status'
+      preLoaderRoute: typeof ApiZoogaGatewayStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/introspect/ui-gaps': {
@@ -1386,6 +1406,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntrospectTamarConfigRoute: ApiIntrospectTamarConfigRoute,
   ApiIntrospectTamarRoutingRoute: ApiIntrospectTamarRoutingRoute,
   ApiIntrospectUiGapsRoute: ApiIntrospectUiGapsRoute,
+  ApiZoogaGatewayStatusRoute: ApiZoogaGatewayStatusRoute,
   ApiPublicAdminBackfillMemoriesRoute: ApiPublicAdminBackfillMemoriesRoute,
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
