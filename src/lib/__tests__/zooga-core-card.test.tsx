@@ -30,7 +30,7 @@ describe("ZoogaCoreCard", () => {
     expect(html).toContain("foundation");
     expect(html).toContain("zooga");
     expect(html).toContain("55 ms");
-    expect((html.match(/>OFF</g) ?? []).length).toBe(3);
+    expect((html.match(/>OFF</g) ?? []).length).toBe(4);
     expect(html).not.toContain(">ON<");
     expect(html).toContain('dir="rtl"');
   });
@@ -40,7 +40,7 @@ describe("ZoogaCoreCard", () => {
       <ZoogaCoreCard initialStatus={emptyStatus("2026-08-24T08:00:00.000Z", "forbidden")} />,
     );
     expect(html).toContain("forbidden");
-    expect((html.match(/>OFF</g) ?? []).length).toBe(3);
+    expect((html.match(/>OFF</g) ?? []).length).toBe(4);
   });
 
   it("renders no activation controls", () => {
