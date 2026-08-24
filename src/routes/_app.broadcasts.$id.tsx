@@ -63,6 +63,7 @@ function BroadcastDetailsPage() {
               <div className="text-xs text-muted-foreground">
                 נוצרה {formatDate(b.created_at)}
                 {b.scheduled_for ? ` · מתוזמנת ל-${formatDate(b.scheduled_for)}` : ""}
+                {b.interval_seconds ? ` · מרווח ${b.interval_seconds} שניות בין קבוצות` : ""}
                 {b.started_at ? ` · התחילה ${formatDate(b.started_at)}` : ""}
                 {b.finished_at ? ` · הסתיימה ${formatDate(b.finished_at)}` : ""}
               </div>
