@@ -47,7 +47,7 @@ export type WaConnection = {
   capabilities: string[];
   enabled: boolean;
   allow_agent_broadcast: boolean;
-  config: Record<string, unknown>;
+  config: Record<string, string | null>;
   last_connected_at: string | null;
   last_sync_at: string | null;
 };

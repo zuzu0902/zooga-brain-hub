@@ -60,7 +60,7 @@ export const updateBridgeConnection = createServerFn({ method: "POST" })
     if (!canOwnGroupBroadcast(conn as any)) throw new Error("meta_connection_is_read_only");
     if (hasSecretLikeKey(data.config)) throw new Error("secrets_not_allowed_in_config");
 
-    const patch: Record<string, unknown> = {};
+    const patch: Record<string, any> = {};
     if (data.display_name !== undefined) patch["display_name"] = data.display_name;
     if (data.phone_label !== undefined) patch["phone_label"] = data.phone_label;
     if (data.enabled !== undefined) patch["enabled"] = data.enabled;
