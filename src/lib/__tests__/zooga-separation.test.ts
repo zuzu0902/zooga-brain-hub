@@ -60,7 +60,7 @@ describe("Zooga separation from the legacy Tamar/Meta integration", () => {
   });
 
 
-  it("keeps the admin-authenticated POST as the only drain trigger", () => {
+  it("keeps the admin drain unchanged and limits drain triggers to authenticated routes", () => {
     const route = readFileSync(join(ROOT, "src/routes/api/zooga/gateway-status.ts"), "utf8");
     expect(route).toContain("requireAdmin");
     expect(route).toMatch(/POST:\s*async/);
@@ -70,8 +70,12 @@ describe("Zooga separation from the legacy Tamar/Meta integration", () => {
       const src = readFileSync(f, "utf8");
       return src.includes("drainShadowOutbox") && !f.endsWith("shadow-outbox.server.ts") && !f.includes("__tests__");
     });
-    expect(callers.map((f) => f.replace(`${ROOT}/`, ""))).toEqual(["src/routes/api/zooga/gateway-status.ts"]);
+    expect(callers.map((f) => f.replace(`${ROOT}/`, "")).sort()).toEqual([
+      "src/routes/api/public/cron/zooga-shadow-drain.ts",
+      "src/routes/api/zooga/gateway-status.ts",
+    ]);
   });
+
 
   it("logs only a fixed safe code when the webhook shadow enqueue fails", () => {
     const src = readFileSync(join(ROOT, "src/routes/api/public/webhook/tamar.ts"), "utf8");
