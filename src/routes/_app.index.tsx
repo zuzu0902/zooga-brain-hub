@@ -6,6 +6,7 @@ import { Users, Sparkles, UserCheck, Heart, Crown, Pause, TrendingUp, Activity }
 import { Link } from "@tanstack/react-router";
 import { STATUS_LABELS, INTEREST_LABELS, INTERACTION_TYPE_LABELS, formatDate } from "@/lib/i18n";
 import { useT } from "@/lib/language-context";
+import { ZoogaCoreCard } from "@/components/zooga-core-card";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({ meta: [{ title: "דשבורד — Zooga CRM" }] }),
@@ -100,6 +101,8 @@ function Dashboard() {
         <h1 className="text-3xl font-bold">{t("דשבורד")}</h1>
         <p className="text-muted-foreground mt-1">{t("מבט חי על קהילת זוגה")}</p>
       </header>
+
+      <ZoogaCoreCard />
 
       {isLoading ? (
         <div className="text-muted-foreground">{t("טוען נתונים...")}</div>

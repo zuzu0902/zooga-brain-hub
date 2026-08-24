@@ -4267,6 +4267,141 @@ export type Database = {
           },
         ]
       }
+      tenant_channels: {
+        Row: {
+          config: Json
+          created_at: string
+          external_account_id: string
+          id: string
+          provider: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          external_account_id: string
+          id?: string
+          provider: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          external_account_id?: string
+          id?: string
+          provider?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_channels_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_settings: {
+        Row: {
+          default_locale: string
+          inbound_enabled: boolean
+          live_traffic: boolean
+          outbound_enabled: boolean
+          settings: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          default_locale?: string
+          inbound_enabled?: boolean
+          live_traffic?: boolean
+          outbound_enabled?: boolean
+          settings?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          default_locale?: string
+          inbound_enabled?: boolean
+          live_traffic?: boolean
+          outbound_enabled?: boolean
+          settings?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_users: {
+        Row: {
+          created_at: string
+          role: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_users_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -4509,6 +4644,94 @@ export type Database = {
         }
         Relationships: []
       }
+      zooga_audit_events: {
+        Row: {
+          actor_id: string | null
+          actor_type: string
+          correlation_id: string
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          tenant_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type: string
+          correlation_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: string
+          correlation_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zooga_audit_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zooga_shadow_events: {
+        Row: {
+          correlation_id: string
+          event_id: string
+          event_type: string
+          id: string
+          occurred_at: string
+          payload: Json
+          received_at: string
+          source: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          correlation_id: string
+          event_id: string
+          event_type: string
+          id?: string
+          occurred_at: string
+          payload?: Json
+          received_at?: string
+          source: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          correlation_id?: string
+          event_id?: string
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          received_at?: string
+          source?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zooga_shadow_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       offers_public: {
@@ -4735,6 +4958,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_tenant_access: { Args: { _tenant_id: string }; Returns: boolean }
+      has_tenant_role: {
+        Args: { _roles: string[]; _tenant_id: string }
+        Returns: boolean
+      }
       is_admin: { Args: never; Returns: boolean }
       ri_claim_insight_jobs: {
         Args: { p_lease_seconds?: number; p_limit?: number; p_worker: string }
@@ -4903,6 +5131,18 @@ export type Database = {
           p_value_hash: string
         }
         Returns: string
+      }
+      zooga_control_plane_config: {
+        Args: never
+        Returns: {
+          bearer_token: string
+          gateway_url: string
+        }[]
+      }
+      zooga_gateway_status: { Args: { _gateway_token: string }; Returns: Json }
+      zooga_ingest_shadow: {
+        Args: { _event: Json; _gateway_token: string }
+        Returns: Json
       }
     }
     Enums: {
