@@ -32,6 +32,7 @@ import {
 } from "@/lib/whatsapp-broadcast/core";
 import {
   applyFoldersToSelection,
+  DEFAULT_BROADCAST_INTERVAL_SECONDS,
   folderCounts,
   validateFolderName,
   type GroupFolder,
@@ -100,6 +101,7 @@ function BroadcastsPage() {
   const [message, setMessage] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
+  const [intervalSeconds, setIntervalSeconds] = useState(String(DEFAULT_BROADCAST_INTERVAL_SECONDS));
   const [groupQuery, setGroupQuery] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -212,12 +214,30 @@ function BroadcastsPage() {
   });
 
   const toggleFolder = (id: string) => {
-    const next = activeFolders.includes(id)
-      ? activeFolders.filter((x) => x !== id)
-      : [...activeFolders, id];
+    const isOn = activeFolders.includes(id);
+    const next = isOn ? activeFolders.filter((x) => x !== id) : [...activeFolders, id];
     setActiveFolders(next);
-    setSelected((prev) => applyFoldersToSelection(prev, folders, next, groups as any));
+    setSelected((prev) => {
+      if (isOn) {
+        const folder = folders.find((f) => f.id === id);
+        const stillNeeded = new Set(
+          folders.filter((f) => next.includes(f.id)).flatMap((f) => f.group_ids),
+        );
+        const removed = new Set((folder?.group_ids ?? []).filter((g) => !stillNeeded.has(g)));
+        return prev.filter((g) => !removed.has(g));
+      }
+      const merged = applyFoldersToSelection(prev, folders, next, groups as any);
+      const added = merged.length - prev.length;
+      const folder = folders.find((f) => f.id === id);
+      if (added <= 0) {
+        toast.message(`״${folder?.name ?? "תיקייה"}״ לא הוסיפה קבוצות חדשות (כפילות או קבוצות חסומות/ארכיון)`);
+      } else {
+        toast.success(`נוספו ${added} קבוצות מתוך ״${folder?.name ?? "תיקייה"}״`);
+      }
+      return merged;
+    });
   };
+
 
   const submitFolder = () => {
     if (!bridge) {
@@ -261,6 +281,7 @@ function BroadcastsPage() {
       media_url: mediaUrl || null,
       group_ids: selected,
       scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null,
+      interval_seconds: Number(intervalSeconds) || DEFAULT_BROADCAST_INTERVAL_SECONDS,
     };
     const check = validateBroadcastDraft(draft);
     if (!check.ok) {
@@ -333,18 +354,59 @@ function BroadcastsPage() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
               />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                  dir="ltr"
-                  placeholder="קישור מדיה (https, אופציונלי)"
-                  value={mediaUrl}
-                  onChange={(e) => setMediaUrl(e.target.value)}
-                />
-                <Input
-                  type="datetime-local"
-                  value={scheduledFor}
-                  onChange={(e) => setScheduledFor(e.target.value)}
-                />
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">קישור מדיה (אופציונלי)</label>
+                  <Input
+                    dir="ltr"
+                    placeholder="https://…"
+                    value={mediaUrl}
+                    onChange={(e) => setMediaUrl(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="scheduled-for" className="text-xs font-medium text-muted-foreground">
+                    מועד שליחה (ריק = טיוטה)
+                  </label>
+                  <Input
+                    id="scheduled-for"
+                    type="datetime-local"
+                    dir="ltr"
+                    value={scheduledFor}
+                    onChange={(e) => setScheduledFor(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="interval-seconds" className="text-xs font-medium text-muted-foreground">
+                    מרווח בין קבוצות (שניות)
+                  </label>
+                  <Input
+                    id="interval-seconds"
+                    type="number"
+                    min={5}
+                    max={3600}
+                    dir="ltr"
+                    value={intervalSeconds}
+                    onChange={(e) => setIntervalSeconds(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {scheduledFor ? (
+                  <Badge variant="secondary">
+                    ממתין לשליחה · {formatDate(new Date(scheduledFor).toISOString())}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline">נשמר כטיוטה — ללא מועד שליחה</Badge>
+                )}
+                {!!scheduledFor && (
+                  <Button size="sm" variant="ghost" onClick={() => setScheduledFor("")}>
+                    ניקוי מועד
+                  </Button>
+                )}
+                <span className="text-muted-foreground">
+                  השליחה מבוצעת בהפרשי זמן של {Number(intervalSeconds) || DEFAULT_BROADCAST_INTERVAL_SECONDS} שניות בין קבוצה לקבוצה, כדי להימנע מחסימה על ידי Meta.
+                </span>
               </div>
 
               <div
@@ -697,9 +759,11 @@ function BroadcastsPage() {
                     </Link>
                     <Badge variant="outline">{BROADCAST_STATUS_LABELS[b.status as "draft"] ?? b.status}</Badge>
                     <span className="text-muted-foreground">
-                      {b.scheduled_for ? `מתוזמנת ל-${formatDate(b.scheduled_for)}` : "ללא מועד — טיוטה"}
+                      {b.scheduled_for ? `ממתין לשליחה · ${formatDate(b.scheduled_for)}` : "ללא מועד — טיוטה"}
                     </span>
-                    <span className="text-muted-foreground">{total} קבוצות</span>
+                    <span className="text-muted-foreground">
+                      {total} קבוצות · מרווח {b.interval_seconds ?? DEFAULT_BROADCAST_INTERVAL_SECONDS} שניות
+                    </span>
                     <Button
                       size="sm"
                       variant="ghost"

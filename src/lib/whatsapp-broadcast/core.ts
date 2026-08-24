@@ -103,6 +103,7 @@ export type BroadcastDraftInput = {
   media_url?: string | null;
   group_ids: string[];
   scheduled_for?: string | null;
+  interval_seconds?: number | null;
 };
 
 export type ValidationResult = { ok: true } | { ok: false; error: string };
@@ -123,6 +124,13 @@ export function validateBroadcastDraft(input: BroadcastDraftInput): ValidationRe
   if (input.scheduled_for) {
     const t = Date.parse(input.scheduled_for);
     if (!Number.isFinite(t)) return { ok: false, error: "מועד תזמון לא תקין" };
+    if (t < Date.now() - 60_000) return { ok: false, error: "מועד התזמון כבר עבר — יש לבחור מועד עתידי" };
+  }
+  if (input.interval_seconds != null) {
+    const n = Number(input.interval_seconds);
+    if (!Number.isFinite(n) || !Number.isInteger(n)) return { ok: false, error: "מרווח זמן בין שליחות אינו תקין" };
+    if (n < 5) return { ok: false, error: "מרווח מינימלי בין שליחות: 5 שניות (הגנה מחסימת Meta)" };
+    if (n > 3600) return { ok: false, error: "מרווח מקסימלי בין שליחות: 3600 שניות" };
   }
   return { ok: true };
 }
@@ -134,7 +142,7 @@ export function nextBroadcastStatus(scheduledFor: string | null | undefined): Wa
 
 export const BROADCAST_STATUS_LABELS: Record<WaBroadcastStatus, string> = {
   draft: "טיוטה",
-  queued: "בתור",
+  queued: "ממתין לשליחה",
   running: "בביצוע",
   completed: "הושלמה",
   completed_with_errors: "הושלמה עם שגיאות",
