@@ -93,7 +93,19 @@ describe("drainShadowOutbox", () => {
     const res = await drainShadowOutbox(20);
     expect(res).toEqual({ claimed: 2, delivered: 2, failed: 0, error_code: null });
     expect(JSON.stringify(res)).not.toContain("SECRET-TOKEN");
-    expect(JSON.parse(seen[0].body as string)).not.toHaveProperty("raw");
+    const sent = JSON.parse(seen[0].body as string);
+    expect(sent).not.toHaveProperty("raw");
+    expect(sent.tenant_id).toBe("zooga");
+    expect(Object.keys(sent).sort()).toEqual([
+      "correlation_id",
+      "event_id",
+      "occurred_at",
+      "payload",
+      "source",
+      "tenant_id",
+      "type",
+    ]);
+    expect(JSON.stringify(sent)).not.toMatch(/phone|text|full_name/);
     expect(rpc.mock.calls.filter(([n]) => n === "zooga_shadow_complete")).toHaveLength(2);
     vi.unstubAllGlobals();
   });
