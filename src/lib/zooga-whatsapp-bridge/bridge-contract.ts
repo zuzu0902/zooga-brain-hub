@@ -84,7 +84,7 @@ export const BRIDGE_ERROR_LABELS: Record<string, string> = {
   bridge_unauthorized: "מפתח הגשר אינו תקין",
   qr_not_available: "אין כרגע קוד QR זמין",
   not_connected: "הגשר אינו מחובר",
-  live_send_disabled: "שליחה חיה מושבתת (ZOOGA_WHATSAPP_BRIDGE_LIVE=false)",
+  live_send_disabled: "שליחה חיה מושבתת",
 };
 
 /** Normalizes a raw bridge status payload into a sanitized control-plane shape. */

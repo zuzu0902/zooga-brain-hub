@@ -166,3 +166,40 @@ describe("isolation guarantees", () => {
     expect(broadcastFns).not.toContain("bridge-client.server");
   });
 });
+
+describe("gateway proxy configuration", () => {
+  const clientSrc = readFileSync(join(SRC, "lib", "zooga-whatsapp-bridge", "bridge-client.server.ts"), "utf8");
+
+  it("loads gateway_url and bearer_token from the service-role-only RPC", () => {
+    expect(clientSrc).toContain("zooga_control_plane_config");
+    expect(clientSrc).toContain("client.server");
+    expect(clientSrc).not.toMatch(/process\.env\[\s*["\']ZOOGA_WHATSAPP_BRIDGE_/);
+  });
+
+  it("calls only the authenticated gateway proxy routes", async () => {
+    const mod = await import("@/lib/zooga-whatsapp-bridge/bridge-client.server");
+    expect(mod.GATEWAY_BRIDGE_ROUTES).toEqual({
+      status: "/v1/whatsapp-bridge/status",
+      connect: "/v1/whatsapp-bridge/connect",
+      qr: "/v1/whatsapp-bridge/qr",
+      disconnect: "/v1/whatsapp-bridge/disconnect",
+      logout: "/v1/whatsapp-bridge/logout",
+      groups: "/v1/whatsapp-bridge/groups",
+    });
+    expect(clientSrc).not.toContain("/v1/whatsapp-bridge/send");
+  });
+
+  it("uses bearer auth, a 15s timeout and no-store caching, and never logs the token", () => {
+    expect(clientSrc).toContain("Bearer ${config.bearer_token}");
+    expect(clientSrc).toContain("15_000");
+    expect(clientSrc).toContain('cache: "no-store"');
+    expect(clientSrc).not.toMatch(/console\.(log|warn|error)/);
+  });
+
+  it("keeps live sending hard-disabled", async () => {
+    const mod = await import("@/lib/zooga-whatsapp-bridge/bridge-client.server");
+    expect(mod.isBridgeLiveSendEnabled()).toBe(false);
+    const res = await mod.sendGroupMessage({ chat_id: "1@g.us", text: "x", idempotency_key: "k-000001" });
+    expect(res).toEqual({ ok: false, code: "live_send_disabled" });
+  });
+});
