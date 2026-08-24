@@ -51,9 +51,13 @@ export const Route = createFileRoute("/api/public/cron/zooga-shadow-drain")({
         if (!authorized) return json({ ok: false, error_code: "unauthorized" }, 401);
 
         const { drainShadowOutbox } = await import("@/lib/zooga-gateway/shadow-outbox.server");
+        // Bounded retention maintenance only. No proposals, no canonical
+        // results, no LLM: the comparison brain is intentionally disabled.
+        const { pruneShadowRuns } = await import("@/lib/zooga-gateway/shadow-runs.server");
         try {
           const drain = await drainShadowOutbox(20);
-          return json({ ok: true, ...drain });
+          const pruned = await pruneShadowRuns(200);
+          return json({ ok: true, ...drain, runs_pruned: pruned });
         } catch {
           return json({ ok: false, claimed: 0, delivered: 0, failed: 0, error_code: "drain_failed" }, 200);
         }

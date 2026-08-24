@@ -187,6 +187,20 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
                 providerEventPresent: !!ev.provider_event_id,
                 duplicate: res.duplicate,
               });
+              // Single canonical wiring point for the comparison ledger.
+              // Allow-list signals only; no proposal, no model, no CRM query.
+              const { openShadowRun } = await import("@/lib/zooga-gateway/shadow-runs.server");
+              await openShadowRun({
+                eventId: ev.provider_event_id ?? res.vault_id,
+                correlationId: res.correlation_id,
+                signals: {
+                  kind: ev.kind,
+                  event_type: ev.event_type,
+                  provider_event_present: !!ev.provider_event_id,
+                  duplicate: res.duplicate,
+                  has_text: !!(ev as any).text,
+                },
+              });
             } catch {
               // Fixed, non-sensitive code only: never log exception text,
               // payload or credentials from the shadow transport path.

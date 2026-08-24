@@ -13,10 +13,13 @@ export type GatewayIntegrations = {
 };
 
 import type { ShadowMetrics } from "./shadow";
+import type { ShadowComparisonMetrics } from "./shadow-compare";
 
 export type GatewayStatus = {
   /** Supabase-side shadow transport counters. Never comes from upstream JSON. */
   shadow?: ShadowMetrics;
+  /** Supabase-side shadow comparison counters. Never comes from upstream JSON. */
+  comparison?: ShadowComparisonMetrics;
   reachable: boolean;
   checked_at: string;
   latency_ms: number | null;

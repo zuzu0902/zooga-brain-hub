@@ -82,4 +82,55 @@ describe("Zooga separation from the legacy Tamar/Meta integration", () => {
     expect(src).toContain('console.warn("[zooga-shadow] enqueue_failed")');
     expect(src).not.toMatch(/\[zooga-shadow\][^\n]*shadowErr/);
   });
+
+  it("never writes to contacts, messages, offers or handoffs from Zooga code", () => {
+    for (const file of ZOOGA_FILES) {
+      const src = readFileSync(file, "utf8");
+      for (const table of ["contacts", "messages", "offers", "manager_handoffs"]) {
+        expect(src, `${file} touches ${table}`).not.toMatch(
+          new RegExp(`from\\(\\s*["'\`]${table}["'\`]`),
+        );
+      }
+      expect(src, file).not.toMatch(/sendWhatsApp|sendTemplate|graph\.facebook\.com/);
+    }
+  });
+
+  it("uses exactly one canonical wiring point for the comparison ledger", () => {
+    const callers = walk(join(ROOT, "src")).filter((f) => {
+      const src = readFileSync(f, "utf8");
+      return src.includes("openShadowRun") && !f.endsWith("shadow-runs.server.ts") && !f.includes("__tests__");
+    });
+    expect(callers.map((f) => f.replace(`${ROOT}/`, ""))).toEqual([
+      "src/routes/api/public/webhook/tamar.ts",
+    ]);
+  });
+
+  it("makes no model or network call in the comparison milestone", () => {
+    for (const name of ["shadow-compare.ts", "shadow-decision-adapter.ts", "shadow-runs.server.ts"]) {
+      const src = readFileSync(join(ROOT, "src/lib/zooga-gateway", name), "utf8");
+      expect(src, name).not.toMatch(/\bfetch\(/);
+      expect(src, name).not.toMatch(/LOVABLE_API_KEY|openai|anthropic|ai\.gateway/i);
+    }
+  });
+
+  it("keeps the scheduler limited to bounded maintenance — no proposals, no LLM", () => {
+    const src = readFileSync(CRON_ROUTE, "utf8");
+    expect(src).toContain("pruneShadowRuns");
+    expect(src).not.toContain("recordProposedDecision");
+    expect(src).not.toContain("finalizeShadowRun");
+  });
+
+  it("exposes comparison metrics only through the admin-only status route", () => {
+    const callers = walk(join(ROOT, "src")).filter((f) => {
+      const src = readFileSync(f, "utf8");
+      return (
+        src.includes("getShadowRunMetrics") && !f.endsWith("shadow-runs.server.ts") && !f.includes("__tests__")
+      );
+    });
+    expect(callers.map((f) => f.replace(`${ROOT}/`, ""))).toEqual([
+      "src/routes/api/zooga/gateway-status.ts",
+    ]);
+    const route = readFileSync(join(ROOT, "src/routes/api/zooga/gateway-status.ts"), "utf8");
+    expect(route).toContain("requireAdmin");
+  });
 });

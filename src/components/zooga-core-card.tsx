@@ -166,6 +166,41 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
         </div>
       </div>
 
+      <div className="mt-4 rounded-md border p-3" data-testid="zooga-comparison-metrics">
+        <div className="text-xs font-medium mb-2">{t("השוואת החלטות Shadow (תצוגה בלבד)")}</div>
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-x-4 gap-y-2 text-sm">
+          <div>
+            <div className="text-muted-foreground text-xs">{t("סה״כ ריצות")}</div>
+            <div className="font-medium">{s?.comparison?.total ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("פתוחות")}</div>
+            <div className="font-medium">{s?.comparison?.open ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("תואמות")}</div>
+            <div className="font-medium">{s?.comparison?.match ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("סטיות")}</div>
+            <div className="font-medium">{s?.comparison?.mismatch ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("שיעור סטייה")}</div>
+            <div className="font-medium">
+              {s?.comparison?.mismatch_rate != null ? `${Math.round(s.comparison.mismatch_rate * 100)}%` : "—"}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("מנוע כבוי")}</div>
+            <div className="font-medium">{s?.comparison?.adapter_disabled ?? 0}</div>
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-muted-foreground">
+          {t("מנוע ההשוואה כבוי בשלב זה — הריצות נשמרות פתוחות ואינן מוכרעות.")}
+        </div>
+      </div>
+
       <div className="mt-4 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
         <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
         <span>{t("מצב בטיחות: תעבורה חיה כבויה, inbound ו-outbound כבויים. תצוגת סטטוס בלבד.")}</span>
