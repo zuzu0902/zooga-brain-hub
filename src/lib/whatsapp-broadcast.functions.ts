@@ -127,6 +127,7 @@ export const createBroadcast = createServerFn({ method: "POST" })
       media_url?: string | null;
       group_ids: string[];
       scheduled_for?: string | null;
+      interval_seconds?: number | null;
     }) => d,
   )
   .handler(async ({ context, data }) => {
@@ -166,6 +167,7 @@ export const createBroadcast = createServerFn({ method: "POST" })
         status,
         send_mode: data.scheduled_for ? "scheduled" : "manual",
         scheduled_for: data.scheduled_for || null,
+        interval_seconds: data.interval_seconds ?? DEFAULT_BROADCAST_INTERVAL_SECONDS,
         total_groups: eligible.length,
         pending_count: eligible.length,
         created_by: userId,
