@@ -114,6 +114,7 @@ export async function drainShadowOutbox(limit = 10): Promise<DrainResult> {
           cache: "no-store",
           signal: controller.signal,
           body: JSON.stringify({
+            tenant_id: TENANT_SLUG,
             event_id: row.event_id,
             correlation_id: row.correlation_id,
             source: row.source,
