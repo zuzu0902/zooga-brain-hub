@@ -4732,6 +4732,77 @@ export type Database = {
           },
         ]
       }
+      zooga_shadow_outbox: {
+        Row: {
+          attempts: number
+          correlation_id: string | null
+          created_at: string
+          delivered_at: string | null
+          event_id: string
+          event_type: string
+          id: string
+          last_error: string | null
+          lease_until: string | null
+          leased_by: string | null
+          max_attempts: number
+          next_attempt_at: string
+          occurred_at: string
+          payload: Json
+          source: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          correlation_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          event_id: string
+          event_type?: string
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          leased_by?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          occurred_at?: string
+          payload?: Json
+          source?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          correlation_id?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          last_error?: string | null
+          lease_until?: string | null
+          leased_by?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          occurred_at?: string
+          payload?: Json
+          source?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zooga_shadow_outbox_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       offers_public: {
@@ -5143,6 +5214,25 @@ export type Database = {
       zooga_ingest_shadow: {
         Args: { _event: Json; _gateway_token: string }
         Returns: Json
+      }
+      zooga_shadow_claim: {
+        Args: { p_lease_seconds?: number; p_limit?: number; p_worker: string }
+        Returns: {
+          attempts: number
+          correlation_id: string
+          event_id: string
+          event_type: string
+          id: string
+          max_attempts: number
+          occurred_at: string
+          payload: Json
+          source: string
+        }[]
+      }
+      zooga_shadow_complete: { Args: { p_id: string }; Returns: undefined }
+      zooga_shadow_fail: {
+        Args: { p_base_backoff_seconds?: number; p_error: string; p_id: string }
+        Returns: undefined
       }
     }
     Enums: {

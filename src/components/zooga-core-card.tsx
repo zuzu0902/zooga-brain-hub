@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, ShieldCheck, Server } from "lucide-react";
+import { RefreshCw, ShieldCheck, Server, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { emptyStatus, type GatewayStatus } from "@/lib/zooga-gateway/status";
 import { useT } from "@/lib/language-context";
@@ -25,7 +25,26 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
   const t = useT();
   const [status, setStatus] = useState<GatewayStatus | null>(initialStatus);
   const [loading, setLoading] = useState(false);
+  const [draining, setDraining] = useState(false);
   const lastFetch = useRef(0);
+
+  const drain = useCallback(async () => {
+    setDraining(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const res = await fetch("/api/zooga/gateway-status", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: "no-store",
+      });
+      setStatus((await res.json()) as GatewayStatus);
+    } catch {
+      /* status-only action: a failure changes nothing */
+    } finally {
+      setDraining(false);
+    }
+  }, []);
 
   const load = useCallback(async (force = false) => {
     const now = Date.now();
@@ -110,6 +129,40 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
         <div>
           <div className="text-muted-foreground text-xs mb-1">{t("זמן תגובה")}</div>
           <div className="font-medium">{s?.latency_ms != null ? `${s.latency_ms} ms` : "—"}</div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-md border p-3" data-testid="zooga-shadow-metrics">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs font-medium">{t("העברת Shadow (מטא-דאטה בלבד)")}</div>
+          <Button variant="outline" size="sm" onClick={drain} disabled={draining}>
+            <Send className={`h-3.5 w-3.5 ${draining ? "animate-pulse" : ""}`} />
+            <span className="ms-1">{t("הרץ העברת Shadow")}</span>
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 text-sm">
+          <div>
+            <div className="text-muted-foreground text-xs">{t("בהמתנה")}</div>
+            <div className="font-medium">{s?.shadow?.queued ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("בניסיון חוזר")}</div>
+            <div className="font-medium">{s?.shadow?.retry ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("נשלחו")}</div>
+            <div className="font-medium">{s?.shadow?.delivered ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("כשלים סופיים")}</div>
+            <div className="font-medium">{s?.shadow?.dead ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("הישן ביותר בתור")}</div>
+            <div className="font-medium">
+              {s?.shadow?.oldest_queued_age_seconds != null ? `${s.shadow.oldest_queued_age_seconds}s` : "—"}
+            </div>
+          </div>
         </div>
       </div>
 
