@@ -132,6 +132,40 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
         </div>
       </div>
 
+      <div className="mt-4 rounded-md border p-3" data-testid="zooga-shadow-metrics">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs font-medium">{t("העברת Shadow (מטא-דאטה בלבד)")}</div>
+          <Button variant="outline" size="sm" onClick={drain} disabled={draining}>
+            <Send className={`h-3.5 w-3.5 ${draining ? "animate-pulse" : ""}`} />
+            <span className="ms-1">{t("הרץ העברת Shadow")}</span>
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-2 text-sm">
+          <div>
+            <div className="text-muted-foreground text-xs">{t("בהמתנה")}</div>
+            <div className="font-medium">{s?.shadow?.queued ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("בניסיון חוזר")}</div>
+            <div className="font-medium">{s?.shadow?.retry ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("נשלחו")}</div>
+            <div className="font-medium">{s?.shadow?.delivered ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("כשלים סופיים")}</div>
+            <div className="font-medium">{s?.shadow?.dead ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("הישן ביותר בתור")}</div>
+            <div className="font-medium">
+              {s?.shadow?.oldest_queued_age_seconds != null ? `${s.shadow.oldest_queued_age_seconds}s` : "—"}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-4 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
         <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
         <span>{t("מצב בטיחות: תעבורה חיה כבויה, inbound ו-outbound כבויים. תצוגת סטטוס בלבד.")}</span>
