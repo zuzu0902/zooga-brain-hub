@@ -17,6 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createBroadcast,
   cancelBroadcast,
+  deleteGroupFolder,
+  listGroupFolders,
+  saveGroupFolder,
   listBroadcasts,
   listWhatsappConnections,
   listWhatsappGroups,
@@ -27,6 +30,12 @@ import {
   validateBroadcastDraft,
   type WaConnection,
 } from "@/lib/whatsapp-broadcast/core";
+import {
+  applyFoldersToSelection,
+  folderCounts,
+  validateFolderName,
+  type GroupFolder,
+} from "@/lib/whatsapp-broadcast/folders";
 import { getBridgeStatus } from "@/lib/whatsapp-bridge.functions";
 import { BRIDGE_STATE_LABELS, type BridgeStatus } from "@/lib/zooga-whatsapp-bridge/bridge-contract";
 import { formatDate } from "@/lib/i18n";
@@ -70,7 +79,17 @@ function BroadcastsPage() {
     [groupsQ.data, bridge],
   );
 
+  const foldersFn = useServerFn(listGroupFolders);
+  const foldersQ = useQuery({ queryKey: ["wa", "folders"], queryFn: () => foldersFn({}) });
+  const folders = useMemo(
+    () => ((foldersQ.data ?? []) as GroupFolder[]).filter((f) => bridge && f.connection_id === bridge.id),
+    [foldersQ.data, bridge],
+  );
+
   const [selected, setSelected] = useState<string[]>([]);
+  const [activeFolders, setActiveFolders] = useState<string[]>([]);
+  const [folderName, setFolderName] = useState("");
+  const [editingFolder, setEditingFolder] = useState<GroupFolder | null>(null);
   const [category, setCategory] = useState<string>("");
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -95,6 +114,58 @@ function BroadcastsPage() {
     },
     onError: (e: any) => toast.error(e?.message ?? "יצירת הפצה נכשלה"),
   });
+
+  const saveFolder = useMutation({
+    mutationFn: useServerFn(saveGroupFolder),
+    onSuccess: () => {
+      toast.success("תיקיית הקבוצות נשמרה");
+      setFolderName("");
+      setEditingFolder(null);
+      qc.invalidateQueries({ queryKey: ["wa", "folders"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "שמירת התיקייה נכשלה"),
+  });
+
+  const removeFolder = useMutation({
+    mutationFn: useServerFn(deleteGroupFolder),
+    onSuccess: () => {
+      toast.success("התיקייה נמחקה. הקבוצות עצמן לא שונו.");
+      setEditingFolder(null);
+      qc.invalidateQueries({ queryKey: ["wa", "folders"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "מחיקת התיקייה נכשלה"),
+  });
+
+  const toggleFolder = (id: string) => {
+    const next = activeFolders.includes(id)
+      ? activeFolders.filter((x) => x !== id)
+      : [...activeFolders, id];
+    setActiveFolders(next);
+    setSelected((prev) => applyFoldersToSelection(prev, folders, next, groups as any));
+  };
+
+  const submitFolder = () => {
+    if (!bridge) {
+      toast.error("אין חיבור WhatsApp Web Bridge מוגדר");
+      return;
+    }
+    const others = folders
+      .filter((f) => f.id !== editingFolder?.id)
+      .map((f) => f.name);
+    const check = validateFolderName(folderName, others);
+    if (!check.ok) {
+      toast.error(check.error);
+      return;
+    }
+    saveFolder.mutate({
+      data: {
+        id: editingFolder?.id ?? null,
+        connection_id: bridge.id,
+        name: check.name,
+        group_ids: selected,
+      },
+    });
+  };
 
   const cancel = useMutation({
     mutationFn: useServerFn(cancelBroadcast),
@@ -206,6 +277,45 @@ function BroadcastsPage() {
               <CardTitle className="text-base">בחירת קבוצות ({selected.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+                <div className="text-sm font-semibold">תיקיות קבוצות (קהלים שמורים)</div>
+                {!folders.length ? (
+                  <p className="text-xs text-muted-foreground">
+                    עדיין אין תיקיות. אפשר ליצור תיקייה מתוך הבחירה הנוכחית בלשונית ״קבוצות״.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {folders.map((f) => {
+                      const counts = folderCounts(f, groups as any);
+                      return (
+                        <Button
+                          key={f.id}
+                          size="sm"
+                          variant={activeFolders.includes(f.id) ? "default" : "outline"}
+                          onClick={() => toggleFolder(f.id)}
+                        >
+                          {f.name} · {counts.effective}/{counts.total}
+                        </Button>
+                      );
+                    })}
+                    {!!activeFolders.length && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setActiveFolders([]);
+                          setSelected([]);
+                        }}
+                      >
+                        נקה תיקיות
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  בחירת תיקייה מוסיפה את הקבוצות שבה (ללא כפילויות). אפשר להוסיף או להסיר קבוצות ידנית לאחר מכן.
+                </p>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button size="sm" variant="outline" onClick={() => setSelected(groups.map((g) => g.id))}>
                   בחר הכל
@@ -259,7 +369,78 @@ function BroadcastsPage() {
           </Button>
         </TabsContent>
 
-        <TabsContent value="groups" className="pt-4">
+        <TabsContent value="groups" className="pt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">תיקיות קבוצות (קהלים שמורים)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  className="max-w-xs"
+                  placeholder="שם תיקייה (למשל: טיולים, VIP)"
+                  value={folderName}
+                  onChange={(e) => setFolderName(e.target.value)}
+                />
+                <Button size="sm" disabled={!bridge || saveFolder.isPending} onClick={submitFolder}>
+                  {editingFolder ? `עדכון ״${editingFolder.name}״ (${selected.length} קבוצות)` : `שמירת תיקייה מהבחירה (${selected.length})`}
+                </Button>
+                {editingFolder && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditingFolder(null);
+                      setFolderName("");
+                    }}
+                  >
+                    ביטול עריכה
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                התיקייה נשמרת במסד הנתונים ומשויכת ל-Alex Personal בלבד. מחיקת תיקייה אינה מוחקת קבוצות, והפצות קיימות שומרות את רשימת הקבוצות שנקבעה בזמן יצירתן.
+              </p>
+              <div className="space-y-2">
+                {folders.map((f) => {
+                  const counts = folderCounts(f, groups as any);
+                  return (
+                    <div
+                      key={f.id}
+                      className="flex flex-wrap items-center gap-2 rounded-md border border-border p-2 text-sm"
+                    >
+                      <span className="font-medium">{f.name}</span>
+                      <Badge variant="secondary">{counts.total} קבוצות</Badge>
+                      {counts.effective !== counts.total && (
+                        <Badge variant="outline">{counts.effective} זמינות לשליחה</Badge>
+                      )}
+                      <div className="ms-auto flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingFolder(f);
+                            setFolderName(f.name);
+                            setSelected(f.group_ids);
+                          }}
+                        >
+                          עריכה
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeFolder.mutate({ data: { id: f.id } })}
+                        >
+                          מחיקה
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!folders.length && <div className="text-xs text-muted-foreground">אין תיקיות שמורות</div>}
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="p-0">
               <table className="w-full text-sm">
