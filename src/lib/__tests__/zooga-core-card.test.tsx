@@ -1,47 +1,49 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { emptyStatus } from "@/lib/zooga-gateway/status";
+import { describe, it, expect, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import { emptyStatus, type GatewayStatus } from "@/lib/zooga-gateway/status";
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "t" } } }) } },
+  supabase: { auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) } },
 }));
 vi.mock("@/lib/language-context", () => ({ useT: () => (s: string) => s }));
 
 import { ZoogaCoreCard } from "@/components/zooga-core-card";
 
-beforeEach(() => vi.unstubAllGlobals());
-afterEach(() => vi.restoreAllMocks());
-
-function mockStatus(body: any) {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => body }));
-}
+const ONLINE: GatewayStatus = {
+  reachable: true,
+  checked_at: "2026-08-24T08:00:00.000Z",
+  latency_ms: 55,
+  system: "zooga-gateway",
+  environment: "production",
+  tenant: "zooga",
+  live_traffic: false,
+  inbound_enabled: false,
+  outbound_enabled: false,
+  integrations: { supabase: true, whatsapp: false, meta: false },
+  error_code: null,
+};
 
 describe("ZoogaCoreCard", () => {
-  it("renders the all-OFF safety state", async () => {
-    mockStatus({
-      reachable: true,
-      checked_at: "2026-08-24T08:00:00.000Z",
-      latency_ms: 55,
-      system: "zooga-gateway",
-      environment: "production",
-      tenant: "zooga",
-      live_traffic: false,
-      inbound_enabled: false,
-      outbound_enabled: false,
-      integrations: { supabase: true, whatsapp: false, meta: false },
-      error_code: null,
-    });
-    render(<ZoogaCoreCard />);
-    await waitFor(() => expect(screen.getByText("production")).toBeTruthy());
-    expect(screen.getAllByText("OFF").length).toBe(3);
-    expect(screen.queryByText("ON")).toBeNull();
-    expect(screen.getByText("55 ms")).toBeTruthy();
+  it("renders the expected all-OFF safety state", () => {
+    const html = renderToStaticMarkup(<ZoogaCoreCard initialStatus={ONLINE} />);
+    expect(html).toContain("ליבת Zooga");
+    expect(html).toContain("production");
+    expect(html).toContain("55 ms");
+    expect((html.match(/>OFF</g) ?? []).length).toBe(3);
+    expect(html).not.toContain(">ON<");
+    expect(html).toContain('dir="rtl"');
   });
 
-  it("shows an error code when the gateway is unauthorized/unreachable", async () => {
-    mockStatus(emptyStatus("2026-08-24T08:00:00.000Z", "forbidden"));
-    render(<ZoogaCoreCard />);
-    await waitFor(() => expect(screen.getByTestId("zooga-core-error").textContent).toContain("forbidden"));
-    expect(screen.getAllByText("OFF").length).toBe(3);
+  it("shows a non-sensitive error code when the gateway is unavailable", () => {
+    const html = renderToStaticMarkup(
+      <ZoogaCoreCard initialStatus={emptyStatus("2026-08-24T08:00:00.000Z", "forbidden")} />,
+    );
+    expect(html).toContain("forbidden");
+    expect((html.match(/>OFF</g) ?? []).length).toBe(3);
+  });
+
+  it("renders no activation controls", () => {
+    const html = renderToStaticMarkup(<ZoogaCoreCard initialStatus={ONLINE} />);
+    expect(html).not.toMatch(/הפעל|activate/i);
   });
 });
