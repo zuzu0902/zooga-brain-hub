@@ -118,6 +118,20 @@ function BroadcastsPage() {
     );
   }, [groups, groupQuery]);
 
+  const allBroadcasts = useMemo(() => ((historyQ.data ?? []) as any[]), [historyQ.data]);
+  const queued = useMemo(
+    () =>
+      allBroadcasts
+        .filter((b) => b.status === "draft" || b.status === "queued" || b.status === "running")
+        .sort((a, b) => {
+          const av = a.scheduled_for ? new Date(a.scheduled_for).getTime() : Number.MAX_SAFE_INTEGER;
+          const bv = b.scheduled_for ? new Date(b.scheduled_for).getTime() : Number.MAX_SAFE_INTEGER;
+          return av - bv || new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        }),
+    [allBroadcasts],
+  );
+
+
   const syncGroups = useMutation({
     mutationFn: useServerFn(syncBridgeGroups),
     onSuccess: (r: any) => {
