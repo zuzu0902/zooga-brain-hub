@@ -676,6 +676,55 @@ function BroadcastsPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="queue" className="pt-4 space-y-2">
+          <div className="text-xs text-muted-foreground">
+            טיוטות והפצות מתוזמנות שממתינות לביצוע, לפי מועד השליחה המתוכנן.
+          </div>
+          {queued.map((b) => {
+            const done = (b.success_count ?? 0) + (b.failed_count ?? 0);
+            const total = b.total_groups || 0;
+            const pct = total ? Math.round((done / total) * 100) : 0;
+            return (
+              <Card key={b.id}>
+                <CardContent className="space-y-2 p-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                      to="/broadcasts/$id"
+                      params={{ id: b.id }}
+                      className="font-medium underline-offset-2 hover:underline"
+                    >
+                      {b.title}
+                    </Link>
+                    <Badge variant="outline">{BROADCAST_STATUS_LABELS[b.status as "draft"] ?? b.status}</Badge>
+                    <span className="text-muted-foreground">
+                      {b.scheduled_for ? `מתוזמנת ל-${formatDate(b.scheduled_for)}` : "ללא מועד — טיוטה"}
+                    </span>
+                    <span className="text-muted-foreground">{total} קבוצות</span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="ms-auto"
+                      onClick={() => cancel.mutate({ data: { id: b.id } })}
+                    >
+                      ביטול
+                    </Button>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    נשלחו {b.success_count} · נכשלו {b.failed_count} · ממתינות {b.pending_count}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+          {!queued.length && (
+            <div className="text-sm text-muted-foreground">אין טיוטות או הפצות מתוזמנות בתור</div>
+          )}
+        </TabsContent>
+
+
         <TabsContent value="history" className="pt-4 space-y-2">
           {((historyQ.data ?? []) as any[]).map((b) => (
             <Card key={b.id}>
