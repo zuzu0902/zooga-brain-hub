@@ -63,6 +63,7 @@ import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
 import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new'
 import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
+import { Route as AppBroadcastsIdRouteImport } from './routes/_app.broadcasts.$id'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
@@ -361,6 +362,11 @@ const AppCampaignsIdRoute = AppCampaignsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppCampaignsRoute,
 } as any)
+const AppBroadcastsIdRoute = AppBroadcastsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppBroadcastsRoute,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -438,7 +444,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/ai-assistant': typeof AppAiAssistantRoute
-  '/broadcasts': typeof AppBroadcastsRoute
+  '/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/campaigns': typeof AppCampaignsRouteWithChildren
   '/contacts': typeof AppContactsRouteWithChildren
   '/handoff': typeof AppHandoffRoute
@@ -454,6 +460,7 @@ export interface FileRoutesByFullPath {
   '/zero-loss': typeof AppZeroLossRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/broadcasts/$id': typeof AppBroadcastsIdRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/contacts/$id': typeof AppContactsIdRoute
@@ -504,7 +511,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/ai-assistant': typeof AppAiAssistantRoute
-  '/broadcasts': typeof AppBroadcastsRoute
+  '/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/campaigns': typeof AppCampaignsRouteWithChildren
   '/contacts': typeof AppContactsRouteWithChildren
   '/handoff': typeof AppHandoffRoute
@@ -521,6 +528,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/broadcasts/$id': typeof AppBroadcastsIdRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/contacts/$id': typeof AppContactsIdRoute
@@ -573,7 +581,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/ai-assistant': typeof AppAiAssistantRoute
-  '/_app/broadcasts': typeof AppBroadcastsRoute
+  '/_app/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/_app/campaigns': typeof AppCampaignsRouteWithChildren
   '/_app/contacts': typeof AppContactsRouteWithChildren
   '/_app/handoff': typeof AppHandoffRoute
@@ -590,6 +598,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_app/broadcasts/$id': typeof AppBroadcastsIdRoute
   '/_app/campaigns/$id': typeof AppCampaignsIdRoute
   '/_app/campaigns/new': typeof AppCampaignsNewRoute
   '/_app/contacts/$id': typeof AppContactsIdRoute
@@ -659,6 +668,7 @@ export interface FileRouteTypes {
     | '/zero-loss'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/broadcasts/$id'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/contacts/$id'
@@ -726,6 +736,7 @@ export interface FileRouteTypes {
     | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/broadcasts/$id'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/contacts/$id'
@@ -794,6 +805,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/_app/broadcasts/$id'
     | '/_app/campaigns/$id'
     | '/_app/campaigns/new'
     | '/_app/contacts/$id'
@@ -1262,6 +1274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCampaignsIdRouteImport
       parentRoute: typeof AppCampaignsRoute
     }
+    '/_app/broadcasts/$id': {
+      id: '/_app/broadcasts/$id'
+      path: '/$id'
+      fullPath: '/broadcasts/$id'
+      preLoaderRoute: typeof AppBroadcastsIdRouteImport
+      parentRoute: typeof AppBroadcastsRoute
+    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -1349,6 +1368,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppBroadcastsRouteChildren {
+  AppBroadcastsIdRoute: typeof AppBroadcastsIdRoute
+}
+
+const AppBroadcastsRouteChildren: AppBroadcastsRouteChildren = {
+  AppBroadcastsIdRoute: AppBroadcastsIdRoute,
+}
+
+const AppBroadcastsRouteWithChildren = AppBroadcastsRoute._addFileChildren(
+  AppBroadcastsRouteChildren,
+)
+
 interface AppCampaignsRouteChildren {
   AppCampaignsIdRoute: typeof AppCampaignsIdRoute
   AppCampaignsNewRoute: typeof AppCampaignsNewRoute
@@ -1389,7 +1420,7 @@ const AppOffersRouteWithChildren = AppOffersRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAiAssistantRoute: typeof AppAiAssistantRoute
-  AppBroadcastsRoute: typeof AppBroadcastsRoute
+  AppBroadcastsRoute: typeof AppBroadcastsRouteWithChildren
   AppCampaignsRoute: typeof AppCampaignsRouteWithChildren
   AppContactsRoute: typeof AppContactsRouteWithChildren
   AppHandoffRoute: typeof AppHandoffRoute
@@ -1414,7 +1445,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAiAssistantRoute: AppAiAssistantRoute,
-  AppBroadcastsRoute: AppBroadcastsRoute,
+  AppBroadcastsRoute: AppBroadcastsRouteWithChildren,
   AppCampaignsRoute: AppCampaignsRouteWithChildren,
   AppContactsRoute: AppContactsRouteWithChildren,
   AppHandoffRoute: AppHandoffRoute,
