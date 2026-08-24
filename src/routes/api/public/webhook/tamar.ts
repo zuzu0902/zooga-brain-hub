@@ -173,6 +173,24 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             }
             if (ev.phone) await registerIdentity(ev.phone, null, "meta_whatsapp").catch(() => null);
 
+            // ---- ZOOGA SHADOW TRANSPORT (metadata-only, best effort) --------
+            // One local Supabase insert. The Gateway is NEVER called inline and
+            // this can never fail or change the live reply path.
+            try {
+              const { enqueueShadowEnvelope } = await import("@/lib/zooga-gateway/shadow-outbox.server");
+              await enqueueShadowEnvelope({
+                eventId: ev.provider_event_id ?? res.vault_id,
+                correlationId: res.correlation_id,
+                eventType: ev.event_type,
+                occurredAt: (ev as any).occurred_at ?? (ev as any).timestamp ?? null,
+                kind: ev.kind,
+                providerEventPresent: !!ev.provider_event_id,
+                duplicate: res.duplicate,
+              });
+            } catch (shadowErr: any) {
+              console.warn("[zooga-shadow] enqueue failed:", String(shadowErr?.message ?? shadowErr).slice(0, 200));
+            }
+
             // ---- TAMAR LITE SHADOW DUAL-WRITE (never blocks the live flow) --
             // Signature verified + durable vault write already done. This is a
             // pure ledger insert: no model call, no send, no state change.
