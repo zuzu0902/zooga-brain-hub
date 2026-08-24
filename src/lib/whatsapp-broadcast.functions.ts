@@ -66,7 +66,7 @@ export const updateBridgeConnection = createServerFn({ method: "POST" })
     if (data.enabled !== undefined) patch["enabled"] = data.enabled;
     if (data.config !== undefined) patch["config"] = sanitizeConnectionConfig(data.config);
 
-    const { error } = await db.from("whatsapp_connections").update(patch).eq("id", data.connection_id);
+    const { error } = await db.from("whatsapp_connections").update(patch as never).eq("id", data.connection_id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
