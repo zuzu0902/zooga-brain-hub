@@ -102,6 +102,8 @@ function Dashboard() {
         <p className="text-muted-foreground mt-1">{t("מבט חי על קהילת זוגה")}</p>
       </header>
 
+      <ZoogaCoreCard />
+
       {isLoading ? (
         <div className="text-muted-foreground">{t("טוען נתונים...")}</div>
       ) : (
