@@ -12,7 +12,11 @@ export type GatewayIntegrations = {
   meta: boolean;
 };
 
+import type { ShadowMetrics } from "./shadow";
+
 export type GatewayStatus = {
+  /** Supabase-side shadow transport counters. Never comes from upstream JSON. */
+  shadow?: ShadowMetrics;
   reachable: boolean;
   checked_at: string;
   latency_ms: number | null;
