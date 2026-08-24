@@ -21,9 +21,9 @@ function Pill({ on, onLabel, offLabel, safeOff }: { on: boolean; onLabel: string
   );
 }
 
-export function ZoogaCoreCard() {
+export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: GatewayStatus | null } = {}) {
   const t = useT();
-  const [status, setStatus] = useState<GatewayStatus | null>(null);
+  const [status, setStatus] = useState<GatewayStatus | null>(initialStatus);
   const [loading, setLoading] = useState(false);
   const lastFetch = useRef(0);
 
