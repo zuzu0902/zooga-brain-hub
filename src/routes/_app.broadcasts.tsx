@@ -212,12 +212,30 @@ function BroadcastsPage() {
   });
 
   const toggleFolder = (id: string) => {
-    const next = activeFolders.includes(id)
-      ? activeFolders.filter((x) => x !== id)
-      : [...activeFolders, id];
+    const isOn = activeFolders.includes(id);
+    const next = isOn ? activeFolders.filter((x) => x !== id) : [...activeFolders, id];
     setActiveFolders(next);
-    setSelected((prev) => applyFoldersToSelection(prev, folders, next, groups as any));
+    setSelected((prev) => {
+      if (isOn) {
+        const folder = folders.find((f) => f.id === id);
+        const stillNeeded = new Set(
+          folders.filter((f) => next.includes(f.id)).flatMap((f) => f.group_ids),
+        );
+        const removed = new Set((folder?.group_ids ?? []).filter((g) => !stillNeeded.has(g)));
+        return prev.filter((g) => !removed.has(g));
+      }
+      const merged = applyFoldersToSelection(prev, folders, next, groups as any);
+      const added = merged.length - prev.length;
+      const folder = folders.find((f) => f.id === id);
+      if (added <= 0) {
+        toast.message(`״${folder?.name ?? "תיקייה"}״ לא הוסיפה קבוצות חדשות (כפילות או קבוצות חסומות/ארכיון)`);
+      } else {
+        toast.success(`נוספו ${added} קבוצות מתוך ״${folder?.name ?? "תיקייה"}״`);
+      }
+      return merged;
+    });
   };
+
 
   const submitFolder = () => {
     if (!bridge) {
