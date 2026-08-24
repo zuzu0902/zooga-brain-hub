@@ -4803,6 +4803,122 @@ export type Database = {
           },
         ]
       }
+      zooga_shadow_runs: {
+        Row: {
+          attempts: number
+          canonical_action: string | null
+          canonical_decision_ref: string | null
+          canonical_reason_codes: string[]
+          canonical_state_after: string | null
+          canonical_state_before: string | null
+          correlation_id: string | null
+          cost_usd: number | null
+          created_at: string
+          error_code: string | null
+          eval_reason_codes: string[]
+          eval_status: string
+          evaluated_at: string | null
+          event_id: string
+          expires_at: string
+          id: string
+          input_hash: string | null
+          input_signals: Json
+          input_tokens: number | null
+          latency_ms: number | null
+          max_attempts: number
+          model_id: string | null
+          model_version: string | null
+          output_tokens: number | null
+          proposed_action: string | null
+          proposed_confidence: number | null
+          proposed_reason_codes: string[]
+          proposed_state_after: string | null
+          provider: string | null
+          run_kind: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          canonical_action?: string | null
+          canonical_decision_ref?: string | null
+          canonical_reason_codes?: string[]
+          canonical_state_after?: string | null
+          canonical_state_before?: string | null
+          correlation_id?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          error_code?: string | null
+          eval_reason_codes?: string[]
+          eval_status?: string
+          evaluated_at?: string | null
+          event_id: string
+          expires_at?: string
+          id?: string
+          input_hash?: string | null
+          input_signals?: Json
+          input_tokens?: number | null
+          latency_ms?: number | null
+          max_attempts?: number
+          model_id?: string | null
+          model_version?: string | null
+          output_tokens?: number | null
+          proposed_action?: string | null
+          proposed_confidence?: number | null
+          proposed_reason_codes?: string[]
+          proposed_state_after?: string | null
+          provider?: string | null
+          run_kind?: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          canonical_action?: string | null
+          canonical_decision_ref?: string | null
+          canonical_reason_codes?: string[]
+          canonical_state_after?: string | null
+          canonical_state_before?: string | null
+          correlation_id?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          error_code?: string | null
+          eval_reason_codes?: string[]
+          eval_status?: string
+          evaluated_at?: string | null
+          event_id?: string
+          expires_at?: string
+          id?: string
+          input_hash?: string | null
+          input_signals?: Json
+          input_tokens?: number | null
+          latency_ms?: number | null
+          max_attempts?: number
+          model_id?: string | null
+          model_version?: string | null
+          output_tokens?: number | null
+          proposed_action?: string | null
+          proposed_confidence?: number | null
+          proposed_reason_codes?: string[]
+          proposed_state_after?: string | null
+          provider?: string | null
+          run_kind?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zooga_shadow_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       offers_public: {
@@ -5234,6 +5350,7 @@ export type Database = {
         Args: { p_base_backoff_seconds?: number; p_error: string; p_id: string }
         Returns: undefined
       }
+      zooga_shadow_runs_prune: { Args: { p_limit?: number }; Returns: number }
       zooga_verify_scheduler_token_hash: {
         Args: { _candidate_hash: string }
         Returns: boolean

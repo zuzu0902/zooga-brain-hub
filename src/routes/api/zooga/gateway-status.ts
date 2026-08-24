@@ -51,7 +51,9 @@ async function requireAdmin(request: Request, checkedAt: string): Promise<Respon
 
 async function withShadow(status: GatewayStatus): Promise<GatewayStatus> {
   const { getShadowMetrics } = await import("@/lib/zooga-gateway/shadow-outbox.server");
-  return { ...status, shadow: await getShadowMetrics() };
+  const { getShadowRunMetrics } = await import("@/lib/zooga-gateway/shadow-runs.server");
+  const [shadow, comparison] = await Promise.all([getShadowMetrics(), getShadowRunMetrics()]);
+  return { ...status, shadow, comparison };
 }
 
 export const Route = createFileRoute("/api/zooga/gateway-status")({
