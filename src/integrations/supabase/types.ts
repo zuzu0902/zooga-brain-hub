@@ -4583,6 +4583,7 @@ export type Database = {
           failed_count: number
           finished_at: string | null
           id: string
+          interval_seconds: number
           media_url: string | null
           message_text: string
           pending_count: number
@@ -4602,6 +4603,7 @@ export type Database = {
           failed_count?: number
           finished_at?: string | null
           id?: string
+          interval_seconds?: number
           media_url?: string | null
           message_text: string
           pending_count?: number
@@ -4621,6 +4623,7 @@ export type Database = {
           failed_count?: number
           finished_at?: string | null
           id?: string
+          interval_seconds?: number
           media_url?: string | null
           message_text?: string
           pending_count?: number
@@ -4696,6 +4699,80 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      whatsapp_group_folder_members: {
+        Row: {
+          created_at: string
+          folder_id: string
+          group_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_id: string
+          group_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          folder_id?: string
+          group_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_group_folder_members_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_group_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_group_folder_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_group_folders: {
+        Row: {
+          connection_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_group_folders_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_group_sync_logs: {
         Row: {
