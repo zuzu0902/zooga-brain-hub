@@ -52,6 +52,7 @@ import { Route as ApiDebugRecentEventsRouteImport } from './routes/api/debug/rec
 import { Route as ApiDebugIntegrationsStatusRouteImport } from './routes/api/debug/integrations-status'
 import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
 import { Route as ApiDebugAgentsSummaryRouteImport } from './routes/api/debug/agents-summary'
+import { Route as AppSettingsWhatsappConnectionsRouteImport } from './routes/_app.settings.whatsapp-connections'
 import { Route as AppSettingsTamarStudioRouteImport } from './routes/_app.settings.tamar-studio'
 import { Route as AppSettingsTamarBrainRouteImport } from './routes/_app.settings.tamar-brain'
 import { Route as AppSettingsTamarBlocksRouteImport } from './routes/_app.settings.tamar-blocks'
@@ -303,6 +304,12 @@ const ApiDebugAgentsSummaryRoute = ApiDebugAgentsSummaryRouteImport.update({
   path: '/api/debug/agents-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSettingsWhatsappConnectionsRoute =
+  AppSettingsWhatsappConnectionsRouteImport.update({
+    id: '/settings/whatsapp-connections',
+    path: '/settings/whatsapp-connections',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppSettingsTamarStudioRoute = AppSettingsTamarStudioRouteImport.update({
   id: '/settings/tamar-studio',
   path: '/settings/tamar-studio',
@@ -449,6 +456,7 @@ export interface FileRoutesByFullPath {
   '/settings/tamar-blocks': typeof AppSettingsTamarBlocksRoute
   '/settings/tamar-brain': typeof AppSettingsTamarBrainRoute
   '/settings/tamar-studio': typeof AppSettingsTamarStudioRoute
+  '/settings/whatsapp-connections': typeof AppSettingsWhatsappConnectionsRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -514,6 +522,7 @@ export interface FileRoutesByTo {
   '/settings/tamar-blocks': typeof AppSettingsTamarBlocksRoute
   '/settings/tamar-brain': typeof AppSettingsTamarBrainRoute
   '/settings/tamar-studio': typeof AppSettingsTamarStudioRoute
+  '/settings/whatsapp-connections': typeof AppSettingsWhatsappConnectionsRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -581,6 +590,7 @@ export interface FileRoutesById {
   '/_app/settings/tamar-blocks': typeof AppSettingsTamarBlocksRoute
   '/_app/settings/tamar-brain': typeof AppSettingsTamarBrainRoute
   '/_app/settings/tamar-studio': typeof AppSettingsTamarStudioRoute
+  '/_app/settings/whatsapp-connections': typeof AppSettingsWhatsappConnectionsRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -648,6 +658,7 @@ export interface FileRouteTypes {
     | '/settings/tamar-blocks'
     | '/settings/tamar-brain'
     | '/settings/tamar-studio'
+    | '/settings/whatsapp-connections'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -713,6 +724,7 @@ export interface FileRouteTypes {
     | '/settings/tamar-blocks'
     | '/settings/tamar-brain'
     | '/settings/tamar-studio'
+    | '/settings/whatsapp-connections'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -779,6 +791,7 @@ export interface FileRouteTypes {
     | '/_app/settings/tamar-blocks'
     | '/_app/settings/tamar-brain'
     | '/_app/settings/tamar-studio'
+    | '/_app/settings/whatsapp-connections'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -1160,6 +1173,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDebugAgentsSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/settings/whatsapp-connections': {
+      id: '/_app/settings/whatsapp-connections'
+      path: '/settings/whatsapp-connections'
+      fullPath: '/settings/whatsapp-connections'
+      preLoaderRoute: typeof AppSettingsWhatsappConnectionsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/tamar-studio': {
       id: '/_app/settings/tamar-studio'
       path: '/settings/tamar-studio'
@@ -1369,6 +1389,7 @@ interface AppRouteChildren {
   AppSettingsTamarBlocksRoute: typeof AppSettingsTamarBlocksRoute
   AppSettingsTamarBrainRoute: typeof AppSettingsTamarBrainRoute
   AppSettingsTamarStudioRoute: typeof AppSettingsTamarStudioRoute
+  AppSettingsWhatsappConnectionsRoute: typeof AppSettingsWhatsappConnectionsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1392,6 +1413,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsTamarBlocksRoute: AppSettingsTamarBlocksRoute,
   AppSettingsTamarBrainRoute: AppSettingsTamarBrainRoute,
   AppSettingsTamarStudioRoute: AppSettingsTamarStudioRoute,
+  AppSettingsWhatsappConnectionsRoute: AppSettingsWhatsappConnectionsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
