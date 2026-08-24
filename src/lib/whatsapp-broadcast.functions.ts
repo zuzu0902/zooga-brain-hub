@@ -12,6 +12,7 @@ import {
   validateBroadcastDraft,
   type WaConnection,
 } from "@/lib/whatsapp-broadcast/core";
+import { validateFolderName } from "@/lib/whatsapp-broadcast/folders";
 
 async function assertAdmin(context: any) {
   const { data, error } = await context.supabase.rpc("has_role", {
@@ -215,4 +216,119 @@ export const listGroupSyncLogs = createServerFn({ method: "GET" })
       .limit(20);
     if (error) throw new Error(error.message);
     return data ?? [];
+  });
+
+/* ---------- תיקיות קבוצות (saved audiences) ---------- */
+
+async function assertBridgeConnection(db: any, connectionId: string) {
+  const { data: conn, error } = await db
+    .from("whatsapp_connections")
+    .select("id, transport, purpose")
+    .eq("id", connectionId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!canOwnGroupBroadcast(conn as any)) {
+    throw new Error("תיקיות קבוצות זמינות רק עבור Alex Personal (WhatsApp Web Bridge)");
+  }
+}
+
+export const listGroupFolders = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const db = await admin();
+    const { data, error } = await db
+      .from("whatsapp_group_folders")
+      .select("id, connection_id, name, description, whatsapp_group_folder_members(group_id)")
+      .order("name", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((f: any) => ({
+      id: f.id as string,
+      connection_id: f.connection_id as string,
+      name: f.name as string,
+      description: (f.description ?? null) as string | null,
+      group_ids: ((f.whatsapp_group_folder_members ?? []) as any[]).map((m) => m.group_id as string),
+    }));
+  });
+
+export const saveGroupFolder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: {
+      id?: string | null;
+      connection_id: string;
+      name: string;
+      description?: string | null;
+      group_ids: string[];
+    }) => d,
+  )
+  .handler(async ({ context, data }) => {
+    const userId = await assertAdmin(context);
+    const check = validateFolderName(data.name);
+    if (!check.ok) throw new Error(check.error);
+
+    const db = await admin();
+    await assertBridgeConnection(db, data.connection_id);
+
+    // Only groups belonging to this bridge connection may be members.
+    const ids = Array.from(new Set(data.group_ids ?? []));
+    let memberIds: string[] = [];
+    if (ids.length) {
+      const { data: groups, error: gErr } = await db
+        .from("whatsapp_groups")
+        .select("id, connection_id")
+        .in("id", ids);
+      if (gErr) throw new Error(gErr.message);
+      memberIds = (groups ?? [])
+        .filter((g: any) => g.connection_id === data.connection_id)
+        .map((g: any) => g.id as string);
+    }
+
+    let folderId = data.id ?? null;
+    if (folderId) {
+      const { error } = await db
+        .from("whatsapp_group_folders")
+        .update({ name: check.name, description: data.description ?? null } as never)
+        .eq("id", folderId)
+        .eq("connection_id", data.connection_id);
+      if (error) throw new Error(error.message);
+      const { error: dErr } = await db
+        .from("whatsapp_group_folder_members")
+        .delete()
+        .eq("folder_id", folderId);
+      if (dErr) throw new Error(dErr.message);
+    } else {
+      const { data: created, error } = await db
+        .from("whatsapp_group_folders")
+        .insert({
+          connection_id: data.connection_id,
+          name: check.name,
+          description: data.description ?? null,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      folderId = created.id as string;
+    }
+
+    if (memberIds.length) {
+      const { error } = await db
+        .from("whatsapp_group_folder_members")
+        .insert(memberIds.map((gid) => ({ folder_id: folderId as string, group_id: gid })));
+      if (error) throw new Error(error.message);
+    }
+    return { id: folderId as string, members: memberIds.length };
+  });
+
+export const deleteGroupFolder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const db = await admin();
+    // Membership rows cascade. Groups themselves are never touched.
+    const { error } = await db.from("whatsapp_group_folders").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
