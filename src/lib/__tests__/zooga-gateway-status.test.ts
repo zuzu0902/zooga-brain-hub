@@ -129,7 +129,14 @@ describe("getGatewayStatus", () => {
   it("sends the bearer token upstream but never returns it", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ system: "zooga-gateway", tenant: "zooga", integrations: { supabase: true } }),
+      json: async () => ({
+        system: "zooga-os",
+        environment: "foundation",
+        default_tenant: "zooga",
+        integrations: { supabase: true, meta: false, lovable: true, llm: false },
+        execution: { inbound_enabled: false, outbound_enabled: false },
+        safety: { kill_switch: true },
+      }),
     });
     const out = await load(
       { data: [{ gateway_url: "https://gw.example.com/", bearer_token: "tok-123" }], error: null },
@@ -143,5 +150,8 @@ describe("getGatewayStatus", () => {
     expect(out.reachable).toBe(true);
     expect(JSON.stringify(out)).not.toContain("tok-123");
     expect(out.live_traffic).toBe(false);
+    expect(out.tenant).toBe("zooga");
+    expect(out.inbound_enabled).toBe(false);
+    expect(JSON.stringify(out)).not.toContain("safety");
   });
 });
