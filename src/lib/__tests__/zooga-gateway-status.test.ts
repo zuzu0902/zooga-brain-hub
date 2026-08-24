@@ -3,28 +3,26 @@ import { sanitizeGatewayStatus, emptyStatus } from "@/lib/zooga-gateway/status";
 
 const CHECKED = "2026-08-24T08:00:00.000Z";
 
+/** Real Hostinger Gateway /v1/system/status payload shape. */
+const REAL_PAYLOAD = {
+  system: "zooga-os",
+  environment: "foundation",
+  live_traffic: false,
+  default_tenant: "zooga",
+  integrations: { supabase: true, meta: false, lovable: true, llm: false },
+  execution: { inbound_enabled: false, outbound_enabled: false },
+  safety: { kill_switch: true, notes: "do-not-leak", bearer_token: "super-secret" },
+};
+
 describe("sanitizeGatewayStatus", () => {
-  it("projects only allow-listed fields and drops arbitrary upstream JSON", () => {
-    const out = sanitizeGatewayStatus(
-      {
-        system: "zooga-gateway",
-        environment: "production",
-        tenant: "zooga",
-        live_traffic: false,
-        inbound_enabled: false,
-        outbound_enabled: false,
-        integrations: { supabase: true, whatsapp: false, meta: false, secret: true },
-        bearer_token: "super-secret",
-        raw: { anything: 1 },
-      },
-      { checkedAt: CHECKED, latencyMs: 42 },
-    );
+  it("maps the real Gateway payload and drops arbitrary fields", () => {
+    const out = sanitizeGatewayStatus({ ...REAL_PAYLOAD, raw: { anything: 1 } }, { checkedAt: CHECKED, latencyMs: 42 });
     expect(out).toEqual({
       reachable: true,
       checked_at: CHECKED,
       latency_ms: 42,
-      system: "zooga-gateway",
-      environment: "production",
+      system: "zooga-os",
+      environment: "foundation",
       tenant: "zooga",
       live_traffic: false,
       inbound_enabled: false,
@@ -32,7 +30,40 @@ describe("sanitizeGatewayStatus", () => {
       integrations: { supabase: true, whatsapp: false, meta: false },
       error_code: null,
     });
-    expect(JSON.stringify(out)).not.toContain("super-secret");
+    // regression: safety/raw/token and unknown integration keys never surface
+    const serialized = JSON.stringify(out);
+    expect(serialized).not.toContain("super-secret");
+    expect(serialized).not.toContain("safety");
+    expect(serialized).not.toContain("kill_switch");
+    expect(serialized).not.toContain("lovable");
+    expect(serialized).not.toContain("anything");
+    expect(out).not.toHaveProperty("default_tenant");
+    expect(out).not.toHaveProperty("execution");
+  });
+
+  it("maps default_tenant -> tenant and nested execution flags", () => {
+    const out = sanitizeGatewayStatus(
+      {
+        ...REAL_PAYLOAD,
+        default_tenant: "zooga",
+        execution: { inbound_enabled: true, outbound_enabled: false },
+      },
+      { checkedAt: CHECKED, latencyMs: 5 },
+    );
+    expect(out.tenant).toBe("zooga");
+    expect(out.inbound_enabled).toBe(true);
+    expect(out.outbound_enabled).toBe(false);
+  });
+
+  it("falls back to legacy top-level tenant/execution fields", () => {
+    const out = sanitizeGatewayStatus(
+      { tenant: "legacy", inbound_enabled: true, outbound_enabled: true, integrations: { supabase: true } },
+      { checkedAt: CHECKED, latencyMs: 7 },
+    );
+    expect(out.tenant).toBe("legacy");
+    expect(out.inbound_enabled).toBe(true);
+    expect(out.outbound_enabled).toBe(true);
+    expect(out.integrations.supabase).toBe(true);
   });
 
   it("defaults booleans to the safe OFF value", () => {
