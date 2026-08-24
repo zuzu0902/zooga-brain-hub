@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, ShieldCheck, Server } from "lucide-react";
+import { RefreshCw, ShieldCheck, Server, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { emptyStatus, type GatewayStatus } from "@/lib/zooga-gateway/status";
 import { useT } from "@/lib/language-context";
