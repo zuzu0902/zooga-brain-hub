@@ -26,6 +26,7 @@ import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppHandoffRouteImport } from './routes/_app.handoff'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as AppBroadcastsRouteImport } from './routes/_app.broadcasts'
 import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -52,6 +53,7 @@ import { Route as ApiDebugRecentEventsRouteImport } from './routes/api/debug/rec
 import { Route as ApiDebugIntegrationsStatusRouteImport } from './routes/api/debug/integrations-status'
 import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
 import { Route as ApiDebugAgentsSummaryRouteImport } from './routes/api/debug/agents-summary'
+import { Route as AppSettingsWhatsappConnectionsRouteImport } from './routes/_app.settings.whatsapp-connections'
 import { Route as AppSettingsTamarStudioRouteImport } from './routes/_app.settings.tamar-studio'
 import { Route as AppSettingsTamarBrainRouteImport } from './routes/_app.settings.tamar-brain'
 import { Route as AppSettingsTamarBlocksRouteImport } from './routes/_app.settings.tamar-blocks'
@@ -61,6 +63,7 @@ import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
 import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
 import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new'
 import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
+import { Route as AppBroadcastsIdRouteImport } from './routes/_app.broadcasts.$id'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
@@ -156,6 +159,11 @@ const AppContactsRoute = AppContactsRouteImport.update({
 const AppCampaignsRoute = AppCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBroadcastsRoute = AppBroadcastsRouteImport.update({
+  id: '/broadcasts',
+  path: '/broadcasts',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAiAssistantRoute = AppAiAssistantRouteImport.update({
@@ -303,6 +311,12 @@ const ApiDebugAgentsSummaryRoute = ApiDebugAgentsSummaryRouteImport.update({
   path: '/api/debug/agents-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSettingsWhatsappConnectionsRoute =
+  AppSettingsWhatsappConnectionsRouteImport.update({
+    id: '/settings/whatsapp-connections',
+    path: '/settings/whatsapp-connections',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppSettingsTamarStudioRoute = AppSettingsTamarStudioRouteImport.update({
   id: '/settings/tamar-studio',
   path: '/settings/tamar-studio',
@@ -347,6 +361,11 @@ const AppCampaignsIdRoute = AppCampaignsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => AppCampaignsRoute,
+} as any)
+const AppBroadcastsIdRoute = AppBroadcastsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppBroadcastsRoute,
 } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
@@ -425,6 +444,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/ai-assistant': typeof AppAiAssistantRoute
+  '/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/campaigns': typeof AppCampaignsRouteWithChildren
   '/contacts': typeof AppContactsRouteWithChildren
   '/handoff': typeof AppHandoffRoute
@@ -440,6 +460,7 @@ export interface FileRoutesByFullPath {
   '/zero-loss': typeof AppZeroLossRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/broadcasts/$id': typeof AppBroadcastsIdRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/contacts/$id': typeof AppContactsIdRoute
@@ -449,6 +470,7 @@ export interface FileRoutesByFullPath {
   '/settings/tamar-blocks': typeof AppSettingsTamarBlocksRoute
   '/settings/tamar-brain': typeof AppSettingsTamarBrainRoute
   '/settings/tamar-studio': typeof AppSettingsTamarStudioRoute
+  '/settings/whatsapp-connections': typeof AppSettingsWhatsappConnectionsRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -489,6 +511,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/ai-assistant': typeof AppAiAssistantRoute
+  '/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/campaigns': typeof AppCampaignsRouteWithChildren
   '/contacts': typeof AppContactsRouteWithChildren
   '/handoff': typeof AppHandoffRoute
@@ -505,6 +528,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/broadcasts/$id': typeof AppBroadcastsIdRoute
   '/campaigns/$id': typeof AppCampaignsIdRoute
   '/campaigns/new': typeof AppCampaignsNewRoute
   '/contacts/$id': typeof AppContactsIdRoute
@@ -514,6 +538,7 @@ export interface FileRoutesByTo {
   '/settings/tamar-blocks': typeof AppSettingsTamarBlocksRoute
   '/settings/tamar-brain': typeof AppSettingsTamarBrainRoute
   '/settings/tamar-studio': typeof AppSettingsTamarStudioRoute
+  '/settings/whatsapp-connections': typeof AppSettingsWhatsappConnectionsRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -556,6 +581,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_app/ai-assistant': typeof AppAiAssistantRoute
+  '/_app/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/_app/campaigns': typeof AppCampaignsRouteWithChildren
   '/_app/contacts': typeof AppContactsRouteWithChildren
   '/_app/handoff': typeof AppHandoffRoute
@@ -572,6 +598,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_app/broadcasts/$id': typeof AppBroadcastsIdRoute
   '/_app/campaigns/$id': typeof AppCampaignsIdRoute
   '/_app/campaigns/new': typeof AppCampaignsNewRoute
   '/_app/contacts/$id': typeof AppContactsIdRoute
@@ -581,6 +608,7 @@ export interface FileRoutesById {
   '/_app/settings/tamar-blocks': typeof AppSettingsTamarBlocksRoute
   '/_app/settings/tamar-brain': typeof AppSettingsTamarBrainRoute
   '/_app/settings/tamar-studio': typeof AppSettingsTamarStudioRoute
+  '/_app/settings/whatsapp-connections': typeof AppSettingsWhatsappConnectionsRoute
   '/api/debug/agents-summary': typeof ApiDebugAgentsSummaryRoute
   '/api/debug/frontend-map': typeof ApiDebugFrontendMapRoute
   '/api/debug/integrations-status': typeof ApiDebugIntegrationsStatusRoute
@@ -624,6 +652,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/ai-assistant'
+    | '/broadcasts'
     | '/campaigns'
     | '/contacts'
     | '/handoff'
@@ -639,6 +668,7 @@ export interface FileRouteTypes {
     | '/zero-loss'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/broadcasts/$id'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/contacts/$id'
@@ -648,6 +678,7 @@ export interface FileRouteTypes {
     | '/settings/tamar-blocks'
     | '/settings/tamar-brain'
     | '/settings/tamar-studio'
+    | '/settings/whatsapp-connections'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -688,6 +719,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/ai-assistant'
+    | '/broadcasts'
     | '/campaigns'
     | '/contacts'
     | '/handoff'
@@ -704,6 +736,7 @@ export interface FileRouteTypes {
     | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/broadcasts/$id'
     | '/campaigns/$id'
     | '/campaigns/new'
     | '/contacts/$id'
@@ -713,6 +746,7 @@ export interface FileRouteTypes {
     | '/settings/tamar-blocks'
     | '/settings/tamar-brain'
     | '/settings/tamar-studio'
+    | '/settings/whatsapp-connections'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -754,6 +788,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_app/ai-assistant'
+    | '/_app/broadcasts'
     | '/_app/campaigns'
     | '/_app/contacts'
     | '/_app/handoff'
@@ -770,6 +805,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/_app/broadcasts/$id'
     | '/_app/campaigns/$id'
     | '/_app/campaigns/new'
     | '/_app/contacts/$id'
@@ -779,6 +815,7 @@ export interface FileRouteTypes {
     | '/_app/settings/tamar-blocks'
     | '/_app/settings/tamar-brain'
     | '/_app/settings/tamar-studio'
+    | '/_app/settings/whatsapp-connections'
     | '/api/debug/agents-summary'
     | '/api/debug/frontend-map'
     | '/api/debug/integrations-status'
@@ -978,6 +1015,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCampaignsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/broadcasts': {
+      id: '/_app/broadcasts'
+      path: '/broadcasts'
+      fullPath: '/broadcasts'
+      preLoaderRoute: typeof AppBroadcastsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/ai-assistant': {
       id: '/_app/ai-assistant'
       path: '/ai-assistant'
@@ -1160,6 +1204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDebugAgentsSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/settings/whatsapp-connections': {
+      id: '/_app/settings/whatsapp-connections'
+      path: '/settings/whatsapp-connections'
+      fullPath: '/settings/whatsapp-connections'
+      preLoaderRoute: typeof AppSettingsWhatsappConnectionsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/tamar-studio': {
       id: '/_app/settings/tamar-studio'
       path: '/settings/tamar-studio'
@@ -1222,6 +1273,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/campaigns/$id'
       preLoaderRoute: typeof AppCampaignsIdRouteImport
       parentRoute: typeof AppCampaignsRoute
+    }
+    '/_app/broadcasts/$id': {
+      id: '/_app/broadcasts/$id'
+      path: '/$id'
+      fullPath: '/broadcasts/$id'
+      preLoaderRoute: typeof AppBroadcastsIdRouteImport
+      parentRoute: typeof AppBroadcastsRoute
     }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
@@ -1310,6 +1368,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppBroadcastsRouteChildren {
+  AppBroadcastsIdRoute: typeof AppBroadcastsIdRoute
+}
+
+const AppBroadcastsRouteChildren: AppBroadcastsRouteChildren = {
+  AppBroadcastsIdRoute: AppBroadcastsIdRoute,
+}
+
+const AppBroadcastsRouteWithChildren = AppBroadcastsRoute._addFileChildren(
+  AppBroadcastsRouteChildren,
+)
+
 interface AppCampaignsRouteChildren {
   AppCampaignsIdRoute: typeof AppCampaignsIdRoute
   AppCampaignsNewRoute: typeof AppCampaignsNewRoute
@@ -1350,6 +1420,7 @@ const AppOffersRouteWithChildren = AppOffersRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAiAssistantRoute: typeof AppAiAssistantRoute
+  AppBroadcastsRoute: typeof AppBroadcastsRouteWithChildren
   AppCampaignsRoute: typeof AppCampaignsRouteWithChildren
   AppContactsRoute: typeof AppContactsRouteWithChildren
   AppHandoffRoute: typeof AppHandoffRoute
@@ -1369,10 +1440,12 @@ interface AppRouteChildren {
   AppSettingsTamarBlocksRoute: typeof AppSettingsTamarBlocksRoute
   AppSettingsTamarBrainRoute: typeof AppSettingsTamarBrainRoute
   AppSettingsTamarStudioRoute: typeof AppSettingsTamarStudioRoute
+  AppSettingsWhatsappConnectionsRoute: typeof AppSettingsWhatsappConnectionsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAiAssistantRoute: AppAiAssistantRoute,
+  AppBroadcastsRoute: AppBroadcastsRouteWithChildren,
   AppCampaignsRoute: AppCampaignsRouteWithChildren,
   AppContactsRoute: AppContactsRouteWithChildren,
   AppHandoffRoute: AppHandoffRoute,
@@ -1392,6 +1465,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsTamarBlocksRoute: AppSettingsTamarBlocksRoute,
   AppSettingsTamarBrainRoute: AppSettingsTamarBrainRoute,
   AppSettingsTamarStudioRoute: AppSettingsTamarStudioRoute,
+  AppSettingsWhatsappConnectionsRoute: AppSettingsWhatsappConnectionsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

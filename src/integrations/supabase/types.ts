@@ -4515,6 +4515,294 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_broadcast_targets: {
+        Row: {
+          broadcast_id: string
+          created_at: string
+          error_text: string | null
+          external_response: Json | null
+          group_id: string | null
+          group_name_snapshot: string
+          id: string
+          send_order: number
+          sent_at: string | null
+          status: Database["public"]["Enums"]["whatsapp_broadcast_target_status"]
+          updated_at: string
+          whatsapp_chat_id_snapshot: string
+        }
+        Insert: {
+          broadcast_id: string
+          created_at?: string
+          error_text?: string | null
+          external_response?: Json | null
+          group_id?: string | null
+          group_name_snapshot: string
+          id?: string
+          send_order?: number
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_broadcast_target_status"]
+          updated_at?: string
+          whatsapp_chat_id_snapshot: string
+        }
+        Update: {
+          broadcast_id?: string
+          created_at?: string
+          error_text?: string | null
+          external_response?: Json | null
+          group_id?: string | null
+          group_name_snapshot?: string
+          id?: string
+          send_order?: number
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_broadcast_target_status"]
+          updated_at?: string
+          whatsapp_chat_id_snapshot?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_broadcast_targets_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_broadcasts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_broadcast_targets_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_broadcasts: {
+        Row: {
+          connection_id: string
+          created_at: string
+          created_by: string | null
+          failed_count: number
+          finished_at: string | null
+          id: string
+          media_url: string | null
+          message_text: string
+          pending_count: number
+          scheduled_for: string | null
+          send_mode: Database["public"]["Enums"]["whatsapp_broadcast_send_mode"]
+          started_at: string | null
+          status: Database["public"]["Enums"]["whatsapp_broadcast_status"]
+          success_count: number
+          title: string
+          total_groups: number
+          updated_at: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          media_url?: string | null
+          message_text: string
+          pending_count?: number
+          scheduled_for?: string | null
+          send_mode?: Database["public"]["Enums"]["whatsapp_broadcast_send_mode"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_broadcast_status"]
+          success_count?: number
+          title: string
+          total_groups?: number
+          updated_at?: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          media_url?: string | null
+          message_text?: string
+          pending_count?: number
+          scheduled_for?: string | null
+          send_mode?: Database["public"]["Enums"]["whatsapp_broadcast_send_mode"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_broadcast_status"]
+          success_count?: number
+          title?: string
+          total_groups?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_broadcasts_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_connections: {
+        Row: {
+          allow_agent_broadcast: boolean
+          capabilities: string[]
+          config: Json
+          connection_key: string
+          created_at: string
+          display_name: string
+          enabled: boolean
+          id: string
+          last_connected_at: string | null
+          last_sync_at: string | null
+          phone_label: string | null
+          purpose: Database["public"]["Enums"]["whatsapp_connection_purpose"]
+          status: Database["public"]["Enums"]["whatsapp_connection_status"]
+          transport: Database["public"]["Enums"]["whatsapp_transport"]
+          updated_at: string
+        }
+        Insert: {
+          allow_agent_broadcast?: boolean
+          capabilities?: string[]
+          config?: Json
+          connection_key: string
+          created_at?: string
+          display_name: string
+          enabled?: boolean
+          id?: string
+          last_connected_at?: string | null
+          last_sync_at?: string | null
+          phone_label?: string | null
+          purpose: Database["public"]["Enums"]["whatsapp_connection_purpose"]
+          status?: Database["public"]["Enums"]["whatsapp_connection_status"]
+          transport: Database["public"]["Enums"]["whatsapp_transport"]
+          updated_at?: string
+        }
+        Update: {
+          allow_agent_broadcast?: boolean
+          capabilities?: string[]
+          config?: Json
+          connection_key?: string
+          created_at?: string
+          display_name?: string
+          enabled?: boolean
+          id?: string
+          last_connected_at?: string | null
+          last_sync_at?: string | null
+          phone_label?: string | null
+          purpose?: Database["public"]["Enums"]["whatsapp_connection_purpose"]
+          status?: Database["public"]["Enums"]["whatsapp_connection_status"]
+          transport?: Database["public"]["Enums"]["whatsapp_transport"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_group_sync_logs: {
+        Row: {
+          connection_id: string
+          created_at: string
+          id: string
+          missing_count: number
+          new_count: number
+          renamed_count: number
+          summary: string | null
+          sync_type: string
+          total_count: number
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          id?: string
+          missing_count?: number
+          new_count?: number
+          renamed_count?: number
+          summary?: string | null
+          sync_type?: string
+          total_count?: number
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          id?: string
+          missing_count?: number
+          new_count?: number
+          renamed_count?: number
+          summary?: string | null
+          sync_type?: string
+          total_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_group_sync_logs_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_groups: {
+        Row: {
+          active: boolean
+          archived: boolean
+          category: string | null
+          connection_id: string
+          created_at: string
+          current_name: string
+          id: string
+          last_name_sync_at: string | null
+          last_seen_at: string | null
+          notes: string | null
+          previous_name: string | null
+          send_enabled: boolean
+          tags: string[]
+          updated_at: string
+          whatsapp_chat_id: string
+        }
+        Insert: {
+          active?: boolean
+          archived?: boolean
+          category?: string | null
+          connection_id: string
+          created_at?: string
+          current_name: string
+          id?: string
+          last_name_sync_at?: string | null
+          last_seen_at?: string | null
+          notes?: string | null
+          previous_name?: string | null
+          send_enabled?: boolean
+          tags?: string[]
+          updated_at?: string
+          whatsapp_chat_id: string
+        }
+        Update: {
+          active?: boolean
+          archived?: boolean
+          category?: string | null
+          connection_id?: string
+          created_at?: string
+          current_name?: string
+          id?: string
+          last_name_sync_at?: string | null
+          last_seen_at?: string | null
+          notes?: string | null
+          previous_name?: string | null
+          send_enabled?: boolean
+          tags?: string[]
+          updated_at?: string
+          whatsapp_chat_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_groups_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_templates: {
         Row: {
           allowed_offer_categories: string[]
@@ -5608,6 +5896,27 @@ export type Database = {
         | "consent_asked"
         | "recommendation_ready"
         | "value_delivered"
+      whatsapp_broadcast_send_mode: "manual" | "scheduled" | "agent"
+      whatsapp_broadcast_status:
+        | "draft"
+        | "queued"
+        | "running"
+        | "completed"
+        | "completed_with_errors"
+        | "cancelled"
+      whatsapp_broadcast_target_status:
+        | "pending"
+        | "queued"
+        | "sent"
+        | "failed"
+        | "skipped"
+      whatsapp_connection_purpose: "conversation" | "group_broadcast"
+      whatsapp_connection_status:
+        | "not_configured"
+        | "disconnected"
+        | "connecting"
+        | "connected"
+        | "error"
       whatsapp_template_status:
         | "not_sent"
         | "sent"
@@ -5615,6 +5924,7 @@ export type Database = {
         | "read"
         | "replied"
         | "failed"
+      whatsapp_transport: "meta_cloud_api" | "whatsapp_web_bridge"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5825,6 +6135,30 @@ export const Constants = {
         "recommendation_ready",
         "value_delivered",
       ],
+      whatsapp_broadcast_send_mode: ["manual", "scheduled", "agent"],
+      whatsapp_broadcast_status: [
+        "draft",
+        "queued",
+        "running",
+        "completed",
+        "completed_with_errors",
+        "cancelled",
+      ],
+      whatsapp_broadcast_target_status: [
+        "pending",
+        "queued",
+        "sent",
+        "failed",
+        "skipped",
+      ],
+      whatsapp_connection_purpose: ["conversation", "group_broadcast"],
+      whatsapp_connection_status: [
+        "not_configured",
+        "disconnected",
+        "connecting",
+        "connected",
+        "error",
+      ],
       whatsapp_template_status: [
         "not_sent",
         "sent",
@@ -5833,6 +6167,7 @@ export const Constants = {
         "replied",
         "failed",
       ],
+      whatsapp_transport: ["meta_cloud_api", "whatsapp_web_bridge"],
     },
   },
 } as const

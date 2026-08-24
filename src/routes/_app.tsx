@@ -21,6 +21,7 @@ import {
   BellRing,
   Brain,
   ShieldCheck,
+  Radio,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -51,6 +52,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
       { to: "/send-offer", label: "שליחת הצעה", icon: Send },
       { to: "/import-leads", label: "ייבוא לידים", icon: Upload },
       { to: "/intake-campaign", label: "קמפיין אינטייק", icon: Megaphone },
+      { to: "/broadcasts", label: "הפצה לקבוצות", icon: Radio },
     ],
   },
   {
@@ -61,6 +63,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: any
       { to: "/settings/tamar-brain", label: "Tamar Brain", icon: Brain },
       { to: "/settings/tamar", label: "Tamar Behavior", icon: Bot },
       { to: "/settings/tamar-blocks", label: "Prompt Blocks", icon: Bot },
+      { to: "/settings/whatsapp-connections", label: "חיבורי WhatsApp", icon: Radio },
       { to: "/settings/api", label: "הגדרות API", icon: Settings },
     ],
   },
