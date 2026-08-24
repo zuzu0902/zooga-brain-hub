@@ -13,11 +13,13 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Every Zooga control-plane / shadow-transport source file. */
+const CRON_ROUTE = join(ROOT, "src/routes/api/public/cron/zooga-shadow-drain.ts");
+
 const ZOOGA_FILES = [
   ...walk(join(ROOT, "src/lib/zooga-gateway")),
   join(ROOT, "src/routes/api/zooga/gateway-status.ts"),
   join(ROOT, "src/components/zooga-core-card.tsx"),
+  CRON_ROUTE,
 ].filter(existsSync);
 
 describe("Zooga separation from the legacy Tamar/Meta integration", () => {
@@ -34,13 +36,29 @@ describe("Zooga separation from the legacy Tamar/Meta integration", () => {
     }
   });
 
-  it("exposes no public cron route for the shadow drain", () => {
-    expect(existsSync(join(ROOT, "src/routes/api/public/cron/zooga-shadow-drain.ts"))).toBe(false);
+  it("allows the dedicated cron route only with Zooga-only scheduler auth", () => {
     const cronDir = join(ROOT, "src/routes/api/public/cron");
-    if (existsSync(cronDir)) {
-      expect(readdirSync(cronDir).filter((f) => f.toLowerCase().includes("zooga"))).toEqual([]);
-    }
+    const zoogaCrons = existsSync(cronDir)
+      ? readdirSync(cronDir).filter((f) => f.toLowerCase().includes("zooga"))
+      : [];
+    expect(zoogaCrons).toEqual(["zooga-shadow-drain.ts"]);
+
+    const src = readFileSync(CRON_ROUTE, "utf8");
+    expect(src).toContain("zooga_verify_scheduler_token_hash");
+    expect(src).toContain('createHash("sha256")');
+    expect(src).toContain("drainShadowOutbox");
   });
+
+  it("rejects missing or malformed scheduler authorization", async () => {
+    const { extractBearerToken } = await import("@/routes/api/public/cron/zooga-shadow-drain");
+    expect(extractBearerToken(null)).toBeNull();
+    expect(extractBearerToken("")).toBeNull();
+    expect(extractBearerToken("Basic abc")).toBeNull();
+    expect(extractBearerToken("Bearer")).toBeNull();
+    expect(extractBearerToken("Bearer short")).toBeNull();
+    expect(extractBearerToken(`Bearer ${"a".repeat(40)}`)).toBe("a".repeat(40));
+  });
+
 
   it("keeps the admin-authenticated POST as the only drain trigger", () => {
     const route = readFileSync(join(ROOT, "src/routes/api/zooga/gateway-status.ts"), "utf8");
