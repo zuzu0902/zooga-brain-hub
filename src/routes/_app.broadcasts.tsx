@@ -36,8 +36,13 @@ import {
   validateFolderName,
   type GroupFolder,
 } from "@/lib/whatsapp-broadcast/folders";
-import { getBridgeStatus } from "@/lib/whatsapp-bridge.functions";
-import { BRIDGE_STATE_LABELS, type BridgeStatus } from "@/lib/zooga-whatsapp-bridge/bridge-contract";
+import { getBridgeStatus, syncBridgeGroups } from "@/lib/whatsapp-bridge.functions";
+import {
+  BRIDGE_ERROR_LABELS,
+  BRIDGE_STATE_LABELS,
+  type BridgeStatus,
+} from "@/lib/zooga-whatsapp-bridge/bridge-contract";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/i18n";
 
 
