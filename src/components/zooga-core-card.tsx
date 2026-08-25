@@ -296,6 +296,60 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
         </div>
       </div>
 
+      <div className="mt-4 rounded-md border p-3" data-testid="zooga-memory-summary">
+        <div className="text-xs font-medium mb-2">{t("זיכרון, היסטוריה וביקורת")}</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div>
+            <div className="text-muted-foreground text-xs">{t("זיכרונות")}</div>
+            <div className="font-medium">{readiness.memory.contact_memories}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("היסטוריית פרופיל")}</div>
+            <div className="font-medium">{readiness.memory.profile_history}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("עקבות החלטה")}</div>
+            <div className="font-medium">{readiness.memory.decision_traces}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("ביקורת (24 ש׳ / סה״כ)")}</div>
+            <div className="font-medium">
+              {readiness.memory.audit_events_recent} / {readiness.memory.audit_events}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-md border p-3" data-testid="zooga-blockers">
+        <div className="text-xs font-medium mb-2 flex items-center gap-1">
+          <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
+          {t("חסמי מוכנות")} ({blockers.length})
+        </div>
+        {blockers.length === 0 ? (
+          <div className="text-sm text-muted-foreground">{t("לא נמצאו חסמים בקריאה זו.")}</div>
+        ) : (
+          <ul className="space-y-1 text-sm">
+            {blockers.slice(0, 5).map((b) => (
+              <li key={b.code} className="flex items-start gap-2">
+                <span
+                  className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${
+                    b.severity === "blocker" ? "bg-destructive" : "bg-muted-foreground"
+                  }`}
+                />
+                <span>{b.label_he}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-2 text-xs text-muted-foreground">
+          {t("אבן דרך בטוחה הבאה")}: {nextSafeMilestone(blockers)}
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {t("מוכנות Pilot")}: {pilotReady ? t("אין חסמים חוסמים") : t("חסום")}
+        </div>
+      </div>
+
+
       <div className="mt-4 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
         <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
         <span>{t("מצב בטיחות: תעבורה חיה כבויה, inbound ו-outbound כבויים. תצוגת סטטוס בלבד.")}</span>
