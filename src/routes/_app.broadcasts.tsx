@@ -780,10 +780,13 @@ function BroadcastsPage() {
                     </span>
                     <Button
                       size="sm"
-                      variant="ghost"
                       className="ms-auto"
-                      onClick={() => cancel.mutate({ data: { id: b.id } })}
+                      disabled={runNow.isPending}
+                      onClick={() => runNow.mutate({ data: { id: b.id } })}
                     >
+                      {runNow.isPending ? "שולח…" : "שלח עכשיו"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => cancel.mutate({ data: { id: b.id } })}>
                       ביטול
                     </Button>
                   </div>
