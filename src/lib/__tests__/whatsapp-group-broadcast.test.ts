@@ -136,6 +136,10 @@ describe("WhatsApp group broadcast — control plane only", () => {
       if (f.includes("__tests__") || f.endsWith("types.ts") || f.endsWith("routeTree.gen.ts")) return false;
       return /from\(\s*["'`]whatsapp_broadcasts["'`]/.test(readFileSync(f, "utf8"));
     });
-    expect(writers.map((f) => f.replace(`${ROOT}/`, ""))).toEqual(["src/lib/whatsapp-broadcast.functions.ts"]);
+    expect(writers.map((f) => f.replace(`${ROOT}/`, "")).sort()).toEqual([
+      "src/lib/whatsapp-broadcast-runner.functions.ts",
+      "src/lib/whatsapp-broadcast.functions.ts",
+      "src/lib/whatsapp-broadcast/runner.server.ts",
+    ]);
   });
 });
