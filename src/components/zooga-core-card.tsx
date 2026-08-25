@@ -90,18 +90,49 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
   }, [load]);
 
   const s = status;
+  const readiness = useMemo(() => sanitizeReadiness(s?.readiness ?? null), [s?.readiness]);
+  const blockers = useMemo(() => computeReadinessBlockers(s, readiness), [s, readiness]);
+  const pilotReady = isPilotReady(blockers);
+
   return (
     <Card className="p-5" dir="rtl" data-testid="zooga-core-card">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold flex items-center gap-2">
           <Server className="h-4 w-4 text-primary" /> {t("ליבת Zooga")}
         </h3>
-        <Button variant="ghost" size="sm" onClick={() => load(true)} disabled={loading} aria-label={t("רענון")}>
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/system-readiness">{t("מוכנות מערכת")}</Link>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => load(true)} disabled={loading} aria-label={t("רענון")}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-4 grid gap-3 md:grid-cols-3 text-sm" data-testid="zooga-runtime-summary">
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground text-xs mb-1">{t("ריצה קנונית")}</div>
+          <div className="font-medium">{CANONICAL_RUNTIME_LABEL_HE}</div>
+        </div>
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground text-xs mb-1">{t("מנוע Brain ב-Gateway")}</div>
+          <div className="font-medium flex items-center gap-1">
+            <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
+            {readiness.brain_executor === "verified" ? t("מאומת") : BRAIN_EXECUTOR_UNVERIFIED_LABEL_HE}
+          </div>
+        </div>
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground text-xs mb-1">{t("בידוד לקוחות")}</div>
+          <div className="font-medium">
+            {readiness.tenants.current_slug ?? "—"} · {readiness.tenants.total}{" "}
+            {readiness.tenants.isolation_enforced ? t("מבודד") : t("לא מאומת")}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-4 text-sm">
+
         <div>
           <div className="text-muted-foreground text-xs mb-1">Gateway</div>
           <Pill on={!!s?.reachable} onLabel={t("מחובר")} offLabel={t("מנותק")} />
