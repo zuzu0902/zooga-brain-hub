@@ -4584,6 +4584,10 @@ export type Database = {
           finished_at: string | null
           id: string
           interval_seconds: number
+          last_error: string | null
+          last_run_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
           media_url: string | null
           message_text: string
           pending_count: number
@@ -4604,6 +4608,10 @@ export type Database = {
           finished_at?: string | null
           id?: string
           interval_seconds?: number
+          last_error?: string | null
+          last_run_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
           media_url?: string | null
           message_text: string
           pending_count?: number
@@ -4624,6 +4632,10 @@ export type Database = {
           finished_at?: string | null
           id?: string
           interval_seconds?: number
+          last_error?: string | null
+          last_run_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
           media_url?: string | null
           message_text?: string
           pending_count?: number
