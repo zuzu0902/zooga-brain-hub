@@ -185,8 +185,8 @@ describe("gateway proxy configuration", () => {
       disconnect: "/v1/whatsapp-bridge/disconnect",
       logout: "/v1/whatsapp-bridge/logout",
       groups: "/v1/whatsapp-bridge/groups",
+      sendGroup: "/v1/whatsapp-bridge/send-group",
     });
-    expect(clientSrc).not.toContain("/v1/whatsapp-bridge/send");
   });
 
   it("uses bearer auth, a 15s timeout and no-store caching, and never logs the token", () => {
@@ -196,10 +196,12 @@ describe("gateway proxy configuration", () => {
     expect(clientSrc).not.toMatch(/console\.(log|warn|error)/);
   });
 
-  it("keeps live sending hard-disabled", async () => {
+  it("group sending requires a chat id, text and an idempotency key", async () => {
     const mod = await import("@/lib/zooga-whatsapp-bridge/bridge-client.server");
-    expect(mod.isBridgeLiveSendEnabled()).toBe(false);
-    const res = await mod.sendGroupMessage({ chat_id: "1@g.us", text: "x", idempotency_key: "k-000001" });
-    expect(res).toEqual({ ok: false, code: "live_send_disabled" });
+    expect(mod.isBridgeLiveSendEnabled()).toBe(true);
+    const res = await mod.sendGroupMessage({ chat_id: "", text: "x", idempotency_key: "k-000001" });
+    expect(res).toEqual({ ok: false, code: "invalid_send_input" });
+    const short = await mod.sendGroupMessage({ chat_id: "1@g.us", text: "x", idempotency_key: "k" });
+    expect(short).toEqual({ ok: false, code: "invalid_send_input" });
   });
 });
