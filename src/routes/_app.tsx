@@ -66,7 +66,9 @@ const PRIMARY_NAV: NavEntry[] = [
 ];
 
 const ADVANCED_NAV: NavItem[] = [
+  { to: "/system-readiness", label: "מוכנות מערכת", icon: ShieldCheck },
   { to: "/settings/tamar-studio", label: "Tamar Studio", icon: Sparkles },
+
   { to: "/settings/tamar-brain", label: "Brain", icon: Brain },
   { to: "/runtime-trace", label: "Runtime Trace", icon: Activity },
   { to: "/zero-loss", label: "Zero-Loss Control", icon: ShieldCheck },
