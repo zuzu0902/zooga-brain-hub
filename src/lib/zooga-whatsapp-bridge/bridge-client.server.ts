@@ -190,7 +190,12 @@ export async function sendGroupMessage(input: {
       idempotency_key: key,
     },
   });
-  if (!res.ok) return { ok: false, code: res.code };
+  if (!res.ok) {
+    // The Gateway does not expose the send proxy yet: this is an infrastructure
+    // gap, not a per-group failure, so it must not burn targets.
+    const missing = res.code === "not_found" || res.code === "bridge_http_404";
+    return { ok: false, code: missing ? "send_route_unavailable" : res.code };
+  }
   return {
     ok: true,
     message_id: typeof res.data["message_id"] === "string" ? (res.data["message_id"] as string) : null,
