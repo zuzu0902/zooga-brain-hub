@@ -76,3 +76,21 @@ describe("broadcast runner safety wiring", () => {
     expect(RUNNER).toContain("bridge_unauthorized");
   });
 });
+
+describe("gateway send route gap", () => {
+  const CLIENT = readFileSync(
+    join(process.cwd(), "src", "lib", "zooga-whatsapp-bridge", "bridge-client.server.ts"),
+    "utf8",
+  );
+
+  it("maps a missing gateway send route to send_route_unavailable", () => {
+    expect(CLIENT).toContain("send_route_unavailable");
+    expect(CLIENT).toContain('res.code === "not_found"');
+  });
+
+  it("treats it as a run-stopping reason so targets stay pending", () => {
+    expect(RUNNER).toContain("STOP_RUN_CODES");
+    expect(RUNNER).toContain("send_route_unavailable");
+    expect(RUNNER).toContain('stopped\n      ? "queued"');
+  });
+});

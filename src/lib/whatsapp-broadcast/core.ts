@@ -149,6 +149,21 @@ export const BROADCAST_STATUS_LABELS: Record<WaBroadcastStatus, string> = {
   cancelled: "בוטלה",
 };
 
+/** Human explanation for the reasons a run can stop. */
+export const BROADCAST_ERROR_LABELS: Record<string, string> = {
+  send_route_unavailable: "השער (Gateway) עדיין לא חושף נתיב שליחה לקבוצות — ההפצה נשארה בתור ולא אבדה",
+  bridge_unauthorized: "אין הרשאה מול השער — נדרש עדכון הגדרות חיבור",
+  bridge_unreachable: "השער אינו זמין כרגע",
+  bridge_server_not_configured: "חיבור השער אינו מוגדר בשרת",
+  not_connected: "חיבור וואטסאפ Web מנותק — נדרש סריקת QR מחדש",
+  connection_not_group_capable: "החיבור שנבחר אינו מורשה לשליחת קבוצות",
+};
+
+export function broadcastErrorLabel(code: string | null | undefined): string | null {
+  if (!code) return null;
+  return BROADCAST_ERROR_LABELS[code] ?? code;
+}
+
 export const CONNECTION_STATUS_LABELS: Record<WaConnectionStatus, string> = {
   not_configured: "לא מוגדר",
   disconnected: "מנותק",

@@ -29,7 +29,15 @@ export const Route = createFileRoute("/api/public/cron/whatsapp-broadcast-runner
           });
         }
         try {
-          const res = await runBroadcastQueue({});
+          const body = (await request.json().catch(() => ({}))) as {
+            broadcast_id?: string;
+            max_targets?: number;
+          };
+          const cap = Number(body?.max_targets);
+          const res = await runBroadcastQueue({
+            ...(body?.broadcast_id ? { broadcastId: String(body.broadcast_id) } : {}),
+            ...(Number.isFinite(cap) && cap > 0 ? { maxTargets: Math.min(40, Math.floor(cap)) } : {}),
+          });
           return Response.json(res);
         } catch (err: any) {
           return new Response(JSON.stringify({ ok: false, error: String(err?.message ?? err) }), {

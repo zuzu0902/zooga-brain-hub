@@ -96,8 +96,14 @@ async function call(
     }
     if (res.status === 401 || res.status === 403) return { ok: false, code: "bridge_unauthorized" };
     if (!res.ok) {
-      const code = typeof data["code"] === "string" ? (data["code"] as string) : "bridge_error";
-      return { ok: false, code };
+      // Keep a diagnosable reason (status + gateway code/message), never the host or token.
+      const detail =
+        (typeof data["code"] === "string" && data["code"]) ||
+        (typeof data["error"] === "string" && data["error"]) ||
+        (typeof data["message"] === "string" && data["message"]) ||
+        "";
+      const code = detail ? `${detail}` : `bridge_http_${res.status}`;
+      return { ok: false, code: `${code}`.slice(0, 120) };
     }
     return { ok: true, data };
   } catch {
@@ -184,7 +190,12 @@ export async function sendGroupMessage(input: {
       idempotency_key: key,
     },
   });
-  if (!res.ok) return { ok: false, code: res.code };
+  if (!res.ok) {
+    // The Gateway does not expose the send proxy yet: this is an infrastructure
+    // gap, not a per-group failure, so it must not burn targets.
+    const missing = res.code === "not_found" || res.code === "bridge_http_404";
+    return { ok: false, code: missing ? "send_route_unavailable" : res.code };
+  }
   return {
     ok: true,
     message_id: typeof res.data["message_id"] === "string" ? (res.data["message_id"] as string) : null,

@@ -27,6 +27,7 @@ import {
 import { runBroadcastNow } from "@/lib/whatsapp-broadcast-runner.functions";
 import {
   BROADCAST_STATUS_LABELS,
+  broadcastErrorLabel,
   canOwnGroupBroadcast,
   validateBroadcastDraft,
   type WaConnection,
@@ -797,7 +798,9 @@ function BroadcastsPage() {
                     נשלחו {b.success_count} · נכשלו {b.failed_count} · ממתינות {b.pending_count}
                     {b.last_run_at ? ` · ריצה אחרונה ${formatDate(b.last_run_at)}` : ""}
                   </div>
-                  {b.last_error && <div className="text-xs text-destructive">שגיאה אחרונה: {b.last_error}</div>}
+                  {b.last_error && (
+                    <div className="text-xs text-destructive">שגיאה אחרונה: {broadcastErrorLabel(b.last_error)}</div>
+                  )}
                 </CardContent>
               </Card>
             );
