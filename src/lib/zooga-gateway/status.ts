@@ -15,6 +15,7 @@ export type GatewayIntegrations = {
 import type { ShadowMetrics } from "./shadow";
 import type { ShadowComparisonMetrics } from "./shadow-compare";
 import type { ShadowBrainStatus } from "./shadow-brain-contract";
+import type { ZoogaReadiness } from "./readiness";
 
 export type GatewayStatus = {
   /** Supabase-side shadow transport counters. Never comes from upstream JSON. */
@@ -23,6 +24,9 @@ export type GatewayStatus = {
   comparison?: ShadowComparisonMetrics;
   /** Supabase-side shadow brain status. Never comes from upstream JSON. */
   brain?: ShadowBrainStatus;
+  /** Supabase-side readiness projection. Never comes from upstream JSON. */
+  readiness?: ZoogaReadiness;
+
   reachable: boolean;
   checked_at: string;
   latency_ms: number | null;
