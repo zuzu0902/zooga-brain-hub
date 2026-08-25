@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppZeroLossRouteImport } from './routes/_app.zero-loss'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppTamarLiteRouteImport } from './routes/_app.tamar-lite'
+import { Route as AppSystemReadinessRouteImport } from './routes/_app.system-readiness'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
@@ -110,6 +111,11 @@ const AppTasksRoute = AppTasksRouteImport.update({
 const AppTamarLiteRoute = AppTamarLiteRouteImport.update({
   id: '/tamar-lite',
   path: '/tamar-lite',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemReadinessRoute = AppSystemReadinessRouteImport.update({
+  id: '/system-readiness',
+  path: '/system-readiness',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSendOfferRoute = AppSendOfferRouteImport.update({
@@ -462,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/offers': typeof AppOffersRouteWithChildren
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
+  '/system-readiness': typeof AppSystemReadinessRoute
   '/tamar-lite': typeof AppTamarLiteRoute
   '/tasks': typeof AppTasksRoute
   '/zero-loss': typeof AppZeroLossRoute
@@ -530,6 +537,7 @@ export interface FileRoutesByTo {
   '/offers': typeof AppOffersRouteWithChildren
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
+  '/system-readiness': typeof AppSystemReadinessRoute
   '/tamar-lite': typeof AppTamarLiteRoute
   '/tasks': typeof AppTasksRoute
   '/zero-loss': typeof AppZeroLossRoute
@@ -601,6 +609,7 @@ export interface FileRoutesById {
   '/_app/offers': typeof AppOffersRouteWithChildren
   '/_app/runtime-trace': typeof AppRuntimeTraceRoute
   '/_app/send-offer': typeof AppSendOfferRoute
+  '/_app/system-readiness': typeof AppSystemReadinessRoute
   '/_app/tamar-lite': typeof AppTamarLiteRoute
   '/_app/tasks': typeof AppTasksRoute
   '/_app/zero-loss': typeof AppZeroLossRoute
@@ -673,6 +682,7 @@ export interface FileRouteTypes {
     | '/offers'
     | '/runtime-trace'
     | '/send-offer'
+    | '/system-readiness'
     | '/tamar-lite'
     | '/tasks'
     | '/zero-loss'
@@ -741,6 +751,7 @@ export interface FileRouteTypes {
     | '/offers'
     | '/runtime-trace'
     | '/send-offer'
+    | '/system-readiness'
     | '/tamar-lite'
     | '/tasks'
     | '/zero-loss'
@@ -811,6 +822,7 @@ export interface FileRouteTypes {
     | '/_app/offers'
     | '/_app/runtime-trace'
     | '/_app/send-offer'
+    | '/_app/system-readiness'
     | '/_app/tamar-lite'
     | '/_app/tasks'
     | '/_app/zero-loss'
@@ -957,6 +969,13 @@ declare module '@tanstack/react-router' {
       path: '/tamar-lite'
       fullPath: '/tamar-lite'
       preLoaderRoute: typeof AppTamarLiteRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/system-readiness': {
+      id: '/_app/system-readiness'
+      path: '/system-readiness'
+      fullPath: '/system-readiness'
+      preLoaderRoute: typeof AppSystemReadinessRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/send-offer': {
@@ -1452,6 +1471,7 @@ interface AppRouteChildren {
   AppOffersRoute: typeof AppOffersRouteWithChildren
   AppRuntimeTraceRoute: typeof AppRuntimeTraceRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
+  AppSystemReadinessRoute: typeof AppSystemReadinessRoute
   AppTamarLiteRoute: typeof AppTamarLiteRoute
   AppTasksRoute: typeof AppTasksRoute
   AppZeroLossRoute: typeof AppZeroLossRoute
@@ -1477,6 +1497,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOffersRoute: AppOffersRouteWithChildren,
   AppRuntimeTraceRoute: AppRuntimeTraceRoute,
   AppSendOfferRoute: AppSendOfferRoute,
+  AppSystemReadinessRoute: AppSystemReadinessRoute,
   AppTamarLiteRoute: AppTamarLiteRoute,
   AppTasksRoute: AppTasksRoute,
   AppZeroLossRoute: AppZeroLossRoute,
