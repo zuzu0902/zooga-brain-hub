@@ -270,6 +270,19 @@ function BroadcastsPage() {
     },
   });
 
+  const runNow = useMutation({
+    mutationFn: useServerFn(runBroadcastNow),
+    onSuccess: (res: any) => {
+      if (res?.ok) {
+        toast.success(`נשלחו ${res.sent} · נכשלו ${res.failed} · נותרו ${res.remaining}`);
+      } else {
+        toast.error(`השליחה נעצרה: ${res?.reason ?? "שגיאה"}`);
+      }
+      qc.invalidateQueries({ queryKey: ["wa", "broadcasts"] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e)),
+  });
+
   const submit = () => {
     if (!bridge) {
       toast.error("אין חיבור WhatsApp Web Bridge מוגדר");
