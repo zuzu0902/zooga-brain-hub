@@ -128,8 +128,12 @@ function SystemReadinessPage() {
         <Card className="p-4">
           <h2 className="mb-2 text-sm font-semibold">מדדי השוואת Shadow</h2>
           <Row label="ריצות פתוחות" value={status?.comparison?.open ?? 0} />
-          <Row label="ריצות שהוכרעו" value={status?.comparison?.finalized ?? 0} />
-          <Row label="שגיאות" value={status?.comparison?.errors ?? 0} />
+          <Row
+            label="התאמה / אי-התאמה"
+            value={`${status?.comparison?.match ?? 0} / ${status?.comparison?.mismatch ?? 0}`}
+          />
+          <Row label="שגיאות" value={status?.comparison?.error ?? 0} />
+
           <Row label="הועברו / כשלים סופיים" value={`${status?.shadow?.delivered ?? 0} / ${status?.shadow?.dead ?? 0}`} />
           <Row
             label="חוזה canonical_action"
