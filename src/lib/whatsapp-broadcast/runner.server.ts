@@ -179,8 +179,11 @@ export async function runBroadcastQueue(
           .eq("id", t.id);
       } else {
         lastError = res.code;
-        // A broken session or auth problem stops the whole run, not just this target.
-        if (res.code === "bridge_unauthorized" || res.code === "not_connected" || res.code === "bridge_unreachable") {
+        // Infrastructure problems (auth, session, unreachable gateway, missing
+        // send route) stop the whole run and leave every target pending, so a
+        // later run retries them instead of burning them as failures.
+        if (STOP_RUN_CODES.has(res.code)) {
+          stopped = true;
           break;
         }
         failed++;
