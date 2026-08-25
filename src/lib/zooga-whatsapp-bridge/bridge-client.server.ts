@@ -160,14 +160,34 @@ export async function fetchBridgeGroups(): Promise<{ ok: true; groups: BridgeGro
 }
 
 /**
- * Live single-group send is hard-disabled: no send proxy route exists on the
- * Gateway and nothing in the app may perform a live send in this batch.
+ * Single-group send through the Gateway proxy. The idempotency key must be
+ * stable per (broadcast, group) so a re-run can never double-send.
  */
-export async function sendGroupMessage(_input: {
+export async function sendGroupMessage(input: {
   chat_id: string;
   text: string;
   media_url?: string | null;
   idempotency_key: string;
 }): Promise<{ ok: true; message_id: string | null; duplicate: boolean } | { ok: false; code: string }> {
-  return { ok: false, code: "live_send_disabled" };
+  if (!LIVE_SEND_ENABLED) return { ok: false, code: "live_send_disabled" };
+  const chatId = String(input.chat_id ?? "").trim();
+  const text = String(input.text ?? "").trim();
+  const key = String(input.idempotency_key ?? "").trim();
+  if (!chatId || !text || key.length < 6) return { ok: false, code: "invalid_send_input" };
+
+  const res = await call(GATEWAY_BRIDGE_ROUTES.sendGroup, {
+    method: "POST",
+    body: {
+      chat_id: chatId,
+      text,
+      ...(input.media_url ? { media_url: input.media_url } : {}),
+      idempotency_key: key,
+    },
+  });
+  if (!res.ok) return { ok: false, code: res.code };
+  return {
+    ok: true,
+    message_id: typeof res.data["message_id"] === "string" ? (res.data["message_id"] as string) : null,
+    duplicate: res.data["duplicate"] === true,
+  };
 }
