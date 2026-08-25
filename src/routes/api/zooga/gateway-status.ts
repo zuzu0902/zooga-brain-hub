@@ -53,13 +53,16 @@ async function withShadow(status: GatewayStatus): Promise<GatewayStatus> {
   const { getShadowMetrics } = await import("@/lib/zooga-gateway/shadow-outbox.server");
   const { getShadowRunMetrics } = await import("@/lib/zooga-gateway/shadow-runs.server");
   const { getShadowBrainStatus } = await import("@/lib/zooga-gateway/shadow-brain.server");
-  const [shadow, comparison, brain] = await Promise.all([
+  const { getZoogaReadiness } = await import("@/lib/zooga-gateway/readiness.server");
+  const [shadow, comparison, brain, readiness] = await Promise.all([
     getShadowMetrics(),
     getShadowRunMetrics(),
     getShadowBrainStatus(),
+    getZoogaReadiness(),
   ]);
-  return { ...status, shadow, comparison, brain };
+  return { ...status, shadow, comparison, brain, readiness };
 }
+
 
 export const Route = createFileRoute("/api/zooga/gateway-status")({
   server: {

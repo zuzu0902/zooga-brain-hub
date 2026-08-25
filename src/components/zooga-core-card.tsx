@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, ShieldCheck, Server, Send } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { RefreshCw, ShieldCheck, Server, Send, AlertTriangle, Cpu } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { emptyStatus, type GatewayStatus } from "@/lib/zooga-gateway/status";
+import {
+  BRAIN_EXECUTOR_UNVERIFIED_LABEL_HE,
+  CANONICAL_RUNTIME_LABEL_HE,
+  computeReadinessBlockers,
+  isPilotReady,
+  nextSafeMilestone,
+  sanitizeReadiness,
+} from "@/lib/zooga-gateway/readiness";
 import { useT } from "@/lib/language-context";
+
 
 const MIN_INTERVAL_MS = 30_000;
 
@@ -80,18 +90,49 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
   }, [load]);
 
   const s = status;
+  const readiness = useMemo(() => sanitizeReadiness(s?.readiness ?? null), [s?.readiness]);
+  const blockers = useMemo(() => computeReadinessBlockers(s, readiness), [s, readiness]);
+  const pilotReady = isPilotReady(blockers);
+
   return (
     <Card className="p-5" dir="rtl" data-testid="zooga-core-card">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold flex items-center gap-2">
           <Server className="h-4 w-4 text-primary" /> {t("ליבת Zooga")}
         </h3>
-        <Button variant="ghost" size="sm" onClick={() => load(true)} disabled={loading} aria-label={t("רענון")}>
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/system-readiness">{t("מוכנות מערכת")}</Link>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => load(true)} disabled={loading} aria-label={t("רענון")}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-4 grid gap-3 md:grid-cols-3 text-sm" data-testid="zooga-runtime-summary">
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground text-xs mb-1">{t("ריצה קנונית")}</div>
+          <div className="font-medium">{CANONICAL_RUNTIME_LABEL_HE}</div>
+        </div>
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground text-xs mb-1">{t("מנוע Brain ב-Gateway")}</div>
+          <div className="font-medium flex items-center gap-1">
+            <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
+            {readiness.brain_executor === "verified" ? t("מאומת") : BRAIN_EXECUTOR_UNVERIFIED_LABEL_HE}
+          </div>
+        </div>
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground text-xs mb-1">{t("בידוד לקוחות")}</div>
+          <div className="font-medium">
+            {readiness.tenants.current_slug ?? "—"} · {readiness.tenants.total}{" "}
+            {readiness.tenants.isolation_enforced ? t("מבודד") : t("לא מאומת")}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-4 text-sm">
+
         <div>
           <div className="text-muted-foreground text-xs mb-1">Gateway</div>
           <Pill on={!!s?.reachable} onLabel={t("מחובר")} offLabel={t("מנותק")} />
@@ -254,6 +295,60 @@ export function ZoogaCoreCard({ initialStatus = null }: { initialStatus?: Gatewa
           {t("המוח כבוי כברירת מחדל ורץ רק ב-Gateway של Zooga. אין מפתח API ואין קריאת מודל מכאן.")}
         </div>
       </div>
+
+      <div className="mt-4 rounded-md border p-3" data-testid="zooga-memory-summary">
+        <div className="text-xs font-medium mb-2">{t("זיכרון, היסטוריה וביקורת")}</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div>
+            <div className="text-muted-foreground text-xs">{t("זיכרונות")}</div>
+            <div className="font-medium">{readiness.memory.contact_memories}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("היסטוריית פרופיל")}</div>
+            <div className="font-medium">{readiness.memory.profile_history}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("עקבות החלטה")}</div>
+            <div className="font-medium">{readiness.memory.decision_traces}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground text-xs">{t("ביקורת (24 ש׳ / סה״כ)")}</div>
+            <div className="font-medium">
+              {readiness.memory.audit_events_recent} / {readiness.memory.audit_events}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-md border p-3" data-testid="zooga-blockers">
+        <div className="text-xs font-medium mb-2 flex items-center gap-1">
+          <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
+          {t("חסמי מוכנות")} ({blockers.length})
+        </div>
+        {blockers.length === 0 ? (
+          <div className="text-sm text-muted-foreground">{t("לא נמצאו חסמים בקריאה זו.")}</div>
+        ) : (
+          <ul className="space-y-1 text-sm">
+            {blockers.slice(0, 5).map((b) => (
+              <li key={b.code} className="flex items-start gap-2">
+                <span
+                  className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${
+                    b.severity === "blocker" ? "bg-destructive" : "bg-muted-foreground"
+                  }`}
+                />
+                <span>{b.label_he}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-2 text-xs text-muted-foreground">
+          {t("אבן דרך בטוחה הבאה")}: {nextSafeMilestone(blockers)}
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {t("מוכנות Pilot")}: {pilotReady ? t("אין חסמים חוסמים") : t("חסום")}
+        </div>
+      </div>
+
 
       <div className="mt-4 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
         <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
