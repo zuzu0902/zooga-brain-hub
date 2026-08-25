@@ -795,7 +795,9 @@ function BroadcastsPage() {
                   </div>
                   <div className="text-xs text-muted-foreground">
                     נשלחו {b.success_count} · נכשלו {b.failed_count} · ממתינות {b.pending_count}
+                    {b.last_run_at ? ` · ריצה אחרונה ${formatDate(b.last_run_at)}` : ""}
                   </div>
+                  {b.last_error && <div className="text-xs text-destructive">שגיאה אחרונה: {b.last_error}</div>}
                 </CardContent>
               </Card>
             );
