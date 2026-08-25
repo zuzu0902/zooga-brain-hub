@@ -33,10 +33,11 @@ export const GATEWAY_BRIDGE_ROUTES = {
   disconnect: "/v1/whatsapp-bridge/disconnect",
   logout: "/v1/whatsapp-bridge/logout",
   groups: "/v1/whatsapp-bridge/groups",
+  sendGroup: "/v1/whatsapp-bridge/send-group",
 } as const;
 
-/** Live sending is hard-disabled in this batch. */
-export const LIVE_SEND_ENABLED = false;
+/** Group sending through the Gateway proxy (Alex Personal only). */
+export const LIVE_SEND_ENABLED = true;
 
 type GatewayConfig = { gateway_url: string; bearer_token: string };
 
