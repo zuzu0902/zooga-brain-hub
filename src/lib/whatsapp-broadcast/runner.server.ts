@@ -25,6 +25,8 @@ const STOP_RUN_CODES = new Set([
   "bridge_server_not_configured",
   "not_connected",
   "send_route_unavailable",
+  "min_interval",
+  "per_minute_cap",
 ]);
 
 export type RunnerResult = {
@@ -203,7 +205,8 @@ export async function runBroadcastQueue(
           .eq("id", t.id);
       }
 
-      if (i < list.length - 1 && Date.now() + interval * 1000 < deadline) {
+      if (i < list.length - 1) {
+        if (Date.now() + interval * 1000 > deadline) break;
         await sleep(interval * 1000);
       }
     }
