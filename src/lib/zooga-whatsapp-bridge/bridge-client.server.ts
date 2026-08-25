@@ -96,8 +96,14 @@ async function call(
     }
     if (res.status === 401 || res.status === 403) return { ok: false, code: "bridge_unauthorized" };
     if (!res.ok) {
-      const code = typeof data["code"] === "string" ? (data["code"] as string) : "bridge_error";
-      return { ok: false, code };
+      // Keep a diagnosable reason (status + gateway code/message), never the host or token.
+      const detail =
+        (typeof data["code"] === "string" && data["code"]) ||
+        (typeof data["error"] === "string" && data["error"]) ||
+        (typeof data["message"] === "string" && data["message"]) ||
+        "";
+      const code = detail ? `${detail}` : `bridge_http_${res.status}`;
+      return { ok: false, code: `${code}`.slice(0, 120) };
     }
     return { ok: true, data };
   } catch {
