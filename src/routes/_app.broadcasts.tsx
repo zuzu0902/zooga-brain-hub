@@ -24,6 +24,7 @@ import {
   listWhatsappConnections,
   listWhatsappGroups,
 } from "@/lib/whatsapp-broadcast.functions";
+import { runBroadcastNow } from "@/lib/whatsapp-broadcast-runner.functions";
 import {
   BROADCAST_STATUS_LABELS,
   canOwnGroupBroadcast,
