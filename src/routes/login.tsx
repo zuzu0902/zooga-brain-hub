@@ -12,7 +12,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { useT } from "@/lib/language-context";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "התחברות — Zooga CRM" }] }),
+  head: () => ({ meta: [{ title: "התחברות — Zooga OS" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     next: typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//") ? s.next : undefined,
   }),
@@ -86,7 +86,7 @@ function LoginPage() {
           >
             Z
           </div>
-          <h1 className="text-2xl font-bold">Zooga CRM</h1>
+          <h1 className="text-2xl font-bold">Zooga OS</h1>
           <p className="text-sm text-muted-foreground mt-1">{t("הכניסה למערכת ניהול הקהילה")}</p>
         </div>
 
