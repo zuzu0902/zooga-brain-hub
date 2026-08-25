@@ -168,3 +168,34 @@ export const CAPABILITY_LABELS: Record<string, string> = {
   meta_api: "Meta API",
   group_broadcast: "קבוצות WhatsApp / הפצה",
 };
+
+/* ---------- runner helpers (pure) ---------- */
+
+/** Stable per (broadcast, group) key — a re-run can never double-send. */
+export function broadcastIdempotencyKey(broadcastId: string, groupId: string): string {
+  return `wab:${broadcastId}:${groupId}`;
+}
+
+/** Clamp the pacing interval to the validated 5..3600s range. */
+export function clampIntervalSeconds(raw: unknown, fallback = 30): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(3600, Math.max(5, Math.round(n)));
+}
+
+/** A broadcast is due when it is queued/running and its schedule has passed. */
+export function isBroadcastDue(
+  row: { status: string; scheduled_for?: string | null } | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (!row) return false;
+  if (row.status !== "queued" && row.status !== "running") return false;
+  if (!row.scheduled_for) return true;
+  const t = Date.parse(row.scheduled_for);
+  return Number.isFinite(t) ? t <= now : true;
+}
+
+/** Terminal status once every target is closed. */
+export function finalBroadcastStatus(counts: { sent: number; failed: number }): WaBroadcastStatus {
+  return counts.failed > 0 ? "completed_with_errors" : "completed";
+}

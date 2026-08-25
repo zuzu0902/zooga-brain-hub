@@ -24,6 +24,7 @@ import {
   listWhatsappConnections,
   listWhatsappGroups,
 } from "@/lib/whatsapp-broadcast.functions";
+import { runBroadcastNow } from "@/lib/whatsapp-broadcast-runner.functions";
 import {
   BROADCAST_STATUS_LABELS,
   canOwnGroupBroadcast,
@@ -268,6 +269,19 @@ function BroadcastsPage() {
       toast.success("ההפצה בוטלה");
       qc.invalidateQueries({ queryKey: ["wa", "broadcasts"] });
     },
+  });
+
+  const runNow = useMutation({
+    mutationFn: useServerFn(runBroadcastNow),
+    onSuccess: (res: any) => {
+      if (res?.ok) {
+        toast.success(`נשלחו ${res.sent} · נכשלו ${res.failed} · נותרו ${res.remaining}`);
+      } else {
+        toast.error(`השליחה נעצרה: ${res?.reason ?? "שגיאה"}`);
+      }
+      qc.invalidateQueries({ queryKey: ["wa", "broadcasts"] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e)),
   });
 
   const submit = () => {
@@ -766,10 +780,13 @@ function BroadcastsPage() {
                     </span>
                     <Button
                       size="sm"
-                      variant="ghost"
                       className="ms-auto"
-                      onClick={() => cancel.mutate({ data: { id: b.id } })}
+                      disabled={runNow.isPending}
+                      onClick={() => runNow.mutate({ data: { id: b.id } })}
                     >
+                      {runNow.isPending ? "שולח…" : "שלח עכשיו"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => cancel.mutate({ data: { id: b.id } })}>
                       ביטול
                     </Button>
                   </div>
@@ -778,7 +795,9 @@ function BroadcastsPage() {
                   </div>
                   <div className="text-xs text-muted-foreground">
                     נשלחו {b.success_count} · נכשלו {b.failed_count} · ממתינות {b.pending_count}
+                    {b.last_run_at ? ` · ריצה אחרונה ${formatDate(b.last_run_at)}` : ""}
                   </div>
+                  {b.last_error && <div className="text-xs text-destructive">שגיאה אחרונה: {b.last_error}</div>}
                 </CardContent>
               </Card>
             );

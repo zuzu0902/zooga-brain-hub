@@ -73,6 +73,7 @@ import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/p
 import { Route as ApiPublicCronZoogaShadowDrainRouteImport } from './routes/api/public/cron/zooga-shadow-drain'
 import { Route as ApiPublicCronZeroLossWorkerRouteImport } from './routes/api/public/cron/zero-loss-worker'
 import { Route as ApiPublicCronZeroLossReconcileRouteImport } from './routes/api/public/cron/zero-loss-reconcile'
+import { Route as ApiPublicCronWhatsappBroadcastRunnerRouteImport } from './routes/api/public/cron/whatsapp-broadcast-runner'
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
 import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
@@ -419,6 +420,12 @@ const ApiPublicCronZeroLossReconcileRoute =
     path: '/api/public/cron/zero-loss-reconcile',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronWhatsappBroadcastRunnerRoute =
+  ApiPublicCronWhatsappBroadcastRunnerRouteImport.update({
+    id: '/api/public/cron/whatsapp-broadcast-runner',
+    path: '/api/public/cron/whatsapp-broadcast-runner',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronRetryHandoffsRoute =
   ApiPublicCronRetryHandoffsRouteImport.update({
     id: '/api/public/cron/retry-handoffs',
@@ -497,6 +504,7 @@ export interface FileRoutesByFullPath {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/whatsapp-broadcast-runner': typeof ApiPublicCronWhatsappBroadcastRunnerRoute
   '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
   '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/cron/zooga-shadow-drain': typeof ApiPublicCronZoogaShadowDrainRoute
@@ -565,6 +573,7 @@ export interface FileRoutesByTo {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/whatsapp-broadcast-runner': typeof ApiPublicCronWhatsappBroadcastRunnerRoute
   '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
   '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/cron/zooga-shadow-drain': typeof ApiPublicCronZoogaShadowDrainRoute
@@ -635,6 +644,7 @@ export interface FileRoutesById {
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
+  '/api/public/cron/whatsapp-broadcast-runner': typeof ApiPublicCronWhatsappBroadcastRunnerRoute
   '/api/public/cron/zero-loss-reconcile': typeof ApiPublicCronZeroLossReconcileRoute
   '/api/public/cron/zero-loss-worker': typeof ApiPublicCronZeroLossWorkerRoute
   '/api/public/cron/zooga-shadow-drain': typeof ApiPublicCronZoogaShadowDrainRoute
@@ -705,6 +715,7 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/whatsapp-broadcast-runner'
     | '/api/public/cron/zero-loss-reconcile'
     | '/api/public/cron/zero-loss-worker'
     | '/api/public/cron/zooga-shadow-drain'
@@ -773,6 +784,7 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/whatsapp-broadcast-runner'
     | '/api/public/cron/zero-loss-reconcile'
     | '/api/public/cron/zero-loss-worker'
     | '/api/public/cron/zooga-shadow-drain'
@@ -842,6 +854,7 @@ export interface FileRouteTypes {
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
+    | '/api/public/cron/whatsapp-broadcast-runner'
     | '/api/public/cron/zero-loss-reconcile'
     | '/api/public/cron/zero-loss-worker'
     | '/api/public/cron/zooga-shadow-drain'
@@ -885,6 +898,7 @@ export interface RootRouteChildren {
   ApiPublicAdminBackfillMemoriesRoute: typeof ApiPublicAdminBackfillMemoriesRoute
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
+  ApiPublicCronWhatsappBroadcastRunnerRoute: typeof ApiPublicCronWhatsappBroadcastRunnerRoute
   ApiPublicCronZeroLossReconcileRoute: typeof ApiPublicCronZeroLossReconcileRoute
   ApiPublicCronZeroLossWorkerRoute: typeof ApiPublicCronZeroLossWorkerRoute
   ApiPublicCronZoogaShadowDrainRoute: typeof ApiPublicCronZoogaShadowDrainRoute
@@ -1344,6 +1358,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronZeroLossReconcileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/whatsapp-broadcast-runner': {
+      id: '/api/public/cron/whatsapp-broadcast-runner'
+      path: '/api/public/cron/whatsapp-broadcast-runner'
+      fullPath: '/api/public/cron/whatsapp-broadcast-runner'
+      preLoaderRoute: typeof ApiPublicCronWhatsappBroadcastRunnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/retry-handoffs': {
       id: '/api/public/cron/retry-handoffs'
       path: '/api/public/cron/retry-handoffs'
@@ -1505,6 +1526,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAdminBackfillMemoriesRoute: ApiPublicAdminBackfillMemoriesRoute,
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,
+  ApiPublicCronWhatsappBroadcastRunnerRoute:
+    ApiPublicCronWhatsappBroadcastRunnerRoute,
   ApiPublicCronZeroLossReconcileRoute: ApiPublicCronZeroLossReconcileRoute,
   ApiPublicCronZeroLossWorkerRoute: ApiPublicCronZeroLossWorkerRoute,
   ApiPublicCronZoogaShadowDrainRoute: ApiPublicCronZoogaShadowDrainRoute,

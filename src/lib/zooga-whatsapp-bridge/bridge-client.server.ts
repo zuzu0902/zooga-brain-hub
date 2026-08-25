@@ -8,8 +8,8 @@
  * tokens, no browser access. The token is NEVER returned or logged.
  *
  * All bridge traffic goes through the Gateway's authenticated proxy routes
- * under /v1/whatsapp-bridge/*. Live sending stays hard-disabled: there is no
- * send proxy route and sendGroupMessage always returns `live_send_disabled`.
+ * under /v1/whatsapp-bridge/*, including group sending. Group sending is the
+ * Alex Personal identity only and is always idempotency-keyed.
  *
  * Tamar Business WhatsApp (Meta Cloud API) must never import this module.
  */
@@ -33,10 +33,11 @@ export const GATEWAY_BRIDGE_ROUTES = {
   disconnect: "/v1/whatsapp-bridge/disconnect",
   logout: "/v1/whatsapp-bridge/logout",
   groups: "/v1/whatsapp-bridge/groups",
+  sendGroup: "/v1/whatsapp-bridge/send-group",
 } as const;
 
-/** Live sending is hard-disabled in this batch. */
-export const LIVE_SEND_ENABLED = false;
+/** Group sending through the Gateway proxy (Alex Personal only). */
+export const LIVE_SEND_ENABLED = true;
 
 type GatewayConfig = { gateway_url: string; bearer_token: string };
 
@@ -159,14 +160,34 @@ export async function fetchBridgeGroups(): Promise<{ ok: true; groups: BridgeGro
 }
 
 /**
- * Live single-group send is hard-disabled: no send proxy route exists on the
- * Gateway and nothing in the app may perform a live send in this batch.
+ * Single-group send through the Gateway proxy. The idempotency key must be
+ * stable per (broadcast, group) so a re-run can never double-send.
  */
-export async function sendGroupMessage(_input: {
+export async function sendGroupMessage(input: {
   chat_id: string;
   text: string;
   media_url?: string | null;
   idempotency_key: string;
 }): Promise<{ ok: true; message_id: string | null; duplicate: boolean } | { ok: false; code: string }> {
-  return { ok: false, code: "live_send_disabled" };
+  if (!LIVE_SEND_ENABLED) return { ok: false, code: "live_send_disabled" };
+  const chatId = String(input.chat_id ?? "").trim();
+  const text = String(input.text ?? "").trim();
+  const key = String(input.idempotency_key ?? "").trim();
+  if (!chatId || !text || key.length < 6) return { ok: false, code: "invalid_send_input" };
+
+  const res = await call(GATEWAY_BRIDGE_ROUTES.sendGroup, {
+    method: "POST",
+    body: {
+      chat_id: chatId,
+      text,
+      ...(input.media_url ? { media_url: input.media_url } : {}),
+      idempotency_key: key,
+    },
+  });
+  if (!res.ok) return { ok: false, code: res.code };
+  return {
+    ok: true,
+    message_id: typeof res.data["message_id"] === "string" ? (res.data["message_id"] as string) : null,
+    duplicate: res.data["duplicate"] === true,
+  };
 }
