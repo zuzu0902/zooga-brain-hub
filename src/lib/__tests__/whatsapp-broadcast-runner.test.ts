@@ -73,7 +73,6 @@ function createRunnerHarness(overrides: { intervalSeconds?: number; targets?: Ha
         filters: [] as Array<[string, unknown]>,
         maxRows: null as number | null,
         select(columns: string) {
-          this.action = "select";
           this.selected = columns;
           return this;
         },
