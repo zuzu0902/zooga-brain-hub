@@ -18,6 +18,15 @@ const LEASE_SECONDS = 300;
 const MAX_TARGETS_PER_RUN = 40;
 const DEFAULT_BUDGET_MS = 50_000;
 
+/** Reasons that abort the whole run and keep the remaining targets pending. */
+const STOP_RUN_CODES = new Set([
+  "bridge_unauthorized",
+  "bridge_unreachable",
+  "bridge_server_not_configured",
+  "not_connected",
+  "send_route_unavailable",
+]);
+
 export type RunnerResult = {
   ok: boolean;
   broadcast_id: string | null;
@@ -154,6 +163,7 @@ export async function runBroadcastQueue(
     let sent = 0;
     let failed = 0;
     let lastError: string | null = null;
+    let stopped = false;
     const list = (targets ?? []) as any[];
 
     for (let i = 0; i < list.length; i++) {
@@ -199,8 +209,15 @@ export async function runBroadcastQueue(
     }
 
     const counts = await refreshCounts(client, id);
-    const finished = counts.pending === 0;
-    const finalStatus = finished ? (counts.failed > 0 ? "completed_with_errors" : "completed") : "running";
+    const finished = !stopped && counts.pending === 0;
+    // A stopped run goes back to the queue so the next run (or Send Now) retries.
+    const finalStatus = stopped
+      ? "queued"
+      : finished
+        ? counts.failed > 0
+          ? "completed_with_errors"
+          : "completed"
+        : "running";
     await releaseLease(client, id, {
       status: finalStatus,
       last_error: lastError,
@@ -208,7 +225,7 @@ export async function runBroadcastQueue(
     });
 
     return {
-      ok: true,
+      ok: !stopped,
       broadcast_id: id,
       sent,
       failed,
