@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, ShieldCheck, Server, Send } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { RefreshCw, ShieldCheck, Server, Send, AlertTriangle, Cpu } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { emptyStatus, type GatewayStatus } from "@/lib/zooga-gateway/status";
+import {
+  BRAIN_EXECUTOR_UNVERIFIED_LABEL_HE,
+  CANONICAL_RUNTIME_LABEL_HE,
+  computeReadinessBlockers,
+  isPilotReady,
+  nextSafeMilestone,
+  sanitizeReadiness,
+} from "@/lib/zooga-gateway/readiness";
 import { useT } from "@/lib/language-context";
+
 
 const MIN_INTERVAL_MS = 30_000;
 
