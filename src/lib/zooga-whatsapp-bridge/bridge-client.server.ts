@@ -8,8 +8,8 @@
  * tokens, no browser access. The token is NEVER returned or logged.
  *
  * All bridge traffic goes through the Gateway's authenticated proxy routes
- * under /v1/whatsapp-bridge/*. Live sending stays hard-disabled: there is no
- * send proxy route and sendGroupMessage always returns `live_send_disabled`.
+ * under /v1/whatsapp-bridge/*, including group sending. Group sending is the
+ * Alex Personal identity only and is always idempotency-keyed.
  *
  * Tamar Business WhatsApp (Meta Cloud API) must never import this module.
  */
