@@ -57,6 +57,16 @@ function stripPrefix(token: string): string {
 }
 
 /**
+ * A Hebrew token is ambiguous by construction: "באקו" both IS a term and
+ * LOOKS like ב + "אקו". Both readings are kept so a bare term is never
+ * mangled into its own stripped form.
+ */
+function forms(token: string): string[] {
+  const stripped = stripPrefix(token);
+  return stripped === token ? [token] : [token, stripped];
+}
+
+/**
  * Build the domain vocabulary from the active focus title first (strongest
  * signal) and then the rest of the catalogue.
  */
@@ -68,9 +78,10 @@ export function domainVocabulary(args: {
   const out = new Map<string, number>();
   const add = (text: string | null | undefined, weight: number) => {
     for (const raw of String(text ?? "").match(HEB_WORD_RE) ?? []) {
-      const t = stripPrefix(raw);
-      if (t.length < 3) continue;
-      out.set(t, Math.max(out.get(t) ?? 0, weight));
+      for (const t of forms(raw)) {
+        if (t.length < 3) continue;
+        out.set(t, Math.max(out.get(t) ?? 0, weight));
+      }
     }
   };
   add(args.focusTitle, 1);
@@ -105,23 +116,25 @@ export function normalizeVoiceTranscript(args: {
   let lowest = 1;
 
   const normalized = raw.replace(HEB_WORD_RE, (token) => {
-    const stem = stripPrefix(token);
-    if (stem.length < 4) return token;
+    const stems = forms(token).filter((f) => f.length >= 4);
+    if (!stems.length) return token;
     // Already a known domain term — never touch it.
-    if (vocab.some((v) => v.term === stem)) return token;
+    if (forms(token).some((f) => vocab.some((v) => v.term === f))) return token;
 
-    let best: { term: string; score: number } | null = null;
+    let best: { term: string; score: number; stem: string } | null = null;
     let runnerUp = 0;
-    for (const { term, weight } of vocab) {
-      if (Math.abs(term.length - stem.length) > 2) continue;
-      const dist = levenshtein(term, stem);
-      if (dist === 0 || dist > 2) continue;
-      const similarity = 1 - dist / Math.max(term.length, stem.length);
-      const score = similarity * weight;
-      if (!best || score > best.score) {
-        runnerUp = best?.score ?? runnerUp;
-        best = { term, score };
-      } else if (score > runnerUp) runnerUp = score;
+    for (const stem of stems) {
+      for (const { term, weight } of vocab) {
+        if (Math.abs(term.length - stem.length) > 2) continue;
+        const dist = levenshtein(term, stem);
+        if (dist === 0 || dist > 2) continue;
+        const similarity = 1 - dist / Math.max(term.length, stem.length);
+        const score = similarity * weight;
+        if (!best || score > best.score) {
+          runnerUp = best?.score ?? runnerUp;
+          best = { term, score, stem };
+        } else if (score > runnerUp) runnerUp = score;
+      }
     }
     if (!best || best.score < NORMALIZE_MIN_THRESHOLD) return token;
     // Two equally plausible domain terms => do not guess.
@@ -137,7 +150,7 @@ export function normalizeVoiceTranscript(args: {
     }
     corrections.push({ from: token, to: best.term, confidence: Number(best.score.toFixed(3)) });
     lowest = Math.min(lowest, best.score);
-    return token.replace(stem, best.term);
+    return token.replace(best.stem, best.term);
   });
 
   if (!corrections.length) {
