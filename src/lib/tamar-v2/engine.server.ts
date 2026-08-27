@@ -547,7 +547,13 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         .filter((t) => t.dir === "out")
         .slice(-6)
         .map((t) => questionSignature(t.text));
-      const planned = planOutbound({ messages: decision.messages, recentSignatures });
+      // A direct answer to a repeated customer question is legitimate; only
+      // Tamar-initiated segments (questions/offers) are history-deduped.
+      const answering = (decision.reason_codes ?? []).includes("answer_first");
+      const planned = planOutbound({
+        messages: decision.messages,
+        recentSignatures: answering ? [] : recentSignatures,
+      });
       if (planned.dropped.length) {
         decision.reason_codes = [...(decision.reason_codes ?? []), `deduped_${planned.dropped.length}`];
       }
