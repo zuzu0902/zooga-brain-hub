@@ -25,13 +25,14 @@ export type WritebackResult = {
 };
 
 /** Claim the ledger row. Returns false when this inbound was already written. */
-async function claim(args: { contactId: string; key: string }): Promise<boolean> {
+async function claim(args: { contactId: string; key: string; contextSnapshotId?: string | null }): Promise<boolean> {
   const { data, error } = await db()
     .from("tamar_writeback_ledger")
     .upsert(
       {
         contact_id: args.contactId,
         inbound_message_id: args.key,
+        context_snapshot_id: args.contextSnapshotId ?? null,
         runtime: "tamar_v2",
       },
       { onConflict: "inbound_message_id,runtime", ignoreDuplicates: true },
@@ -91,6 +92,8 @@ export async function applyWriteback(args: {
   interpretation: Interpretation;
   capturedFields?: Record<string, string>;
   previousSummary?: string | null;
+  /** the exact context snapshot this writeback was derived from */
+  contextSnapshotId?: string | null;
   outboundText?: string | null;
   sourceType?: "text" | "voice" | "interactive";
 }): Promise<WritebackResult> {
@@ -107,7 +110,7 @@ export async function applyWriteback(args: {
     message: args.message,
   });
 
-  const claimed = await claim({ contactId: args.contactId, key }).catch(() => false);
+  const claimed = await claim({ contactId: args.contactId, key, contextSnapshotId: args.contextSnapshotId ?? null }).catch(() => false);
   if (!claimed) {
     return { skipped: true, reason: "already_written", facts_written: 0, memories_written: 0, insights_written: 0, summary: plan.summary };
   }

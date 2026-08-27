@@ -11,7 +11,7 @@
  * runtime actually saw.
  */
 
-export const CONTEXT_VERSION = "v2.ctx.1" as const;
+export const CONTEXT_VERSION = "v2.ctx.2" as const;
 
 export const CONTEXT_LIMITS = {
   transcript: 30,
@@ -43,13 +43,53 @@ export type ContextMemory = {
 export type ContextChange = { field: string; from: string | null; to: string | null; at: string | null };
 export type ContextDecision = { action: string | null; reason_codes: string[]; at: string | null };
 
+/** The one authoritative pointer of what this conversation is about. */
+export type ContextFocus = {
+  topic: string | null;
+  offer_id: string | null;
+  provenance: string;
+  updated_at: string | null;
+};
+
+/** The FULL current record of the active event/offer — never a shallow match. */
+export type ContextActiveOffer = {
+  id: string;
+  title: string;
+  status: string | null;
+  category: string | null;
+  event_date: string | null;
+  event_end_date: string | null;
+  price: number | null;
+  currency: string | null;
+  pricing_status: string | null;
+  url: string | null;
+  summary: string | null;
+  description: string | null;
+  itinerary: string | null;
+  included: string[];
+  not_included: string[];
+  audience: string[];
+  accessibility: string | null;
+  facts: Record<string, string>;
+  faqs: Array<{ q: string; a: string }>;
+  sellable: boolean;
+};
+
+export type ContextCommitment = { kind: string; ref: string | null; text: string | null; at: string | null };
+
 export type ContextPackage = {
   version: typeof CONTEXT_VERSION;
   contact: { id: string | null; first_name: string | null; state: string; language: string };
+  /** current journey stage (canonical conversation state) */
+  journey_stage: string;
+  active: ContextFocus;
+  active_offer: ContextActiveOffer | null;
   summary: string | null;
   transcript: ContextTurn[];
   facts: ContextFact[];
   memories: ContextMemory[];
+  intake: { answered: Record<string, string>; missing: string[] };
+  commitments: ContextCommitment[];
   recent_changes: ContextChange[];
   decisions: ContextDecision[];
   offers_presented: string[];
@@ -123,7 +163,57 @@ export type RawContext = {
   offersSent?: string[];
   handoff?: { open: boolean; reason?: string | null } | null;
   knowledge?: string[];
+  focus?: ContextFocus | null;
+  activeOffer?: Record<string, any> | null;
+  intakeAnswered?: Record<string, string>;
+  intakeMissing?: string[];
+  commitments?: ContextCommitment[];
 };
+
+/** Build the FULL current record of the active offer (bounded, sanitized). */
+export function buildActiveOffer(offer: Record<string, any> | null | undefined): ContextActiveOffer | null {
+  if (!offer?.id) return null;
+  const list = (v: unknown, max = 12): string[] =>
+    Array.isArray(v) ? v.map((x) => clip(x, 120)).filter(Boolean).slice(0, max) : [];
+  const facts: Record<string, string> = {};
+  const gf = (offer["grounded_facts"] ?? {}) as Record<string, unknown>;
+  if (gf && typeof gf === "object") {
+    for (const [k, v] of Object.entries(gf).slice(0, 25)) {
+      if (isSecretContextKey(k)) continue;
+      facts[clip(k, 60)] = clip(v, 200);
+    }
+  }
+  const faqs = Array.isArray(offer["faq_bundle"])
+    ? (offer["faq_bundle"] as Array<Record<string, any>>)
+        .slice(0, 8)
+        .map((f) => ({ q: clip(f?.["q"], 160), a: clip(f?.["a"], 240) }))
+        .filter((f) => !!f.q)
+    : [];
+  const accessibility =
+    clip(offer["accessibility_notes"] ?? facts["נגישות"] ?? facts["accessibility"] ?? "", 240) || null;
+  return {
+    id: String(offer["id"]),
+    title: clip(offer["title"], 160),
+    status: offer["status"] ?? null,
+    category: offer["category"] ?? null,
+    event_date: offer["event_date"] ?? null,
+    event_end_date: offer["event_end_date"] ?? null,
+    price: num(offer["base_price_per_person"]),
+    currency: offer["currency"] ?? null,
+    pricing_status: offer["pricing_status"] ?? null,
+    url: offer["offer_url"] ?? null,
+    summary: clip(offer["ai_summary"], 400) || null,
+    description: clip(offer["description"], 400) || null,
+    itinerary: clip(offer["itinerary_summary"], 600) || null,
+    included: list(offer["included"]),
+    not_included: list(offer["not_included"]),
+    audience: list(offer["matching_tags"]),
+    accessibility,
+    facts,
+    faqs,
+    sellable: offer["status"] === "active",
+  };
+}
 
 /** Assemble the bounded package. Deterministic ordering, deterministic trims. */
 export function buildContextPackage(raw: RawContext): ContextPackage {
@@ -176,10 +266,25 @@ export function buildContextPackage(raw: RawContext): ContextPackage {
       state: raw.state,
       language: "he",
     },
+    journey_stage: raw.state,
+    active: raw.focus ?? { topic: null, offer_id: null, provenance: "none", updated_at: null },
+    active_offer: buildActiveOffer(raw.activeOffer),
     summary: raw.summary ? clip(raw.summary, CONTEXT_LIMITS.summaryChars) : null,
     transcript,
     facts,
     memories,
+    intake: {
+      answered: Object.fromEntries(
+        Object.entries(raw.intakeAnswered ?? {}).slice(0, 30).map(([k, v]) => [k, clip(v, 120)]),
+      ),
+      missing: (raw.intakeMissing ?? []).map(String).slice(0, 12),
+    },
+    commitments: (raw.commitments ?? []).slice(0, 10).map((c) => ({
+      kind: String(c.kind ?? ""),
+      ref: c.ref ? String(c.ref) : null,
+      text: c.text ? clip(c.text, 160) : null,
+      at: c.at ?? null,
+    })),
     recent_changes,
     decisions,
     offers_presented: (raw.offersPresented ?? []).slice(0, CONTEXT_LIMITS.offers).map(String),
@@ -189,12 +294,37 @@ export function buildContextPackage(raw: RawContext): ContextPackage {
   };
 }
 
+/**
+ * Token budget guard. Trims the OLDEST material first and never drops the
+ * last customer/agent turns, the active focus or the active offer record.
+ */
+export const CONTEXT_TOKEN_BUDGET = 3000;
+export const CONTEXT_MIN_TURNS = 6;
+
+export function budgetContext(ctx: ContextPackage, budget = CONTEXT_TOKEN_BUDGET): ContextPackage {
+  let out = ctx;
+  if (estimateTokens(out) <= budget) return out;
+  out = { ...out, knowledge: [] };
+  if (estimateTokens(out) <= budget) return out;
+  out = { ...out, recent_changes: [], decisions: out.decisions.slice(0, 2) };
+  if (estimateTokens(out) <= budget) return out;
+  out = { ...out, memories: out.memories.slice(0, 10) };
+  while (estimateTokens(out) > budget && out.transcript.length > CONTEXT_MIN_TURNS) {
+    out = { ...out, transcript: out.transcript.slice(1) };
+  }
+  return out;
+}
+
 /** Counts of the source records that fed the package (audit, no PII). */
 export function contextSourceCounts(ctx: ContextPackage) {
   return {
     transcript: ctx.transcript.length,
     facts: ctx.facts.length,
     memories: ctx.memories.length,
+    intake_answered: Object.keys(ctx.intake?.answered ?? {}).length,
+    intake_missing: (ctx.intake?.missing ?? []).length,
+    commitments: (ctx.commitments ?? []).length,
+    active_offer: ctx.active_offer ? 1 : 0,
     recent_changes: ctx.recent_changes.length,
     decisions: ctx.decisions.length,
     offers_presented: ctx.offers_presented.length,
