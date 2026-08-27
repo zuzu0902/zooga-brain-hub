@@ -999,6 +999,7 @@ async function persistTurn(args: {
   }
 
   // decision trace (its id is linked back onto the context snapshot)
+  let traceId: string | null = null;
   try {
     const { data: traceRow } = await supabaseAdmin.from("tamar_decision_traces").insert({
       contact_id: contact.id,
@@ -1012,17 +1013,12 @@ async function persistTurn(args: {
       prompt_version: `v2.${agent.version}`,
       model: interpretation.source,
     } as any).select("id").maybeSingle();
-    const { attachDecisionTrace } = await import("./context.server");
-    await attachDecisionTrace({
-      contactId: contact.id,
-      inboundMessageId: args.input.inbound_message_id ?? null,
-      decisionTraceId: (traceRow as any)?.id ?? null,
-    }).catch(() => false);
+    traceId = (traceRow as any)?.id ?? null;
   } catch { /* ignore */ }
 
   // runtime execution row (dashboards depend on this table)
   try {
-    await supabaseAdmin.from("tamar_runtime_executions").insert({
+    const { data: execRow } = await supabaseAdmin.from("tamar_runtime_executions").insert({
       contact_id: contact.id,
       channel: "whatsapp",
       source: args.input.source ?? "meta_webhook",
@@ -1039,8 +1035,17 @@ async function persistTurn(args: {
         knowledge_ids: args.grounding?.knowledge_ids ?? [],
         offer_id: args.offerId ?? null,
         offer_link_sent: !!args.linkSent,
+        context_snapshot_id: args.contextSnapshotId ?? null,
       },
-    } as any);
+    } as any).select("id").maybeSingle();
+    const { attachDecisionTrace } = await import("./context.server");
+    await attachDecisionTrace({
+      contactId: contact.id,
+      inboundMessageId: args.input.inbound_message_id ?? null,
+      snapshotId: args.contextSnapshotId ?? null,
+      decisionTraceId: traceId,
+      runtimeExecutionId: (execRow as any)?.id ?? null,
+    }).catch(() => false);
   } catch { /* ignore */ }
 
   // handoff + freeze (also covers follow-ups on an already frozen thread)
