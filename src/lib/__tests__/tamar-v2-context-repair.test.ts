@@ -62,11 +62,11 @@ describe("authoritative active focus", () => {
     const { focus } = nextFocus({ current: baku, resetRequested: true });
     expect(focus.offer_id).toBeNull();
     expect(RESET_CLEAR_KEYS as readonly string[]).toContain("v2_focus");
-    const dyn = withFocus({ v2_summary: "לקוח" }, baku);
+    const dyn = withFocus({ region: "מרכז" }, baku);
     expect(readFocus(dyn).offer_id).toBe("off_baku");
     const after = applyResetToDynamic(dyn).dyn;
     expect(readFocus(after)).toEqual(EMPTY_FOCUS);
-    expect(after["v2_summary"]).toBe("לקוח");
+    expect(after["region"]).toBe("מרכז");
   });
 });
 
