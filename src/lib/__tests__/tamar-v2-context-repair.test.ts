@@ -74,8 +74,8 @@ describe("voice normalization is audited, never a silent guess", () => {
   const catalog = ["טיול לבאקו", "טיול לוייטנאם 60+", "מסיבת פורים"];
 
   it("corrects a domain token against the active focus and reports the reason", () => {
-    const n = normalizeVoiceTranscript({ raw: "כמה עולה הטיול לבקבוק?", focusTitle: "טיול לבאקו", catalogTitles: catalog });
-    expect(n.raw).toBe("כמה עולה הטיול לבקבוק?");
+    const n = normalizeVoiceTranscript({ raw: "כמה עולה הטיול לבאקוו?", focusTitle: "טיול לבאקו", catalogTitles: catalog });
+    expect(n.raw).toBe("כמה עולה הטיול לבאקוו?");
     expect(n.normalized).toContain("באקו");
     expect(n.changed).toBe(true);
     expect(n.reason).toContain("domain_entity_correction");
@@ -86,6 +86,13 @@ describe("voice normalization is audited, never a silent guess", () => {
     const n = normalizeVoiceTranscript({ raw: "אני רוצה לשמוע פרטים", focusTitle: "טיול לבאקו", catalogTitles: catalog });
     expect(n.changed).toBe(false);
     expect(n.normalized).toBe(n.raw);
+  });
+
+  it("a low-confidence near-match is never rewritten silently", () => {
+    const n = normalizeVoiceTranscript({ raw: "מה עם הבקו הזה?", focusTitle: "טיול לבאקו", catalogTitles: catalog });
+    expect(n.changed).toBe(false);
+    expect(n.ambiguous).toBe(true);
+    expect(n.reason).toBe("low_confidence_domain_match");
   });
 
   it("asks one concise clarification instead of guessing", () => {
