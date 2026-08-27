@@ -54,6 +54,8 @@ export async function interpret(
     /** last turns, oldest first: "לקוח: ..." / "תמר: ..." */
     history?: string[];
     summary?: string | null;
+    /** routing signal: simple turns run on the cheapest capable model */
+    complexity?: "simple" | "complex";
   },
 ): Promise<Interpretation> {
   const deterministic = interpretDeterministic(message);
@@ -68,12 +70,27 @@ recent turns:
 ${(ctx.history ?? []).slice(-12).join("\n") || "(none)"}
 inbound message: ${message}`;
 
-  const res = await callStage("intent_interpreter", [
+  const messages = [
     { role: "system", content: SYSTEM },
     { role: "user", content: user },
-  ], { json: true, context: "interpret" });
+  ];
+  const res = await callStage("intent_interpreter", messages, {
+    json: true,
+    context: "interpret",
+    complexity: ctx.complexity ?? "simple",
+  });
 
-  const parsed = res.ok ? coerce(res.content) : null;
+  let parsed = res.ok ? coerce(res.content) : null;
+  // Structured-output failure earns exactly ONE escalated validation retry.
+  if (!parsed) {
+    const retry = await callStage("intent_interpreter", messages, {
+      json: true,
+      context: "interpret_validation_retry",
+      complexity: "complex",
+      validationRetry: true,
+    });
+    parsed = retry.ok ? coerce(retry.content) : null;
+  }
   const out = parsed ?? { ...deterministic, source: "fallback" as const };
   return {
     ...out,

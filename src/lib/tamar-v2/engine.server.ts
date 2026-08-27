@@ -326,6 +326,14 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const ctxPackage = built?.context ?? null;
   const history = ctxPackage ? transcriptLines(ctxPackage, 12) : contact?.id ? await loadRecentTranscript(contact.id, 12) : [];
 
+  // Complexity is decided BEFORE the first model call so routing is real:
+  // a normal turn never pays for the strong model.
+  const preComplexity: "simple" | "complex" = ctxPackage
+    ? turnComplexity({ message, ctx: ctxPackage, wantsHuman: wantsHuman(message) })
+    : wantsHuman(message)
+      ? "complex"
+      : "simple";
+
   const interpretation: Interpretation = input.offline
     ? interpretDeterministic(message)
     : await interpret(message, {
@@ -334,6 +342,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         known: knownFields,
         history,
         summary: ctxPackage?.summary ?? (contact?.dynamic_profile_fields as any)?.["v2_summary"] ?? null,
+        complexity: preComplexity,
       });
 
   if (built && !input.simulate && contact?.id) {
@@ -343,9 +352,13 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       built,
     }).catch(() => false);
   }
-  const complexity = ctxPackage
+  // After interpretation, low confidence / human intent may escalate the
+  // wording stage even though interpretation itself ran cheap.
+  const complexity: "simple" | "complex" = ctxPackage
     ? turnComplexity({ message, ctx: ctxPackage, wantsHuman: interpretation.wants_human, confidence: interpretation.confidence })
-    : "simple";
+    : preComplexity;
+
+
 
 
   // ---- Product grounding -------------------------------------------------
@@ -458,6 +471,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       offers,
       offerBlock: resolved ? buildOfferGroundingBlock(resolved) : null,
       infoOnly: !!resolved && !availability.sellable,
+      complexity,
     }).catch(() => null);
     groundingPath = resolved ? "offer_knowledge" : "community_knowledge";
   }
@@ -590,6 +604,20 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         decision.reason_codes = [...(decision.reason_codes ?? []), `guard_${guard.verdict}`];
       }
 
+      // ---- Idempotent CRM + memory writeback (one per inbound id) -----
+      // Reuses the structured interpretation already produced; no extra
+      // model call. A retry of the same wamid writes nothing.
+      const { applyWriteback } = await import("./writeback.server");
+      const writeback = await applyWriteback({
+        contactId: contact.id,
+        inboundMessageId: input.inbound_message_id ?? null,
+        message,
+        interpretation,
+        capturedFields: decision.captured as Record<string, string>,
+        previousSummary: ctxPackage?.summary ?? (dyn?.["v2_summary"] ?? null),
+        outboundText: outgoing.map(messageText).join(" "),
+      }).catch(() => null);
+
       // Persist AFTER the guard chose the final text: an unsent candidate
       // must never appear in the transcript.
       await persistTurn({
@@ -607,6 +635,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         clearPendingHandoff,
         groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
         grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence, complexity },
+        summary: writeback && !writeback.skipped ? writeback.summary : null,
       });
 
       for (const m of outgoing) {
@@ -678,6 +707,8 @@ async function persistTurn(args: {
   clearPendingHandoff?: boolean;
   groundedOfferId?: string | null;
   grounding?: { path: string; knowledge_ids: string[]; confidence: number; complexity?: string };
+  /** compact rolling conversation summary produced by the writeback pass */
+  summary?: string | null;
 }) {
   const { contact, decision, interpretation, agent, message } = args;
   const now = new Date().toISOString();
@@ -708,6 +739,7 @@ async function persistTurn(args: {
   dyn["v2_pending_step"] = decision.ask_step_key;
   dyn["v2_ambiguity_turns"] = decision.ambiguity_turns;
   dyn["v2_answered_count"] = args.answeredCount + (Object.keys(decision.captured).length ? 1 : 0);
+  if (args.summary) dyn["v2_summary"] = args.summary;
   // last-offer pointer only; the LINK ledger is committed after a successful
   // send (commitOfferLinkSent), never here.
   Object.assign(dyn, withOfferLedger(dyn, { offerId: args.offerId ?? null, linkSent: false }));
@@ -765,9 +797,9 @@ async function persistTurn(args: {
     } catch { /* ignore */ }
   }
 
-  // decision trace
+  // decision trace (its id is linked back onto the context snapshot)
   try {
-    await supabaseAdmin.from("tamar_decision_traces").insert({
+    const { data: traceRow } = await supabaseAdmin.from("tamar_decision_traces").insert({
       contact_id: contact.id,
       state: decision.from_state,
       considered_actions: decision.actions,
@@ -778,7 +810,13 @@ async function persistTurn(args: {
       offer_ids: args.offerId ? [...new Set([...decision.offer_ids, args.offerId])] : decision.offer_ids,
       prompt_version: `v2.${agent.version}`,
       model: interpretation.source,
-    } as any);
+    } as any).select("id").maybeSingle();
+    const { attachDecisionTrace } = await import("./context.server");
+    await attachDecisionTrace({
+      contactId: contact.id,
+      inboundMessageId: args.input.inbound_message_id ?? null,
+      decisionTraceId: (traceRow as any)?.id ?? null,
+    }).catch(() => false);
   } catch { /* ignore */ }
 
   // runtime execution row (dashboards depend on this table)
