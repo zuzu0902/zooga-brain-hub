@@ -132,7 +132,8 @@ export function normalizeVoiceTranscript(args: {
         const score = similarity * weight;
         // Two spellings of the SAME domain term (with/without a Hebrew
         // prefix) are not competing candidates.
-        const sameFamily = (a: string, b: string) => stripPrefix(a) === stripPrefix(b);
+        const sameFamily = (a: string, b: string) =>
+          a === b || forms(a).some((x) => forms(b).includes(x));
         if (!best || score > best.score) {
           if (best && !sameFamily(best.term, term)) runnerUp = Math.max(runnerUp, best.score);
           best = { term, score, stem };
