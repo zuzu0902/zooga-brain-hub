@@ -300,6 +300,12 @@ async function loadCustomerSuppliedProfile(contactId: string) {
   return { facts, answers };
 }
 
+/**
+ * Grounding paths that CLOSE the turn: nothing may be appended after them —
+ * no recommendation, no intake question, no second envelope.
+ */
+const TERMINAL_GROUNDING_PATHS = new Set(["offer_clarification", "sensitive_verification_required"]);
+
 export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const started = Date.now();
   const message = String(input.message ?? "").trim();
