@@ -113,7 +113,19 @@ export function scoreOffer(query: string, offer: OfferKnowledge): number {
     const nt = norm(t);
     if (nt.length > 2 && q.includes(nt)) score += 1;
   }
+  // Age-cohort / numeric identifiers ("בני 60", "60+") are strong signals.
+  for (const n of title.match(/\d{2,}/g) ?? []) {
+    if (new RegExp(`(^|\\D)${n}(\\D|$)`).test(q)) score += 6;
+  }
   return score;
+}
+
+/** "הטיול הזה" / "זה ששלחת" — a reference to what was just presented. */
+const REFERENTIAL_RE =
+  /(הטיול\s+הזה|הטיול\s+ששלחת|הטיול\s+שדיברנו|הזה\s+ששלחת|זה\s+ששלחת|ההצעה\s+הזאת|ההצעה\s+הזו|האירוע\s+הזה|הסדנה\s+הזאת|על\s+הטיול\s+הזה|עליו|עליה)/i;
+
+export function isReferentialOfferMention(message: string | null | undefined): boolean {
+  return REFERENTIAL_RE.test(String(message ?? ""));
 }
 
 export type OfferResolution = {
@@ -133,7 +145,7 @@ export type OfferResolution = {
 export function resolveOffer(
   message: string,
   offers: OfferKnowledge[],
-  ctx?: { recentMessages?: string[]; lastOfferId?: string | null },
+  ctx?: { recentMessages?: string[]; lastOfferId?: string | null; recentOfferIds?: string[] },
 ): OfferResolution {
   const empty: OfferResolution = {
     offer: null,
@@ -151,6 +163,33 @@ export function resolveOffer(
     .sort((a, b) => b.s - a.s);
 
   if (!scored.length) {
+    // Referential mention ("הטיול הזה"): resolve against what was actually
+    // presented most recently — exact ids, never a guess from the catalog.
+    if (isReferentialOfferMention(message)) {
+      const ids = Array.from(new Set((ctx?.recentOfferIds ?? []).map(String)));
+      const recentOffers = ids.map((id) => offers.find((o) => o.id === id)).filter(Boolean) as OfferKnowledge[];
+      if (recentOffers.length === 1) {
+        return {
+          offer: recentOffers[0]!,
+          candidates: recentOffers,
+          ambiguous: false,
+          clarification: null,
+          confidence: 85,
+          reason: "context",
+        };
+      }
+      if (recentOffers.length > 1) {
+        const names = recentOffers.slice(0, 3).map((o) => o.title);
+        return {
+          offer: null,
+          candidates: recentOffers.slice(0, 3),
+          ambiguous: true,
+          clarification: `רק שאדע במדויק על מה לספר — ${names.join(" או ")}?`,
+          confidence: 40,
+          reason: "ambiguous",
+        };
+      }
+    }
     const recent = (ctx?.recentMessages ?? []).slice(-6).join(" ");
     const fromContext = offers
       .map((o) => ({ o, s: scoreOffer(recent, o) }))
@@ -419,6 +458,7 @@ export function isProductQuestion(args: {
   if (strong) return { product: true, useContext: false, reason: "direct_offer_match" };
   if (args.directResolution.ambiguous) return { product: true, useContext: false, reason: "ambiguous_offer" };
   if (PRODUCT_SIGNAL_RE.test(msg)) return { product: true, useContext: true, reason: "product_signal" };
+  if (isReferentialOfferMention(msg)) return { product: true, useContext: true, reason: "referential_mention" };
   if (args.isQuestion && args.lastGroundedOfferId && FOLLOWUP_PRONOUN_RE.test(msg.trim())) {
     return { product: true, useContext: true, reason: "pronoun_followup" };
   }

@@ -59,6 +59,8 @@ import {
   withPendingHandoff,
 } from "./offer-knowledge.server";
 import type { AgentVersion, Interpretation, OutboundMessage, TurnDecision } from "./types";
+import { isConversationResetRequest, applyResetToDynamic } from "./reset";
+import { detectSensitiveTopic, hasGroundedSensitiveData, sensitiveVerificationText } from "./sensitive";
 import { writeGroundedAnswer } from "./writer.server";
 
 /** Contact columns we may write intake values into directly. */
@@ -298,9 +300,17 @@ async function loadCustomerSuppliedProfile(contactId: string) {
   return { facts, answers };
 }
 
+/**
+ * Grounding paths that CLOSE the turn: nothing may be appended after them —
+ * no recommendation, no intake question, no second envelope.
+ */
+const TERMINAL_GROUNDING_PATHS = new Set(["offer_clarification", "sensitive_verification_required"]);
+
 export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const started = Date.now();
   const message = String(input.message ?? "").trim();
+  // Deterministic, pre-model: "נתחיל מחדש" costs no model call at all.
+  const resetRequested = isConversationResetRequest(message);
   const agent = await loadAgentVersion();
 
   let contact = input.simulate ? null : await findContact(input);
@@ -334,7 +344,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       ? "complex"
       : "simple";
 
-  const interpretation: Interpretation = input.offline
+  const interpretation: Interpretation = input.offline || resetRequested
     ? interpretDeterministic(message)
     : await interpret(message, {
         state,
@@ -379,10 +389,25 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     isQuestion: asksSomething,
   });
   const productAsked = productGate.product;
+  // Exact ids of what was ACTUALLY presented recently — "הטיול הזה" is
+  // resolved against those, never guessed from the whole catalogue.
+  const recentOfferIds = Array.from(
+    new Set(
+      [
+        ...(ctxPackage?.offers_presented ?? []),
+        ...(ctxPackage?.offers_sent ?? []),
+        lastGroundedOfferIdFrom(contact),
+        lastOfferIdFrom(contact),
+      ]
+        .filter(Boolean)
+        .map(String),
+    ),
+  );
   const resolution = productGate.useContext
     ? resolveOffer(message, candidates, {
         recentMessages: history,
         lastOfferId: lastGroundedOfferIdFrom(contact) ?? lastOfferIdFrom(contact),
+        recentOfferIds,
       })
     : directResolution;
   const resolved = productAsked ? resolution.offer : null;
@@ -432,7 +457,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   }
 
   const solo = soloPolicyReply(message);
-  if (answerText) {
+  // Sensitive / high-stakes topics may be answered only from grounded data.
+  const sensitiveTopic = asksSomething ? detectSensitiveTopic(message) : null;
+  if (resetRequested) {
+    groundingPath = "conversation_reset";
+  } else if (answerText) {
     /* pending-handoff turn already answered */
   } else if (!input.simulate && contact && (await (async () => {
     const { handleReengagementReply } = await import("@/lib/tamar-activation/followup.server");
@@ -458,6 +487,12 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   } else if (resolution.ambiguous && resolution.clarification) {
     answerText = resolution.clarification;
     groundingPath = "offer_clarification";
+  } else if (sensitiveTopic && !(resolved && hasGroundedSensitiveData(resolved as any, sensitiveTopic))) {
+    // No verified accessibility / medical data for the EXACT offer:
+    // acknowledge, promise verification, open a human follow-up. Never claim
+    // suitability and never append an offer after this.
+    answerText = sensitiveVerificationText(resolved?.title ?? null, sensitiveTopic);
+    groundingPath = "sensitive_verification_required";
   } else if (productAsked && isUnsupportedDetailQuestion(message, resolved)) {
     answerText = HONEST_UNKNOWN;
     groundingPath = "honest_unknown";
@@ -536,8 +571,38 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     answerText,
     recentlySentOfferIds,
     explicitOfferRequest,
+    resetRequested,
+    terminalAnswer: TERMINAL_GROUNDING_PATHS.has(groundingPath),
+    terminalReason: groundingPath,
+    terminalActions: groundingPath === "sensitive_verification_required" ? ["sensitive_followup"] : [],
   };
   const decision = decideTurn(turnInput);
+
+  // Deterministic side effects of a terminal/reset turn. Both are idempotent
+  // per inbound message id: a retry writes nothing new.
+  if (!input.simulate && contact?.id) {
+    if (decision.actions.includes("conversation_reset")) {
+      const { recordConversationReset } = await import("./reset.server");
+      const { cleared } = applyResetToDynamic(dyn);
+      await recordConversationReset({
+        contactId: contact.id,
+        inboundMessageId: input.inbound_message_id ?? null,
+        message,
+        cleared,
+      }).catch(() => null);
+    }
+    if (decision.actions.includes("sensitive_followup") && sensitiveTopic) {
+      const { ensureSensitiveFollowupTask } = await import("./followup.server");
+      await ensureSensitiveFollowupTask({
+        contactId: contact.id,
+        inboundMessageId: input.inbound_message_id ?? null,
+        offerId: resolved?.id ?? null,
+        offerTitle: resolved?.title ?? null,
+        question: message,
+        topic: sensitiveTopic,
+      }).catch(() => null);
+    }
+  }
 
   const sends: V2TurnResult["sends"] = [];
   let noReplyReason: string | null = input.simulate ? "simulate" : null;
@@ -750,6 +815,14 @@ async function persistTurn(args: {
   });
   for (const k of Object.keys(dyn)) if (!(k in withPending)) delete dyn[k];
   Object.assign(dyn, withPending);
+
+  // A reset clears ONLY volatile working state. History, CRM columns, facts,
+  // memories, audit rows and consent are untouched.
+  if (decision.actions.includes("conversation_reset")) {
+    const reset = applyResetToDynamic(dyn);
+    for (const k of Object.keys(dyn)) delete dyn[k];
+    Object.assign(dyn, reset.dyn);
+  }
 
   const patch: Record<string, unknown> = {
     conversation_state: decision.next_state,
