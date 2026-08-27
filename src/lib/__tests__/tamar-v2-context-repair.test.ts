@@ -89,7 +89,7 @@ describe("voice normalization is audited, never a silent guess", () => {
   });
 
   it("a low-confidence near-match is never rewritten silently", () => {
-    const n = normalizeVoiceTranscript({ raw: "מה עם הבקו הזה?", focusTitle: "טיול לבאקו", catalogTitles: catalog });
+    const n = normalizeVoiceTranscript({ raw: "מה עם באקוני הזה?", focusTitle: "טיול לבאקו", catalogTitles: catalog });
     expect(n.changed).toBe(false);
     expect(n.ambiguous).toBe(true);
     expect(n.reason).toBe("low_confidence_domain_match");
