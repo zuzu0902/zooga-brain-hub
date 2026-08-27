@@ -8,11 +8,19 @@
  * suitability, never infer it, never append offers afterwards.
  */
 
-const ACCESSIBILITY_RE =
-  /(כיסא\s*גלגלים|כסא\s*גלגלים|נגיש(ות|ה)?|מוגבל(ות|ים)?\s+בתנועה|קושי\s+בהליכה|בעיות?\s+הליכה|הליכון|קביים|מוגבלות|נכה|נכות|wheelchair|accessib)/i;
+// Hebrew letters are not \w, so boundaries are expressed explicitly:
+// a match must not be glued to another letter ("לב" must not fire on "לבאקו").
+const B = String.raw`(?<![\p{L}])`;
+const E = String.raw`(?![\p{L}])`;
+const bounded = (body: string) => new RegExp(`${B}(?:${body})${E}`, "iu");
 
-const MEDICAL_RE =
-  /(רפואי|תרופות|דיאליזה|חמצן|אלרגי|סוכרת|לב|ניתוח|מחלה|מטפל(ת)?\s+צמוד|סיעוד|תזונה\s+מיוחדת|כשר\s+למהדרין|medical)/i;
+const ACCESSIBILITY_RE = bounded(
+  String.raw`כיסא\s*גלגלים|כסא\s*גלגלים|נגיש(?:ות|ה)?|מוגבל(?:ות|ים)?\s+בתנועה|קושי\s+בהליכה|בעיות?\s+הליכה|הליכון|קביים|מוגבלות|נכה|נכות|wheelchair|accessibility|accessible`,
+);
+
+const MEDICAL_RE = bounded(
+  String.raw`רפואי(?:ת|ים)?|תרופות|דיאליזה|חמצן|אלרגי(?:ה|ות)?|סוכרת|מחלת\s+לב|בעיות\s+לב|ניתוח|מחלה|מטפל(?:ת)?\s+צמוד(?:ה)?|סיעוד|תזונה\s+מיוחדת|medical`,
+);
 
 export type SensitiveTopic = "accessibility" | "medical";
 
