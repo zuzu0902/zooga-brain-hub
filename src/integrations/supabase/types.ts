@@ -3320,6 +3320,47 @@ export type Database = {
           },
         ]
       }
+      tamar_conversation_resets: {
+        Row: {
+          cleared: Json
+          contact_id: string
+          created_at: string
+          id: string
+          inbound_message_id: string
+          reason: string | null
+          runtime: string
+          trigger_text: string | null
+        }
+        Insert: {
+          cleared?: Json
+          contact_id: string
+          created_at?: string
+          id?: string
+          inbound_message_id: string
+          reason?: string | null
+          runtime?: string
+          trigger_text?: string | null
+        }
+        Update: {
+          cleared?: Json
+          contact_id?: string
+          created_at?: string
+          id?: string
+          inbound_message_id?: string
+          reason?: string | null
+          runtime?: string
+          trigger_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_conversation_resets_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tamar_copy_versions: {
         Row: {
           ab_weight: number
@@ -4325,9 +4366,11 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          offer_id: string | null
           priority: string
           resolution_state: string
           source_kind: string | null
+          source_message_id: string | null
           source_ref_id: string | null
           status: string
           title: string
@@ -4340,9 +4383,11 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          offer_id?: string | null
           priority?: string
           resolution_state?: string
           source_kind?: string | null
+          source_message_id?: string | null
           source_ref_id?: string | null
           status?: string
           title: string
@@ -4355,9 +4400,11 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          offer_id?: string | null
           priority?: string
           resolution_state?: string
           source_kind?: string | null
+          source_message_id?: string | null
           source_ref_id?: string | null
           status?: string
           title?: string
@@ -4369,6 +4416,27 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers_sellable"
             referencedColumns: ["id"]
           },
         ]

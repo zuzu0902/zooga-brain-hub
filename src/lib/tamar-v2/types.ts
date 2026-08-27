@@ -147,6 +147,8 @@ export type TurnDecision = {
     | "consent_granted"
     | "capture_field"
     | "recommend"
+    | "conversation_reset"
+    | "sensitive_followup"
   >;
   ask_step_key: string | null;
   captured: Record<string, string>;

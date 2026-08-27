@@ -17,6 +17,7 @@ import {
   isUserQuestion,
   wantsExplanation,
 } from "./classify";
+import { RESET_ACK_TEXT } from "./reset";
 import { automationFrozen, canTransition, marketingAllowed } from "./state-machine";
 import type {
   AgentVersion,
@@ -48,6 +49,19 @@ export type TurnInput = {
   recentlySentOfferIds?: string[];
   /** the customer explicitly asked for that offer again */
   explicitOfferRequest?: boolean;
+  /** deterministic "let's start over" detection (pre-model) */
+  resetRequested?: boolean;
+  /**
+   * The turn is TERMINAL: `answerText` is the whole reply. Used for a
+   * sensitive-data handoff, a single clarification question, or any grounded
+   * answer that must never be followed by a recommendation or an intake
+   * question. One inbound -> exactly one outbound envelope.
+   */
+  terminalAnswer?: boolean;
+  /** reason code recorded for a terminal answer */
+  terminalReason?: string;
+  /** actions the runtime must execute for a terminal answer */
+  terminalActions?: TurnDecision["actions"];
 };
 
 
@@ -262,6 +276,22 @@ export function decideTurn(input: TurnInput): TurnDecision {
     });
   }
 
+  // 4b. Explicit conversation reset. Deterministic, pre-model, terminal:
+  //     clears volatile state only and never carries an old recommendation.
+  if (input.resetRequested && input.state !== "new_inbound" && input.state !== "consent_asked") {
+    return {
+      ...baseDecision(input, {
+        messages: [text(RESET_ACK_TEXT)],
+        actions: ["conversation_reset"],
+        ask_step_key: null,
+        ambiguity_turns: 0,
+        reason_codes: ["conversation_reset"],
+      }),
+      next_state: "consented",
+      offer_ids: [],
+    };
+  }
+
   // 5. First inbound — ALWAYS the exact opener, as ONE interactive message.
   if (input.state === "new_inbound") {
     return baseDecision(input, {
@@ -326,6 +356,19 @@ export function decideTurn(input: TurnInput): TurnDecision {
       marketing_allowed: false,
       ambiguity_turns: turns,
       reason_codes: [isConfusion(msg) ? "consent_confusion" : "consent_unknown"],
+    });
+  }
+
+  // 6b. Terminal answer (sensitive handoff / single clarification / grounded
+  //     answer that closes the turn). Nothing may be appended after it.
+  if (input.terminalAnswer && input.answerText) {
+    return baseDecision(input, {
+      messages: [text(input.answerText)],
+      actions: input.terminalActions ?? [],
+      ask_step_key: null,
+      marketing_allowed: false,
+      ambiguity_turns: 0,
+      reason_codes: [input.terminalReason ?? "terminal_answer"],
     });
   }
 
