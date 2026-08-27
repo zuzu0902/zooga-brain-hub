@@ -44,7 +44,12 @@ export type TurnInput = {
   firstName?: string | null;
   /** grounded answer text produced by the response writer, if any */
   answerText?: string | null;
+  /** offers already presented/sent recently — never re-recommended */
+  recentlySentOfferIds?: string[];
+  /** the customer explicitly asked for that offer again */
+  explicitOfferRequest?: boolean;
 };
+
 
 const SITE = "https://www.zooga.co.il";
 
@@ -174,7 +179,11 @@ function handoffDecision(input: TurnInput, codes: string[], urgency: string): Tu
 
 function recommendation(input: TurnInput): { messages: OutboundMessage[]; ids: string[] } {
   const max = Math.max(1, Math.min(3, input.agent.safety.max_offers ?? 2));
-  const picked = input.offers.slice(0, max);
+  // Never repeat an offer that was already presented/sent recently, unless
+  // the customer explicitly asked for it again.
+  const excluded = new Set((input.recentlySentOfferIds ?? []).map(String));
+  const pool = input.explicitOfferRequest ? input.offers : input.offers.filter((o) => !excluded.has(String(o.id)));
+  const picked = pool.slice(0, max);
   if (!picked.length) return { messages: [text(COPY.no_offer_honest)], ids: [] };
   const lines = picked.map((o) => {
     const why = o.summary ? ` — ${String(o.summary).slice(0, 120)}` : "";
@@ -186,6 +195,7 @@ function recommendation(input: TurnInput): { messages: OutboundMessage[]; ids: s
     ids: picked.map((o) => o.id),
   };
 }
+
 
 /**
  * Decide the whole turn. Order of precedence is a safety hierarchy:
@@ -364,10 +374,25 @@ export function decideTurn(input: TurnInput): TurnDecision {
   if (asked && input.answerText) {
     messages.push(text(input.answerText));
     reason.push("answer_first");
-  } else if (input.answerText && interp.intent !== "smalltalk") {
+    // STRICT RELEVANCE: a direct question is answered and NOTHING else is
+    // appended. No generic offer, no intake question. The grounded answer
+    // already carries anything essential to that same question (e.g. the
+    // offer link). A question about Baku can never drag Dubai/Vietnam along.
+    return baseDecision(input, {
+      messages,
+      actions,
+      captured,
+      confidence_gate: "pass",
+      ambiguity_turns: 0,
+      reason_codes: [...reason, "answer_only_no_followup"],
+    });
+  }
+  if (input.answerText && interp.intent !== "smalltalk") {
     messages.push(text(input.answerText));
     reason.push("grounded_reply");
   }
+
+
 
   // 9. Recommendation — only sellable offers, capped, never the whole catalog.
   const wantsOffers =
