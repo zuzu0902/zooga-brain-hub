@@ -22,6 +22,7 @@ import {
   toE164,
   type SendResult,
 } from "@/lib/whatsapp-meta.server";
+import { questionSignature } from "@/lib/conversation-guard/core";
 import { decideTurn, type TurnInput } from "./engine-core";
 import { knownFieldsFromContact, loadAgentVersion, loadSellableOffers } from "./flow.server";
 import { interpret } from "./interpreter.server";
@@ -317,7 +318,13 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const state = deriveState(contact);
   const knownFields = knownFieldsFromContact(contact ?? {}, agent.steps);
   const offers = await loadSellableOffers();
-  const history = contact?.id ? await loadRecentTranscript(contact.id, 12) : [];
+
+  // ---- Canonical bounded context package (one per turn) ------------------
+  const { buildTurnContext, saveContextSnapshot } = await import("./context.server");
+  const { transcriptLines, turnComplexity } = await import("./context");
+  const built = await buildTurnContext({ contact, state }).catch(() => null);
+  const ctxPackage = built?.context ?? null;
+  const history = ctxPackage ? transcriptLines(ctxPackage, 12) : contact?.id ? await loadRecentTranscript(contact.id, 12) : [];
 
   const interpretation: Interpretation = input.offline
     ? interpretDeterministic(message)
@@ -326,8 +333,20 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         pendingQuestion: pendingStepKey,
         known: knownFields,
         history,
-        summary: (contact?.dynamic_profile_fields as any)?.["v2_summary"] ?? null,
+        summary: ctxPackage?.summary ?? (contact?.dynamic_profile_fields as any)?.["v2_summary"] ?? null,
       });
+
+  if (built && !input.simulate && contact?.id) {
+    await saveContextSnapshot({
+      contactId: contact.id,
+      inboundMessageId: input.inbound_message_id ?? null,
+      built,
+    }).catch(() => false);
+  }
+  const complexity = ctxPackage
+    ? turnComplexity({ message, ctx: ctxPackage, wantsHuman: interpretation.wants_human, confidence: interpretation.confidence })
+    : "simple";
+
 
   // ---- Product grounding -------------------------------------------------
   // Resolve WHICH offer the customer is talking about, then answer only from
@@ -482,6 +501,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     }
   }
 
+  const recentlySentOfferIds = Array.from(
+    new Set([...(ctxPackage?.offers_sent ?? []), ...(ctxPackage?.offers_presented ?? [])]),
+  );
+  const explicitOfferRequest = /(שוב|עוד\s*פעם|תשלחי|תשלח|הקישור|לינק|תזכיר)/.test(message);
+
   const turnInput: TurnInput = {
     state,
     message,
@@ -496,42 +520,43 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     offers,
     firstName: contact?.first_name ?? input.name ?? null,
     answerText,
+    recentlySentOfferIds,
+    explicitOfferRequest,
   };
   const decision = decideTurn(turnInput);
 
   const sends: V2TurnResult["sends"] = [];
   let noReplyReason: string | null = input.simulate ? "simulate" : null;
+  let outgoing: OutboundMessage[] = decision.messages;
   if (!input.simulate && contact) {
-    await persistTurn({
-      contact,
-      input,
-      decision,
-      interpretation,
-      agent,
-      message,
-      answeredCount,
-      offerId: resolved?.id ?? null,
-      linkSent,
-      pendingHandoff,
-      clearPendingHandoff,
-      groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
-      grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence },
-    });
     const to = toE164(contact.whatsapp_number ?? contact.phone ?? input.phone) ?? "";
     if (!to) {
       const { ContactCreateError } = await import("@/lib/contact-create-error");
       throw new ContactCreateError({ code: "invalid_phone", phone: input.phone, retryable: false });
     }
     if (decision.silent) {
+      outgoing = [];
       noReplyReason = "silent_by_policy";
     } else {
       const windowOpen = !!input.inbound_message_id || (await isSessionWindowOpen(contact.id));
       const template = windowOpen ? null : await activeSessionTemplate();
+
+      // ---- Envelope policy: dedupe EVERY segment, then one envelope -----
+      const { planOutbound } = await import("./envelope");
+      const recentSignatures = (ctxPackage?.transcript ?? [])
+        .filter((t) => t.dir === "out")
+        .slice(-6)
+        .map((t) => questionSignature(t.text));
+      const planned = planOutbound({ messages: decision.messages, recentSignatures });
+      if (planned.dropped.length) {
+        decision.reason_codes = [...(decision.reason_codes ?? []), `deduped_${planned.dropped.length}`];
+      }
+
       // ---- Conversation Progress Guard ------------------------------
       // The engine may not repeat a question it already asked. A second
       // attempt is rephrased once; a third becomes an open recovery turn.
       const { guardOutbound } = await import("@/lib/conversation-guard/guard.server");
-      const first = decision.messages[0];
+      const first = planned.messages[0];
       const guard = first
         ? await guardOutbound({
             contactId: contact.id,
@@ -551,13 +576,33 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
             },
           }).catch(() => null)
         : null;
-      const outgoing =
+      outgoing =
         guard && guard.verdict !== "send"
-          ? [{ kind: "text", body: guard.text } as any]
-          : decision.messages;
+          ? [{ kind: "text", body: guard.text } as OutboundMessage]
+          : planned.messages;
       if (guard && guard.verdict !== "send") {
         decision.reason_codes = [...(decision.reason_codes ?? []), `guard_${guard.verdict}`];
       }
+
+      // Persist AFTER the guard chose the final text: an unsent candidate
+      // must never appear in the transcript.
+      await persistTurn({
+        contact,
+        input,
+        decision,
+        outbound: outgoing,
+        interpretation,
+        agent,
+        message,
+        answeredCount,
+        offerId: resolved?.id ?? null,
+        linkSent,
+        pendingHandoff,
+        clearPendingHandoff,
+        groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
+        grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence, complexity },
+      });
+
       for (const m of outgoing) {
         const res = await sendMessage(to, m, { windowOpen, template });
         sends.push({ kind: m.kind, ok: res.ok, http: res.status, error: res.error });
@@ -576,7 +621,27 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         await commitOfferLinkSent(contact.id, resolved.id).catch(() => undefined);
       }
     }
+    if (decision.silent) {
+      await persistTurn({
+        contact,
+        input,
+        decision,
+        outbound: [],
+        interpretation,
+        agent,
+        message,
+        answeredCount,
+        offerId: resolved?.id ?? null,
+        linkSent,
+        pendingHandoff,
+        clearPendingHandoff,
+        groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
+        grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence, complexity },
+      });
+    }
+    decision.messages = outgoing;
   }
+
 
   return {
     status: 200,
@@ -594,6 +659,9 @@ async function persistTurn(args: {
   contact: any;
   input: V2TurnInput;
   decision: TurnDecision;
+  /** the FINAL post-guard outbound envelope actually being sent */
+  outbound: OutboundMessage[];
+
   interpretation: Interpretation;
   agent: AgentVersion;
   message: string;
@@ -603,7 +671,7 @@ async function persistTurn(args: {
   pendingHandoff?: PendingProductHandoff | null;
   clearPendingHandoff?: boolean;
   groundedOfferId?: string | null;
-  grounding?: { path: string; knowledge_ids: string[]; confidence: number };
+  grounding?: { path: string; knowledge_ids: string[]; confidence: number; complexity?: string };
 }) {
   const { contact, decision, interpretation, agent, message } = args;
   const now = new Date().toISOString();
@@ -619,7 +687,7 @@ async function persistTurn(args: {
       inboundMessageId: args.input.inbound_message_id ?? null,
       source: "tamar_inbound",
     });
-    for (const m of decision.messages) {
+    for (const m of args.outbound) {
       await supabaseAdmin.from("interactions").insert({
         contact_id: contact.id,
         type: "whatsapp_message",
@@ -714,7 +782,7 @@ async function persistTurn(args: {
       channel: "whatsapp",
       source: args.input.source ?? "meta_webhook",
       inbound_message: message,
-      outbound_reply: decision.messages.map(messageText).join("\n---\n"),
+      outbound_reply: args.outbound.map(messageText).join("\n---\n"),
       runtime_mode: "brain_v2",
       composition_version: `v2.${agent.version}`,
       conversation_mode: decision.next_state,

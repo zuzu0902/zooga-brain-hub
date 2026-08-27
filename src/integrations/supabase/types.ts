@@ -3270,6 +3270,56 @@ export type Database = {
         }
         Relationships: []
       }
+      tamar_context_snapshots: {
+        Row: {
+          contact_id: string | null
+          context: Json
+          context_version: string
+          created_at: string
+          decision_trace_id: string | null
+          id: string
+          inbound_message_id: string | null
+          retain_until: string
+          source_counts: Json
+          source_ids: Json
+          token_estimate: number | null
+        }
+        Insert: {
+          contact_id?: string | null
+          context?: Json
+          context_version?: string
+          created_at?: string
+          decision_trace_id?: string | null
+          id?: string
+          inbound_message_id?: string | null
+          retain_until?: string
+          source_counts?: Json
+          source_ids?: Json
+          token_estimate?: number | null
+        }
+        Update: {
+          contact_id?: string | null
+          context?: Json
+          context_version?: string
+          created_at?: string
+          decision_trace_id?: string | null
+          id?: string
+          inbound_message_id?: string | null
+          retain_until?: string
+          source_counts?: Json
+          source_ids?: Json
+          token_estimate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_context_snapshots_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tamar_copy_versions: {
         Row: {
           ab_weight: number
