@@ -38,6 +38,8 @@ export const RESET_CLEAR_KEYS = [
   "v2_sent_offer_ids",
   "v2_offer_ledger",
   "v2_pending_handoff",
+  // the authoritative active focus is volatile working state
+  "v2_focus",
 ] as const;
 
 /**

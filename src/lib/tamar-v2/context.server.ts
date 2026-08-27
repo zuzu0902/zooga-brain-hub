@@ -2,17 +2,30 @@
  * TAMAR BRAIN V2 — canonical context builder (server-only).
  *
  * Reads existing canonical sources, assembles ONE bounded context package
- * (see `context.ts`) and writes a compact, redacted audit snapshot keyed by
- * the inbound message id (idempotent: a retry updates nothing new).
+ * (see `context.ts`) and writes a versioned audit snapshot keyed by the
+ * inbound message id.
+ *
+ * PRODUCTION DEFECT REPAIRED HERE:
+ * the snapshot upsert targeted `on_conflict=inbound_message_id`, but the
+ * uniqueness in the database was a PARTIAL index
+ * (`WHERE inbound_message_id IS NOT NULL`). Postgres cannot infer a partial
+ * index from a bare ON CONFLICT clause, so EVERY production write failed
+ * with SQLSTATE 42P10 while the in-memory test double happily accepted it —
+ * `tamar_context_snapshots` stayed empty although 91 decision traces existed.
+ * The index is now a plain unique index AND this module reports failures
+ * instead of swallowing them, so the turn can fail closed.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   buildContextPackage,
+  budgetContext,
   contextSourceCounts,
   estimateTokens,
   redactContext,
   CONTEXT_LIMITS,
   CONTEXT_VERSION,
+  type ContextCommitment,
+  type ContextFocus,
   type ContextPackage,
 } from "./context";
 
@@ -35,16 +48,40 @@ export type BuiltContext = {
   token_estimate: number;
 };
 
+/** Operational error of the mandatory context transaction. Never throws. */
+export async function recordContextFailure(args: {
+  contactId: string | null;
+  inboundMessageId: string | null;
+  stage: string;
+  error: string | null;
+  details?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await db().from("tamar_context_failures").insert({
+      contact_id: args.contactId,
+      inbound_message_id: args.inboundMessageId,
+      stage: args.stage,
+      error: args.error ? String(args.error).slice(0, 500) : null,
+      details: redactContext(args.details ?? {}),
+    });
+  } catch {
+    /* the failure log itself must never throw */
+  }
+}
+
 export async function buildTurnContext(args: {
   contact: Record<string, any> | null;
   state: string;
   knowledge?: string[];
+  focus?: ContextFocus | null;
+  intakeAnswered?: Record<string, string>;
+  intakeMissing?: string[];
 }): Promise<BuiltContext> {
   const contactId: string | null = args.contact?.id ?? null;
   const dyn = (args.contact?.dynamic_profile_fields ?? {}) as Record<string, any>;
 
   const empty: any[] = [];
-  const [interactions, facts, memories, history, decisions, handoffs] = contactId
+  const [interactions, facts, memories, history, decisions, handoffs, tasks] = contactId
     ? await Promise.all([
         safe(
           db()
@@ -101,8 +138,18 @@ export async function buildTurnContext(args: {
             .limit(1),
           empty,
         ),
+        safe(
+          db()
+            .from("tasks")
+            .select("id,title,status,offer_id,created_at")
+            .eq("contact_id", contactId)
+            .neq("status", "done")
+            .order("created_at", { ascending: false })
+            .limit(5),
+          empty,
+        ),
       ])
-    : [empty, empty, empty, empty, empty, empty];
+    : [empty, empty, empty, empty, empty, empty, empty];
 
   const ledger = (dyn?.["v2_offer_ledger"] ?? {}) as Record<string, any>;
   const offersSent: string[] = Array.isArray(ledger?.["link_sent_offer_ids"])
@@ -118,20 +165,50 @@ export async function buildTurnContext(args: {
     ]),
   );
 
-  const context = buildContextPackage({
-    contact: args.contact ?? null,
-    state: args.state,
-    summary: dyn?.["v2_summary"] ?? null,
-    interactions: interactions as any[],
-    facts: facts as any[],
-    memories: memories as any[],
-    history: history as any[],
-    decisions: decisions as any[],
-    offersPresented,
-    offersSent,
-    handoff: { open: (handoffs as any[]).length > 0, reason: (handoffs as any[])[0]?.handoff_reason ?? null },
-    knowledge: args.knowledge ?? [],
-  });
+  // The FULL current record of the offer the conversation is focused on.
+  const focus = args.focus ?? null;
+  const activeOffer = focus?.offer_id
+    ? ((
+        await safe(db().from("offers").select("*").eq("id", focus.offer_id).limit(1), empty)
+      )[0] ?? null)
+    : null;
+
+  const commitments: ContextCommitment[] = [
+    ...((handoffs as any[]) ?? []).map((h) => ({
+      kind: "open_handoff",
+      ref: String(h?.id ?? ""),
+      text: h?.handoff_reason ?? null,
+      at: null,
+    })),
+    ...((tasks as any[]) ?? []).map((t) => ({
+      kind: "open_task",
+      ref: String(t?.id ?? ""),
+      text: t?.title ?? null,
+      at: t?.created_at ?? null,
+    })),
+  ];
+
+  const context = budgetContext(
+    buildContextPackage({
+      contact: args.contact ?? null,
+      state: args.state,
+      summary: dyn?.["v2_summary"] ?? null,
+      interactions: interactions as any[],
+      facts: facts as any[],
+      memories: memories as any[],
+      history: history as any[],
+      decisions: decisions as any[],
+      offersPresented,
+      offersSent,
+      handoff: { open: (handoffs as any[]).length > 0, reason: (handoffs as any[])[0]?.handoff_reason ?? null },
+      knowledge: args.knowledge ?? [],
+      focus,
+      activeOffer,
+      intakeAnswered: args.intakeAnswered ?? {},
+      intakeMissing: args.intakeMissing ?? [],
+      commitments,
+    }),
+  );
 
   const safeContext = redactContext(context);
   const ids = (rows: any[], take = 40): string[] =>
@@ -147,52 +224,77 @@ export async function buildTurnContext(args: {
       profile_history: ids(history as any[]),
       decision_traces: ids(decisions as any[]),
       open_handoffs: ids(handoffs as any[], 5),
+      open_tasks: ids(tasks as any[], 5),
+      active_offer: safeContext.active_offer?.id ?? null,
       offers_presented: offersPresented.slice(0, 10),
     },
     token_estimate: estimateTokens(safeContext),
   };
 }
 
-/** Persist the per-turn audit snapshot. Never breaks a turn. */
+/**
+ * Persist the per-turn audit snapshot. Returns the snapshot id, or null when
+ * it could NOT be durably stored — the caller must then fail closed.
+ */
 export async function saveContextSnapshot(args: {
   contactId: string | null;
   inboundMessageId: string | null;
   built: BuiltContext;
-}): Promise<boolean> {
+}): Promise<{ id: string | null; error: string | null }> {
+  const row = {
+    contact_id: args.contactId,
+    inbound_message_id: args.inboundMessageId,
+    context_version: CONTEXT_VERSION,
+    source_counts: args.built.source_counts,
+    source_ids: redactContext(args.built.source_ids),
+    context: redactContext(args.built.context),
+    token_estimate: args.built.token_estimate,
+    active_topic: args.built.context.active?.topic ?? null,
+    active_offer_id: args.built.context.active?.offer_id ?? null,
+  };
   try {
-    const { error } = await db()
-      .from("tamar_context_snapshots")
-      .upsert(
-        {
-          contact_id: args.contactId,
-          inbound_message_id: args.inboundMessageId,
-          context_version: CONTEXT_VERSION,
-          source_counts: args.built.source_counts,
-          source_ids: redactContext(args.built.source_ids),
-          context: redactContext(args.built.context),
-          token_estimate: args.built.token_estimate,
-        },
-        { onConflict: "inbound_message_id", ignoreDuplicates: true },
-      );
-    return !error;
-  } catch {
-    return false;
+    if (args.inboundMessageId) {
+      // Idempotent per wamid: a retry MUST resolve to the same snapshot row.
+      const { error } = await db()
+        .from("tamar_context_snapshots")
+        .upsert(row, { onConflict: "inbound_message_id", ignoreDuplicates: true });
+      if (error) return { id: null, error: error.message ?? "upsert_failed" };
+      const { data, error: readErr } = await db()
+        .from("tamar_context_snapshots")
+        .select("id")
+        .eq("inbound_message_id", args.inboundMessageId)
+        .limit(1)
+        .maybeSingle();
+      if (readErr || !data?.id) return { id: null, error: readErr?.message ?? "snapshot_not_readable" };
+      return { id: String(data.id), error: null };
+    }
+    const { data, error } = await db().from("tamar_context_snapshots").insert(row).select("id").maybeSingle();
+    if (error || !data?.id) return { id: null, error: error?.message ?? "insert_returned_no_row" };
+    return { id: String(data.id), error: null };
+  } catch (e: any) {
+    return { id: null, error: String(e?.message ?? e) };
   }
 }
 
 /**
- * Link the snapshot to the decision trace that the turn produced. Called
- * after the trace row exists; idempotent and never breaks a turn.
+ * Link the snapshot to the decision trace / runtime execution the turn
+ * produced. Idempotent; never breaks a turn.
  */
 export async function attachDecisionTrace(args: {
   contactId: string | null;
   inboundMessageId: string | null;
+  snapshotId?: string | null;
   decisionTraceId: string | null;
+  runtimeExecutionId?: string | null;
 }): Promise<boolean> {
-  if (!args.decisionTraceId) return false;
+  if (!args.decisionTraceId && !args.runtimeExecutionId) return false;
+  const patch: Record<string, unknown> = {};
+  if (args.decisionTraceId) patch["decision_trace_id"] = args.decisionTraceId;
+  if (args.runtimeExecutionId) patch["runtime_execution_id"] = args.runtimeExecutionId;
   try {
-    let q = db().from("tamar_context_snapshots").update({ decision_trace_id: args.decisionTraceId });
-    if (args.inboundMessageId) q = q.eq("inbound_message_id", args.inboundMessageId);
+    let q = db().from("tamar_context_snapshots").update(patch);
+    if (args.snapshotId) q = q.eq("id", args.snapshotId);
+    else if (args.inboundMessageId) q = q.eq("inbound_message_id", args.inboundMessageId);
     else if (args.contactId) q = q.eq("contact_id", args.contactId).is("decision_trace_id", null);
     else return false;
     const { error } = await q;

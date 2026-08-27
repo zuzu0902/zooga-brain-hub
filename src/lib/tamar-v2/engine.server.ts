@@ -60,6 +60,8 @@ import {
 } from "./offer-knowledge.server";
 import type { AgentVersion, Interpretation, OutboundMessage, TurnDecision } from "./types";
 import { isConversationResetRequest, applyResetToDynamic } from "./reset";
+import { readFocus, nextFocus, withFocus, type ActiveFocus } from "./focus";
+import { normalizeVoiceTranscript, voiceClarificationText, type VoiceNormalization } from "./voice-normalize";
 import { detectSensitiveTopic, hasGroundedSensitiveData, sensitiveVerificationText } from "./sensitive";
 import { writeGroundedAnswer } from "./writer.server";
 
@@ -304,13 +306,47 @@ async function loadCustomerSuppliedProfile(contactId: string) {
  * Grounding paths that CLOSE the turn: nothing may be appended after them —
  * no recommendation, no intake question, no second envelope.
  */
-const TERMINAL_GROUNDING_PATHS = new Set(["offer_clarification", "sensitive_verification_required"]);
+const TERMINAL_GROUNDING_PATHS = new Set([
+  "offer_clarification",
+  "sensitive_verification_required",
+  "voice_clarification",
+]);
+
+/**
+ * The mandatory context transaction failed. The turn produces NO outbound —
+ * Tamar never answers context-blind — and reports an explicit operational
+ * reason. Nothing durable is written for this inbound id, so a redelivery
+ * can be processed normally once the storage problem is fixed.
+ */
+function failClosed(args: { contact: any; state: any; started: number; reason: string }): V2TurnResult {
+  return {
+    status: 503,
+    contact_id: args.contact?.id ?? null,
+    decision: {
+      from_state: args.state,
+      next_state: args.state,
+      messages: [],
+      actions: [],
+      ask_step_key: null,
+      captured: {},
+      offer_ids: [],
+      marketing_allowed: false,
+      confidence_gate: "blocked",
+      ambiguity_turns: 0,
+      reason_codes: [args.reason],
+      silent: true,
+    },
+    interpretation: interpretDeterministic(""),
+    agent_version: 0,
+    sends: [],
+    no_reply_reason: args.reason,
+    latency_ms: Date.now() - args.started,
+  };
+}
 
 export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const started = Date.now();
-  const message = String(input.message ?? "").trim();
-  // Deterministic, pre-model: "נתחיל מחדש" costs no model call at all.
-  const resetRequested = isConversationResetRequest(message);
+  const rawMessage = String(input.message ?? "").trim();
   const agent = await loadAgentVersion();
 
   let contact = input.simulate ? null : await findContact(input);
@@ -329,10 +365,77 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const knownFields = knownFieldsFromContact(contact ?? {}, agent.steps);
   const offers = await loadSellableOffers();
 
+  // ---- Authoritative active focus (never moved by ranking) ---------------
+  const currentFocus = readFocus(dyn);
+
+  // ---- Voice: raw transcript preserved, normalized copy audited ----------
+  let message = rawMessage;
+  let voiceNorm: VoiceNormalization | null = null;
+  if (String(input.source ?? "").includes("voice")) {
+    voiceNorm = normalizeVoiceTranscript({
+      raw: rawMessage,
+      focusTitle: currentFocus.topic,
+      catalogTitles: (offers as any[]).map((o) => String(o.title ?? "")),
+    });
+    if (voiceNorm.changed) message = voiceNorm.normalized;
+    if (!input.simulate && contact?.id && (voiceNorm.changed || voiceNorm.ambiguous)) {
+      const { recordVoiceNormalization } = await import("./voice-normalize.server");
+      await recordVoiceNormalization({
+        contactId: contact.id,
+        waMessageId: input.inbound_message_id ?? null,
+        normalization: voiceNorm,
+      }).catch(() => null);
+    }
+  }
+
+  // Deterministic, pre-model: "נתחיל מחדש" costs no model call at all.
+  const resetRequested = isConversationResetRequest(message);
+
   // ---- Canonical bounded context package (one per turn) ------------------
-  const { buildTurnContext, saveContextSnapshot } = await import("./context.server");
+  // MANDATORY TRANSACTION: no durable snapshot => no outbound. A
+  // context-blind answer is exactly the production failure we are repairing.
+  const { buildTurnContext, saveContextSnapshot, recordContextFailure } = await import("./context.server");
   const { transcriptLines, turnComplexity } = await import("./context");
-  const built = await buildTurnContext({ contact, state }).catch(() => null);
+  const intakeMissing = agent.steps
+    .map((s) => s.step_key)
+    .filter((k) => k && !(k in (knownFields ?? {})))
+    .slice(0, 12);
+  const built = await buildTurnContext({
+    contact,
+    state,
+    focus: currentFocus,
+    intakeAnswered: (knownFields ?? {}) as Record<string, string>,
+    intakeMissing,
+  }).catch(() => null);
+
+  let contextSnapshotId: string | null = null;
+  if (!input.simulate && contact?.id) {
+    if (!built) {
+      await recordContextFailure({
+        contactId: contact.id,
+        inboundMessageId: input.inbound_message_id ?? null,
+        stage: "build",
+        error: "context_build_failed",
+      });
+      return failClosed({ contact, state, started, reason: "context_build_failed" });
+    }
+    const saved = await saveContextSnapshot({
+      contactId: contact.id,
+      inboundMessageId: input.inbound_message_id ?? null,
+      built,
+    });
+    if (!saved.id) {
+      await recordContextFailure({
+        contactId: contact.id,
+        inboundMessageId: input.inbound_message_id ?? null,
+        stage: "persist",
+        error: saved.error,
+      });
+      return failClosed({ contact, state, started, reason: "context_persist_failed" });
+    }
+    contextSnapshotId = saved.id;
+  }
+
   const ctxPackage = built?.context ?? null;
   const history = ctxPackage ? transcriptLines(ctxPackage, 12) : contact?.id ? await loadRecentTranscript(contact.id, 12) : [];
 
@@ -355,13 +458,6 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         complexity: preComplexity,
       });
 
-  if (built && !input.simulate && contact?.id) {
-    await saveContextSnapshot({
-      contactId: contact.id,
-      inboundMessageId: input.inbound_message_id ?? null,
-      built,
-    }).catch(() => false);
-  }
   // After interpretation, low confidence / human intent may escalate the
   // wording stage even though interpretation itself ran cheap.
   const complexity: "simple" | "complex" = ctxPackage
@@ -394,6 +490,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const recentOfferIds = Array.from(
     new Set(
       [
+        currentFocus.offer_id,
         ...(ctxPackage?.offers_presented ?? []),
         ...(ctxPackage?.offers_sent ?? []),
         lastGroundedOfferIdFrom(contact),
@@ -406,7 +503,10 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const resolution = productGate.useContext
     ? resolveOffer(message, candidates, {
         recentMessages: history,
-        lastOfferId: lastGroundedOfferIdFrom(contact) ?? lastOfferIdFrom(contact),
+        // The AUTHORITATIVE focus wins over any stale ledger pointer: an
+        // answer about Baku keeps Baku for "הטיול", "מה המחיר",
+        // "אפשר להביא חברה" until the customer changes topic.
+        lastOfferId: currentFocus.offer_id ?? lastGroundedOfferIdFrom(contact) ?? lastOfferIdFrom(contact),
         recentOfferIds,
       })
     : directResolution;
@@ -484,6 +584,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   } else if (solo) {
     answerText = solo.text;
     groundingPath = solo.offer_handoff ? "solo_policy_unknown" : "solo_policy_approved";
+  } else if (voiceNorm?.ambiguous && !voiceNorm.changed) {
+    // Low-confidence speech is NEVER silently rewritten and never merged
+    // with stale travel context: ask one concise clarification and stop.
+    answerText = voiceClarificationText();
+    groundingPath = "voice_clarification";
   } else if (resolution.ambiguous && resolution.clarification) {
     answerText = resolution.clarification;
     groundingPath = "offer_clarification";
@@ -577,6 +682,18 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     terminalActions: groundingPath === "sensitive_verification_required" ? ["sensitive_followup"] : [],
   };
   const decision = decideTurn(turnInput);
+
+  // ---- Authoritative focus update ---------------------------------------
+  // Only an explicit mention, a resolved reference or an explicit reset may
+  // move it. Ranked/recommended offers never do.
+  const { focus: updatedFocus } = nextFocus({
+    current: currentFocus,
+    resetRequested,
+    resolvedOfferId: resolved?.id ?? null,
+    resolvedTitle: resolved?.title ?? null,
+    resolutionReason: resolution.reason,
+    productAsked,
+  });
 
   // Deterministic side effects of a terminal/reset turn. Both are idempotent
   // per inbound message id: a retry writes nothing new.
@@ -680,6 +797,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         interpretation,
         capturedFields: decision.captured as Record<string, string>,
         previousSummary: ctxPackage?.summary ?? (dyn?.["v2_summary"] ?? null),
+        contextSnapshotId,
         outboundText: outgoing.map(messageText).join(" "),
       }).catch(() => null);
 
@@ -701,6 +819,8 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
         grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence, complexity },
         summary: writeback && !writeback.skipped ? writeback.summary : null,
+        focus: updatedFocus,
+        contextSnapshotId,
       });
 
       for (const m of outgoing) {
@@ -737,6 +857,8 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         clearPendingHandoff,
         groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
         grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence, complexity },
+        focus: updatedFocus,
+        contextSnapshotId,
       });
     }
     decision.messages = outgoing;
@@ -774,6 +896,10 @@ async function persistTurn(args: {
   grounding?: { path: string; knowledge_ids: string[]; confidence: number; complexity?: string };
   /** compact rolling conversation summary produced by the writeback pass */
   summary?: string | null;
+  /** authoritative active conversational focus after this turn */
+  focus?: ActiveFocus | null;
+  /** snapshot this turn reasoned over; linked to the decision trace */
+  contextSnapshotId?: string | null;
 }) {
   const { contact, decision, interpretation, agent, message } = args;
   const now = new Date().toISOString();
@@ -815,6 +941,8 @@ async function persistTurn(args: {
   });
   for (const k of Object.keys(dyn)) if (!(k in withPending)) delete dyn[k];
   Object.assign(dyn, withPending);
+
+  if (args.focus) Object.assign(dyn, withFocus(dyn, args.focus));
 
   // A reset clears ONLY volatile working state. History, CRM columns, facts,
   // memories, audit rows and consent are untouched.
@@ -871,6 +999,7 @@ async function persistTurn(args: {
   }
 
   // decision trace (its id is linked back onto the context snapshot)
+  let traceId: string | null = null;
   try {
     const { data: traceRow } = await supabaseAdmin.from("tamar_decision_traces").insert({
       contact_id: contact.id,
@@ -884,17 +1013,12 @@ async function persistTurn(args: {
       prompt_version: `v2.${agent.version}`,
       model: interpretation.source,
     } as any).select("id").maybeSingle();
-    const { attachDecisionTrace } = await import("./context.server");
-    await attachDecisionTrace({
-      contactId: contact.id,
-      inboundMessageId: args.input.inbound_message_id ?? null,
-      decisionTraceId: (traceRow as any)?.id ?? null,
-    }).catch(() => false);
+    traceId = (traceRow as any)?.id ?? null;
   } catch { /* ignore */ }
 
   // runtime execution row (dashboards depend on this table)
   try {
-    await supabaseAdmin.from("tamar_runtime_executions").insert({
+    const { data: execRow } = await supabaseAdmin.from("tamar_runtime_executions").insert({
       contact_id: contact.id,
       channel: "whatsapp",
       source: args.input.source ?? "meta_webhook",
@@ -911,8 +1035,17 @@ async function persistTurn(args: {
         knowledge_ids: args.grounding?.knowledge_ids ?? [],
         offer_id: args.offerId ?? null,
         offer_link_sent: !!args.linkSent,
+        context_snapshot_id: args.contextSnapshotId ?? null,
       },
-    } as any);
+    } as any).select("id").maybeSingle();
+    const { attachDecisionTrace } = await import("./context.server");
+    await attachDecisionTrace({
+      contactId: contact.id,
+      inboundMessageId: args.input.inbound_message_id ?? null,
+      snapshotId: args.contextSnapshotId ?? null,
+      decisionTraceId: traceId,
+      runtimeExecutionId: (execRow as any)?.id ?? null,
+    }).catch(() => false);
   } catch { /* ignore */ }
 
   // handoff + freeze (also covers follow-ups on an already frozen thread)

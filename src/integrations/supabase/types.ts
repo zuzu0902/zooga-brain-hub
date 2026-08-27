@@ -3270,8 +3270,48 @@ export type Database = {
         }
         Relationships: []
       }
+      tamar_context_failures: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          details: Json
+          error: string | null
+          id: string
+          inbound_message_id: string | null
+          stage: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          details?: Json
+          error?: string | null
+          id?: string
+          inbound_message_id?: string | null
+          stage: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          details?: Json
+          error?: string | null
+          id?: string
+          inbound_message_id?: string | null
+          stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_context_failures_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tamar_context_snapshots: {
         Row: {
+          active_offer_id: string | null
+          active_topic: string | null
           contact_id: string | null
           context: Json
           context_version: string
@@ -3280,11 +3320,14 @@ export type Database = {
           id: string
           inbound_message_id: string | null
           retain_until: string
+          runtime_execution_id: string | null
           source_counts: Json
           source_ids: Json
           token_estimate: number | null
         }
         Insert: {
+          active_offer_id?: string | null
+          active_topic?: string | null
           contact_id?: string | null
           context?: Json
           context_version?: string
@@ -3293,11 +3336,14 @@ export type Database = {
           id?: string
           inbound_message_id?: string | null
           retain_until?: string
+          runtime_execution_id?: string | null
           source_counts?: Json
           source_ids?: Json
           token_estimate?: number | null
         }
         Update: {
+          active_offer_id?: string | null
+          active_topic?: string | null
           contact_id?: string | null
           context?: Json
           context_version?: string
@@ -3306,6 +3352,7 @@ export type Database = {
           id?: string
           inbound_message_id?: string | null
           retain_until?: string
+          runtime_execution_id?: string | null
           source_counts?: Json
           source_ids?: Json
           token_estimate?: number | null
@@ -4314,6 +4361,7 @@ export type Database = {
       tamar_writeback_ledger: {
         Row: {
           contact_id: string | null
+          context_snapshot_id: string | null
           created_at: string
           details: Json
           facts_written: number
@@ -4326,6 +4374,7 @@ export type Database = {
         }
         Insert: {
           contact_id?: string | null
+          context_snapshot_id?: string | null
           created_at?: string
           details?: Json
           facts_written?: number
@@ -4338,6 +4387,7 @@ export type Database = {
         }
         Update: {
           contact_id?: string | null
+          context_snapshot_id?: string | null
           created_at?: string
           details?: Json
           facts_written?: number
@@ -4609,10 +4659,13 @@ export type Database = {
           media_id: string | null
           mime_type: string | null
           model: string | null
+          normalization_confidence: number | null
+          normalization_reason: string | null
           provider: string | null
           size_bytes: number | null
           status: string
           transcript: string | null
+          transcript_normalized: string | null
           updated_at: string
           wa_message_id: string
         }
@@ -4627,10 +4680,13 @@ export type Database = {
           media_id?: string | null
           mime_type?: string | null
           model?: string | null
+          normalization_confidence?: number | null
+          normalization_reason?: string | null
           provider?: string | null
           size_bytes?: number | null
           status?: string
           transcript?: string | null
+          transcript_normalized?: string | null
           updated_at?: string
           wa_message_id: string
         }
@@ -4645,10 +4701,13 @@ export type Database = {
           media_id?: string | null
           mime_type?: string | null
           model?: string | null
+          normalization_confidence?: number | null
+          normalization_reason?: string | null
           provider?: string | null
           size_bytes?: number | null
           status?: string
           transcript?: string | null
+          transcript_normalized?: string | null
           updated_at?: string
           wa_message_id?: string
         }
