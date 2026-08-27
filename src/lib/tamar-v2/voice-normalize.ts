@@ -130,10 +130,13 @@ export function normalizeVoiceTranscript(args: {
         if (dist === 0 || dist > 2) continue;
         const similarity = 1 - dist / Math.max(term.length, stem.length);
         const score = similarity * weight;
+        // Two spellings of the SAME domain term (with/without a Hebrew
+        // prefix) are not competing candidates.
+        const sameFamily = (a: string, b: string) => stripPrefix(a) === stripPrefix(b);
         if (!best || score > best.score) {
-          runnerUp = best?.score ?? runnerUp;
+          if (best && !sameFamily(best.term, term)) runnerUp = Math.max(runnerUp, best.score);
           best = { term, score, stem };
-        } else if (score > runnerUp) runnerUp = score;
+        } else if (score > runnerUp && !sameFamily(best.term, term)) runnerUp = score;
       }
     }
     if (!best || best.score < NORMALIZE_MIN_THRESHOLD) return token;
