@@ -17,6 +17,8 @@ export async function writeGroundedAnswer(args: {
   offerBlock?: string | null;
   /** true when the resolved offer is past / not sellable — info only */
   infoOnly?: boolean;
+  /** routing signal: simple turns run on the cheapest capable model */
+  complexity?: "simple" | "complex";
 }): Promise<string | null> {
   const id = args.agent.identity;
   const facts = args.facts.filter(Boolean).slice(0, 12);
@@ -48,7 +50,7 @@ ${catalog || "(אין)"}
   const res = await callStage("response_writer", [
     { role: "system", content: system },
     { role: "user", content: user },
-  ], { json: false, context: "writer" });
+  ], { json: false, context: "writer", complexity: args.complexity ?? "simple" });
 
   const text = (res.content ?? "").trim();
   return text || null;

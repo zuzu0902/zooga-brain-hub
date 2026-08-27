@@ -7,6 +7,7 @@
  * with latency, tokens and errors.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { estimateCostUsd, planModelRoute, type TurnComplexity } from "./model-routing";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
@@ -27,6 +28,8 @@ export type StageConfig = {
   fallback_model: string | null;
   structured_output: boolean;
   reasoning_effort: string | null;
+  /** cheapest capable model for this stage (used on simple turns) */
+  cheap_model: string | null;
 };
 
 const HARD_DEFAULTS: Record<ModelStage, StageConfig> = {
@@ -40,6 +43,7 @@ const HARD_DEFAULTS: Record<ModelStage, StageConfig> = {
     fallback_model: "google/gemini-3.6-flash",
     structured_output: true,
     reasoning_effort: null,
+    cheap_model: "openai/gpt-5.6-luna",
   },
   response_writer: {
     stage: "response_writer",
@@ -51,6 +55,7 @@ const HARD_DEFAULTS: Record<ModelStage, StageConfig> = {
     fallback_model: "google/gemini-3.6-flash",
     structured_output: false,
     reasoning_effort: null,
+    cheap_model: "openai/gpt-5.6-luna",
   },
   extractor: {
     stage: "extractor",
@@ -62,6 +67,7 @@ const HARD_DEFAULTS: Record<ModelStage, StageConfig> = {
     fallback_model: null,
     structured_output: true,
     reasoning_effort: null,
+    cheap_model: "openai/gpt-5.6-luna",
   },
   fallback: {
     stage: "fallback",
@@ -73,6 +79,7 @@ const HARD_DEFAULTS: Record<ModelStage, StageConfig> = {
     fallback_model: null,
     structured_output: false,
     reasoning_effort: null,
+    cheap_model: null,
   },
   // Internal, admin-only relationship profiling: strongest configured model,
   // strict JSON, one call per changed answer hash.
@@ -86,6 +93,7 @@ const HARD_DEFAULTS: Record<ModelStage, StageConfig> = {
     fallback_model: "google/gemini-3.6-flash",
     structured_output: true,
     reasoning_effort: null,
+    cheap_model: null,
   },
 };
 
@@ -109,6 +117,7 @@ export async function loadStageConfig(stage: ModelStage): Promise<StageConfig> {
       fallback_model: r.fallback_model ?? null,
       structured_output: !!r.structured_output,
       reasoning_effort: r.reasoning_effort ?? null,
+      cheap_model: (r.params?.cheap_model as string | undefined) ?? HARD_DEFAULTS[r.stage as ModelStage]?.cheap_model ?? null,
     };
   }
   cache = { at: Date.now(), rows };
@@ -117,6 +126,25 @@ export async function loadStageConfig(stage: ModelStage): Promise<StageConfig> {
 
 export function clearModelCache() {
   cache = null;
+  allowCache = null;
+}
+
+let allowCache: { at: number; models: string[] } | null = null;
+
+/** Verified admin allowlist. Empty => no restriction (fail-open by design). */
+export async function loadAllowlist(): Promise<string[]> {
+  if (allowCache && Date.now() - allowCache.at < 60_000) return allowCache.models;
+  try {
+    const { data } = await supabaseAdmin
+      .from("tamar_model_allowlist" as any)
+      .select("model_id,verified_ok")
+      .eq("verified_ok", true);
+    const models = ((data as any[]) ?? []).map((r) => String(r.model_id));
+    allowCache = { at: Date.now(), models };
+    return models;
+  } catch {
+    return [];
+  }
 }
 
 export type ModelCallResult = {
@@ -127,6 +155,8 @@ export type ModelCallResult = {
   latency_ms: number;
   fallback_used: boolean;
   error: string | null;
+  routing_reason: string;
+  complexity: TurnComplexity;
 };
 
 /** OpenAI reasoning models reject `max_tokens` and need the newer field. */
@@ -155,6 +185,8 @@ async function logCall(row: {
   error: string | null;
   context?: string | null;
   usage?: any;
+  routing_reason?: string | null;
+  complexity?: string | null;
 }) {
   try {
     await supabaseAdmin.from("tamar_model_calls" as any).insert({
@@ -169,25 +201,49 @@ async function logCall(row: {
       context: row.context ?? null,
       prompt_tokens: row.usage?.prompt_tokens ?? null,
       completion_tokens: row.usage?.completion_tokens ?? null,
+      routing_reason: row.routing_reason ?? null,
+      complexity: row.complexity ?? null,
+      estimated_cost_usd: estimateCostUsd(
+        row.model_id,
+        Number(row.usage?.prompt_tokens ?? 0),
+        Number(row.usage?.completion_tokens ?? 0),
+      ),
     } as any);
   } catch {
     /* telemetry must never break a turn */
   }
 }
 
-/** Call a stage's model with retries, timeout and fallback model. */
+/**
+ * Call a stage's model with cost-aware routing, retries, timeout and fallback.
+ *
+ * `opts.complexity` is the authority for WHICH model runs: a simple turn uses
+ * the cheapest capable allowlisted model, a complex/ambiguous/sensitive turn
+ * (or one validation retry) escalates to the strong model. The chosen model,
+ * the routing reason, tokens, latency, fallback and estimated cost are all
+ * logged to `tamar_model_calls`.
+ */
 export async function callStage(
   stage: ModelStage,
   messages: Array<{ role: string; content: string }>,
-  opts?: { json?: boolean; context?: string },
+  opts?: { json?: boolean; context?: string; complexity?: TurnComplexity; validationRetry?: boolean },
 ): Promise<ModelCallResult> {
   const cfg = await loadStageConfig(stage);
   const key = process.env["LOVABLE_API_KEY"];
   if (!key) {
-    return { ok: false, content: null, model_id: cfg.model_id, http_status: 0, latency_ms: 0, fallback_used: false, error: "missing_api_key" };
+    return { ok: false, content: null, model_id: cfg.model_id, http_status: 0, latency_ms: 0, fallback_used: false, error: "missing_api_key", routing_reason: "missing_api_key", complexity: opts?.complexity ?? "simple" };
   }
   const json = opts?.json ?? cfg.structured_output;
-  const candidates = [cfg.model_id, ...(cfg.fallback_model ? [cfg.fallback_model] : [])];
+  const route = planModelRoute({
+    stage,
+    model_id: cfg.model_id,
+    cheap_model: cfg.cheap_model,
+    fallback_model: cfg.fallback_model,
+    complexity: opts?.complexity,
+    validationRetry: opts?.validationRetry,
+    allowlist: await loadAllowlist(),
+  });
+  const candidates = route.candidates;
 
   let last: ModelCallResult | null = null;
   for (let ci = 0; ci < candidates.length; ci++) {
@@ -215,27 +271,31 @@ export async function callStage(
             latency_ms: latency,
             fallback_used: ci > 0,
             error: String(payload?.error?.message ?? `gateway_${res.status}`).slice(0, 300),
+            routing_reason: ci > 0 ? "escalated_after_error" : route.routing_reason,
+            complexity: route.complexity,
           };
-          await logCall({ stage, model_id: modelId, ok: false, http_status: res.status, latency_ms: latency, fallback_used: ci > 0, attempt, error: last.error, context: opts?.context });
+          await logCall({ stage, model_id: modelId, ok: false, http_status: res.status, latency_ms: latency, fallback_used: ci > 0, attempt, error: last.error, context: opts?.context, routing_reason: last.routing_reason, complexity: route.complexity });
           // 4xx other than 429 is terminal for this model — go to fallback.
           if (res.status !== 429 && res.status < 500) break;
           continue;
         }
         const content = payload?.choices?.[0]?.message?.content ?? null;
-        await logCall({ stage, model_id: modelId, ok: true, http_status: res.status, latency_ms: latency, fallback_used: ci > 0, attempt, error: null, context: opts?.context, usage: payload?.usage });
-        return { ok: true, content, model_id: modelId, http_status: res.status, latency_ms: latency, fallback_used: ci > 0, error: null };
+        const routing_reason = ci > 0 ? "escalated_after_error" : route.routing_reason;
+        await logCall({ stage, model_id: modelId, ok: true, http_status: res.status, latency_ms: latency, fallback_used: ci > 0, attempt, error: null, context: opts?.context, usage: payload?.usage, routing_reason, complexity: route.complexity });
+        return { ok: true, content, model_id: modelId, http_status: res.status, latency_ms: latency, fallback_used: ci > 0, error: null, routing_reason, complexity: route.complexity };
       } catch (e: any) {
         const latency = Date.now() - started;
         const error = e?.name === "AbortError" ? "timeout" : String(e?.message ?? e).slice(0, 300);
-        last = { ok: false, content: null, model_id: modelId, http_status: 0, latency_ms: latency, fallback_used: ci > 0, error };
-        await logCall({ stage, model_id: modelId, ok: false, http_status: 0, latency_ms: latency, fallback_used: ci > 0, attempt, error, context: opts?.context });
+        last = { ok: false, content: null, model_id: modelId, http_status: 0, latency_ms: latency, fallback_used: ci > 0, error, routing_reason: ci > 0 ? "escalated_after_error" : route.routing_reason, complexity: route.complexity };
+        await logCall({ stage, model_id: modelId, ok: false, http_status: 0, latency_ms: latency, fallback_used: ci > 0, attempt, error, context: opts?.context, routing_reason: last.routing_reason, complexity: route.complexity });
       } finally {
         clearTimeout(timer);
       }
     }
   }
-  return last ?? { ok: false, content: null, model_id: cfg.model_id, http_status: 0, latency_ms: 0, fallback_used: false, error: "unknown" };
+  return last ?? { ok: false, content: null, model_id: route.model_id, http_status: 0, latency_ms: 0, fallback_used: false, error: "unknown", routing_reason: route.routing_reason, complexity: route.complexity };
 }
+
 
 /** Live connection test for the Studio "models" tab. */
 export async function testStage(stage: ModelStage): Promise<{ ok: boolean; model_id: string; latency_ms: number; error: string | null }> {

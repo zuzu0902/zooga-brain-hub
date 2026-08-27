@@ -3996,9 +3996,11 @@ export type Database = {
         Row: {
           attempt: number
           completion_tokens: number | null
+          complexity: string | null
           context: string | null
           created_at: string
           error: string | null
+          estimated_cost_usd: number | null
           fallback_used: boolean
           http_status: number | null
           id: string
@@ -4006,14 +4008,17 @@ export type Database = {
           model_id: string
           ok: boolean
           prompt_tokens: number | null
+          routing_reason: string | null
           stage: string
         }
         Insert: {
           attempt?: number
           completion_tokens?: number | null
+          complexity?: string | null
           context?: string | null
           created_at?: string
           error?: string | null
+          estimated_cost_usd?: number | null
           fallback_used?: boolean
           http_status?: number | null
           id?: string
@@ -4021,14 +4026,17 @@ export type Database = {
           model_id: string
           ok?: boolean
           prompt_tokens?: number | null
+          routing_reason?: string | null
           stage: string
         }
         Update: {
           attempt?: number
           completion_tokens?: number | null
+          complexity?: string | null
           context?: string | null
           created_at?: string
           error?: string | null
+          estimated_cost_usd?: number | null
           fallback_used?: boolean
           http_status?: number | null
           id?: string
@@ -4036,6 +4044,7 @@ export type Database = {
           model_id?: string
           ok?: boolean
           prompt_tokens?: number | null
+          routing_reason?: string | null
           stage?: string
         }
         Relationships: []
@@ -4254,6 +4263,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tamar_state_transitions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tamar_writeback_ledger: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          details: Json
+          facts_written: number
+          id: string
+          inbound_message_id: string
+          insights_written: number
+          memories_written: number
+          runtime: string
+          summary_updated: boolean
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          details?: Json
+          facts_written?: number
+          id?: string
+          inbound_message_id: string
+          insights_written?: number
+          memories_written?: number
+          runtime?: string
+          summary_updated?: boolean
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          details?: Json
+          facts_written?: number
+          id?: string
+          inbound_message_id?: string
+          insights_written?: number
+          memories_written?: number
+          runtime?: string
+          summary_updated?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_writeback_ledger_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
