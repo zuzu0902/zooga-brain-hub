@@ -516,7 +516,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         .map(String),
     ),
   );
-  const resolution = productGate.useContext
+  const searchResolution = productGate.useContext
     ? resolveOffer(message, candidates, {
         recentMessages: history,
         // The AUTHORITATIVE focus wins over any stale ledger pointer: an
@@ -526,8 +526,22 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         recentOfferIds,
       })
     : directResolution;
+
+  // ---- Active-offer continuity ------------------------------------------
+  // A VALID active offer answers referential follow-ups (price, balance,
+  // total, dates, link, inclusions, accessibility). No broad search and no
+  // clarification while it holds, unless the customer explicitly names
+  // another offer or explicitly asks for other options.
+  const { applyActiveOfferContinuity } = await import("./active-offer-continuity");
+  const activeOfferId = currentFocus.offer_id ?? ctxPackage?.active_offer?.id ?? null;
+  const activeOffer = activeOfferId ? candidates.find((o) => o.id === activeOfferId) ?? null : null;
+  const continuity = productAsked
+    ? applyActiveOfferContinuity({ message, activeOffer, offers: candidates, resolution: searchResolution })
+    : null;
+  const resolution = continuity ? continuity.resolution : searchResolution;
   const resolved = productAsked ? resolution.offer : null;
   const availability = resolved ? offerAvailability(resolved) : { sellable: false, past: false };
+
 
   let answerText: string | null = null;
   let groundingPath = "none";
