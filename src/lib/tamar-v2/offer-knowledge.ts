@@ -264,6 +264,11 @@ export function buildOfferGroundingBlock(offer: OfferKnowledge, now: Date = new 
 
   const pricing = buildPricingStateBlock(offer);
   if (pricing) lines.push(pricing);
+  lines.push(
+    "## currency_rule: אין להמציא סכום כולל ואין להמיר מטבע. אם המקדמה והיתרה נקובות במטבעות שונים — יש להציג כל רכיב בנפרד עם המטבע שלו, בלי חישוב סכום כולל.",
+  );
+
+
 
   const facts = offer.grounded_facts && typeof offer.grounded_facts === "object" ? offer.grounded_facts : {};
   const factLines = Object.entries(facts)
