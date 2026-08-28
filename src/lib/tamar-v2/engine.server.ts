@@ -645,7 +645,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     }).catch(() => null);
     // A corrective turn ("דיברנו על לונדון") gets ONE short acknowledgement
     // before the actual pending answer — never a list of other candidates.
-    if (answerText && continuity?.acknowledgement && continuity.action === "recover_active") {
+    if (answerText && continuity?.acknowledgement) {
       answerText = `${continuity.acknowledgement} ${answerText}`;
     }
     groundingPath = resolved ? "offer_knowledge" : "community_knowledge";

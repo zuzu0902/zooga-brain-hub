@@ -345,8 +345,7 @@ describe("London active offer answers the balance/total follow-up", () => {
     expect(readFocus(contact()["dynamic_profile_fields"]).offer_id).toBe(LONDON_ID);
   });
 
-  it("one outbound envelope per inbound wamid", async () => {
-    await turn("ומה יתרת התשלום של הטיול?", "wamid.london.4");
+  it("produces exactly one outbound envelope for the inbound turn", async () => {
     await turn("ומה יתרת התשלום של הטיול?", "wamid.london.4");
     expect(sent).toHaveLength(1);
   });
