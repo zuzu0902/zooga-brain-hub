@@ -11,7 +11,7 @@
  * runtime actually saw.
  */
 
-export const CONTEXT_VERSION = "v2.ctx.3" as const;
+export const CONTEXT_VERSION = "v2.ctx.4" as const;
 
 export const CONTEXT_LIMITS = {
   transcript: 30,
@@ -124,7 +124,13 @@ export type ContextPackage = {
   decisions: ContextDecision[];
   offers_presented: string[];
   offers_sent: string[];
-  handoff: { open: boolean; reason: string | null };
+  handoff: {
+    open: boolean;
+    reason: string | null;
+    manager_summary: string | null;
+    manager_outcome: string | null;
+    manager_contacted_at: string | null;
+  };
   knowledge: string[];
 };
 
@@ -191,7 +197,13 @@ export type RawContext = {
   decisions?: Array<Record<string, any>>;
   offersPresented?: string[];
   offersSent?: string[];
-  handoff?: { open: boolean; reason?: string | null } | null;
+  handoff?: {
+    open: boolean;
+    reason?: string | null;
+    manager_summary?: string | null;
+    manager_outcome?: string | null;
+    manager_contacted_at?: string | null;
+  } | null;
   knowledge?: string[];
   focus?: ContextFocus | null;
   activeOffer?: Record<string, any> | null;
@@ -360,7 +372,13 @@ export function buildContextPackage(raw: RawContext): ContextPackage {
     decisions,
     offers_presented: (raw.offersPresented ?? []).slice(0, CONTEXT_LIMITS.offers).map(String),
     offers_sent: (raw.offersSent ?? []).slice(0, CONTEXT_LIMITS.offers).map(String),
-    handoff: { open: !!raw.handoff?.open, reason: raw.handoff?.reason ?? null },
+    handoff: {
+      open: !!raw.handoff?.open,
+      reason: raw.handoff?.reason ?? null,
+      manager_summary: raw.handoff?.manager_summary ? clip(raw.handoff.manager_summary, 600) : null,
+      manager_outcome: raw.handoff?.manager_outcome ?? null,
+      manager_contacted_at: raw.handoff?.manager_contacted_at ?? null,
+    },
     knowledge: (raw.knowledge ?? []).slice(0, CONTEXT_LIMITS.knowledge).map((k) => clip(k, 400)),
   };
 }

@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const inserts: Array<{ table: string; row: any }> = [];
+const updates: Array<{ table: string; row: any }> = [];
 const state = {
   isAdmin: true as boolean,
   lock: { humanOwned: true, humanOwnedBy: "mgr", humanOwnedAt: "2026-01-01T00:00:00Z", openHandoffs: 1 },
@@ -20,6 +21,17 @@ vi.mock("@/integrations/supabase/client.server", () => ({
       insert: async (row: any) => {
         inserts.push({ table, row });
         return { data: null, error: null };
+      },
+      update: (row: any) => {
+        updates.push({ table, row });
+        const chain: any = {
+          eq: () => chain,
+          not: () => chain,
+          is: () => chain,
+          select: async () => ({ data: [{ id: "h-1" }], error: null }),
+          then: (r: any) => Promise.resolve({ data: null, error: null }).then(r),
+        };
+        return chain;
       },
     }),
     rpc: async () => ({ data: { ok: true }, error: null }),
@@ -53,8 +65,15 @@ const call = (data: any) =>
   performContactRelease({ request: data, actorId: ADMIN, isAdmin: async () => state.isAdmin });
 const validate = (input: any) => validateReleaseInput(input);
 
+const MANAGER_OUTCOME = {
+  contacted: true,
+  outcome: "resolved",
+  summary: "דיברתי עם הלקוח וסיכמנו המשך",
+};
+
 beforeEach(() => {
   inserts.length = 0;
+  updates.length = 0;
   state.isAdmin = true;
   state.released = true;
   state.lock = { humanOwned: true, humanOwnedBy: "mgr", humanOwnedAt: "2026-01-01T00:00:00Z", openHandoffs: 1 };
@@ -73,6 +92,7 @@ describe("release input validation", () => {
       contactId: CONTACT,
       resetIntake: false,
       reason: "הנציג סיים",
+      managerOutcome: null,
     });
   });
 });
@@ -80,14 +100,21 @@ describe("release input validation", () => {
 describe("release authorization", () => {
   it("refuses a signed-in non-admin", async () => {
     state.isAdmin = false;
-    await expect(call({ contactId: CONTACT, resetIntake: false, reason: "x-reason" })).rejects.toThrow(/forbidden/);
+    await expect(
+      call({ contactId: CONTACT, resetIntake: false, reason: "x-reason", managerOutcome: MANAGER_OUTCOME }),
+    ).rejects.toThrow(/forbidden/);
     expect(inserts).toHaveLength(0);
   });
 });
 
 describe("release audit and idempotency", () => {
   it("writes an immutable audit record with actor, states and reason", async () => {
-    const res = await call({ contactId: CONTACT, resetIntake: false, reason: "handled by agent" });
+    const res = await call({
+      contactId: CONTACT,
+      resetIntake: false,
+      reason: "handled by agent",
+      managerOutcome: MANAGER_OUTCOME,
+    });
     expect(res.released).toBe(true);
     const audit = inserts.find((i) => i.table === "tamar_admin_audit_log");
     expect(audit).toBeTruthy();
@@ -108,5 +135,25 @@ describe("release audit and idempotency", () => {
 
   it("never releases automatically — it needs an explicit call", () => {
     expect(inserts).toHaveLength(0);
+  });
+
+  it("refuses to release an open handoff without the manager record", async () => {
+    await expect(
+      call({ contactId: CONTACT, resetIntake: false, reason: "back to tamar" }),
+    ).rejects.toThrow(/manager_outcome_required/);
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("stores the manager contact, outcome and summary on the handoff", async () => {
+    await call({
+      contactId: CONTACT,
+      resetIntake: false,
+      reason: "back to tamar",
+      managerOutcome: MANAGER_OUTCOME,
+    });
+    const handoff = updates.find((u) => u.table === "manager_handoffs");
+    expect(handoff!.row.outcome).toBe("resolved");
+    expect(handoff!.row.manager_summary).toContain("סיכום נציג");
+    expect(handoff!.row.contacted_at).toBeTruthy();
   });
 });
