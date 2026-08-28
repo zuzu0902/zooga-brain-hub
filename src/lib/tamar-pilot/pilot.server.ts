@@ -251,10 +251,18 @@ export async function runPilotLifecycle(opts: { dryRun?: boolean; limit?: number
         const { sendWhatsAppText, recordDelivery } = await import("@/lib/whatsapp-meta.server");
         const to = String(c.whatsapp_number || c.phone || "");
         const text = pilotFollowupText(c.first_name);
-        const res = await sendWhatsAppText(to, text);
-        await quiet(
-          recordDelivery({ contactId: c.id, text, result: res as any, kind: "pilot_followup" }) as any,
-        );
+        // LAST GATE before the real send: canonical live allowlist.
+        const { assertLiveSendAllowed } = await import("./live-allowlist.server");
+        const allow = await assertLiveSendAllowed({ phone: to, contactId: c.id, kind: "pilot_followup" });
+        const res = allow.allowed
+          ? await sendWhatsAppText(to, text)
+          : { ok: false, error: allow.reason, error_he: allow.reason_he };
+        if (allow.allowed) {
+          await quiet(
+            recordDelivery({ contactId: c.id, text, result: res as any, kind: "pilot_followup" }) as any,
+          );
+        }
+
         if (res?.ok) {
           run.followups_sent += 1;
           applied = true;

@@ -44,12 +44,27 @@ export type OptInContact = {
   phone?: string | null;
   whatsapp_number?: string | null;
   human_owned?: boolean | null;
+  /** operational authorization from an approved pilot file (NOT consent) */
+  pilot_eligible_at?: string | null;
+  /** the customer wrote to Tamar first */
+  last_inbound_at?: string | null;
 };
 
-export type Gate = { allowed: boolean; reason: string | null; reason_he: string | null };
+export type Gate = {
+  allowed: boolean;
+  reason: string | null;
+  reason_he: string | null;
+  /** why we are allowed to ask for consent at all */
+  basis?: "verified_opt_in" | "inbound_initiated" | "pilot_file_eligibility" | null;
+};
 
-const deny = (reason: string, he: string): Gate => ({ allowed: false, reason, reason_he: he });
-const allow = (): Gate => ({ allowed: true, reason: null, reason_he: null });
+const deny = (reason: string, he: string): Gate => ({ allowed: false, reason, reason_he: he, basis: null });
+const allow = (basis: NonNullable<Gate["basis"]>): Gate => ({
+  allowed: true,
+  reason: null,
+  reason_he: null,
+  basis,
+});
 
 /** verified is only meaningful with a recorded source AND date. */
 export function isVerifiedOptIn(c: OptInContact): boolean {
@@ -60,19 +75,40 @@ export function isVerifiedOptIn(c: OptInContact): boolean {
   );
 }
 
-/** Gate for the consent-opening template (zooga_opening_consent / he). */
+/**
+ * Gate for the consent-opening message ONLY (zooga_opening_consent / he).
+ * Three independent bases authorize asking for consent:
+ *   1. a verified prior WhatsApp opt-in,
+ *   2. an inbound-initiated conversation,
+ *   3. approved pilot-file eligibility (Alex explicitly imported the person).
+ * None of them is marketing consent — regular campaigns still go through
+ * evaluateCampaignSend and require consent_marketing.
+ */
 export function evaluateConsentOpening(c: OptInContact): Gate {
   const status = normalizeOptInStatus(c.whatsapp_opt_in_status);
   if (c.opted_out_at) return deny("opted_out", "הלקוח ביקש להפסיק קבלת הודעות");
   if (status === "denied") return deny("opt_in_denied", "אישור הפנייה בוואטסאפ נדחה");
-  if (status === "unknown") return deny("opt_in_unknown", "אין אישור מוקדם לפנייה בוואטסאפ");
-  if (!isVerifiedOptIn(c)) return deny("opt_in_incomplete", "אישור מאומת חייב מקור ומועד");
+
+  const basis: NonNullable<Gate["basis"]> | null = isVerifiedOptIn(c)
+    ? "verified_opt_in"
+    : String(c.last_inbound_at ?? "").trim()
+      ? "inbound_initiated"
+      : String(c.pilot_eligible_at ?? "").trim()
+        ? "pilot_file_eligibility"
+        : null;
+  if (!basis) {
+    return status === "verified"
+      ? deny("opt_in_incomplete", "אישור מאומת חייב מקור ומועד")
+      : deny("no_opening_authorization", "אין אישור לפתיחת שיחה: נדרש אופט-אין מאומת, פנייה נכנסת או קובץ פיילוט מאושר");
+  }
+
   if (!(c.whatsapp_number || c.phone)) return deny("missing_phone", "אין מספר טלפון");
   if (c.human_owned) return deny("human_owned", "השיחה בטיפול אנושי");
   const opening = String(c.opening_status ?? "not_sent");
   if (opening !== "not_sent") return deny("opening_already_sent", "הודעת הפתיחה כבר נשלחה");
-  return allow();
+  return allow(basis);
 }
+
 
 /** Gate for a regular marketing campaign — consent_marketing is mandatory. */
 export function evaluateCampaignSend(c: OptInContact): Gate {
@@ -81,7 +117,7 @@ export function evaluateCampaignSend(c: OptInContact): Gate {
     return deny("opt_in_denied", "אישור הפנייה בוואטסאפ נדחה");
   if (!c.consent_marketing) return deny("no_marketing_consent", "אין הסכמה שיווקית");
   if (!(c.whatsapp_number || c.phone)) return deny("missing_phone", "אין מספר טלפון");
-  return allow();
+  return allow("verified_opt_in");
 }
 
 const YES = [
@@ -139,3 +175,66 @@ export function consentOpeningText(firstName: string): string {
 export const CONSENT_YES_REPLY = "תודה! נעים להכיר 🙂 האם נוח לך לצ׳וטט עכשיו?";
 export const CONSENT_NO_REPLY =
   "תודה על העדכון, לא נשלח לך יותר הודעות. אם תשנה/י את דעתך תמיד אפשר לכתוב לנו.";
+/** Version of the consent wording actually sent. Persisted as evidence. */
+export const CONSENT_WORDING_VERSION = "pilot_consent_v1";
+
+export type ConsentAskEvidence = {
+  template: string;
+  language: string;
+  transport: "template" | "session";
+  wording_version: string;
+  wording: string;
+  provider_message_id: string | null;
+  basis: string | null;
+  asked_at: string;
+};
+
+export type ConsentResponseEvidence = {
+  answer: "yes" | "no";
+  provider_message_id: string | null;
+  button_id: string | null;
+  button_title: string | null;
+  text: string | null;
+  source: string;
+  responded_at: string;
+};
+
+/** Structured evidence for the consent question that was actually sent. */
+export function consentAskEvidence(args: {
+  transport: "template" | "session";
+  text: string;
+  providerMessageId: string | null;
+  basis: string | null;
+  askedAt: string;
+}): ConsentAskEvidence {
+  return {
+    template: CONSENT_OPENING_TEMPLATE,
+    language: CONSENT_OPENING_LANGUAGE,
+    transport: args.transport,
+    wording_version: CONSENT_WORDING_VERSION,
+    wording: String(args.text ?? "").slice(0, 1000),
+    provider_message_id: args.providerMessageId,
+    basis: args.basis,
+    asked_at: args.askedAt,
+  };
+}
+
+/** Structured evidence for the customer's answer, linked to the question. */
+export function consentResponseEvidence(args: {
+  answer: "yes" | "no";
+  buttonId?: string | null;
+  buttonTitle?: string | null;
+  text?: string | null;
+  sourceMessageId?: string | null;
+  respondedAt: string;
+}): ConsentResponseEvidence {
+  return {
+    answer: args.answer,
+    provider_message_id: args.sourceMessageId ?? null,
+    button_id: args.buttonId ?? null,
+    button_title: args.buttonTitle ?? null,
+    text: String(args.text ?? "").slice(0, 500) || null,
+    source: "whatsapp_reply",
+    responded_at: args.respondedAt,
+  };
+}

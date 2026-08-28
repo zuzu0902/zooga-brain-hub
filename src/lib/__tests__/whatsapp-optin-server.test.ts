@@ -52,6 +52,13 @@ vi.mock("@/lib/whatsapp-meta.server", () => ({
   isSessionWindowOpen: vi.fn(async () => sessionOpen),
 }));
 
+let allowlistAllowed = true;
+vi.mock("@/lib/tamar-pilot/live-allowlist.server", () => ({
+  assertLiveSendAllowed: vi.fn(async () => (allowlistAllowed
+    ? { allowed: true, reason: "allowlist_hit", reason_he: "", phone: null }
+    : { allowed: false, reason: "allowlist_blocked", reason_he: "חסום", phone: null })),
+}));
+
 const verifiedContact = () => ({
   id: "c1",
   phone: "+972550000001",
@@ -72,9 +79,19 @@ beforeEach(() => {
   updates.length = 0;
   sent.length = 0;
   sessionOpen = false;
+  allowlistAllowed = true;
 });
 
 describe("sendConsentOpening", () => {
+  it("blocks a non-allowlisted number at the last gate and sends nothing", async () => {
+    allowlistAllowed = false;
+    const { sendConsentOpening } = await import("@/lib/whatsapp-optin/optin.server");
+    const res = await sendConsentOpening("c1");
+    expect(res.status).toBe("skipped");
+    expect(res.reason).toBe("allowlist_blocked");
+    expect(sent).toHaveLength(0);
+  });
+
   it("sends the approved template to a verified contact without marketing consent", async () => {
     const { sendConsentOpening } = await import("@/lib/whatsapp-optin/optin.server");
     const res = await sendConsentOpening("c1");
@@ -97,7 +114,7 @@ describe("sendConsentOpening", () => {
     const { sendConsentOpening } = await import("@/lib/whatsapp-optin/optin.server");
     const res = await sendConsentOpening("c1");
     expect(res.status).toBe("skipped");
-    expect(res.reason).toBe("opt_in_unknown");
+    expect(res.reason).toBe("no_opening_authorization");
     expect(sent).toHaveLength(0);
   });
 

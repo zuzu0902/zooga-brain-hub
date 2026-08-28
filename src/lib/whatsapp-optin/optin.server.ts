@@ -20,6 +20,9 @@ import {
   CONSENT_YES_REPLY,
   consentOpeningText,
   classifyConsentReply,
+  consentAskEvidence,
+  consentResponseEvidence,
+  CONSENT_WORDING_VERSION,
   evaluateConsentOpening,
   type OptInStatus,
 } from "./core";
@@ -65,7 +68,7 @@ export async function sendConsentOpening(
   const { data: contact } = await supabaseAdmin
     .from("contacts")
     .select(
-      "id, phone, whatsapp_number, first_name, full_name, consent_marketing, opted_out_at, human_owned, opening_status, whatsapp_opt_in_status, whatsapp_opt_in_at, whatsapp_opt_in_source",
+      "id, phone, whatsapp_number, first_name, full_name, consent_marketing, opted_out_at, human_owned, opening_status, whatsapp_opt_in_status, whatsapp_opt_in_at, whatsapp_opt_in_source, pilot_eligible_at, last_inbound_at",
     )
     .eq("id", contactId)
     .maybeSingle();
@@ -91,8 +94,16 @@ export async function sendConsentOpening(
   const transport: "template" | "session" = sessionOpen ? "session" : "template";
 
   if (dryRun) {
-    await log("dry_run", { contact_id: contactId, transport });
+    await log("dry_run", { contact_id: contactId, transport, basis: gate.basis });
     return { ...base, status: "sent", transport, provider_message_id: "dryrun" };
+  }
+
+  // LAST GATE before any real network call: the canonical live allowlist.
+  const { assertLiveSendAllowed } = await import("@/lib/tamar-pilot/live-allowlist.server");
+  const allowlist = await assertLiveSendAllowed({ phone: to, contactId, kind: "consent_opening" });
+  if (!allowlist.allowed) {
+    await log("skipped", { contact_id: contactId, reason: allowlist.reason });
+    return { ...base, reason: allowlist.reason, reason_he: allowlist.reason_he };
   }
 
   // Idempotency: claim the opening slot BEFORE the network call.
@@ -132,9 +143,26 @@ export async function sendConsentOpening(
   }
 
   const now = new Date().toISOString();
+  const ask = consentAskEvidence({
+    transport,
+    text,
+    providerMessageId: res.provider_message_id ?? null,
+    basis: gate.basis ?? null,
+    askedAt: now,
+  });
   await supabaseAdmin
     .from("contacts")
-    .update({ opening_status: "asked", opening_asked_at: now } as any)
+    .update({
+      opening_status: "asked",
+      opening_asked_at: now,
+      consent_asked_at: now,
+      consent_status: "asked",
+      consent_wording_version: CONSENT_WORDING_VERSION,
+      consent_version: CONSENT_WORDING_VERSION,
+      consent_source: "whatsapp_consent_opening",
+      consent_message_id: res.provider_message_id ?? null,
+      consent_evidence: { ask } as any,
+    } as any)
     .eq("id", contactId);
   await log("sent", { contact_id: contactId, transport, provider_message_id: res.provider_message_id });
 
@@ -146,6 +174,7 @@ export async function sendConsentOpening(
     opening_status: "asked",
   };
 }
+
 
 /** Manual opt-in maintenance from the admin UI. verified requires a source. */
 export async function setWhatsAppOptIn(args: {
@@ -195,7 +224,9 @@ export async function applyConsentAnswer(args: {
 
   const { data: contact } = await supabaseAdmin
     .from("contacts")
-    .select("id, opening_status, consent_marketing, opted_out_at, whatsapp_opt_in_status")
+    .select(
+      "id, opening_status, consent_marketing, opted_out_at, whatsapp_opt_in_status, consent_evidence, consent_asked_at, consent_message_id, consent_wording_version",
+    )
     .eq("id", args.contactId)
     .maybeSingle();
   if (!contact) return { handled: false, answer, reply_text: null, duplicate: false };
@@ -207,6 +238,26 @@ export async function applyConsentAnswer(args: {
   }
 
   const now = new Date().toISOString();
+  const askedAt = String(c.consent_asked_at ?? "") || now;
+  const ask =
+    (c.consent_evidence as any)?.ask ??
+    consentAskEvidence({
+      transport: "template",
+      text: "",
+      providerMessageId: (c.consent_message_id as string) ?? null,
+      basis: null,
+      askedAt,
+    });
+  const response = consentResponseEvidence({
+    answer,
+    buttonId: args.buttonId ?? null,
+    buttonTitle: args.buttonTitle ?? null,
+    text: args.text ?? null,
+    sourceMessageId: args.sourceMessageId ?? null,
+    respondedAt: now,
+  });
+  const evidence = { ask, response, linked: true } as any;
+  const wordingVersion = String(c.consent_wording_version ?? "") || CONSENT_WORDING_VERSION;
 
   if (answer === "yes") {
     const { data: updated } = await supabaseAdmin
@@ -215,7 +266,11 @@ export async function applyConsentAnswer(args: {
         consent_marketing: true,
         consent_status: "granted",
         consent_date: now,
+        consent_responded_at: now,
         consent_source: "whatsapp_reply",
+        consent_wording_version: wordingVersion,
+        consent_version: wordingVersion,
+        consent_evidence: evidence,
         opted_out_at: null,
         whatsapp_opt_in_status: "verified",
         whatsapp_opt_in_at: now,
@@ -241,7 +296,11 @@ export async function applyConsentAnswer(args: {
       consent_marketing: false,
       consent_status: "denied",
       consent_date: now,
+      consent_responded_at: now,
       consent_source: "whatsapp_reply",
+      consent_wording_version: wordingVersion,
+      consent_version: wordingVersion,
+      consent_evidence: evidence,
       opted_out_at: now,
       whatsapp_opt_in_status: "denied",
       whatsapp_opt_in_at: now,

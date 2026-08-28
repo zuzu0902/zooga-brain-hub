@@ -22,10 +22,10 @@ describe("opt-in vs marketing consent separation", () => {
     expect(evaluateConsentOpening(verified).allowed).toBe(true);
   });
 
-  it("blocks the consent opening for unknown opt-in", () => {
+  it("blocks the consent opening with no authorization basis at all", () => {
     const g = evaluateConsentOpening({ ...verified, whatsapp_opt_in_status: "unknown" });
     expect(g.allowed).toBe(false);
-    expect(g.reason).toBe("opt_in_unknown");
+    expect(g.reason).toBe("no_opening_authorization");
     expect(g.reason_he).toBeTruthy();
   });
 
