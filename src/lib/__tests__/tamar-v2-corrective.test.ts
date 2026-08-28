@@ -174,6 +174,10 @@ vi.mock("@/lib/tamar-v2/interpreter.server", () => ({
   interpret: async () => interpretation,
 }));
 
+vi.mock("@/lib/tamar-v2/model-registry.server", () => ({
+  // No network in tests: the planner falls back to the deterministic plan.
+  callStage: async () => ({ ok: false, content: null, model_id: null, error: "test_no_model" }),
+}));
 vi.mock("@/lib/zero-loss/identity.server", () => ({ registerIdentity: async () => null }));
 
 

@@ -11,7 +11,7 @@
  * runtime actually saw.
  */
 
-export const CONTEXT_VERSION = "v2.ctx.2" as const;
+export const CONTEXT_VERSION = "v2.ctx.3" as const;
 
 export const CONTEXT_LIMITS = {
   transcript: 30,
@@ -77,9 +77,39 @@ export type ContextActiveOffer = {
 
 export type ContextCommitment = { kind: string; ref: string | null; text: string | null; at: string | null };
 
+/**
+ * THE CURRENT INBOUND TURN — the message this very decision is about.
+ *
+ * The recent verbatim history is NOT a substitute: without this block the
+ * persisted snapshot cannot prove what the runtime actually reasoned over.
+ * The raw transcript is preserved verbatim and stays distinguishable from
+ * the normalized (voice-corrected) text that the model was given.
+ */
+export type ContextInbound = {
+  message_id: string | null;
+  at: string;
+  source: string;
+  is_voice: boolean;
+  /** exactly what arrived (voice transcript kept raw) */
+  raw_text: string;
+  /** the text actually used for reasoning when it differs from raw */
+  normalized_text: string | null;
+  /** audit of the normalization decision, null when nothing was normalized */
+  normalization: {
+    changed: boolean;
+    ambiguous: boolean;
+    reason: string | null;
+    confidence: number | null;
+  } | null;
+};
+
+export const INBOUND_RAW_CHARS = 1500;
+
 export type ContextPackage = {
   version: typeof CONTEXT_VERSION;
   contact: { id: string | null; first_name: string | null; state: string; language: string };
+  /** the inbound turn being decided (never omitted, never budgeted away) */
+  inbound: ContextInbound;
   /** current journey stage (canonical conversation state) */
   journey_stage: string;
   active: ContextFocus;
@@ -168,7 +198,47 @@ export type RawContext = {
   intakeAnswered?: Record<string, string>;
   intakeMissing?: string[];
   commitments?: ContextCommitment[];
+  inbound?: RawInbound | null;
 };
+
+/** The current inbound as the runtime knows it, before packaging. */
+export type RawInbound = {
+  messageId?: string | null;
+  at?: string | null;
+  source?: string | null;
+  rawText: string;
+  normalizedText?: string | null;
+  normalization?: { changed: boolean; ambiguous: boolean; reason?: string | null; confidence?: number | null } | null;
+};
+
+/**
+ * Package the current inbound turn. The raw text is preserved verbatim (only
+ * length-bounded); the normalized text is recorded separately and only when
+ * it really differs, so "what arrived" and "what was reasoned over" can never
+ * be confused in the audit snapshot.
+ */
+export function buildInbound(raw: RawInbound | null | undefined): ContextInbound {
+  const source = String(raw?.source ?? "unknown");
+  const rawText = String(raw?.rawText ?? "").slice(0, INBOUND_RAW_CHARS);
+  const normalized = raw?.normalizedText ? String(raw.normalizedText).slice(0, INBOUND_RAW_CHARS) : null;
+  const n = raw?.normalization ?? null;
+  return {
+    message_id: raw?.messageId ? String(raw.messageId) : null,
+    at: raw?.at ?? new Date().toISOString(),
+    source,
+    is_voice: /voice|audio/i.test(source),
+    raw_text: rawText,
+    normalized_text: normalized && normalized !== rawText ? normalized : null,
+    normalization: n
+      ? {
+          changed: !!n.changed,
+          ambiguous: !!n.ambiguous,
+          reason: n.reason ? String(n.reason).slice(0, 120) : null,
+          confidence: typeof n.confidence === "number" ? n.confidence : null,
+        }
+      : null,
+  };
+}
 
 /** Build the FULL current record of the active offer (bounded, sanitized). */
 export function buildActiveOffer(offer: Record<string, any> | null | undefined): ContextActiveOffer | null {
@@ -266,6 +336,7 @@ export function buildContextPackage(raw: RawContext): ContextPackage {
       state: raw.state,
       language: "he",
     },
+    inbound: buildInbound(raw.inbound),
     journey_stage: raw.state,
     active: raw.focus ?? { topic: null, offer_id: null, provenance: "none", updated_at: null },
     active_offer: buildActiveOffer(raw.activeOffer),
@@ -318,6 +389,8 @@ export function budgetContext(ctx: ContextPackage, budget = CONTEXT_TOKEN_BUDGET
 /** Counts of the source records that fed the package (audit, no PII). */
 export function contextSourceCounts(ctx: ContextPackage) {
   return {
+    inbound: ctx.inbound?.raw_text ? 1 : 0,
+    inbound_normalized: ctx.inbound?.normalized_text ? 1 : 0,
     transcript: ctx.transcript.length,
     facts: ctx.facts.length,
     memories: ctx.memories.length,

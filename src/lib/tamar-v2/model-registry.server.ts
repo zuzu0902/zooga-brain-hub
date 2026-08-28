@@ -13,6 +13,7 @@ const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 export type ModelStage =
   | "intent_interpreter"
+  | "conversation_planner"
   | "response_writer"
   | "extractor"
   | "fallback"
@@ -40,6 +41,20 @@ const HARD_DEFAULTS: Record<ModelStage, StageConfig> = {
     max_tokens: 1200,
     timeout_ms: 20000,
     retries: 1,
+    fallback_model: "google/gemini-3.6-flash",
+    structured_output: true,
+    reasoning_effort: null,
+    cheap_model: "openai/gpt-5.6-luna",
+  },
+  // Structured conversation planning: cheapest capable model on a normal
+  // turn, strong model only on one escalation for ambiguous/sensitive turns.
+  conversation_planner: {
+    stage: "conversation_planner",
+    model_id: "google/gemini-2.5-pro",
+    temperature: 0.1,
+    max_tokens: 900,
+    timeout_ms: 20000,
+    retries: 0,
     fallback_model: "google/gemini-3.6-flash",
     structured_output: true,
     reasoning_effort: null,

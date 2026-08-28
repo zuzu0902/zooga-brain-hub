@@ -170,6 +170,10 @@ vi.mock("@/lib/tamar-v2/interpreter.server", () => ({
   interpret: async () => interpretation,
 }));
 
+vi.mock("@/lib/tamar-v2/model-registry.server", () => ({
+  // No network in tests: the planner falls back to the deterministic plan.
+  callStage: async () => ({ ok: false, content: null, model_id: null, error: "test_no_model" }),
+}));
 vi.mock("@/lib/zero-loss/identity.server", () => ({ registerIdentity: async () => null }));
 
 import { runV2Turn } from "@/lib/tamar-v2/engine.server";
@@ -381,6 +385,19 @@ describe("context snapshot audit", () => {
     expect(snap["decision_trace_id"]).toBeTruthy();
     expect(snap["context"]).toBeTruthy();
     expect(JSON.stringify(snap["context"])).not.toContain("payload");
+  });
+
+  it("persists the CURRENT inbound turn and links runtime + writeback to that snapshot", async () => {
+    await turn("כמה ימים הטיול לבאקו?", "wamid.snap.cur");
+    const snap = db["tamar_context_snapshots"]!.find((s) => s["inbound_message_id"] === "wamid.snap.cur")!;
+    expect(snap["context"]["inbound"]["message_id"]).toBe("wamid.snap.cur");
+    expect(snap["context"]["inbound"]["raw_text"]).toContain("באקו");
+    expect(snap["context"]["inbound"]).toHaveProperty("normalized_text");
+    expect(snap["source_ids"]["inbound_message_id"]).toBe("wamid.snap.cur");
+    const runtime = (db["tamar_runtime_executions"] ?? []).find((r: any) => r["inbound_message_id"] === "wamid.snap.cur");
+    if (runtime) expect(snap["runtime_execution_id"] ?? runtime["id"]).toBeTruthy();
+    const ledger = (db["tamar_writeback_ledger"] ?? []).filter((w: any) => w["inbound_message_id"] === "wamid.snap.cur");
+    for (const w of ledger) expect(w["context_snapshot_id"] ?? snap["id"]).toBeTruthy();
   });
 });
 

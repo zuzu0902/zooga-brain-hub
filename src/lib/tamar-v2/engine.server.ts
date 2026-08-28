@@ -406,6 +406,22 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     focus: currentFocus,
     intakeAnswered: (knownFields ?? {}) as Record<string, string>,
     intakeMissing,
+    // The EXACT inbound this decision is about — raw transcript preserved,
+    // normalized copy and its audit kept distinct.
+    inbound: {
+      messageId: input.inbound_message_id ?? null,
+      source: input.source ?? "whatsapp",
+      rawText: rawMessage,
+      normalizedText: voiceNorm?.changed ? message : null,
+      normalization: voiceNorm
+        ? {
+            changed: voiceNorm.changed,
+            ambiguous: voiceNorm.ambiguous,
+            reason: voiceNorm.reason,
+            confidence: voiceNorm.confidence,
+          }
+        : null,
+    },
   }).catch(() => null);
 
   let contextSnapshotId: string | null = null;
@@ -660,6 +676,69 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   );
   const explicitOfferRequest = /(שוב|עוד\s*פעם|תשלחי|תשלח|הקישור|לינק|תזכיר)/.test(message);
 
+  // ---- ONE structured plan for the turn ----------------------------------
+  // Deterministic turns (reset, terminal grounding, frozen threads, offline)
+  // never pay for a planning call. Everything else gets ONE coherent plan
+  // that deterministic validation may reject.
+  const { deterministicPlan, planComposition } = await import("./planner");
+  const answeredIntakeKeys = Object.keys(knownFields ?? {});
+  const fallbackPlan = deterministicPlan({
+    intent: interpretation.intent,
+    isQuestion: asksSomething,
+    focusOfferId: currentFocus.offer_id,
+    focusTitle: currentFocus.topic,
+    missingIntakeKeys: intakeMissing,
+    answeredIntakeKeys,
+    journeyStage: state,
+    wantsHuman: interpretation.wants_human,
+  });
+  const planEnabled =
+    !!process.env["LOVABLE_API_KEY"] &&
+    !input.offline &&
+    !resetRequested &&
+    !TERMINAL_GROUNDING_PATHS.has(groundingPath) &&
+    groundingPath !== "product_handoff_confirmed" &&
+    !!ctxPackage &&
+    state !== "human_owned" &&
+    state !== "human_handoff_queued" &&
+    state !== "opted_out";
+  const { planTurn } = await import("./planner.server");
+  const planOutcome = await planTurn({
+    ctx: ctxPackage ?? ({} as any),
+    validation: {
+      focusOfferId: currentFocus.offer_id,
+      allowedOfferIds: Array.from(
+        new Set([
+          ...candidates.map((c) => String(c.id)),
+          ...(offers as any[]).map((o) => String(o.id)),
+          ...recentOfferIds,
+        ].filter(Boolean)),
+      ),
+      allowedSourceIds: knowledgeIds,
+      answeredIntakeKeys,
+      missingIntakeKeys: intakeMissing,
+      groundedFactKeys: Object.entries(ctxPackage?.active_offer ?? {})
+        .filter(([, v]) => v !== null && v !== undefined && !(Array.isArray(v) && v.length === 0))
+        .map(([k]) => k),
+      explicitMention: resolution.reason === "exact" || resolution.reason === "alias",
+      resolvedReference: resolution.reason === "context",
+      resetRequested,
+    },
+    fallback: fallbackPlan,
+    catalog: candidates.map((c) => ({ id: String(c.id), title: String(c.title ?? "") })),
+    complexity,
+    enabled: planEnabled,
+  }).catch(() => null);
+  const plan = planOutcome?.plan ?? fallbackPlan;
+  // Only a model plan that PASSED deterministic validation may steer the turn.
+  const planFromModel = plan.source === "model" && planOutcome?.accepted === true;
+  const composition = planComposition(plan);
+  const planReasonCodes = [
+    `plan_${planOutcome?.routing ?? "skipped"}`,
+    `plan_action_${plan.next_best_action}`,
+    ...(planOutcome?.violations ?? []).slice(0, 3).map((v) => `plan_violation_${v.split(":")[0]}`),
+  ];
+
   const turnInput: TurnInput = {
     state,
     message,
@@ -677,11 +756,19 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     recentlySentOfferIds,
     explicitOfferRequest,
     resetRequested,
-    terminalAnswer: TERMINAL_GROUNDING_PATHS.has(groundingPath),
-    terminalReason: groundingPath,
+    // The validated plan may also end the turn: an answer-first turn with no
+    // appropriate intake question must not grow a recommendation tail.
+    terminalAnswer: TERMINAL_GROUNDING_PATHS.has(groundingPath) || (!!answerText && planFromModel && composition.terminal),
+    terminalReason: TERMINAL_GROUNDING_PATHS.has(groundingPath)
+      ? groundingPath
+      : planFromModel
+        ? `plan_${plan.next_best_action}`
+        : groundingPath,
     terminalActions: groundingPath === "sensitive_verification_required" ? ["sensitive_followup"] : [],
   };
   const decision = decideTurn(turnInput);
+  decision.reason_codes = [...(decision.reason_codes ?? []), ...planReasonCodes];
+
 
   // ---- Authoritative focus update ---------------------------------------
   // Only an explicit mention, a resolved reference or an explicit reset may

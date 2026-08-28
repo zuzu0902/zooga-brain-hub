@@ -27,6 +27,7 @@ import {
   type ContextCommitment,
   type ContextFocus,
   type ContextPackage,
+  type RawInbound,
 } from "./context";
 
 const db = () => supabaseAdmin as any;
@@ -76,6 +77,8 @@ export async function buildTurnContext(args: {
   focus?: ContextFocus | null;
   intakeAnswered?: Record<string, string>;
   intakeMissing?: string[];
+  /** the inbound turn this decision is about — mandatory in production */
+  inbound?: RawInbound | null;
 }): Promise<BuiltContext> {
   const contactId: string | null = args.contact?.id ?? null;
   const dyn = (args.contact?.dynamic_profile_fields ?? {}) as Record<string, any>;
@@ -207,6 +210,7 @@ export async function buildTurnContext(args: {
       intakeAnswered: args.intakeAnswered ?? {},
       intakeMissing: args.intakeMissing ?? [],
       commitments,
+      inbound: args.inbound ?? null,
     }),
   );
 
@@ -218,6 +222,7 @@ export async function buildTurnContext(args: {
     source_counts: contextSourceCounts(safeContext),
     source_ids: {
       contact_id: contactId,
+      inbound_message_id: safeContext.inbound?.message_id ?? null,
       interactions: ids(interactions as any[]),
       profile_facts: ids(facts as any[]),
       memories: ids(memories as any[]),

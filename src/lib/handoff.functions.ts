@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { validateReleaseInput } from "@/lib/handoff-release-core";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -79,37 +80,20 @@ export const getContactLock = createServerFn({ method: "POST" })
  */
 export const releaseContactToTamar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { contactId: string; resetIntake?: boolean }) => {
-    const id = String(input?.contactId ?? "").trim();
-    if (!UUID.test(id)) throw new Error("invalid_contact_id");
-    return { contactId: id, resetIntake: input?.resetIntake === true };
+  .inputValidator((input: { contactId: string; resetIntake?: boolean; reason?: string }) => {
+    return validateReleaseInput(input);
   })
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { releaseIfUnheld } = await import("@/lib/tamar-handoff-core.server");
-    const res = await releaseIfUnheld({
-      contactId: data.contactId,
-      actor: context.userId,
-      trigger: "manual_release_to_tamar",
-      force: true,
+    const { performContactRelease } = await import("@/lib/handoff-release-admin.server");
+    return performContactRelease({
+      request: data,
+      actorId: context.userId,
+      isAdmin: async () => {
+        const { data: ok } = await context.supabase.rpc("has_role" as any, {
+          _user_id: context.userId,
+          _role: "admin",
+        } as any);
+        return ok === true;
+      },
     });
-    let reset: any = null;
-    if (data.resetIntake && res.released) {
-      const { data: rpc } = await supabaseAdmin.rpc("admin_reset_tamar" as any, {
-        p_contact_id: data.contactId,
-        p_reason: "return_to_tamar_with_intake_reset",
-        p_reset_intake: true,
-        p_actor: context.userId,
-      } as any);
-      reset = rpc ?? null;
-    }
-    await supabaseAdmin.from("zero_loss_audit_log" as any).insert({
-      actor_user_id: context.userId,
-      actor_label: "admin_console",
-      action: "release_contact_to_tamar",
-      target_kind: "contact",
-      target_id: data.contactId,
-      details: { resolved_handoffs: res.resolved_handoffs, reset_intake: data.resetIntake, decision: res.decision },
-    } as any);
-    return { ...res, reset };
   });

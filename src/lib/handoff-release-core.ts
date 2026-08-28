@@ -47,3 +47,18 @@ export function describeLockHolder(snap: Pick<LockSnapshot, "humanOwnedBy" | "op
   if (snap.openHandoffs > 0) return "פנייה פתוחה לנציג";
   return "אין נעילה";
 }
+
+/** Pure validation of an admin release request (client-safe). */
+const RELEASE_UUID = /^[0-9a-f-]{36}$/i;
+export type ReleaseRequest = { contactId: string; resetIntake: boolean; reason: string };
+export function validateReleaseInput(input: {
+  contactId?: string;
+  resetIntake?: boolean;
+  reason?: string;
+}): ReleaseRequest {
+  const id = String(input?.contactId ?? "").trim();
+  if (!RELEASE_UUID.test(id)) throw new Error("invalid_contact_id");
+  const reason = String(input?.reason ?? "").trim();
+  if (reason.length < 3) throw new Error("reason_required");
+  return { contactId: id, resetIntake: input?.resetIntake === true, reason: reason.slice(0, 300) };
+}
