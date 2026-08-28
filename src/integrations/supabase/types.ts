@@ -719,6 +719,12 @@ export type Database = {
           opted_out_at: string | null
           personality_tags: string[]
           phone: string | null
+          pilot_batch_id: string | null
+          pilot_eligible_at: string | null
+          pilot_file_name: string | null
+          pilot_followup_sent_at: string | null
+          pilot_no_response_at: string | null
+          pilot_opener_sent_at: string | null
           preferred_events: string[]
           preferred_language_style: string | null
           preferred_social_style: string | null
@@ -877,6 +883,12 @@ export type Database = {
           opted_out_at?: string | null
           personality_tags?: string[]
           phone?: string | null
+          pilot_batch_id?: string | null
+          pilot_eligible_at?: string | null
+          pilot_file_name?: string | null
+          pilot_followup_sent_at?: string | null
+          pilot_no_response_at?: string | null
+          pilot_opener_sent_at?: string | null
           preferred_events?: string[]
           preferred_language_style?: string | null
           preferred_social_style?: string | null
@@ -1035,6 +1047,12 @@ export type Database = {
           opted_out_at?: string | null
           personality_tags?: string[]
           phone?: string | null
+          pilot_batch_id?: string | null
+          pilot_eligible_at?: string | null
+          pilot_file_name?: string | null
+          pilot_followup_sent_at?: string | null
+          pilot_no_response_at?: string | null
+          pilot_opener_sent_at?: string | null
           preferred_events?: string[]
           preferred_language_style?: string | null
           preferred_social_style?: string | null
@@ -1079,7 +1097,15 @@ export type Database = {
           whatsapp_opt_in_source?: string | null
           whatsapp_opt_in_status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contacts_pilot_batch_id_fkey"
+            columns: ["pilot_batch_id"]
+            isOneToOne: false
+            referencedRelation: "pilot_batches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversation_turns: {
         Row: {
@@ -1779,6 +1805,7 @@ export type Database = {
           alert_state: string
           claimed_at: string | null
           contact_id: string | null
+          contacted_at: string | null
           conversation_excerpt: Json
           conversation_mode: string | null
           conversation_mode_reasons: Json | null
@@ -1797,9 +1824,11 @@ export type Database = {
           last_http_status: number | null
           latest_inbound_message: string | null
           manager_notified: boolean
+          manager_summary: string | null
           notes: Json
           notified_at: string | null
           notified_manager_id: string | null
+          outcome: string | null
           resolved_at: string | null
           resolved_campaign_id: string | null
           resolved_offer_id: string | null
@@ -1817,6 +1846,7 @@ export type Database = {
           alert_state?: string
           claimed_at?: string | null
           contact_id?: string | null
+          contacted_at?: string | null
           conversation_excerpt?: Json
           conversation_mode?: string | null
           conversation_mode_reasons?: Json | null
@@ -1835,9 +1865,11 @@ export type Database = {
           last_http_status?: number | null
           latest_inbound_message?: string | null
           manager_notified?: boolean
+          manager_summary?: string | null
           notes?: Json
           notified_at?: string | null
           notified_manager_id?: string | null
+          outcome?: string | null
           resolved_at?: string | null
           resolved_campaign_id?: string | null
           resolved_offer_id?: string | null
@@ -1855,6 +1887,7 @@ export type Database = {
           alert_state?: string
           claimed_at?: string | null
           contact_id?: string | null
+          contacted_at?: string | null
           conversation_excerpt?: Json
           conversation_mode?: string | null
           conversation_mode_reasons?: Json | null
@@ -1873,9 +1906,11 @@ export type Database = {
           last_http_status?: number | null
           latest_inbound_message?: string | null
           manager_notified?: boolean
+          manager_summary?: string | null
           notes?: Json
           notified_at?: string | null
           notified_manager_id?: string | null
+          outcome?: string | null
           resolved_at?: string | null
           resolved_campaign_id?: string | null
           resolved_offer_id?: string | null
@@ -2360,6 +2395,39 @@ export type Database = {
           reviewed_by?: string | null
           source_message?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      pilot_batches: {
+        Row: {
+          counts: Json
+          created_at: string
+          file_name: string
+          id: string
+          imported_by: string | null
+          launched_at: string | null
+          paused: boolean
+          updated_at: string
+        }
+        Insert: {
+          counts?: Json
+          created_at?: string
+          file_name: string
+          id?: string
+          imported_by?: string | null
+          launched_at?: string | null
+          paused?: boolean
+          updated_at?: string
+        }
+        Update: {
+          counts?: Json
+          created_at?: string
+          file_name?: string
+          id?: string
+          imported_by?: string | null
+          launched_at?: string | null
+          paused?: boolean
+          updated_at?: string
         }
         Relationships: []
       }

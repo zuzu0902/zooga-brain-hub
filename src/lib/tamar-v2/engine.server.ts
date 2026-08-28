@@ -833,10 +833,21 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       // A direct answer to a repeated customer question is legitimate; only
       // Tamar-initiated segments (questions/offers) are history-deduped.
       const answering = (decision.reason_codes ?? []).includes("answer_first");
+      // Verified links only: the active offer record is the single source of
+      // truth for anything clickable, and perks stay unpromised until real.
+      const allowedUrls = [
+        "https://www.zooga.co.il",
+        ctxPackage?.active_offer?.url,
+        ...Object.values(ctxPackage?.active_offer?.facts ?? {}),
+        ...(offers as any[]).flatMap((o) => [o?.offer_url, o?.url]),
+        ...(candidates as any[]).flatMap((o) => [o?.offer_url, o?.url, o?.registration_url]),
+      ].filter((v): v is string => typeof v === "string" && /^https?:\/\//i.test(v));
       const planned = planOutbound({
         messages: decision.messages,
         recentSignatures: answering ? [] : recentSignatures,
+        grounding: { allowedUrls, groundedPerks: [] },
       });
+
       if (planned.dropped.length) {
         decision.reason_codes = [...(decision.reason_codes ?? []), `deduped_${planned.dropped.length}`];
       }

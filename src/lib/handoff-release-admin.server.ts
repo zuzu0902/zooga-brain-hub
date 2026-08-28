@@ -22,6 +22,15 @@ export async function performContactRelease(args: {
   const { contactId, resetIntake, reason } = args.request;
 
   const before = await getLockSnapshot(contactId);
+
+  // No automatic release: while a handoff is still open the manager MUST
+  // record that contact occurred, the outcome and a summary. Tamar resumes
+  // from the full conversation plus that summary.
+  let outcome: import("@/lib/tamar-pilot/manager-outcome").ManagerOutcome | null = null;
+  if (before && before.openHandoffs > 0) {
+    const { validateManagerOutcome } = await import("@/lib/tamar-pilot/manager-outcome");
+    outcome = validateManagerOutcome(args.request.managerOutcome ?? {});
+  }
   // Idempotent: a thread nobody holds is reported, never "released" again.
   if (before && before.humanOwned === false && before.openHandoffs === 0) {
     return {
@@ -40,6 +49,19 @@ export async function performContactRelease(args: {
     trigger: "manual_release_to_tamar",
     force: true,
   });
+
+  if (outcome) {
+    const { managerResumeBrief } = await import("@/lib/tamar-pilot/manager-outcome");
+    await supabaseAdmin
+      .from("manager_handoffs" as any)
+      .update({
+        contacted_at: outcome.contacted_at,
+        outcome: outcome.outcome,
+        manager_summary: managerResumeBrief(outcome),
+      } as any)
+      .eq("contact_id", contactId)
+      .not("status", "eq", "resolved");
+  }
 
   let reset: any = null;
   if (resetIntake && res.released) {
@@ -61,7 +83,13 @@ export async function performContactRelease(args: {
     action: "release_contact_to_tamar",
     target_id: contactId,
     before_value: { lock: before, at },
-    after_value: { lock: after, reason, released: res.released, reset_intake: resetIntake },
+    after_value: {
+      lock: after,
+      reason,
+      released: res.released,
+      reset_intake: resetIntake,
+      manager_outcome: outcome,
+    },
   } as any);
   await supabaseAdmin.from("zero_loss_audit_log" as any).insert({
     actor_user_id: args.actorId,
@@ -69,8 +97,15 @@ export async function performContactRelease(args: {
     action: "release_contact_to_tamar",
     target_kind: "contact",
     target_id: contactId,
-    details: { reason, resolved_handoffs: res.resolved_handoffs, reset_intake: resetIntake, decision: res.decision, at },
+    details: {
+      reason,
+      resolved_handoffs: res.resolved_handoffs,
+      reset_intake: resetIntake,
+      decision: res.decision,
+      manager_outcome: outcome,
+      at,
+    },
   } as any);
 
-  return { ...res, already_released: false, reset };
+  return { ...res, already_released: false, reset, manager_outcome: outcome };
 }

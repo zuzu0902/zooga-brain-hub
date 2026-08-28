@@ -4,6 +4,7 @@ import { useT, useLanguage } from "@/lib/language-context";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useEffect, useState } from "react";
 import {
+  Rocket,
   LayoutDashboard,
   Users,
   Inbox,
@@ -43,6 +44,7 @@ const PRIMARY_NAV: NavEntry[] = [
   { to: "/contacts", label: "אנשים", icon: Users },
   { to: "/inbox", label: "שיחות", icon: Inbox },
   { to: "/tasks", label: "משימות", icon: CheckSquare },
+  { to: "/pilot", label: "פיילוט תמר", icon: Rocket },
   {
     label: "קמפיינים ומכירות",
     icon: Megaphone,

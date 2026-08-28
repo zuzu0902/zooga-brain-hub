@@ -84,7 +84,7 @@ export async function buildTurnContext(args: {
   const dyn = (args.contact?.dynamic_profile_fields ?? {}) as Record<string, any>;
 
   const empty: any[] = [];
-  const [interactions, facts, memories, history, decisions, handoffs, tasks] = contactId
+  const [interactions, facts, memories, history, decisions, handoffs, tasks, managerNotes] = contactId
     ? await Promise.all([
         safe(
           db()
@@ -151,8 +151,20 @@ export async function buildTurnContext(args: {
             .limit(5),
           empty,
         ),
+        // The manager's own record of the last resolved handoff — Tamar
+        // resumes from the conversation PLUS this summary.
+        safe(
+          db()
+            .from("manager_handoffs")
+            .select("manager_summary,outcome,contacted_at,resolved_at")
+            .eq("contact_id", contactId)
+            .not("resolved_at", "is", null)
+            .order("resolved_at", { ascending: false })
+            .limit(1),
+          empty,
+        ),
       ])
-    : [empty, empty, empty, empty, empty, empty, empty];
+    : [empty, empty, empty, empty, empty, empty, empty, empty];
 
   const ledger = (dyn?.["v2_offer_ledger"] ?? {}) as Record<string, any>;
   const offersSent: string[] = Array.isArray(ledger?.["link_sent_offer_ids"])
@@ -203,7 +215,13 @@ export async function buildTurnContext(args: {
       decisions: decisions as any[],
       offersPresented,
       offersSent,
-      handoff: { open: (handoffs as any[]).length > 0, reason: (handoffs as any[])[0]?.handoff_reason ?? null },
+      handoff: {
+        open: (handoffs as any[]).length > 0,
+        reason: (handoffs as any[])[0]?.handoff_reason ?? null,
+        manager_summary: (managerNotes as any[])[0]?.manager_summary ?? null,
+        manager_outcome: (managerNotes as any[])[0]?.outcome ?? null,
+        manager_contacted_at: (managerNotes as any[])[0]?.contacted_at ?? null,
+      },
       knowledge: args.knowledge ?? [],
       focus,
       activeOffer,

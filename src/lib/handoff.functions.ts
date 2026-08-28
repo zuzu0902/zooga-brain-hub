@@ -80,7 +80,17 @@ export const getContactLock = createServerFn({ method: "POST" })
  */
 export const releaseContactToTamar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { contactId: string; resetIntake?: boolean; reason?: string }) => {
+  .inputValidator((input: {
+    contactId: string;
+    resetIntake?: boolean;
+    reason?: string;
+    managerOutcome?: {
+      contacted?: boolean;
+      contactedAt?: string | null;
+      outcome?: string | null;
+      summary?: string | null;
+    } | null;
+  }) => {
     return validateReleaseInput(input);
   })
   .handler(async ({ data, context }) => {

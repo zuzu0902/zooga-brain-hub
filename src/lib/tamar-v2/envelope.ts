@@ -1,3 +1,4 @@
+import { sanitizeGrounding } from "@/lib/tamar-pilot/grounding";
 /**
  * TAMAR BRAIN V2 — outbound envelope policy (PURE, no I/O).
  *
@@ -102,10 +103,31 @@ export function planOutbound(args: {
   recentSignatures?: string[];
   /** hard exception: an explicitly documented multi-send action */
   allowMultiple?: boolean;
+  /** verified links + grounded perks; when given, ungrounded content is stripped */
+  grounding?: { allowedUrls: string[]; groundedPerks?: string[] };
 }): { messages: OutboundMessage[]; dropped: Array<{ signature: string; reason: string }> } {
   const first = dedupeSegments(args.messages, args.recentSignatures ?? []);
-  if (args.allowMultiple) return { messages: first.kept, dropped: first.dropped };
-  const envelope = toSingleEnvelope(first.kept);
-  const second = dedupeSegments(envelope, []);
-  return { messages: second.kept, dropped: [...first.dropped, ...second.dropped] };
+  const base = args.allowMultiple ? first.kept : toSingleEnvelope(first.kept);
+  const second = args.allowMultiple ? { kept: base, dropped: [] as Array<{ signature: string; reason: string }> } : dedupeSegments(base, []);
+  const dropped = [...first.dropped, ...second.dropped];
+  if (!args.grounding) return { messages: second.kept, dropped };
+
+  // Last-moment product guard: never send an unverified link, never promise a
+  // perk that is not a real configured offer.
+  const kept: OutboundMessage[] = [];
+  for (const m of second.kept) {
+    if (m.kind !== "text") {
+      kept.push(m);
+      continue;
+    }
+    const res = sanitizeGrounding(String((m as any).body ?? ""), args.grounding);
+    if (!res.violations.length) {
+      kept.push(m);
+      continue;
+    }
+    if (res.text) kept.push({ ...(m as any), body: res.text });
+    dropped.push({ signature: segmentSignature(m), reason: `grounding:${res.violations.join("|")}` });
+  }
+  return { messages: kept, dropped };
 }
+
