@@ -41,14 +41,16 @@ export type ContinuityDecision = {
   resolution: OfferResolution;
 };
 
-/** Strongest UNAMBIGUOUS explicit match from the current inbound only. */
+/** Strongest UNAMBIGUOUS explicit match from the current inbound only.
+ *  Threshold 4 catches a named destination inside a title ("לונדון"),
+ *  while a tie (two equally scored offers) is never treated as explicit. */
 export function explicitOfferMention(
   message: string,
   offers: OfferKnowledge[],
 ): OfferKnowledge | null {
   const scored = offers
     .map((o) => ({ o, s: scoreOffer(message, o) }))
-    .filter((x) => x.s >= 8)
+    .filter((x) => x.s >= 4)
     .sort((a, b) => b.s - a.s);
   if (!scored.length) return null;
   if (scored[1] && scored[1].s === scored[0]!.s) return null; // genuine tie
