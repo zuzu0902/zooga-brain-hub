@@ -975,7 +975,9 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         .map((t) => questionSignature(t.text));
       // A direct answer to a repeated customer question is legitimate; only
       // Tamar-initiated segments (questions/offers) are history-deduped.
-      const answering = (decision.reason_codes ?? []).includes("answer_first");
+      const answering =
+        (decision.reason_codes ?? []).includes("answer_first") ||
+        (orchestrator.applies && orchestrator.action !== "recommend_products");
       // Verified links only: the active offer record is the single source of
       // truth for anything clickable, and perks stay unpromised until real.
       const allowedUrls = [
