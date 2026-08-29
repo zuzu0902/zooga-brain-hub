@@ -342,7 +342,8 @@ describe("B. London balance follow-up", () => {
 
 describe("C/D. recommendations only on an explicit request", () => {
   it("permits alternatives for 'מה עוד יש חוץ מלונדון?'", async () => {
-    await turn("מה עוד יש חוץ מלונדון?", "wamid.sro.c");
+    const r: any = await turn("מה עוד יש חוץ מלונדון?", "wamid.sro.c");
+    console.log("DBG", JSON.stringify(r?.reason_codes ?? r), (db["offers"]||[]).length);
     expect(sent).toHaveLength(1);
     expect(sent[0]!.body).toContain("וייטנאם");
   });
