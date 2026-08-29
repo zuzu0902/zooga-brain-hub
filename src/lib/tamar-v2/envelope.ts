@@ -94,6 +94,46 @@ export function toSingleEnvelope(messages: OutboundMessage[], limit = MAX_BODY):
   return splitBody(merged, limit).map((b) => ({ kind: "text", body: b }) as OutboundMessage);
 }
 
+/** Canonical form used only for COMPARING two URLs (never for rewriting). */
+export function canonicalUrl(url: string): string {
+  return String(url ?? "")
+    .trim()
+    .replace(/[).,;!?'"׳״]+$/u, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+}
+
+/**
+ * Deterministic URL deduplication at the send boundary: the SAME canonical
+ * URL may appear only ONCE per outbound envelope. The first occurrence keeps
+ * its exact original text and position; later repeats are removed, together
+ * with the whitespace/line that only carried them.
+ */
+export function dedupeUrlsInBody(body: string, seen: Set<string> = new Set()): string {
+  const text = String(body ?? "");
+  if (!text) return text;
+  const out = text.replace(/https?:\/\/[^\s<>"')\]]+/gi, (m) => {
+    const key = canonicalUrl(m);
+    if (seen.has(key)) return "\u0000";
+    seen.add(key);
+    return m;
+  });
+  return out
+    .split("\n")
+    .map((line) => line.replace(/\u0000/g, "").replace(/[ \t]{2,}/g, " ").trimEnd())
+    .filter((line, i, arr) => !(line.trim() === "" && arr[i - 1]?.trim() === ""))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function dedupeUrls(messages: OutboundMessage[]): OutboundMessage[] {
+  const seen = new Set<string>();
+  return messages
+    .map((m) => ({ ...m, body: dedupeUrlsInBody(String((m as any).body ?? ""), seen) }) as OutboundMessage)
+    .filter((m) => String((m as any).body ?? "").trim() || m.kind !== "text");
+}
+
 /**
  * Final outbound plan: dedupe -> single envelope -> dedupe again (a split
  * can only ever produce distinct parts, but the invariant is cheap to keep).
@@ -110,7 +150,8 @@ export function planOutbound(args: {
   const base = args.allowMultiple ? first.kept : toSingleEnvelope(first.kept);
   const second = args.allowMultiple ? { kept: base, dropped: [] as Array<{ signature: string; reason: string }> } : dedupeSegments(base, []);
   const dropped = [...first.dropped, ...second.dropped];
-  if (!args.grounding) return { messages: second.kept, dropped };
+  if (!args.grounding) return { messages: dedupeUrls(second.kept), dropped };
+
 
   // Last-moment product guard: never send an unverified link, never promise a
   // perk that is not a real configured offer.
@@ -128,6 +169,6 @@ export function planOutbound(args: {
     if (res.text) kept.push({ ...(m as any), body: res.text });
     dropped.push({ signature: segmentSignature(m), reason: `grounding:${res.violations.join("|")}` });
   }
-  return { messages: kept, dropped };
+  return { messages: dedupeUrls(kept), dropped };
 }
 

@@ -1071,9 +1071,14 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       // ---- Conversation Progress Guard ------------------------------
       // The engine may not repeat a question it already asked. A second
       // attempt is rephrased once; a third becomes an open recovery turn.
+      // A deterministic control path (reset / consent / opt-out / handoff)
+      // is canonical copy: the progress guard may never rephrase it or
+      // prepend intake framing to it.
       const { guardOutbound } = await import("@/lib/conversation-guard/guard.server");
-      const first = planned.messages[0];
+      const first = controlPath ? null : planned.messages[0];
       const guard = first
+
+
         ? await guardOutbound({
             contactId: contact.id,
             phone: to,
