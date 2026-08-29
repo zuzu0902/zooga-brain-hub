@@ -770,6 +770,18 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     ...(planOutcome?.violations ?? []).slice(0, 3).map((v) => `plan_violation_${v.split(":")[0]}`),
   ];
 
+  // ---- DETERMINISTIC CONTROL PATHS ---------------------------------------
+  // Reset, consent, opt-out and handoff are control instructions, not
+  // generative turns: they are decided here, before the orchestrator, and
+  // their deterministic Hebrew copy is always delivered.
+  const controlPath: ControlPath | null = detectControlPath({
+    resetRequested,
+    state,
+    wantsHuman: interpretation.wants_human || wantsHuman(message),
+    optOut: isExplicitOptOut(message),
+  });
+  let emptyBodyGuard: string | null = null;
+
   // ---- SINGLE RESPONSE ORCHESTRATOR --------------------------------------
   // ONE primary action, ONE composed payload. Every legacy post-answer
   // composer (recommendation concatenation, intake appender, catalog
