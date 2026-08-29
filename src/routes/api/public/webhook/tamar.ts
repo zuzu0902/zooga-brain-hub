@@ -310,12 +310,10 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             source: "meta_whatsapp",
             status: "received",
             payload: {
-              inbound_message_id: msg.wamid,
+              ...receipt,
               from_present: !!msg.from,
               has_text: !!msg.text,
               type: msg.type,
-              has_audio: !!msg.audio,
-              ...receipt,
             },
           } as any);
 
