@@ -28,10 +28,18 @@ import { knownFieldsFromContact, loadAgentVersion, loadSellableOffers } from "./
 import { interpret } from "./interpreter.server";
 import { interpretDeterministic } from "./interpret-rules";
 import { deriveState, marketingAllowed } from "./state-machine";
-import { isUserQuestion } from "./classify";
+import { isUserQuestion, isExplicitOptOut } from "./classify";
 import { wantsHuman } from "./classify";
 import { ORCHESTRATOR_VERSION, selectResponseAction } from "./response-orchestrator";
-import { guardResponse, stripLeakedLines } from "./response-guard";
+import { guardResponse, buildDeterministicOfferAnswer } from "./response-guard";
+import {
+  SAFE_CLARIFY_TEXT,
+  SAFE_ERROR_TEXT,
+  detectControlPath,
+  finalBodyGuard,
+  hasDanglingAnaphora,
+  type ControlPath,
+} from "./control-path";
 
 import {
   HONEST_UNKNOWN,
@@ -762,6 +770,18 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     ...(planOutcome?.violations ?? []).slice(0, 3).map((v) => `plan_violation_${v.split(":")[0]}`),
   ];
 
+  // ---- DETERMINISTIC CONTROL PATHS ---------------------------------------
+  // Reset, consent, opt-out and handoff are control instructions, not
+  // generative turns: they are decided here, before the orchestrator, and
+  // their deterministic Hebrew copy is always delivered.
+  const controlPath: ControlPath | null = detectControlPath({
+    resetRequested,
+    state,
+    wantsHuman: interpretation.wants_human || wantsHuman(message),
+    optOut: isExplicitOptOut(message),
+  });
+  let emptyBodyGuard: string | null = null;
+
   // ---- SINGLE RESPONSE ORCHESTRATOR --------------------------------------
   // ONE primary action, ONE composed payload. Every legacy post-answer
   // composer (recommendation concatenation, intake appender, catalog
@@ -790,7 +810,25 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     id: String(c.id),
     title: String((c as any).title ?? ""),
     url: (c as any).offer_url ?? null,
+    aliases: ((c as any).matching_tags ?? []) as string[],
+    facts: [
+      ...Object.values(((c as any).grounded_facts ?? {}) as Record<string, unknown>).map((v) => String(v ?? "")),
+      String((c as any).ai_summary ?? ""),
+      ...(((c as any).included ?? []) as string[]),
+    ].filter(Boolean),
   }));
+  /** Complete, subject-first grounded answer used when generation fails. */
+  const deterministicOfferAnswer = (): string | null => {
+    const off = (resolved ?? activeOffer) as OfferKnowledge | null;
+    if (!off) return null;
+    return buildDeterministicOfferAnswer({
+      title: off.title,
+      url: off.offer_url,
+      facts: Object.entries((off.grounded_facts ?? {}) as Record<string, unknown>)
+        .filter(([, v]) => v !== null && v !== undefined && String(v).trim())
+        .map(([k, v]) => ({ label: String(k), value: String(v) })),
+    });
+  };
   let finalAnswer: string | null = answerText;
   let selectedOfferIds: string[] = orchestrator.offer_ids;
   let terminalAskStepKey: string | null = null;
@@ -799,8 +837,10 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     ...orchestrator.reasons.map((r) => `orchestrator_reason_${r}`),
   ];
   let guardCodes: string[] = [];
+  let recoveryMode: string | null = null;
 
   if (orchestrator.applies) {
+    let intakeQuestion: string | null = null;
     if (orchestrator.action === "recommend_products") {
       const rec = buildRecommendationText({
         offers,
@@ -815,6 +855,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           (s) => s.enabled && (s.field_key ?? s.step_key) === orchestrator.intake_key,
         ) ?? nextStep(agent, knownFields, "intake");
       if (step) {
+        intakeQuestion = step.question_text;
         finalAnswer = `${answerText}\n\n${step.question_text}`;
         terminalAskStepKey = step.step_key;
       }
@@ -824,16 +865,18 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     const allowedOfferIds = Array.from(
       new Set([...selectedOfferIds, activeOfferId, resolved?.id ?? null].filter(Boolean) as string[]),
     );
-    let guard = guardResponse({
-      text: finalAnswer ?? "",
-      action: orchestrator.action,
-      allowedOfferIds,
-      catalog: guardCatalog,
-    });
+    const runGuard = (text: string | null) =>
+      guardResponse({
+        text: text ?? "",
+        action: orchestrator.action,
+        allowedOfferIds,
+        catalog: guardCatalog,
+      });
+    let guard = runGuard(finalAnswer);
     guardCodes = guard.reason_codes;
     if (!guard.ok && finalAnswer) {
-      // ONE regeneration inside the SAME selected action, then a concise
-      // safe answer. Never a silent repair by appending more text.
+      // ONE regeneration inside the SAME selected action, with allowed
+      // grounding only. Never a silent repair, never line stripping.
       if (!input.offline && resolved) {
         const regenerated = await writeGroundedAnswer({
           agent,
@@ -845,23 +888,47 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           complexity,
         }).catch(() => null);
         if (regenerated) {
-          finalAnswer = regenerated;
-          guard = guardResponse({
-            text: finalAnswer,
-            action: orchestrator.action,
-            allowedOfferIds,
-            catalog: guardCatalog,
-          });
+          finalAnswer = intakeQuestion ? `${regenerated}\n\n${intakeQuestion}` : regenerated;
+          guard = runGuard(finalAnswer);
           guardCodes = [...guardCodes, "guard_regenerated", ...guard.reason_codes];
+          recoveryMode = "regenerated";
         }
       }
       if (!guard.ok) {
-        const stripped = stripLeakedLines({ text: finalAnswer ?? "", allowedOfferIds, catalog: guardCatalog });
-        finalAnswer = stripped || answerText;
-        guardCodes = [...guardCodes, "guard_safe_fallback"];
+        // COMPLETE deterministic grounded answer from the allowed offer, or
+        // one concise clarification. Never a stripped fragment.
+        const deterministic = deterministicOfferAnswer();
+        finalAnswer = deterministic
+          ? intakeQuestion
+            ? `${deterministic}\n\n${intakeQuestion}`
+            : deterministic
+          : SAFE_CLARIFY_TEXT;
+        recoveryMode = deterministic ? "deterministic_offer_answer" : "safe_clarification";
+        guardCodes = [...guardCodes, `guard_recovery_${recoveryMode}`];
       }
     }
+
+    // ---- Completeness guard: never send a subject-less fragment ----------
+    if (hasDanglingAnaphora(finalAnswer)) {
+      const deterministic = deterministicOfferAnswer();
+      finalAnswer = deterministic
+        ? intakeQuestion
+          ? `${deterministic}\n\n${intakeQuestion}`
+          : deterministic
+        : SAFE_CLARIFY_TEXT;
+      recoveryMode = deterministic ? "completeness_offer_answer" : "completeness_clarification";
+      guardCodes = [...guardCodes, `completeness_guard_${recoveryMode}`];
+    }
+
+    // ---- Empty payload: never let a blank body reach the send path -------
+    if (!String(finalAnswer ?? "").trim()) {
+      const deterministic = deterministicOfferAnswer();
+      finalAnswer = deterministic ?? SAFE_ERROR_TEXT;
+      recoveryMode = recoveryMode ?? (deterministic ? "empty_offer_answer" : "empty_safe_error");
+      guardCodes = [...guardCodes, "guard_empty_payload"];
+    }
   }
+
 
   const orchestratorTerminal = orchestrator.applies && !!finalAnswer;
 
@@ -975,7 +1042,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         .map((t) => questionSignature(t.text));
       // A direct answer to a repeated customer question is legitimate; only
       // Tamar-initiated segments (questions/offers) are history-deduped.
+      // A deterministic control path (reset / consent / opt-out / handoff)
+      // is ALWAYS delivered: its canonical copy repeats by design and must
+      // never be deduplicated into an empty envelope.
       const answering =
+        !!controlPath ||
         (decision.reason_codes ?? []).includes("answer_first") ||
         (orchestrator.applies && orchestrator.action !== "recommend_products");
       // Verified links only: the active offer record is the single source of
@@ -1029,6 +1100,20 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         decision.reason_codes = [...(decision.reason_codes ?? []), `guard_${guard.verdict}`];
       }
 
+      // ---- FINAL INVARIANT: no empty/whitespace body may be sent --------
+      const bodyCheck = finalBodyGuard({
+        bodies: outgoing.map((m) => messageText(m)),
+        controlPath,
+        controlText: decision.messages.map(messageText).find((b) => b.trim()) ?? null,
+        safeText: finalAnswer ?? answerText ?? SAFE_ERROR_TEXT,
+      });
+      if (!bodyCheck.ok && bodyCheck.replacement) {
+        outgoing = [{ kind: "text", body: bodyCheck.replacement } as OutboundMessage];
+        emptyBodyGuard = bodyCheck.reason;
+        decision.reason_codes = [...(decision.reason_codes ?? []), bodyCheck.reason ?? "empty_body_guard"];
+      }
+
+
       // ---- Idempotent CRM + memory writeback (one per inbound id) -----
       // Reuses the structured interpretation already produced; no extra
       // model call. A retry of the same wamid writes nothing.
@@ -1068,6 +1153,10 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           guard: guardCodes,
           fallback_reason: guardCodes.includes("guard_safe_fallback") ? "guard_safe_fallback" : null,
           regenerated: guardCodes.includes("guard_regenerated"),
+          control_path: controlPath,
+          empty_body_guard: emptyBodyGuard,
+          recovery_mode: recoveryMode,
+          completeness_guard: guardCodes.some((c) => c.startsWith("completeness_guard")),
         },
         summary: writeback && !writeback.skipped ? writeback.summary : null,
         focus: updatedFocus,
@@ -1115,6 +1204,10 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           guard: guardCodes,
           fallback_reason: guardCodes.includes("guard_safe_fallback") ? "guard_safe_fallback" : null,
           regenerated: guardCodes.includes("guard_regenerated"),
+          control_path: controlPath,
+          empty_body_guard: emptyBodyGuard,
+          recovery_mode: recoveryMode,
+          completeness_guard: guardCodes.some((c) => c.startsWith("completeness_guard")),
         },
         focus: updatedFocus,
         contextSnapshotId,
@@ -1161,6 +1254,10 @@ async function persistTurn(args: {
     guard: string[];
     fallback_reason: string | null;
     regenerated: boolean;
+    control_path?: string | null;
+    empty_body_guard?: string | null;
+    recovery_mode?: string | null;
+    completeness_guard?: boolean;
   };
   /** compact rolling conversation summary produced by the writeback pass */
   summary?: string | null;
@@ -1310,6 +1407,11 @@ async function persistTurn(args: {
         guard_result: args.orchestrator?.guard ?? [],
         guard_fallback_reason: args.orchestrator?.fallback_reason ?? null,
         guard_regenerated: !!args.orchestrator?.regenerated,
+        control_path: args.orchestrator?.control_path ?? null,
+        empty_body_guard: args.orchestrator?.empty_body_guard ?? null,
+        recovery_mode: args.orchestrator?.recovery_mode ?? null,
+        completeness_guard: !!args.orchestrator?.completeness_guard,
+        semantic_guard: args.orchestrator?.guard ?? [],
         final_envelope_count: args.outbound.length,
         deployment_sha: process.env["DEPLOYMENT_SHA"] ?? process.env["CF_VERSION_METADATA_ID"] ?? null,
       },
