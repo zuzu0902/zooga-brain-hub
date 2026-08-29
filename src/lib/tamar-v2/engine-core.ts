@@ -476,12 +476,19 @@ export function decideTurn(input: TurnInput): TurnDecision {
 
 
   // 9. Recommendation — only sellable offers, capped, never the whole catalog.
+  //    In the production runtime this path is reachable ONLY when the Single
+  //    Response Orchestrator selected `recommend_products`
+  //    (`allowRecommendation`). It can never append a catalog after an answer.
   const wantsOffers =
     interp.intent === "browse_offers" ||
     interp.intent === "offer_interest" ||
     /(טיול|הצעה|הצעות|מה\s+יש|אירוע|חופשה)/.test(msg);
   const enoughContext = answeredCount >= 2 || Object.keys(known).length >= 3;
-  const canMarket = marketingAllowed(input.state) && interp.confidence >= safety.min_confidence_marketing;
+  const canMarket =
+    input.allowRecommendation !== false &&
+    marketingAllowed(input.state) &&
+    interp.confidence >= safety.min_confidence_marketing;
+
 
   if (canMarket && wantsOffers && !input.offers.length) {
     messages.push(text(COPY.no_offer_honest));
