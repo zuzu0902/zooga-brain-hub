@@ -370,13 +370,41 @@ export function decideTurn(input: TurnInput): TurnDecision {
     });
   }
 
-  // 6b. Terminal answer (sensitive handoff / single clarification / grounded
-  //     answer that closes the turn). Nothing may be appended after it.
+  // ---- consented / intake_active / recommendation_ready / value_delivered ----
+  const captured: Record<string, string> = {};
+  if (input.pendingStepKey) {
+    const step = input.agent.steps.find((s) => s.step_key === input.pendingStepKey);
+    const key = step?.field_key ?? step?.step_key ?? null;
+    if (key) {
+      const optValue = input.optionValue?.trim();
+      const entity = interp.entities?.[key];
+      // A tapped button always captures: by resolved value, else by its title.
+      const fromMessage = msg && (step?.presentation === "text" || !!input.optionId) ? msg : "";
+      const value = optValue || entity || fromMessage;
+      if (value) captured[key] = String(value).slice(0, 300);
+    }
+  }
+  for (const [k, v] of Object.entries(interp.entities ?? {})) {
+    if (v && !captured[k]) captured[k] = String(v).slice(0, 300);
+  }
+  const known = { ...input.knownFields, ...captured };
+  const answeredCount = input.answeredCount + (Object.keys(captured).length ? 1 : 0);
+
+  // 6b. Terminal answer — the Single Response Orchestrator already composed
+  //     the entire reply (answer, optional single intake question, optional
+  //     grounded recommendation). Nothing may be appended after it.
   if (input.terminalAnswer && input.answerText) {
+    const askKey = input.terminalAskStepKey ?? null;
     return baseDecision(input, {
+      next_state: askKey ? target(input, "intake_active") : input.state,
       messages: [text(input.answerText)],
-      actions: input.terminalActions ?? [],
-      ask_step_key: null,
+      actions: [
+        ...(Object.keys(captured).length ? (["capture_field"] as TurnDecision["actions"]) : []),
+        ...(input.terminalActions ?? []),
+      ],
+      captured,
+      offer_ids: input.terminalOfferIds ?? [],
+      ask_step_key: askKey,
       marketing_allowed: false,
       ambiguity_turns: 0,
       reason_codes: [input.terminalReason ?? "terminal_answer"],
@@ -399,25 +427,6 @@ export function decideTurn(input: TurnInput): TurnDecision {
     });
   }
 
-  // ---- consented / intake_active / recommendation_ready / value_delivered ----
-  const captured: Record<string, string> = {};
-  if (input.pendingStepKey) {
-    const step = input.agent.steps.find((s) => s.step_key === input.pendingStepKey);
-    const key = step?.field_key ?? step?.step_key ?? null;
-    if (key) {
-      const optValue = input.optionValue?.trim();
-      const entity = interp.entities?.[key];
-      // A tapped button always captures: by resolved value, else by its title.
-      const fromMessage = msg && (step?.presentation === "text" || !!input.optionId) ? msg : "";
-      const value = optValue || entity || fromMessage;
-      if (value) captured[key] = String(value).slice(0, 300);
-    }
-  }
-  for (const [k, v] of Object.entries(interp.entities ?? {})) {
-    if (v && !captured[k]) captured[k] = String(v).slice(0, 300);
-  }
-  const known = { ...input.knownFields, ...captured };
-  const answeredCount = input.answeredCount + (Object.keys(captured).length ? 1 : 0);
 
   const messages: OutboundMessage[] = [];
   const reason: string[] = [];
