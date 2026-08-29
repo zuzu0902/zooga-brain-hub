@@ -1076,6 +1076,8 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       // prepend intake framing to it.
       const { guardOutbound } = await import("@/lib/conversation-guard/guard.server");
       const first = controlPath ? null : planned.messages[0];
+      const guard = first
+
 
         ? await guardOutbound({
             contactId: contact.id,
