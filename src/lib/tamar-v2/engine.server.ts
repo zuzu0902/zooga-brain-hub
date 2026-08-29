@@ -798,7 +798,25 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     id: String(c.id),
     title: String((c as any).title ?? ""),
     url: (c as any).offer_url ?? null,
+    aliases: ((c as any).matching_tags ?? []) as string[],
+    facts: [
+      ...Object.values(((c as any).grounded_facts ?? {}) as Record<string, unknown>).map((v) => String(v ?? "")),
+      String((c as any).ai_summary ?? ""),
+      ...(((c as any).included ?? []) as string[]),
+    ].filter(Boolean),
   }));
+  /** Complete, subject-first grounded answer used when generation fails. */
+  const deterministicOfferAnswer = (): string | null => {
+    const off = (resolved ?? activeOffer) as OfferKnowledge | null;
+    if (!off) return null;
+    return buildDeterministicOfferAnswer({
+      title: off.title,
+      url: off.offer_url,
+      facts: Object.entries((off.grounded_facts ?? {}) as Record<string, unknown>)
+        .filter(([, v]) => v !== null && v !== undefined && String(v).trim())
+        .map(([k, v]) => ({ label: String(k), value: String(v) })),
+    });
+  };
   let finalAnswer: string | null = answerText;
   let selectedOfferIds: string[] = orchestrator.offer_ids;
   let terminalAskStepKey: string | null = null;
@@ -807,8 +825,10 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     ...orchestrator.reasons.map((r) => `orchestrator_reason_${r}`),
   ];
   let guardCodes: string[] = [];
+  let recoveryMode: string | null = null;
 
   if (orchestrator.applies) {
+    let intakeQuestion: string | null = null;
     if (orchestrator.action === "recommend_products") {
       const rec = buildRecommendationText({
         offers,
@@ -823,6 +843,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           (s) => s.enabled && (s.field_key ?? s.step_key) === orchestrator.intake_key,
         ) ?? nextStep(agent, knownFields, "intake");
       if (step) {
+        intakeQuestion = step.question_text;
         finalAnswer = `${answerText}\n\n${step.question_text}`;
         terminalAskStepKey = step.step_key;
       }
@@ -832,16 +853,18 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     const allowedOfferIds = Array.from(
       new Set([...selectedOfferIds, activeOfferId, resolved?.id ?? null].filter(Boolean) as string[]),
     );
-    let guard = guardResponse({
-      text: finalAnswer ?? "",
-      action: orchestrator.action,
-      allowedOfferIds,
-      catalog: guardCatalog,
-    });
+    const runGuard = (text: string | null) =>
+      guardResponse({
+        text: text ?? "",
+        action: orchestrator.action,
+        allowedOfferIds,
+        catalog: guardCatalog,
+      });
+    let guard = runGuard(finalAnswer);
     guardCodes = guard.reason_codes;
     if (!guard.ok && finalAnswer) {
-      // ONE regeneration inside the SAME selected action, then a concise
-      // safe answer. Never a silent repair by appending more text.
+      // ONE regeneration inside the SAME selected action, with allowed
+      // grounding only. Never a silent repair, never line stripping.
       if (!input.offline && resolved) {
         const regenerated = await writeGroundedAnswer({
           agent,
@@ -853,23 +876,47 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           complexity,
         }).catch(() => null);
         if (regenerated) {
-          finalAnswer = regenerated;
-          guard = guardResponse({
-            text: finalAnswer,
-            action: orchestrator.action,
-            allowedOfferIds,
-            catalog: guardCatalog,
-          });
+          finalAnswer = intakeQuestion ? `${regenerated}\n\n${intakeQuestion}` : regenerated;
+          guard = runGuard(finalAnswer);
           guardCodes = [...guardCodes, "guard_regenerated", ...guard.reason_codes];
+          recoveryMode = "regenerated";
         }
       }
       if (!guard.ok) {
-        const stripped = stripLeakedLines({ text: finalAnswer ?? "", allowedOfferIds, catalog: guardCatalog });
-        finalAnswer = stripped || answerText;
-        guardCodes = [...guardCodes, "guard_safe_fallback"];
+        // COMPLETE deterministic grounded answer from the allowed offer, or
+        // one concise clarification. Never a stripped fragment.
+        const deterministic = deterministicOfferAnswer();
+        finalAnswer = deterministic
+          ? intakeQuestion
+            ? `${deterministic}\n\n${intakeQuestion}`
+            : deterministic
+          : SAFE_CLARIFY_TEXT;
+        recoveryMode = deterministic ? "deterministic_offer_answer" : "safe_clarification";
+        guardCodes = [...guardCodes, `guard_recovery_${recoveryMode}`];
       }
     }
+
+    // ---- Completeness guard: never send a subject-less fragment ----------
+    if (hasDanglingAnaphora(finalAnswer)) {
+      const deterministic = deterministicOfferAnswer();
+      finalAnswer = deterministic
+        ? intakeQuestion
+          ? `${deterministic}\n\n${intakeQuestion}`
+          : deterministic
+        : SAFE_CLARIFY_TEXT;
+      recoveryMode = deterministic ? "completeness_offer_answer" : "completeness_clarification";
+      guardCodes = [...guardCodes, `completeness_guard_${recoveryMode}`];
+    }
+
+    // ---- Empty payload: never let a blank body reach the send path -------
+    if (!String(finalAnswer ?? "").trim()) {
+      const deterministic = deterministicOfferAnswer();
+      finalAnswer = deterministic ?? SAFE_ERROR_TEXT;
+      recoveryMode = recoveryMode ?? (deterministic ? "empty_offer_answer" : "empty_safe_error");
+      guardCodes = [...guardCodes, "guard_empty_payload"];
+    }
   }
+
 
   const orchestratorTerminal = orchestrator.applies && !!finalAnswer;
 
