@@ -25,7 +25,8 @@ export function isConversationResetRequest(message: string | null | undefined): 
  * offers, no unsolicited questions.
  */
 export const RESET_ACK_TEXT =
-  "בשמחה, מתחילים מחדש 🙂 ניקיתי את מה שהיה פתוח בשיחה שלנו. מה הכי מעניין אותך עכשיו?";
+  "בשמחה, מתחילים מחדש 🙂 ניקיתי את הנושא שהיה פתוח. מה מעניין אותך עכשיו?";
+
 
 /** Volatile working-state keys cleared by a reset. */
 export const RESET_CLEAR_KEYS = [
