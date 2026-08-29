@@ -28,7 +28,7 @@ import { knownFieldsFromContact, loadAgentVersion, loadSellableOffers } from "./
 import { interpret } from "./interpreter.server";
 import { interpretDeterministic } from "./interpret-rules";
 import { deriveState, marketingAllowed } from "./state-machine";
-import { isUserQuestion } from "./classify";
+import { isUserQuestion, isExplicitOptOut } from "./classify";
 import { wantsHuman } from "./classify";
 import { ORCHESTRATOR_VERSION, selectResponseAction } from "./response-orchestrator";
 import { guardResponse, buildDeterministicOfferAnswer } from "./response-guard";
@@ -1153,6 +1153,10 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           guard: guardCodes,
           fallback_reason: guardCodes.includes("guard_safe_fallback") ? "guard_safe_fallback" : null,
           regenerated: guardCodes.includes("guard_regenerated"),
+          control_path: controlPath,
+          empty_body_guard: emptyBodyGuard,
+          recovery_mode: recoveryMode,
+          completeness_guard: guardCodes.some((c) => c.startsWith("completeness_guard")),
         },
         summary: writeback && !writeback.skipped ? writeback.summary : null,
         focus: updatedFocus,
@@ -1200,6 +1204,10 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           guard: guardCodes,
           fallback_reason: guardCodes.includes("guard_safe_fallback") ? "guard_safe_fallback" : null,
           regenerated: guardCodes.includes("guard_regenerated"),
+          control_path: controlPath,
+          empty_body_guard: emptyBodyGuard,
+          recovery_mode: recoveryMode,
+          completeness_guard: guardCodes.some((c) => c.startsWith("completeness_guard")),
         },
         focus: updatedFocus,
         contextSnapshotId,
@@ -1246,6 +1254,10 @@ async function persistTurn(args: {
     guard: string[];
     fallback_reason: string | null;
     regenerated: boolean;
+    control_path?: string | null;
+    empty_body_guard?: string | null;
+    recovery_mode?: string | null;
+    completeness_guard?: boolean;
   };
   /** compact rolling conversation summary produced by the writeback pass */
   summary?: string | null;
@@ -1395,6 +1407,11 @@ async function persistTurn(args: {
         guard_result: args.orchestrator?.guard ?? [],
         guard_fallback_reason: args.orchestrator?.fallback_reason ?? null,
         guard_regenerated: !!args.orchestrator?.regenerated,
+        control_path: args.orchestrator?.control_path ?? null,
+        empty_body_guard: args.orchestrator?.empty_body_guard ?? null,
+        recovery_mode: args.orchestrator?.recovery_mode ?? null,
+        completeness_guard: !!args.orchestrator?.completeness_guard,
+        semantic_guard: args.orchestrator?.guard ?? [],
         final_envelope_count: args.outbound.length,
         deployment_sha: process.env["DEPLOYMENT_SHA"] ?? process.env["CF_VERSION_METADATA_ID"] ?? null,
       },
