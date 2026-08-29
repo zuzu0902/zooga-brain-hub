@@ -759,6 +759,109 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     ...(planOutcome?.violations ?? []).slice(0, 3).map((v) => `plan_violation_${v.split(":")[0]}`),
   ];
 
+  // ---- SINGLE RESPONSE ORCHESTRATOR --------------------------------------
+  // ONE primary action, ONE composed payload. Every legacy post-answer
+  // composer (recommendation concatenation, intake appender, catalog
+  // fallback) is disabled for the turns this owns.
+  const orchestrator = selectResponseAction({
+    message,
+    isQuestion: asksSomething,
+    intent: interpretation.intent,
+    wantsHuman: interpretation.wants_human || wantsHuman(message),
+    state,
+    resetRequested,
+    groundingPath,
+    answerText,
+    activeOfferId,
+    resolvedOfferId: resolved?.id ?? null,
+    planValid: planFromModel,
+    planAskIntake: composition.askIntake,
+    planIntakeKey: plan.intake_question_key,
+    missingIntakeKeys: intakeMissing,
+    catalogSize: (offers as any[]).length,
+    marketingAllowed: marketingAllowed(state),
+    hasVerifiedLink: !!(resolved?.offer_url ?? activeOffer?.offer_url),
+  });
+
+  const guardCatalog = candidates.map((c) => ({
+    id: String(c.id),
+    title: String((c as any).title ?? ""),
+    url: (c as any).offer_url ?? null,
+  }));
+  let finalAnswer: string | null = answerText;
+  let selectedOfferIds: string[] = orchestrator.offer_ids;
+  let terminalAskStepKey: string | null = null;
+  const orchestratorCodes: string[] = [
+    `orchestrator_${orchestrator.action}`,
+    ...orchestrator.reasons.map((r) => `orchestrator_reason_${r}`),
+  ];
+  let guardCodes: string[] = [];
+
+  if (orchestrator.applies) {
+    if (orchestrator.action === "recommend_products") {
+      const rec = buildRecommendationText({
+        offers,
+        maxOffers: agent.safety.max_offers ?? 2,
+        excludeOfferIds: [activeOfferId, resolved?.id ?? null].filter(Boolean) as string[],
+      });
+      finalAnswer = [answerText, rec.text].filter(Boolean).join("\n\n");
+      selectedOfferIds = rec.ids;
+    } else if (orchestrator.action === "answer_and_ask_one_intake_question" && answerText) {
+      const step =
+        agent.steps.find(
+          (s) => s.enabled && (s.field_key ?? s.step_key) === orchestrator.intake_key,
+        ) ?? nextStep(agent, knownFields, "intake");
+      if (step) {
+        finalAnswer = `${answerText}\n\n${step.question_text}`;
+        terminalAskStepKey = step.step_key;
+      }
+    }
+
+    // ---- Final semantic response guard (deterministic first) -------------
+    const allowedOfferIds = Array.from(
+      new Set([...selectedOfferIds, activeOfferId, resolved?.id ?? null].filter(Boolean) as string[]),
+    );
+    let guard = guardResponse({
+      text: finalAnswer ?? "",
+      action: orchestrator.action,
+      allowedOfferIds,
+      catalog: guardCatalog,
+    });
+    guardCodes = guard.reason_codes;
+    if (!guard.ok && finalAnswer) {
+      // ONE regeneration inside the SAME selected action, then a concise
+      // safe answer. Never a silent repair by appending more text.
+      if (!input.offline && resolved) {
+        const regenerated = await writeGroundedAnswer({
+          agent,
+          message: `${message}\n\n(ענִי אך ורק על "${resolved.title}". אסור להזכיר מוצר או יעד אחר.)`,
+          facts: [],
+          offers,
+          offerBlock: buildOfferGroundingBlock(resolved),
+          infoOnly: !availability.sellable,
+          complexity,
+        }).catch(() => null);
+        if (regenerated) {
+          finalAnswer = regenerated;
+          guard = guardResponse({
+            text: finalAnswer,
+            action: orchestrator.action,
+            allowedOfferIds,
+            catalog: guardCatalog,
+          });
+          guardCodes = [...guardCodes, "guard_regenerated", ...guard.reason_codes];
+        }
+      }
+      if (!guard.ok) {
+        const stripped = stripLeakedLines({ text: finalAnswer ?? "", allowedOfferIds, catalog: guardCatalog });
+        finalAnswer = stripped || answerText;
+        guardCodes = [...guardCodes, "guard_safe_fallback"];
+      }
+    }
+  }
+
+  const orchestratorTerminal = orchestrator.applies && !!finalAnswer;
+
   const turnInput: TurnInput = {
     state,
     message,
@@ -772,20 +875,31 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     answeredCount,
     offers,
     firstName: contact?.first_name ?? input.name ?? null,
-    answerText,
+    answerText: orchestrator.applies ? finalAnswer : answerText,
     recentlySentOfferIds,
     explicitOfferRequest,
     resetRequested,
-    // The validated plan may also end the turn: an answer-first turn with no
-    // appropriate intake question must not grow a recommendation tail.
-    terminalAnswer: TERMINAL_GROUNDING_PATHS.has(groundingPath) || (!!answerText && planFromModel && composition.terminal),
+    // The orchestrated payload is the WHOLE reply. The validated plan may
+    // also end the turn: an answer-first turn with no appropriate intake
+    // question must not grow a recommendation tail.
+    terminalAnswer:
+      TERMINAL_GROUNDING_PATHS.has(groundingPath) ||
+      orchestratorTerminal ||
+      (!!answerText && planFromModel && composition.terminal),
     terminalReason: TERMINAL_GROUNDING_PATHS.has(groundingPath)
       ? groundingPath
-      : planFromModel
-        ? `plan_${plan.next_best_action}`
-        : groundingPath,
+      : orchestratorTerminal
+        ? `orchestrator_${orchestrator.action}`
+        : planFromModel
+          ? `plan_${plan.next_best_action}`
+          : groundingPath,
     terminalActions: groundingPath === "sensitive_verification_required" ? ["sensitive_followup"] : [],
+    terminalAskStepKey,
+    terminalOfferIds: selectedOfferIds,
+    // No downstream layer may list offers unless recommending IS the action.
+    allowRecommendation: orchestrator.recommendation_allowed,
   };
+
   const decision = decideTurn(turnInput);
   decision.reason_codes = [...(decision.reason_codes ?? []), ...planReasonCodes];
 
