@@ -1088,6 +1088,20 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         decision.reason_codes = [...(decision.reason_codes ?? []), `guard_${guard.verdict}`];
       }
 
+      // ---- FINAL INVARIANT: no empty/whitespace body may be sent --------
+      const bodyCheck = finalBodyGuard({
+        bodies: outgoing.map((m) => messageText(m)),
+        controlPath,
+        controlText: decision.messages.map(messageText).find((b) => b.trim()) ?? null,
+        safeText: finalAnswer ?? answerText ?? SAFE_ERROR_TEXT,
+      });
+      if (!bodyCheck.ok && bodyCheck.replacement) {
+        outgoing = [{ kind: "text", body: bodyCheck.replacement } as OutboundMessage];
+        emptyBodyGuard = bodyCheck.reason;
+        decision.reason_codes = [...(decision.reason_codes ?? []), bodyCheck.reason ?? "empty_body_guard"];
+      }
+
+
       // ---- Idempotent CRM + memory writeback (one per inbound id) -----
       // Reuses the structured interpretation already produced; no extra
       // model call. A retry of the same wamid writes nothing.
