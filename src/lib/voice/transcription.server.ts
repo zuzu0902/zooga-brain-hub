@@ -8,6 +8,7 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { audioFormat, sanitizeForLog, validateInboundAudio, MAX_AUDIO_BYTES } from "./audio";
+import { stageEvent, type VoiceStageEvent } from "./stages";
 
 const GRAPH_VERSION = "v21.0";
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
@@ -210,10 +211,12 @@ export async function transcribeAudio(input: {
 }
 
 export type VoiceIntakeResult = {
-  status: "ok" | "duplicate" | "failed";
+  status: "ok" | "duplicate" | "failed" | "no_audio";
   transcript: string | null;
   confidence: number | null;
   error: string | null;
+  /** ordered, safe stage trail for observability */
+  stages: VoiceStageEvent[];
 };
 
 /**
@@ -229,6 +232,13 @@ export async function transcribeInboundVoice(args: {
   durationSeconds?: number | null;
 }): Promise<VoiceIntakeResult> {
   const db = supabaseAdmin as any;
+  const stages: VoiceStageEvent[] = [];
+  // No media id => this is NOT a voice message. Never create a
+  // transcription-failed record for a text/non-audio event.
+  if (!args.mediaId) {
+    return { status: "no_audio", transcript: null, confidence: null, error: null, stages };
+  }
+  stages.push(stageEvent("audio_received", "ok", args.mime ?? null));
   const { data: existing } = await db
     .from("voice_transcripts")
     .select("id,status,transcript,confidence,error")
@@ -240,6 +250,7 @@ export async function transcribeInboundVoice(args: {
       transcript: existing.transcript ?? null,
       confidence: existing.confidence ?? null,
       error: existing.error ?? null,
+      stages,
     };
   }
 
@@ -248,6 +259,8 @@ export async function transcribeInboundVoice(args: {
   try {
     const media = await downloadMetaMedia(args.mediaId, { phoneNumberId: args.phoneNumberId ?? null });
     if (!media.ok) {
+      const metaStage = media.error.startsWith("media_download") ? "media_download" : "media_metadata";
+      stages.push(stageEvent(metaStage, "failed", media.error));
       await db.from("voice_transcripts").insert({
         contact_id: args.contactId,
         wa_message_id: args.waMessageId,
@@ -259,10 +272,18 @@ export async function transcribeInboundVoice(args: {
         status: "failed",
         error: sanitizeForLog(media.error),
       });
-      return { status: "failed", transcript: null, confidence: null, error: media.error };
+      return { status: "failed", transcript: null, confidence: null, error: media.error, stages };
     }
+    stages.push(stageEvent("media_metadata", "ok", media.mime));
+    stages.push(stageEvent("media_download", "ok", `${media.size}b`));
     bytes = media.bytes;
+    stages.push(stageEvent("transcription_started", "started", readiness.model));
     const result = await transcribeAudio({ bytes, mime: media.mime || args.mime || "audio/ogg" });
+    stages.push(
+      result.ok
+        ? stageEvent("transcription", "ok", `${result.transcript.length} chars`)
+        : stageEvent("transcription", "failed", result.error),
+    );
     await db.from("voice_transcripts").insert({
       contact_id: args.contactId,
       wa_message_id: args.waMessageId,
@@ -279,9 +300,9 @@ export async function transcribeInboundVoice(args: {
       error: result.ok ? null : sanitizeForLog(result.error),
     });
     if (!result.ok) {
-      return { status: "failed", transcript: null, confidence: null, error: result.error };
+      return { status: "failed", transcript: null, confidence: null, error: result.error, stages };
     }
-    return { status: "ok", transcript: result.transcript, confidence: result.confidence, error: null };
+    return { status: "ok", transcript: result.transcript, confidence: result.confidence, error: null, stages };
   } finally {
     // audio bytes are dropped on every path, success or failure
     bytes = null;
