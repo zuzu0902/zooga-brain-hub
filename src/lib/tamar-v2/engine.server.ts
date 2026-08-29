@@ -23,13 +23,16 @@ import {
   type SendResult,
 } from "@/lib/whatsapp-meta.server";
 import { questionSignature } from "@/lib/conversation-guard/core";
-import { decideTurn, type TurnInput } from "./engine-core";
+import { buildRecommendationText, decideTurn, nextStep, type TurnInput } from "./engine-core";
 import { knownFieldsFromContact, loadAgentVersion, loadSellableOffers } from "./flow.server";
 import { interpret } from "./interpreter.server";
 import { interpretDeterministic } from "./interpret-rules";
-import { deriveState } from "./state-machine";
+import { deriveState, marketingAllowed } from "./state-machine";
 import { isUserQuestion } from "./classify";
 import { wantsHuman } from "./classify";
+import { ORCHESTRATOR_VERSION, selectResponseAction } from "./response-orchestrator";
+import { guardResponse, stripLeakedLines } from "./response-guard";
+
 import {
   HONEST_UNKNOWN,
   PAST_OFFER_NOTE,
@@ -759,6 +762,109 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     ...(planOutcome?.violations ?? []).slice(0, 3).map((v) => `plan_violation_${v.split(":")[0]}`),
   ];
 
+  // ---- SINGLE RESPONSE ORCHESTRATOR --------------------------------------
+  // ONE primary action, ONE composed payload. Every legacy post-answer
+  // composer (recommendation concatenation, intake appender, catalog
+  // fallback) is disabled for the turns this owns.
+  const orchestrator = selectResponseAction({
+    message,
+    isQuestion: asksSomething,
+    intent: interpretation.intent,
+    wantsHuman: interpretation.wants_human || wantsHuman(message),
+    state,
+    resetRequested,
+    groundingPath,
+    answerText,
+    activeOfferId,
+    resolvedOfferId: resolved?.id ?? null,
+    planValid: planFromModel,
+    planAskIntake: composition.askIntake,
+    planIntakeKey: plan.intake_question_key,
+    missingIntakeKeys: intakeMissing,
+    catalogSize: (offers as any[]).length,
+    marketingAllowed: marketingAllowed(state),
+    hasVerifiedLink: !!(resolved?.offer_url ?? activeOffer?.offer_url),
+  });
+
+  const guardCatalog = candidates.map((c) => ({
+    id: String(c.id),
+    title: String((c as any).title ?? ""),
+    url: (c as any).offer_url ?? null,
+  }));
+  let finalAnswer: string | null = answerText;
+  let selectedOfferIds: string[] = orchestrator.offer_ids;
+  let terminalAskStepKey: string | null = null;
+  const orchestratorCodes: string[] = [
+    `orchestrator_${orchestrator.action}`,
+    ...orchestrator.reasons.map((r) => `orchestrator_reason_${r}`),
+  ];
+  let guardCodes: string[] = [];
+
+  if (orchestrator.applies) {
+    if (orchestrator.action === "recommend_products") {
+      const rec = buildRecommendationText({
+        offers,
+        maxOffers: agent.safety.max_offers ?? 2,
+        excludeOfferIds: [activeOfferId, resolved?.id ?? null].filter(Boolean) as string[],
+      });
+      finalAnswer = [answerText, rec.text].filter(Boolean).join("\n\n");
+      selectedOfferIds = rec.ids;
+    } else if (orchestrator.action === "answer_and_ask_one_intake_question" && answerText) {
+      const step =
+        agent.steps.find(
+          (s) => s.enabled && (s.field_key ?? s.step_key) === orchestrator.intake_key,
+        ) ?? nextStep(agent, knownFields, "intake");
+      if (step) {
+        finalAnswer = `${answerText}\n\n${step.question_text}`;
+        terminalAskStepKey = step.step_key;
+      }
+    }
+
+    // ---- Final semantic response guard (deterministic first) -------------
+    const allowedOfferIds = Array.from(
+      new Set([...selectedOfferIds, activeOfferId, resolved?.id ?? null].filter(Boolean) as string[]),
+    );
+    let guard = guardResponse({
+      text: finalAnswer ?? "",
+      action: orchestrator.action,
+      allowedOfferIds,
+      catalog: guardCatalog,
+    });
+    guardCodes = guard.reason_codes;
+    if (!guard.ok && finalAnswer) {
+      // ONE regeneration inside the SAME selected action, then a concise
+      // safe answer. Never a silent repair by appending more text.
+      if (!input.offline && resolved) {
+        const regenerated = await writeGroundedAnswer({
+          agent,
+          message: `${message}\n\n(ענִי אך ורק על "${resolved.title}". אסור להזכיר מוצר או יעד אחר.)`,
+          facts: [],
+          offers,
+          offerBlock: buildOfferGroundingBlock(resolved),
+          infoOnly: !availability.sellable,
+          complexity,
+        }).catch(() => null);
+        if (regenerated) {
+          finalAnswer = regenerated;
+          guard = guardResponse({
+            text: finalAnswer,
+            action: orchestrator.action,
+            allowedOfferIds,
+            catalog: guardCatalog,
+          });
+          guardCodes = [...guardCodes, "guard_regenerated", ...guard.reason_codes];
+        }
+      }
+      if (!guard.ok) {
+        const stripped = stripLeakedLines({ text: finalAnswer ?? "", allowedOfferIds, catalog: guardCatalog });
+        finalAnswer = stripped || answerText;
+        guardCodes = [...guardCodes, "guard_safe_fallback"];
+      }
+    }
+  }
+
+  const orchestratorTerminal = orchestrator.applies && !!finalAnswer;
+
   const turnInput: TurnInput = {
     state,
     message,
@@ -772,22 +878,39 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     answeredCount,
     offers,
     firstName: contact?.first_name ?? input.name ?? null,
-    answerText,
+    answerText: orchestrator.applies ? finalAnswer : answerText,
     recentlySentOfferIds,
     explicitOfferRequest,
     resetRequested,
-    // The validated plan may also end the turn: an answer-first turn with no
-    // appropriate intake question must not grow a recommendation tail.
-    terminalAnswer: TERMINAL_GROUNDING_PATHS.has(groundingPath) || (!!answerText && planFromModel && composition.terminal),
+    // The orchestrated payload is the WHOLE reply. The validated plan may
+    // also end the turn: an answer-first turn with no appropriate intake
+    // question must not grow a recommendation tail.
+    terminalAnswer:
+      TERMINAL_GROUNDING_PATHS.has(groundingPath) ||
+      orchestratorTerminal ||
+      (!!answerText && planFromModel && composition.terminal),
     terminalReason: TERMINAL_GROUNDING_PATHS.has(groundingPath)
       ? groundingPath
-      : planFromModel
-        ? `plan_${plan.next_best_action}`
-        : groundingPath,
+      : orchestratorTerminal
+        ? `orchestrator_${orchestrator.action}`
+        : planFromModel
+          ? `plan_${plan.next_best_action}`
+          : groundingPath,
     terminalActions: groundingPath === "sensitive_verification_required" ? ["sensitive_followup"] : [],
+    terminalAskStepKey,
+    terminalOfferIds: selectedOfferIds,
+    // No downstream layer may list offers unless recommending IS the action.
+    allowRecommendation: orchestrator.recommendation_allowed,
   };
+
   const decision = decideTurn(turnInput);
-  decision.reason_codes = [...(decision.reason_codes ?? []), ...planReasonCodes];
+  decision.reason_codes = [
+    ...(decision.reason_codes ?? []),
+    ...planReasonCodes,
+    ...orchestratorCodes,
+    ...guardCodes,
+  ];
+
 
 
   // ---- Authoritative focus update ---------------------------------------
@@ -852,7 +975,9 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         .map((t) => questionSignature(t.text));
       // A direct answer to a repeated customer question is legitimate; only
       // Tamar-initiated segments (questions/offers) are history-deduped.
-      const answering = (decision.reason_codes ?? []).includes("answer_first");
+      const answering =
+        (decision.reason_codes ?? []).includes("answer_first") ||
+        (orchestrator.applies && orchestrator.action !== "recommend_products");
       // Verified links only: the active offer record is the single source of
       // truth for anything clickable, and perks stay unpromised until real.
       const allowedUrls = [
@@ -936,6 +1061,14 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         clearPendingHandoff,
         groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
         grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence, complexity },
+        orchestrator: {
+          version: ORCHESTRATOR_VERSION,
+          selected_action: orchestrator.action,
+          selected_offer_ids: selectedOfferIds,
+          guard: guardCodes,
+          fallback_reason: guardCodes.includes("guard_safe_fallback") ? "guard_safe_fallback" : null,
+          regenerated: guardCodes.includes("guard_regenerated"),
+        },
         summary: writeback && !writeback.skipped ? writeback.summary : null,
         focus: updatedFocus,
         contextSnapshotId,
@@ -975,6 +1108,14 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         clearPendingHandoff,
         groundedOfferId: groundingPath === "offer_knowledge" ? (resolved?.id ?? null) : null,
         grounding: { path: groundingPath, knowledge_ids: knowledgeIds, confidence: resolution.confidence, complexity },
+        orchestrator: {
+          version: ORCHESTRATOR_VERSION,
+          selected_action: orchestrator.action,
+          selected_offer_ids: selectedOfferIds,
+          guard: guardCodes,
+          fallback_reason: guardCodes.includes("guard_safe_fallback") ? "guard_safe_fallback" : null,
+          regenerated: guardCodes.includes("guard_regenerated"),
+        },
         focus: updatedFocus,
         contextSnapshotId,
       });
@@ -1012,6 +1153,15 @@ async function persistTurn(args: {
   clearPendingHandoff?: boolean;
   groundedOfferId?: string | null;
   grounding?: { path: string; knowledge_ids: string[]; confidence: number; complexity?: string };
+  /** Single Response Orchestrator observability for this turn */
+  orchestrator?: {
+    version: string;
+    selected_action: string;
+    selected_offer_ids: string[];
+    guard: string[];
+    fallback_reason: string | null;
+    regenerated: boolean;
+  };
   /** compact rolling conversation summary produced by the writeback pass */
   summary?: string | null;
   /** authoritative active conversational focus after this turn */
@@ -1154,6 +1304,14 @@ async function persistTurn(args: {
         offer_id: args.offerId ?? null,
         offer_link_sent: !!args.linkSent,
         context_snapshot_id: args.contextSnapshotId ?? null,
+        orchestrator_version: args.orchestrator?.version ?? null,
+        selected_action: args.orchestrator?.selected_action ?? null,
+        selected_offer_ids: args.orchestrator?.selected_offer_ids ?? [],
+        guard_result: args.orchestrator?.guard ?? [],
+        guard_fallback_reason: args.orchestrator?.fallback_reason ?? null,
+        guard_regenerated: !!args.orchestrator?.regenerated,
+        final_envelope_count: args.outbound.length,
+        deployment_sha: process.env["DEPLOYMENT_SHA"] ?? process.env["CF_VERSION_METADATA_ID"] ?? null,
       },
     } as any).select("id").maybeSingle();
     const { attachDecisionTrace } = await import("./context.server");

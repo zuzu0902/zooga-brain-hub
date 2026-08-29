@@ -62,7 +62,18 @@ export type TurnInput = {
   terminalReason?: string;
   /** actions the runtime must execute for a terminal answer */
   terminalActions?: TurnDecision["actions"];
+  /** intake step the terminal answer already carries (single question) */
+  terminalAskStepKey?: string | null;
+  /** offers the terminal answer legitimately cites */
+  terminalOfferIds?: string[];
+  /**
+   * Single Response Orchestrator gate: offers may be listed ONLY when the
+   * orchestrator selected `recommend_products`. Undefined keeps the legacy
+   * behaviour for the pure scenario suite.
+   */
+  allowRecommendation?: boolean;
 };
+
 
 
 const SITE = "https://www.zooga.co.il";
@@ -169,7 +180,7 @@ function target(input: TurnInput, to: V2State): V2State {
   return canTransition(input.state, to).allowed ? to : input.state;
 }
 
-function nextStep(agent: AgentVersion, known: Record<string, string>, stage: "intake" | "qualification"): FlowStep | null {
+export function nextStep(agent: AgentVersion, known: Record<string, string>, stage: "intake" | "qualification"): FlowStep | null {
   const steps = agent.steps
     .filter((s) => s.enabled && s.stage === stage && s.step_key !== "consent")
     .sort((a, b) => a.order_index - b.order_index);
@@ -191,24 +202,42 @@ function handoffDecision(input: TurnInput, codes: string[], urgency: string): Tu
   });
 }
 
-function recommendation(input: TurnInput): { messages: OutboundMessage[]; ids: string[] } {
-  const max = Math.max(1, Math.min(3, input.agent.safety.max_offers ?? 2));
-  // Never repeat an offer that was already presented/sent recently, unless
-  // the customer explicitly asked for it again.
-  const excluded = new Set((input.recentlySentOfferIds ?? []).map(String));
-  const pool = input.explicitOfferRequest ? input.offers : input.offers.filter((o) => !excluded.has(String(o.id)));
-  const picked = pool.slice(0, max);
-  if (!picked.length) return { messages: [text(COPY.no_offer_honest)], ids: [] };
+/**
+ * Reusable recommendation copy. It is NOT a composer: only the Single
+ * Response Orchestrator (action `recommend_products`) or the legacy pure
+ * scenario path may call it, and its output is part of the ONE envelope.
+ */
+export function buildRecommendationText(args: {
+  offers: SellableOffer[];
+  maxOffers?: number;
+  excludeOfferIds?: string[];
+}): { text: string; ids: string[] } {
+  const max = Math.max(1, Math.min(3, args.maxOffers ?? 2));
+  const excluded = new Set((args.excludeOfferIds ?? []).map(String));
+  const picked = args.offers.filter((o) => !excluded.has(String(o.id))).slice(0, max);
+  if (!picked.length) return { text: COPY.no_offer_honest, ids: [] };
   const lines = picked.map((o) => {
     const why = o.summary ? ` — ${String(o.summary).slice(0, 120)}` : "";
     const link = o.offer_url ? `\n${o.offer_url}` : "";
     return `• ${o.title}${why}${link}`;
   });
   return {
-    messages: [text(`הנה מה שהכי מתאים למה שסיפרת לי:\n${lines.join("\n")}\n\nרוצה שאפרט על אחד מהם?`)],
+    text: `הנה מה שהכי מתאים למה שסיפרת לי:\n${lines.join("\n")}\n\nרוצה שאפרט על אחד מהם?`,
     ids: picked.map((o) => o.id),
   };
 }
+
+function recommendation(input: TurnInput): { messages: OutboundMessage[]; ids: string[] } {
+  // Never repeat an offer that was already presented/sent recently, unless
+  // the customer explicitly asked for it again.
+  const built = buildRecommendationText({
+    offers: input.offers,
+    maxOffers: input.agent.safety.max_offers ?? 2,
+    excludeOfferIds: input.explicitOfferRequest ? [] : (input.recentlySentOfferIds ?? []),
+  });
+  return { messages: [text(built.text)], ids: built.ids };
+}
+
 
 
 /**
@@ -359,13 +388,41 @@ export function decideTurn(input: TurnInput): TurnDecision {
     });
   }
 
-  // 6b. Terminal answer (sensitive handoff / single clarification / grounded
-  //     answer that closes the turn). Nothing may be appended after it.
+  // ---- consented / intake_active / recommendation_ready / value_delivered ----
+  const captured: Record<string, string> = {};
+  if (input.pendingStepKey) {
+    const step = input.agent.steps.find((s) => s.step_key === input.pendingStepKey);
+    const key = step?.field_key ?? step?.step_key ?? null;
+    if (key) {
+      const optValue = input.optionValue?.trim();
+      const entity = interp.entities?.[key];
+      // A tapped button always captures: by resolved value, else by its title.
+      const fromMessage = msg && (step?.presentation === "text" || !!input.optionId) ? msg : "";
+      const value = optValue || entity || fromMessage;
+      if (value) captured[key] = String(value).slice(0, 300);
+    }
+  }
+  for (const [k, v] of Object.entries(interp.entities ?? {})) {
+    if (v && !captured[k]) captured[k] = String(v).slice(0, 300);
+  }
+  const known = { ...input.knownFields, ...captured };
+  const answeredCount = input.answeredCount + (Object.keys(captured).length ? 1 : 0);
+
+  // 6b. Terminal answer — the Single Response Orchestrator already composed
+  //     the entire reply (answer, optional single intake question, optional
+  //     grounded recommendation). Nothing may be appended after it.
   if (input.terminalAnswer && input.answerText) {
+    const askKey = input.terminalAskStepKey ?? null;
     return baseDecision(input, {
+      next_state: askKey ? target(input, "intake_active") : input.state,
       messages: [text(input.answerText)],
-      actions: input.terminalActions ?? [],
-      ask_step_key: null,
+      actions: [
+        ...(Object.keys(captured).length ? (["capture_field"] as TurnDecision["actions"]) : []),
+        ...(input.terminalActions ?? []),
+      ],
+      captured,
+      offer_ids: input.terminalOfferIds ?? [],
+      ask_step_key: askKey,
       marketing_allowed: false,
       ambiguity_turns: 0,
       reason_codes: [input.terminalReason ?? "terminal_answer"],
@@ -388,25 +445,6 @@ export function decideTurn(input: TurnInput): TurnDecision {
     });
   }
 
-  // ---- consented / intake_active / recommendation_ready / value_delivered ----
-  const captured: Record<string, string> = {};
-  if (input.pendingStepKey) {
-    const step = input.agent.steps.find((s) => s.step_key === input.pendingStepKey);
-    const key = step?.field_key ?? step?.step_key ?? null;
-    if (key) {
-      const optValue = input.optionValue?.trim();
-      const entity = interp.entities?.[key];
-      // A tapped button always captures: by resolved value, else by its title.
-      const fromMessage = msg && (step?.presentation === "text" || !!input.optionId) ? msg : "";
-      const value = optValue || entity || fromMessage;
-      if (value) captured[key] = String(value).slice(0, 300);
-    }
-  }
-  for (const [k, v] of Object.entries(interp.entities ?? {})) {
-    if (v && !captured[k]) captured[k] = String(v).slice(0, 300);
-  }
-  const known = { ...input.knownFields, ...captured };
-  const answeredCount = input.answeredCount + (Object.keys(captured).length ? 1 : 0);
 
   const messages: OutboundMessage[] = [];
   const reason: string[] = [];
@@ -438,12 +476,19 @@ export function decideTurn(input: TurnInput): TurnDecision {
 
 
   // 9. Recommendation — only sellable offers, capped, never the whole catalog.
+  //    In the production runtime this path is reachable ONLY when the Single
+  //    Response Orchestrator selected `recommend_products`
+  //    (`allowRecommendation`). It can never append a catalog after an answer.
   const wantsOffers =
     interp.intent === "browse_offers" ||
     interp.intent === "offer_interest" ||
     /(טיול|הצעה|הצעות|מה\s+יש|אירוע|חופשה)/.test(msg);
   const enoughContext = answeredCount >= 2 || Object.keys(known).length >= 3;
-  const canMarket = marketingAllowed(input.state) && interp.confidence >= safety.min_confidence_marketing;
+  const canMarket =
+    input.allowRecommendation !== false &&
+    marketingAllowed(input.state) &&
+    interp.confidence >= safety.min_confidence_marketing;
+
 
   if (canMarket && wantsOffers && !input.offers.length) {
     messages.push(text(COPY.no_offer_honest));
