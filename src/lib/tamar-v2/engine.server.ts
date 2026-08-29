@@ -31,7 +31,15 @@ import { deriveState, marketingAllowed } from "./state-machine";
 import { isUserQuestion } from "./classify";
 import { wantsHuman } from "./classify";
 import { ORCHESTRATOR_VERSION, selectResponseAction } from "./response-orchestrator";
-import { guardResponse, stripLeakedLines } from "./response-guard";
+import { guardResponse, buildDeterministicOfferAnswer } from "./response-guard";
+import {
+  SAFE_CLARIFY_TEXT,
+  SAFE_ERROR_TEXT,
+  detectControlPath,
+  finalBodyGuard,
+  hasDanglingAnaphora,
+  type ControlPath,
+} from "./control-path";
 
 import {
   HONEST_UNKNOWN,
