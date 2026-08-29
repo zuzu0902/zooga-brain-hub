@@ -904,7 +904,13 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   };
 
   const decision = decideTurn(turnInput);
-  decision.reason_codes = [...(decision.reason_codes ?? []), ...planReasonCodes];
+  decision.reason_codes = [
+    ...(decision.reason_codes ?? []),
+    ...planReasonCodes,
+    ...orchestratorCodes,
+    ...guardCodes,
+  ];
+
 
 
   // ---- Authoritative focus update ---------------------------------------
