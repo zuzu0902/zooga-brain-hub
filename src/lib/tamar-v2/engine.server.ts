@@ -23,13 +23,16 @@ import {
   type SendResult,
 } from "@/lib/whatsapp-meta.server";
 import { questionSignature } from "@/lib/conversation-guard/core";
-import { decideTurn, type TurnInput } from "./engine-core";
+import { buildRecommendationText, decideTurn, nextStep, type TurnInput } from "./engine-core";
 import { knownFieldsFromContact, loadAgentVersion, loadSellableOffers } from "./flow.server";
 import { interpret } from "./interpreter.server";
 import { interpretDeterministic } from "./interpret-rules";
-import { deriveState } from "./state-machine";
+import { deriveState, marketingAllowed } from "./state-machine";
 import { isUserQuestion } from "./classify";
 import { wantsHuman } from "./classify";
+import { ORCHESTRATOR_VERSION, selectResponseAction } from "./response-orchestrator";
+import { guardResponse, stripLeakedLines } from "./response-guard";
+
 import {
   HONEST_UNKNOWN,
   PAST_OFFER_NOTE,
