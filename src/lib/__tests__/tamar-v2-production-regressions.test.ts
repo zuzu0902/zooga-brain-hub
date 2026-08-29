@@ -382,8 +382,7 @@ describe("E. leaking answers regenerate once, then use a complete deterministic 
     let call = 0;
     writerOverride = () => {
       call += 1;
-      return "אפשר גם לשקול את דובאי.
-הוא כולל טיסות ומלון.";
+      return "אפשר גם לשקול את דובאי.\nהוא כולל טיסות ומלון.";
     };
     await turn("מה כולל הטיול?", "wamid.london.3");
     expect(call).toBeGreaterThanOrEqual(2); // one regeneration inside the action
