@@ -180,7 +180,7 @@ function target(input: TurnInput, to: V2State): V2State {
   return canTransition(input.state, to).allowed ? to : input.state;
 }
 
-function nextStep(agent: AgentVersion, known: Record<string, string>, stage: "intake" | "qualification"): FlowStep | null {
+export function nextStep(agent: AgentVersion, known: Record<string, string>, stage: "intake" | "qualification"): FlowStep | null {
   const steps = agent.steps
     .filter((s) => s.enabled && s.stage === stage && s.step_key !== "consent")
     .sort((a, b) => a.order_index - b.order_index);
