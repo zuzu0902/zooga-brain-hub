@@ -828,7 +828,8 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               option_id: msg.option_id,
               name: msg.name,
               inbound_message_id: msg.wamid,
-              source: "meta_webhook",
+              // A voice transcript runs through the SAME orchestrator as text.
+              source: inboundSource === "voice" ? "meta_webhook_voice" : "meta_webhook",
             });
             await markReplied(msg.from, v2.contact_id).catch(() => {});
             await markGateRoute(msg.wamid, "tamar_v2");
