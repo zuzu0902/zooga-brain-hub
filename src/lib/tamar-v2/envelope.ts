@@ -169,6 +169,6 @@ export function planOutbound(args: {
     if (res.text) kept.push({ ...(m as any), body: res.text });
     dropped.push({ signature: segmentSignature(m), reason: `grounding:${res.violations.join("|")}` });
   }
-  return { messages: kept, dropped };
+  return { messages: dedupeUrls(kept), dropped };
 }
 
