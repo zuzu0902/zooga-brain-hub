@@ -1151,6 +1151,15 @@ async function persistTurn(args: {
   clearPendingHandoff?: boolean;
   groundedOfferId?: string | null;
   grounding?: { path: string; knowledge_ids: string[]; confidence: number; complexity?: string };
+  /** Single Response Orchestrator observability for this turn */
+  orchestrator?: {
+    version: string;
+    selected_action: string;
+    selected_offer_ids: string[];
+    guard: string[];
+    fallback_reason: string | null;
+    regenerated: boolean;
+  };
   /** compact rolling conversation summary produced by the writeback pass */
   summary?: string | null;
   /** authoritative active conversational focus after this turn */
@@ -1293,6 +1302,14 @@ async function persistTurn(args: {
         offer_id: args.offerId ?? null,
         offer_link_sent: !!args.linkSent,
         context_snapshot_id: args.contextSnapshotId ?? null,
+        orchestrator_version: args.orchestrator?.version ?? null,
+        selected_action: args.orchestrator?.selected_action ?? null,
+        selected_offer_ids: args.orchestrator?.selected_offer_ids ?? [],
+        guard_result: args.orchestrator?.guard ?? [],
+        guard_fallback_reason: args.orchestrator?.fallback_reason ?? null,
+        guard_regenerated: !!args.orchestrator?.regenerated,
+        final_envelope_count: args.outbound.length,
+        deployment_sha: process.env["DEPLOYMENT_SHA"] ?? process.env["CF_VERSION_METADATA_ID"] ?? null,
       },
     } as any).select("id").maybeSingle();
     const { attachDecisionTrace } = await import("./context.server");
