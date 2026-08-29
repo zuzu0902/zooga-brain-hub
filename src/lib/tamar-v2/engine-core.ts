@@ -62,7 +62,18 @@ export type TurnInput = {
   terminalReason?: string;
   /** actions the runtime must execute for a terminal answer */
   terminalActions?: TurnDecision["actions"];
+  /** intake step the terminal answer already carries (single question) */
+  terminalAskStepKey?: string | null;
+  /** offers the terminal answer legitimately cites */
+  terminalOfferIds?: string[];
+  /**
+   * Single Response Orchestrator gate: offers may be listed ONLY when the
+   * orchestrator selected `recommend_products`. Undefined keeps the legacy
+   * behaviour for the pure scenario suite.
+   */
+  allowRecommendation?: boolean;
 };
+
 
 
 const SITE = "https://www.zooga.co.il";
