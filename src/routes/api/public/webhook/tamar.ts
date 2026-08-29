@@ -303,6 +303,9 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             continue;
           }
 
+          const { inboundReceipt, stageEvent } = await import("@/lib/voice/stages");
+          const { recordVoiceStages } = await import("@/lib/voice/stages.server");
+          const receipt = inboundReceipt(msg as any);
           await supabaseAdmin.from("webhook_logs").insert({
             source: "meta_whatsapp",
             status: "received",
@@ -312,6 +315,7 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               has_text: !!msg.text,
               type: msg.type,
               has_audio: !!msg.audio,
+              ...receipt,
             },
           } as any);
 
@@ -328,6 +332,12 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               phoneNumberId: msg.business_phone_number_id,
               durationSeconds: msg.audio.duration,
             }).catch(() => null);
+            await recordVoiceStages({
+              inboundMessageId: msg.wamid,
+              contactId: voiceContactId,
+              events: voice?.stages ?? [stageEvent("audio_received", "failed", "voice_pipeline_unavailable")],
+              receipt,
+            }).catch(() => false);
             if (voice?.status === "duplicate") {
               await markNoReply(msg.wamid, "duplicate_inbound").catch(() => {});
               results.push({ wamid: msg.wamid, voice: "duplicate", reply_sent: false, contact_id: voiceContactId, no_reply_reason: "duplicate_inbound" });
@@ -358,6 +368,14 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             inboundText = voice.transcript;
             inboundSource = "voice";
             voiceConfidence = voice.confidence;
+            // The transcript continues through the EXACT same pipeline as
+            // text (inbound gate -> Single Response Orchestrator).
+            await recordVoiceStages({
+              inboundMessageId: msg.wamid,
+              contactId: voiceContactId,
+              events: [stageEvent("runtime_dispatched", "ok", "is_voice=true")],
+              receipt,
+            }).catch(() => false);
           }
 
           if (!inboundText) {
