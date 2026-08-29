@@ -202,24 +202,42 @@ function handoffDecision(input: TurnInput, codes: string[], urgency: string): Tu
   });
 }
 
-function recommendation(input: TurnInput): { messages: OutboundMessage[]; ids: string[] } {
-  const max = Math.max(1, Math.min(3, input.agent.safety.max_offers ?? 2));
-  // Never repeat an offer that was already presented/sent recently, unless
-  // the customer explicitly asked for it again.
-  const excluded = new Set((input.recentlySentOfferIds ?? []).map(String));
-  const pool = input.explicitOfferRequest ? input.offers : input.offers.filter((o) => !excluded.has(String(o.id)));
-  const picked = pool.slice(0, max);
-  if (!picked.length) return { messages: [text(COPY.no_offer_honest)], ids: [] };
+/**
+ * Reusable recommendation copy. It is NOT a composer: only the Single
+ * Response Orchestrator (action `recommend_products`) or the legacy pure
+ * scenario path may call it, and its output is part of the ONE envelope.
+ */
+export function buildRecommendationText(args: {
+  offers: SellableOffer[];
+  maxOffers?: number;
+  excludeOfferIds?: string[];
+}): { text: string; ids: string[] } {
+  const max = Math.max(1, Math.min(3, args.maxOffers ?? 2));
+  const excluded = new Set((args.excludeOfferIds ?? []).map(String));
+  const picked = args.offers.filter((o) => !excluded.has(String(o.id))).slice(0, max);
+  if (!picked.length) return { text: COPY.no_offer_honest, ids: [] };
   const lines = picked.map((o) => {
     const why = o.summary ? ` — ${String(o.summary).slice(0, 120)}` : "";
     const link = o.offer_url ? `\n${o.offer_url}` : "";
     return `• ${o.title}${why}${link}`;
   });
   return {
-    messages: [text(`הנה מה שהכי מתאים למה שסיפרת לי:\n${lines.join("\n")}\n\nרוצה שאפרט על אחד מהם?`)],
+    text: `הנה מה שהכי מתאים למה שסיפרת לי:\n${lines.join("\n")}\n\nרוצה שאפרט על אחד מהם?`,
     ids: picked.map((o) => o.id),
   };
 }
+
+function recommendation(input: TurnInput): { messages: OutboundMessage[]; ids: string[] } {
+  // Never repeat an offer that was already presented/sent recently, unless
+  // the customer explicitly asked for it again.
+  const built = buildRecommendationText({
+    offers: input.offers,
+    maxOffers: input.agent.safety.max_offers ?? 2,
+    excludeOfferIds: input.explicitOfferRequest ? [] : (input.recentlySentOfferIds ?? []),
+  });
+  return { messages: [text(built.text)], ids: built.ids };
+}
+
 
 
 /**
