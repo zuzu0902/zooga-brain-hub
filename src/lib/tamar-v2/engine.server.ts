@@ -74,6 +74,11 @@ import { isConversationResetRequest, applyResetToDynamic } from "./reset";
 import { readFocus, nextFocus, withFocus, type ActiveFocus } from "./focus";
 import { normalizeVoiceTranscript, voiceClarificationText, type VoiceNormalization } from "./voice-normalize";
 import { resolveCurrentMessage, currentProductAsk } from "./current-message";
+import {
+  CANONICAL_POLICY_VERSION,
+  buildVerifiedLinkAnswer,
+  selectCanonicalPolicy,
+} from "./canonical-policy";
 
 import { detectSensitiveTopic, hasGroundedSensitiveData, sensitiveVerificationText } from "./sensitive";
 import { writeGroundedAnswer } from "./writer.server";
