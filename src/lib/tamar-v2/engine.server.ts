@@ -1199,6 +1199,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           empty_body_guard: emptyBodyGuard,
           recovery_mode: recoveryMode,
           completeness_guard: guardCodes.some((c) => c.startsWith("completeness_guard")),
+          current_message_source: currentMessage.source,
+          current_message_id: currentMessage.id,
+          final_url_count: finalUrlCount,
+          deduped_url_count: dedupedUrlCount,
+
         },
         summary: writeback && !writeback.skipped ? writeback.summary : null,
         focus: updatedFocus,
