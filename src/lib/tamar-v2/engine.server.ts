@@ -73,6 +73,8 @@ import type { AgentVersion, Interpretation, OutboundMessage, TurnDecision } from
 import { isConversationResetRequest, applyResetToDynamic } from "./reset";
 import { readFocus, nextFocus, withFocus, type ActiveFocus } from "./focus";
 import { normalizeVoiceTranscript, voiceClarificationText, type VoiceNormalization } from "./voice-normalize";
+import { resolveCurrentMessage, currentProductAsk } from "./current-message";
+
 import { detectSensitiveTopic, hasGroundedSensitiveData, sensitiveVerificationText } from "./sensitive";
 import { writeGroundedAnswer } from "./writer.server";
 
@@ -399,8 +401,20 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     }
   }
 
+  // ---- LAST-INBOUND AUTHORITY -------------------------------------------
+  // The current text / transcript is the ONLY intent source for this turn.
+  const currentMessage = resolveCurrentMessage({
+    rawText: rawMessage,
+    normalizedText: voiceNorm?.changed ? message : null,
+    source: input.source ?? null,
+    inboundMessageId: input.inbound_message_id ?? null,
+  });
+  message = currentMessage.text;
+  const currentAsk = currentProductAsk(message);
+
   // Deterministic, pre-model: "נתחיל מחדש" costs no model call at all.
   const resetRequested = isConversationResetRequest(message);
+
 
   // ---- Canonical bounded context package (one per turn) ------------------
   // MANDATORY TRANSACTION: no durable snapshot => no outbound. A
@@ -597,14 +611,16 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     }
   }
 
-  const solo = soloPolicyReply(message);
+  // A price / itinerary / link question in the CURRENT message is answered
+  // from the current message only: no older-turn policy reply may take it.
+  const solo = currentAsk.any ? null : soloPolicyReply(message);
   // Sensitive / high-stakes topics may be answered only from grounded data.
   const sensitiveTopic = asksSomething ? detectSensitiveTopic(message) : null;
   if (resetRequested) {
     groundingPath = "conversation_reset";
   } else if (answerText) {
     /* pending-handoff turn already answered */
-  } else if (!input.simulate && contact && (await (async () => {
+  } else if (!currentAsk.any && !input.simulate && contact && (await (async () => {
     const { handleReengagementReply } = await import("@/lib/tamar-activation/followup.server");
     const r = await handleReengagementReply({ contact, message }).catch(() => null);
     if (!r) return false;
@@ -625,6 +641,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   } else if (solo) {
     answerText = solo.text;
     groundingPath = solo.offer_handoff ? "solo_policy_unknown" : "solo_policy_approved";
+
   } else if (voiceNorm?.ambiguous && !voiceNorm.changed) {
     // Low-confidence speech is NEVER silently rewritten and never merged
     // with stale travel context: ask one concise clarification and stop.
@@ -781,6 +798,9 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     optOut: isExplicitOptOut(message),
   });
   let emptyBodyGuard: string | null = null;
+  let finalUrlCount = 0;
+  let dedupedUrlCount = 0;
+
 
   // ---- SINGLE RESPONSE ORCHESTRATOR --------------------------------------
   // ONE primary action, ONE composed payload. Every legacy post-answer
@@ -1118,6 +1138,23 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         decision.reason_codes = [...(decision.reason_codes ?? []), bodyCheck.reason ?? "empty_body_guard"];
       }
 
+      // ---- ACTUAL FINAL SEND BOUNDARY: URL deduplication ---------------
+      // Applied AFTER composition, regeneration, CTA/link insertion, guard
+      // and recovery formatting — immediately before persistence and the
+      // provider call, so the same verified URL is sent at most once.
+      {
+        const { dedupeUrls, countUrls } = await import("./envelope");
+        const before = countUrls(outgoing.map(messageText).join("\n"));
+        outgoing = dedupeUrls(outgoing);
+        finalUrlCount = countUrls(outgoing.map(messageText).join("\n"));
+        dedupedUrlCount = Math.max(0, before - finalUrlCount);
+        if (dedupedUrlCount > 0) {
+          decision.reason_codes = [...(decision.reason_codes ?? []), `deduped_url_${dedupedUrlCount}`];
+        }
+      }
+
+
+
 
       // ---- Idempotent CRM + memory writeback (one per inbound id) -----
       // Reuses the structured interpretation already produced; no extra
@@ -1162,6 +1199,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           empty_body_guard: emptyBodyGuard,
           recovery_mode: recoveryMode,
           completeness_guard: guardCodes.some((c) => c.startsWith("completeness_guard")),
+          current_message_source: currentMessage.source,
+          current_message_id: currentMessage.id,
+          final_url_count: finalUrlCount,
+          deduped_url_count: dedupedUrlCount,
+
         },
         summary: writeback && !writeback.skipped ? writeback.summary : null,
         focus: updatedFocus,
@@ -1213,6 +1255,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           empty_body_guard: emptyBodyGuard,
           recovery_mode: recoveryMode,
           completeness_guard: guardCodes.some((c) => c.startsWith("completeness_guard")),
+          current_message_source: currentMessage.source,
+          current_message_id: currentMessage.id,
+          final_url_count: 0,
+          deduped_url_count: 0,
+
         },
         focus: updatedFocus,
         contextSnapshotId,
@@ -1263,6 +1310,11 @@ async function persistTurn(args: {
     empty_body_guard?: string | null;
     recovery_mode?: string | null;
     completeness_guard?: boolean;
+    current_message_source?: string | null;
+    current_message_id?: string | null;
+    final_url_count?: number;
+    deduped_url_count?: number;
+
   };
   /** compact rolling conversation summary produced by the writeback pass */
   summary?: string | null;
@@ -1416,6 +1468,11 @@ async function persistTurn(args: {
         empty_body_guard: args.orchestrator?.empty_body_guard ?? null,
         recovery_mode: args.orchestrator?.recovery_mode ?? null,
         completeness_guard: !!args.orchestrator?.completeness_guard,
+        current_message_source: args.orchestrator?.current_message_source ?? null,
+        current_message_id: args.orchestrator?.current_message_id ?? null,
+        final_url_count: args.orchestrator?.final_url_count ?? 0,
+        deduped_url_count: args.orchestrator?.deduped_url_count ?? 0,
+
         semantic_guard: args.orchestrator?.guard ?? [],
         final_envelope_count: args.outbound.length,
         deployment_sha: process.env["DEPLOYMENT_SHA"] ?? process.env["CF_VERSION_METADATA_ID"] ?? null,
