@@ -886,6 +886,9 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   let selectedOfferIds: string[] = orchestrator.offer_ids;
   let terminalAskStepKey: string | null = null;
   const orchestratorCodes: string[] = [
+    `canonical_${canonical.action}`,
+    `canonical_tier_${canonical.tier}`,
+    ...canonical.ignored_legacy_paths.map((p) => `ignored_legacy_${p}`),
     `orchestrator_${orchestrator.action}`,
     ...orchestrator.reasons.map((r) => `orchestrator_reason_${r}`),
   ];
@@ -902,6 +905,19 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       });
       finalAnswer = [answerText, rec.text].filter(Boolean).join("\n\n");
       selectedOfferIds = rec.ids;
+    } else if (
+      orchestrator.action === "provide_verified_registration_or_payment_link" &&
+      verifiedLinkUrl
+    ) {
+      // TERMINAL: only the verified link of the selected offer. No intake
+      // question, no alternatives, and never a stale-topic answer.
+      finalAnswer = buildVerifiedLinkAnswer({
+        title: (resolved?.title ?? activeOffer?.title ?? null) as string | null,
+        url: verifiedLinkUrl,
+        answerText: canonical.action === "verified_link" ? answerText : answerText,
+      });
+      selectedOfferIds = orchestrator.offer_ids;
+      linkSent = true;
     } else if (orchestrator.action === "answer_and_ask_one_intake_question" && answerText) {
       const step =
         agent.steps.find(
@@ -913,6 +929,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         terminalAskStepKey = step.step_key;
       }
     }
+
 
     // ---- Final semantic response guard (deterministic first) -------------
     const allowedOfferIds = Array.from(
