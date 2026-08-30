@@ -807,11 +807,12 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   let dedupedUrlCount = 0;
 
 
-  // ---- SINGLE RESPONSE ORCHESTRATOR --------------------------------------
-  // ONE primary action, ONE composed payload. Every legacy post-answer
-  // composer (recommendation concatenation, intake appender, catalog
-  // fallback) is disabled for the turns this owns.
-  const orchestrator = selectResponseAction({
+  // ---- CANONICAL CONVERSATION CONTRACT -----------------------------------
+  // ONE priority ladder, ONE selected action, ONE composed payload. Every
+  // legacy post-answer composer (recommendation concatenation, intake
+  // appender, catalog fallback, older-topic policy reply) is disabled for
+  // the turns the canonical contract owns.
+  const selector = selectResponseAction({
     message,
     isQuestion: asksSomething,
     intent: interpretation.intent,
@@ -830,6 +831,33 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     marketingAllowed: marketingAllowed(state),
     hasVerifiedLink: !!(resolved?.offer_url ?? activeOffer?.offer_url),
   });
+  const verifiedLinkUrl: string | null =
+    (resolved?.offer_url as string | null) ?? (activeOffer?.offer_url as string | null) ?? null;
+  const canonical = selectCanonicalPolicy({
+    controlPath,
+    currentAsk,
+    explicitRecommendationRequest: selector.action === "recommend_products",
+    activeOfferId: resolved?.id ?? activeOfferId,
+    activeOfferUrl: verifiedLinkUrl,
+    orchestratorAction: selector.action,
+    orchestratorApplies: selector.applies,
+  });
+  // The canonical verified-link tier overrides the sub-selector: an explicit
+  // current link request is always answered with the verified link, never
+  // with an intake question or alternatives.
+  const orchestrator =
+    canonical.action === "verified_link" && verifiedLinkUrl
+      ? {
+          ...selector,
+          applies: true,
+          action: "provide_verified_registration_or_payment_link" as const,
+          intake_key: null,
+          recommendation_allowed: false,
+          offer_ids: [resolved?.id ?? activeOfferId].filter(Boolean) as string[],
+          reasons: [...selector.reasons, "canonical_verified_link"],
+        }
+      : selector;
+
 
   const guardCatalog = candidates.map((c) => ({
     id: String(c.id),
