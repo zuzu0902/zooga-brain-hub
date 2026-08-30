@@ -73,6 +73,8 @@ import type { AgentVersion, Interpretation, OutboundMessage, TurnDecision } from
 import { isConversationResetRequest, applyResetToDynamic } from "./reset";
 import { readFocus, nextFocus, withFocus, type ActiveFocus } from "./focus";
 import { normalizeVoiceTranscript, voiceClarificationText, type VoiceNormalization } from "./voice-normalize";
+import { resolveCurrentMessage, currentProductAsk } from "./current-message";
+
 import { detectSensitiveTopic, hasGroundedSensitiveData, sensitiveVerificationText } from "./sensitive";
 import { writeGroundedAnswer } from "./writer.server";
 
