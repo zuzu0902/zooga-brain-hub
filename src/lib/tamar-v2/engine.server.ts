@@ -1468,6 +1468,11 @@ async function persistTurn(args: {
         empty_body_guard: args.orchestrator?.empty_body_guard ?? null,
         recovery_mode: args.orchestrator?.recovery_mode ?? null,
         completeness_guard: !!args.orchestrator?.completeness_guard,
+        current_message_source: args.orchestrator?.current_message_source ?? null,
+        current_message_id: args.orchestrator?.current_message_id ?? null,
+        final_url_count: args.orchestrator?.final_url_count ?? 0,
+        deduped_url_count: args.orchestrator?.deduped_url_count ?? 0,
+
         semantic_guard: args.orchestrator?.guard ?? [],
         final_envelope_count: args.outbound.length,
         deployment_sha: process.env["DEPLOYMENT_SHA"] ?? process.env["CF_VERSION_METADATA_ID"] ?? null,
