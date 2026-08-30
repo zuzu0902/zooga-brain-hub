@@ -914,7 +914,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
       finalAnswer = buildVerifiedLinkAnswer({
         title: (resolved?.title ?? activeOffer?.title ?? null) as string | null,
         url: verifiedLinkUrl,
-        answerText: canonical.action === "verified_link" ? answerText : answerText,
+        answerText,
       });
       selectedOfferIds = orchestrator.offer_ids;
       linkSent = true;
@@ -1249,6 +1249,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           empty_body_guard: emptyBodyGuard,
           recovery_mode: recoveryMode,
           completeness_guard: guardCodes.some((c) => c.startsWith("completeness_guard")),
+          canonical_policy_version: CANONICAL_POLICY_VERSION,
+          canonical_action: canonical.action,
+          canonical_tier: canonical.tier,
+          ignored_legacy_path: canonical.ignored_legacy_paths,
+          active_offer_id: resolved?.id ?? activeOfferId,
           current_message_source: currentMessage.source,
           current_message_id: currentMessage.id,
           final_url_count: finalUrlCount,
@@ -1305,6 +1310,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           empty_body_guard: emptyBodyGuard,
           recovery_mode: recoveryMode,
           completeness_guard: guardCodes.some((c) => c.startsWith("completeness_guard")),
+          canonical_policy_version: CANONICAL_POLICY_VERSION,
+          canonical_action: canonical.action,
+          canonical_tier: canonical.tier,
+          ignored_legacy_path: canonical.ignored_legacy_paths,
+          active_offer_id: resolved?.id ?? activeOfferId,
           current_message_source: currentMessage.source,
           current_message_id: currentMessage.id,
           final_url_count: 0,
@@ -1360,6 +1370,11 @@ async function persistTurn(args: {
     empty_body_guard?: string | null;
     recovery_mode?: string | null;
     completeness_guard?: boolean;
+    canonical_policy_version?: string | null;
+    canonical_action?: string | null;
+    canonical_tier?: number | null;
+    ignored_legacy_path?: string[];
+    active_offer_id?: string | null;
     current_message_source?: string | null;
     current_message_id?: string | null;
     final_url_count?: number;
@@ -1518,6 +1533,11 @@ async function persistTurn(args: {
         empty_body_guard: args.orchestrator?.empty_body_guard ?? null,
         recovery_mode: args.orchestrator?.recovery_mode ?? null,
         completeness_guard: !!args.orchestrator?.completeness_guard,
+        canonical_policy_version: args.orchestrator?.canonical_policy_version ?? null,
+        canonical_action: args.orchestrator?.canonical_action ?? null,
+        canonical_tier: args.orchestrator?.canonical_tier ?? null,
+        ignored_legacy_path: args.orchestrator?.ignored_legacy_path ?? [],
+        active_offer_id: args.orchestrator?.active_offer_id ?? null,
         current_message_source: args.orchestrator?.current_message_source ?? null,
         current_message_id: args.orchestrator?.current_message_id ?? null,
         final_url_count: args.orchestrator?.final_url_count ?? 0,
