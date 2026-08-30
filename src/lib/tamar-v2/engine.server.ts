@@ -1135,6 +1135,23 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         decision.reason_codes = [...(decision.reason_codes ?? []), bodyCheck.reason ?? "empty_body_guard"];
       }
 
+      // ---- ACTUAL FINAL SEND BOUNDARY: URL deduplication ---------------
+      // Applied AFTER composition, regeneration, CTA/link insertion, guard
+      // and recovery formatting — immediately before persistence and the
+      // provider call, so the same verified URL is sent at most once.
+      {
+        const { dedupeUrls, countUrls } = await import("./envelope");
+        const before = countUrls(outgoing.map(messageText).join("\n"));
+        outgoing = dedupeUrls(outgoing);
+        finalUrlCount = countUrls(outgoing.map(messageText).join("\n"));
+        dedupedUrlCount = Math.max(0, before - finalUrlCount);
+        if (dedupedUrlCount > 0) {
+          decision.reason_codes = [...(decision.reason_codes ?? []), `deduped_url_${dedupedUrlCount}`];
+        }
+      }
+
+
+
 
       // ---- Idempotent CRM + memory writeback (one per inbound id) -----
       // Reuses the structured interpretation already produced; no extra
