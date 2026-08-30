@@ -1310,6 +1310,11 @@ async function persistTurn(args: {
     empty_body_guard?: string | null;
     recovery_mode?: string | null;
     completeness_guard?: boolean;
+    current_message_source?: string | null;
+    current_message_id?: string | null;
+    final_url_count?: number;
+    deduped_url_count?: number;
+
   };
   /** compact rolling conversation summary produced by the writeback pass */
   summary?: string | null;
