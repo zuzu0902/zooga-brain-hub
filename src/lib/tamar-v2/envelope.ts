@@ -127,12 +127,18 @@ export function dedupeUrlsInBody(body: string, seen: Set<string> = new Set()): s
     .trim();
 }
 
+/** How many URL occurrences a body/envelope currently contains. */
+export function countUrls(text: string): number {
+  return (String(text ?? "").match(/https?:\/\/[^\s<>"')\]]+/gi) ?? []).length;
+}
+
 export function dedupeUrls(messages: OutboundMessage[]): OutboundMessage[] {
   const seen = new Set<string>();
   return messages
     .map((m) => ({ ...m, body: dedupeUrlsInBody(String((m as any).body ?? ""), seen) }) as OutboundMessage)
     .filter((m) => String((m as any).body ?? "").trim() || m.kind !== "text");
 }
+
 
 /**
  * Final outbound plan: dedupe -> single envelope -> dedupe again (a split
