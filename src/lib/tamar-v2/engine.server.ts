@@ -611,14 +611,16 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     }
   }
 
-  const solo = soloPolicyReply(message);
+  // A price / itinerary / link question in the CURRENT message is answered
+  // from the current message only: no older-turn policy reply may take it.
+  const solo = currentAsk.any ? null : soloPolicyReply(message);
   // Sensitive / high-stakes topics may be answered only from grounded data.
   const sensitiveTopic = asksSomething ? detectSensitiveTopic(message) : null;
   if (resetRequested) {
     groundingPath = "conversation_reset";
   } else if (answerText) {
     /* pending-handoff turn already answered */
-  } else if (!input.simulate && contact && (await (async () => {
+  } else if (!currentAsk.any && !input.simulate && contact && (await (async () => {
     const { handleReengagementReply } = await import("@/lib/tamar-activation/followup.server");
     const r = await handleReengagementReply({ contact, message }).catch(() => null);
     if (!r) return false;
@@ -639,6 +641,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   } else if (solo) {
     answerText = solo.text;
     groundingPath = solo.offer_handoff ? "solo_policy_unknown" : "solo_policy_approved";
+
   } else if (voiceNorm?.ambiguous && !voiceNorm.changed) {
     // Low-confidence speech is NEVER silently rewritten and never merged
     // with stale travel context: ask one concise clarification and stop.
