@@ -399,8 +399,20 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     }
   }
 
+  // ---- LAST-INBOUND AUTHORITY -------------------------------------------
+  // The current text / transcript is the ONLY intent source for this turn.
+  const currentMessage = resolveCurrentMessage({
+    rawText: rawMessage,
+    normalizedText: voiceNorm?.changed ? message : null,
+    source: input.source ?? null,
+    inboundMessageId: input.inbound_message_id ?? null,
+  });
+  message = currentMessage.text;
+  const currentAsk = currentProductAsk(message);
+
   // Deterministic, pre-model: "נתחיל מחדש" costs no model call at all.
   const resetRequested = isConversationResetRequest(message);
+
 
   // ---- Canonical bounded context package (one per turn) ------------------
   // MANDATORY TRANSACTION: no durable snapshot => no outbound. A
