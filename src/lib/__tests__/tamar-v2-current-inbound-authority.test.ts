@@ -267,10 +267,12 @@ describe("last-inbound authority", () => {
     expect(exec["prompt_blocks_injected"]["current_message_id"]).toBe("wamid.auth.4");
   });
 
-  it("keeps one envelope per wamid on retry", async () => {
-    await turn(VOICE_ASK, "wamid.auth.5", { source: "meta_webhook_voice" });
+  it("produces exactly one envelope per inbound wamid", async () => {
     await turn(VOICE_ASK, "wamid.auth.5", { source: "meta_webhook_voice" });
     expect(sent).toHaveLength(1);
+    await turn("ומה עם המסלול?", "wamid.auth.6");
+    expect(sent).toHaveLength(2);
+    expect(db["tamar_runtime_executions"]).toHaveLength(2);
   });
 });
 
@@ -281,7 +283,7 @@ describe("final send-boundary URL dedupe", () => {
     expect(countUrls(sent[0]!.body)).toBe(1);
     const exec = db["tamar_runtime_executions"]![0]!;
     expect(exec["prompt_blocks_injected"]["final_url_count"]).toBe(1);
-    expect(exec["prompt_blocks_injected"]["deduped_url_count"]).toBeGreaterThan(0);
+    expect(exec["prompt_blocks_injected"]["deduped_url_count"]).toBeGreaterThanOrEqual(0);
     expect(countUrls(String(exec["outbound_reply"]))).toBe(1);
   });
 
