@@ -798,6 +798,9 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     optOut: isExplicitOptOut(message),
   });
   let emptyBodyGuard: string | null = null;
+  let finalUrlCount = 0;
+  let dedupedUrlCount = 0;
+
 
   // ---- SINGLE RESPONSE ORCHESTRATOR --------------------------------------
   // ONE primary action, ONE composed payload. Every legacy post-answer
