@@ -192,6 +192,14 @@ async function post(messages: any[]) {
 
 const msg = (id: string, text = "היי", from = "972501112233") => ({ id, wamid: id, from, type: "text", text, name: "t" });
 
+// Warm the (heavy) route + worker module graph once, outside any test's timeout.
+// Under a fully parallel suite the first transform+import alone can exceed the
+// default 5s per-test budget; this only moves that cost, it changes no behaviour.
+beforeAll(async () => {
+  await import("@/routes/api/public/webhook/tamar");
+  await import("@/lib/zero-loss/worker.server");
+}, 60_000);
+
 beforeEach(() => {
   reset();
   sends.length = 0;
