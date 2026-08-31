@@ -328,7 +328,10 @@ const TERMINAL_GROUNDING_PATHS = new Set([
   "offer_clarification",
   "sensitive_verification_required",
   "voice_clarification",
+  "category_retrieval",
+  "category_no_match",
 ]);
+
 
 /**
  * The mandatory context transaction failed. The turn produces NO outbound —
@@ -616,6 +619,43 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     }
   }
 
+  // ---- CANONICAL UNDERSTANDING + RETRIEVAL -------------------------------
+  // A category named in the CURRENT message ("אני מחפש הרצאות") is a HARD
+  // retrieval constraint over the canonical inventory. A follow-up
+  // ("על מה ההרצאות האלה?") resolves to the SAME persisted set. Neither may
+  // ever fall back to an unrelated offer or to a generic intake question.
+  const {
+    readCategoryFocus,
+    resolveCategoryTurn,
+    retrieveByCategory,
+    buildCategoryListText,
+    buildCategoryDetailText,
+    buildNoMatchText,
+    isCategoryBrowse,
+    CATEGORY_RETRIEVAL_VERSION,
+  } = await import("./category-retrieval");
+  const categoryFocus = readCategoryFocus(dyn);
+  const categoryTurn = resolveCategoryTurn({ message, focus: categoryFocus });
+  const categoryRetrieval =
+    categoryTurn.category && !resetRequested
+      ? retrieveByCategory({
+          category: categoryTurn.category,
+          offers: candidates as any[],
+          restrictToIds: categoryTurn.restrict_ids,
+          limit: 3,
+        })
+      : null;
+  // A specific offer already resolved + a concrete product ask (price/link)
+  // outranks category browsing: that turn is answered about THAT offer.
+  const categoryApplies =
+    !!categoryRetrieval &&
+    !resetRequested &&
+    !resolved &&
+    !currentAsk.any &&
+    !wantsHuman(message) &&
+    !acceptsPending &&
+    (categoryTurn.followup || isCategoryBrowse(message));
+
   // A price / itinerary / link question in the CURRENT message is answered
   // from the current message only: no older-turn policy reply may take it.
   const solo = currentAsk.any ? null : soloPolicyReply(message);
@@ -625,7 +665,18 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     groundingPath = "conversation_reset";
   } else if (answerText) {
     /* pending-handoff turn already answered */
+  } else if (categoryApplies && categoryRetrieval) {
+    if (categoryRetrieval.no_match_reason) {
+      answerText = buildNoMatchText(categoryRetrieval.category);
+      groundingPath = "category_no_match";
+    } else {
+      answerText = categoryTurn.followup
+        ? buildCategoryDetailText(categoryRetrieval)
+        : buildCategoryListText(categoryRetrieval);
+      groundingPath = "category_retrieval";
+    }
   } else if (!currentAsk.any && !input.simulate && contact && (await (async () => {
+
     const { handleReengagementReply } = await import("@/lib/tamar-activation/followup.server");
     const r = await handleReengagementReply({ contact, message }).catch(() => null);
     if (!r) return false;
@@ -812,7 +863,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   // legacy post-answer composer (recommendation concatenation, intake
   // appender, catalog fallback, older-topic policy reply) is disabled for
   // the turns the canonical contract owns.
-  const selector = selectResponseAction({
+  const selectorRaw = selectResponseAction({
     message,
     isQuestion: asksSomething,
     intent: interpretation.intent,
@@ -831,6 +882,22 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     marketingAllowed: marketingAllowed(state),
     hasVerifiedLink: !!(resolved?.offer_url ?? activeOffer?.offer_url),
   });
+  // A category-constrained retrieval turn owns its own composition: the
+  // generic recommendation composer (unfiltered catalog) and the intake
+  // appender are both disabled for it.
+  const selector =
+    categoryApplies && categoryRetrieval && answerText
+      ? {
+          ...selectorRaw,
+          applies: true,
+          action: "answer" as const,
+          intake_key: null,
+          recommendation_allowed: false,
+          offer_ids: categoryRetrieval.candidate_offer_ids,
+          reasons: [...selectorRaw.reasons, "category_constrained_retrieval"],
+        }
+      : selectorRaw;
+
   const verifiedLinkUrl: string | null =
     (resolved?.offer_url as string | null) ?? (activeOffer?.offer_url as string | null) ?? null;
   const canonical = selectCanonicalPolicy({
@@ -1062,6 +1129,23 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     productAsked,
   });
 
+  // ---- Active category focus (source + timestamp) ------------------------
+  // Persisted only when a category actually owned this turn, so a later
+  // "על מה ההרצאות האלה?" resolves to exactly the presented set.
+  const updatedCategoryFocus =
+    categoryApplies && categoryRetrieval && categoryRetrieval.candidate_offer_ids.length
+      ? {
+          category: categoryRetrieval.category,
+          offer_ids: categoryRetrieval.candidate_offer_ids,
+          source: (categoryTurn.followup ? "followup" : "explicit_message") as
+            | "followup"
+            | "explicit_message",
+          updated_at: new Date().toISOString(),
+        }
+      : null;
+
+
+
   // Deterministic side effects of a terminal/reset turn. Both are idempotent
   // per inbound message id: a retry writes nothing new.
   if (!input.simulate && contact?.id) {
@@ -1258,11 +1342,19 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
           current_message_id: currentMessage.id,
           final_url_count: finalUrlCount,
           deduped_url_count: dedupedUrlCount,
-
+          category_retrieval_version: CATEGORY_RETRIEVAL_VERSION,
+          extracted_category: categoryTurn.category,
+          category_confidence: categoryTurn.confidence,
+          retrieval_constraints: categoryRetrieval?.retrieval_constraints ?? [],
+          candidate_offer_ids: categoryRetrieval?.candidate_offer_ids ?? [],
+          inventory_fallback_used: !!categoryRetrieval?.inventory_fallback_used,
+          no_match_reason: categoryRetrieval?.no_match_reason ?? null,
         },
         summary: writeback && !writeback.skipped ? writeback.summary : null,
         focus: updatedFocus,
+        categoryFocus: updatedCategoryFocus,
         contextSnapshotId,
+
       });
 
       for (const m of outgoing) {
@@ -1379,12 +1471,26 @@ async function persistTurn(args: {
     current_message_id?: string | null;
     final_url_count?: number;
     deduped_url_count?: number;
+    category_retrieval_version?: string | null;
+    extracted_category?: string | null;
+    category_confidence?: number;
+    retrieval_constraints?: string[];
+    candidate_offer_ids?: string[];
+    inventory_fallback_used?: boolean;
+    no_match_reason?: string | null;
 
   };
   /** compact rolling conversation summary produced by the writeback pass */
   summary?: string | null;
   /** authoritative active conversational focus after this turn */
   focus?: ActiveFocus | null;
+  /** active category/topic focus (source + timestamp) after this turn */
+  categoryFocus?: {
+    category: string;
+    offer_ids: string[];
+    source: "explicit_message" | "followup";
+    updated_at: string;
+  } | null;
   /** snapshot this turn reasoned over; linked to the decision trace */
   contextSnapshotId?: string | null;
 }) {
@@ -1430,6 +1536,10 @@ async function persistTurn(args: {
   Object.assign(dyn, withPending);
 
   if (args.focus) Object.assign(dyn, withFocus(dyn, args.focus));
+  if (args.categoryFocus) {
+    const { withCategoryFocus } = await import("./category-retrieval");
+    Object.assign(dyn, withCategoryFocus(dyn, args.categoryFocus as any));
+  }
 
   // A reset clears ONLY volatile working state. History, CRM columns, facts,
   // memories, audit rows and consent are untouched.
@@ -1542,6 +1652,13 @@ async function persistTurn(args: {
         current_message_id: args.orchestrator?.current_message_id ?? null,
         final_url_count: args.orchestrator?.final_url_count ?? 0,
         deduped_url_count: args.orchestrator?.deduped_url_count ?? 0,
+        category_retrieval_version: args.orchestrator?.category_retrieval_version ?? null,
+        extracted_category: args.orchestrator?.extracted_category ?? null,
+        category_confidence: args.orchestrator?.category_confidence ?? 0,
+        retrieval_constraints: args.orchestrator?.retrieval_constraints ?? [],
+        candidate_offer_ids: args.orchestrator?.candidate_offer_ids ?? [],
+        inventory_fallback_used: !!args.orchestrator?.inventory_fallback_used,
+        no_match_reason: args.orchestrator?.no_match_reason ?? null,
 
         semantic_guard: args.orchestrator?.guard ?? [],
         final_envelope_count: args.outbound.length,
