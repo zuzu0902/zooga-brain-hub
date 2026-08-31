@@ -172,6 +172,11 @@ const envelope = {
   ],
 };
 
+// Warm the heavy route module graph once, outside any test's timeout budget.
+beforeAll(async () => {
+  await import("@/routes/api/public/webhook/tamar");
+}, 60_000);
+
 describe("webhook durability gate (src/routes/api/public/webhook/tamar.ts)", () => {
   it("returns 503 and does NOT ack when the durable vault insert fails", async () => {
     ingestEvent.mockImplementation(async () => {
