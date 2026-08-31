@@ -6,7 +6,7 @@
  *
  * Runs the REAL webhook handler with Meta, the model and the DB mocked.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---- in-memory DB -------------------------------------------------------
 type Row = Record<string, any>;
@@ -191,6 +191,14 @@ async function post(messages: any[]) {
 }
 
 const msg = (id: string, text = "היי", from = "972501112233") => ({ id, wamid: id, from, type: "text", text, name: "t" });
+
+// Warm the (heavy) route + worker module graph once, outside any test's timeout.
+// Under a fully parallel suite the first transform+import alone can exceed the
+// default 5s per-test budget; this only moves that cost, it changes no behaviour.
+beforeAll(async () => {
+  await import("@/routes/api/public/webhook/tamar");
+  await import("@/lib/zero-loss/worker.server");
+}, 60_000);
 
 beforeEach(() => {
   reset();

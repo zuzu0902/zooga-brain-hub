@@ -1,7 +1,7 @@
 /**
  * Gate + scheduler + webhook-ack tests. No network, no WhatsApp, no DB.
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { computeProductionGate, type ReadinessItem } from "@/lib/zero-loss/core";
 
 const item = (key: string, verified: boolean, core: boolean): ReadinessItem => ({
@@ -171,6 +171,11 @@ const envelope = {
     },
   ],
 };
+
+// Warm the heavy route module graph once, outside any test's timeout budget.
+beforeAll(async () => {
+  await import("@/routes/api/public/webhook/tamar");
+}, 60_000);
 
 describe("webhook durability gate (src/routes/api/public/webhook/tamar.ts)", () => {
   it("returns 503 and does NOT ack when the durable vault insert fails", async () => {
