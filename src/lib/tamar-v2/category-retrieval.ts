@@ -92,6 +92,24 @@ export function extractCategory(message: string): CategoryExtraction {
   };
 }
 
+/**
+ * Browse cues: the customer is looking for a CATEGORY, not asking about one
+ * specific offer already on the table. Naming "הטיול הזה" is never a browse.
+ */
+const BROWSE_CUE_RE =
+  /(מחפש(?:ת)?|יש\s*לכם|יש\s*לך|אילו|איזה|איזו|מה\s*יש|רוצה\s*לשמוע|מעוניינ(?:ת|ים)?|מתעניינ(?:ת|ים)?|תציעי|תמליצי|המלצות|ומה\s*עם|מה\s*עם)/;
+const DEMONSTRATIVE_RE = /(הזה|הזאת|הזו|ההוא|שדיברנו|שסיפרת)/;
+
+export function isCategoryBrowse(message: string): boolean {
+  const m = String(message ?? "");
+  if (DEMONSTRATIVE_RE.test(m)) return false;
+  const ex = extractCategory(m);
+  if (!ex.category) return false;
+  if (BROWSE_CUE_RE.test(m)) return true;
+  // a bare plural category term ("הרצאות?", "טיולים") is also a browse
+  return /(ות|ים)\s*[?？]?\s*$/.test(ex.matched_terms[0] ?? "") || ex.matched_terms.some((t) => /(ות|ים)$/.test(t));
+}
+
 /** Anaphoric follow-up about a set already presented ("על מה ההרצאות האלה?"). */
 const FOLLOWUP_RE = /(האלה|האלו|הללו|עליהם|עליהן|האלו\?|מה\s*יש\s*בהם|על\s*מה)/;
 

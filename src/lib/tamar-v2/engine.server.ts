@@ -631,6 +631,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     buildCategoryListText,
     buildCategoryDetailText,
     buildNoMatchText,
+    isCategoryBrowse,
     CATEGORY_RETRIEVAL_VERSION,
   } = await import("./category-retrieval");
   const categoryFocus = readCategoryFocus(dyn);
@@ -649,9 +650,11 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const categoryApplies =
     !!categoryRetrieval &&
     !resetRequested &&
-    !(resolved && currentAsk.any) &&
+    !resolved &&
+    !currentAsk.any &&
     !wantsHuman(message) &&
-    !acceptsPending;
+    !acceptsPending &&
+    (categoryTurn.followup || isCategoryBrowse(message));
 
   // A price / itinerary / link question in the CURRENT message is answered
   // from the current message only: no older-turn policy reply may take it.
