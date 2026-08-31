@@ -6,7 +6,7 @@
  *
  * Runs the REAL webhook handler with Meta, the model and the DB mocked.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---- in-memory DB -------------------------------------------------------
 type Row = Record<string, any>;
