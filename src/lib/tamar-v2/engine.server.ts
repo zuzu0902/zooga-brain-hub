@@ -632,7 +632,6 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     buildCategoryDetailText,
     buildNoMatchText,
     CATEGORY_RETRIEVAL_VERSION,
-    withCategoryFocus,
   } = await import("./category-retrieval");
   const categoryFocus = readCategoryFocus(dyn);
   const categoryTurn = resolveCategoryTurn({ message, focus: categoryFocus });
