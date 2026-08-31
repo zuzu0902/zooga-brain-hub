@@ -1,7 +1,7 @@
 /**
  * Gate + scheduler + webhook-ack tests. No network, no WhatsApp, no DB.
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { computeProductionGate, type ReadinessItem } from "@/lib/zero-loss/core";
 
 const item = (key: string, verified: boolean, core: boolean): ReadinessItem => ({
