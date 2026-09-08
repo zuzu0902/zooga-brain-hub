@@ -12,7 +12,7 @@
 
 /** Explicit, unambiguous "let's start over" phrasings. */
 const RESET_RE =
-  /(נתחיל\s+מחדש|בוא(י)?\s+נתחיל\s+מחדש|להתחיל\s+מחדש|התחלה\s+חדשה|מתחילים\s+מחדש|אפס(י)?\s+(את\s+)?השיחה|לאפס\s+(את\s+)?השיחה|תתחילי\s+מחדש|נתחיל\s+מהתחלה|מהתחלה\s+בבקשה|start\s+over|reset\s+(the\s+)?(chat|conversation))/i;
+  /(נתחיל\s+מחדש|נתחיל\s+שוב|מתחילים\s+שוב|בוא(י)?\s+נתחיל\s+(מחדש|שוב)|להתחיל\s+(מחדש|שוב)|התחלה\s+חדשה|מתחילים\s+מחדש|אפס(י)?\s+(את\s+)?השיחה|לאפס\s+(את\s+)?השיחה|תתחילי\s+(מחדש|שוב)|נתחיל\s+מהתחלה|מהתחלה\s+בבקשה|^\s*ריסט\s*$|^\s*רסט\s*$|start\s+over|^\s*reset\s*$|reset\s+(the\s+)?(chat|conversation))/i;
 
 export function isConversationResetRequest(message: string | null | undefined): boolean {
   const raw = String(message ?? "").trim();
