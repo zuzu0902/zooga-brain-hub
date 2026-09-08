@@ -48,12 +48,18 @@ async function log(status: string, payload: Record<string, unknown>) {
   );
 }
 
-/** Send the consent opening once. Never sends twice for the same contact. */
+/**
+ * Send the consent opening once. Never sends twice for the same contact.
+ * `adminInitiated` is set ONLY by an authenticated admin's explicit
+ * single-contact action; automated paths leave it false and stay
+ * allowlist-only.
+ */
 export async function sendConsentOpening(
   contactId: string,
-  opts: { dryRun?: boolean } = {},
+  opts: { dryRun?: boolean; adminInitiated?: boolean } = {},
 ): Promise<OpeningOutcome> {
   const dryRun = !!opts.dryRun;
+
   const base: OpeningOutcome = {
     contact_id: contactId,
     status: "skipped",
@@ -100,7 +106,12 @@ export async function sendConsentOpening(
 
   // LAST GATE before any real network call: the canonical live allowlist.
   const { assertLiveSendAllowed } = await import("@/lib/tamar-pilot/live-allowlist.server");
-  const allowlist = await assertLiveSendAllowed({ phone: to, contactId, kind: "consent_opening" });
+  const allowlist = await assertLiveSendAllowed({
+    phone: to,
+    contactId,
+    kind: "consent_opening",
+    adminInitiated: opts.adminInitiated === true,
+  });
   if (!allowlist.allowed) {
     await log("skipped", { contact_id: contactId, reason: allowlist.reason });
     return { ...base, reason: allowlist.reason, reason_he: allowlist.reason_he };

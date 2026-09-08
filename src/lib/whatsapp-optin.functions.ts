@@ -30,7 +30,9 @@ export const sendConsentOpeningToContact = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z.object({ contact_id: z.string().uuid(), dry_run: z.boolean().optional() }).parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { assertAdmin } = await import("@/lib/admin-authz.server");
+    await assertAdmin(context);
     const { sendConsentOpening } = await import("@/lib/whatsapp-optin/optin.server");
-    return sendConsentOpening(data.contact_id, { dryRun: !!data.dry_run });
+    return sendConsentOpening(data.contact_id, { dryRun: !!data.dry_run, adminInitiated: true });
   });

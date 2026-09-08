@@ -173,7 +173,7 @@ export async function ensureRelationshipStatusQuestion() {
 }
 
 /** Send the personalized consent-first opener through the canonical sender. */
-export async function launchPilotOpener(args: { contactId: string; dryRun?: boolean }) {
+export async function launchPilotOpener(args: { contactId: string; dryRun?: boolean; adminInitiated?: boolean }) {
   const { data: contact } = await supabaseAdmin
     .from("contacts")
     .select(CONTACT_PILOT_COLUMNS)
@@ -186,7 +186,10 @@ export async function launchPilotOpener(args: { contactId: string; dryRun?: bool
   if (!gate.eligible) return { ok: false, reason: gate.reason, reason_he: gate.reason_he };
 
   const { sendConsentOpening } = await import("@/lib/whatsapp-optin/optin.server");
-  const outcome = await sendConsentOpening(args.contactId, { dryRun: args.dryRun });
+  const outcome = await sendConsentOpening(args.contactId, {
+    dryRun: args.dryRun,
+    adminInitiated: args.adminInitiated === true,
+  });
   if (outcome.status === "sent" && !args.dryRun) {
     await quiet(
       supabaseAdmin

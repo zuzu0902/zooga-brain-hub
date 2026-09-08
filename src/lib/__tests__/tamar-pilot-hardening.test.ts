@@ -99,11 +99,13 @@ describe("consent evidence shape", () => {
 describe("pilot control center authorization", () => {
   const src = readFileSync("src/lib/tamar-pilot.functions.ts", "utf8");
   it("requires admin on every entry point, including read and dry run", () => {
-    expect(src).toContain('_role: "admin"');
+    expect(readFileSync("src/lib/admin-authz.server.ts", "utf8")).toContain('_role: "admin"');
+    expect(src).toContain('from "@/lib/admin-authz.server"');
     const handlers = src.split(".handler(").slice(1);
     expect(handlers.length).toBe(5);
     for (const h of handlers) expect(h).toContain("assertAdmin(context)");
   });
+
 
   it("enforces the allowlist inside the real send paths", () => {
     expect(readFileSync("src/lib/whatsapp-optin/optin.server.ts", "utf8")).toContain("assertLiveSendAllowed");
