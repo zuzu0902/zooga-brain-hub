@@ -48,12 +48,18 @@ async function log(status: string, payload: Record<string, unknown>) {
   );
 }
 
-/** Send the consent opening once. Never sends twice for the same contact. */
+/**
+ * Send the consent opening once. Never sends twice for the same contact.
+ * `adminInitiated` is set ONLY by an authenticated admin's explicit
+ * single-contact action; automated paths leave it false and stay
+ * allowlist-only.
+ */
 export async function sendConsentOpening(
   contactId: string,
-  opts: { dryRun?: boolean } = {},
+  opts: { dryRun?: boolean; adminInitiated?: boolean } = {},
 ): Promise<OpeningOutcome> {
   const dryRun = !!opts.dryRun;
+
   const base: OpeningOutcome = {
     contact_id: contactId,
     status: "skipped",
