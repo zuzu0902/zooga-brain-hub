@@ -7,15 +7,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const UUID = /^[0-9a-f-]{36}$/i;
+import { assertAdmin } from "@/lib/admin-authz.server";
 
-async function assertAdmin(context: any) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
-  if (error || !data) throw new Response("Forbidden", { status: 403 });
-}
+const UUID = /^[0-9a-f-]{36}$/i;
 
 export const getPilotStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -58,7 +52,7 @@ export const sendPilotOpener = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { launchPilotOpener } = await import("@/lib/tamar-pilot/pilot.server");
-    return launchPilotOpener(data);
+    return launchPilotOpener({ ...data, adminInitiated: true });
   });
 
 export const runPilotLifecycleNow = createServerFn({ method: "POST" })

@@ -106,7 +106,12 @@ export async function sendConsentOpening(
 
   // LAST GATE before any real network call: the canonical live allowlist.
   const { assertLiveSendAllowed } = await import("@/lib/tamar-pilot/live-allowlist.server");
-  const allowlist = await assertLiveSendAllowed({ phone: to, contactId, kind: "consent_opening" });
+  const allowlist = await assertLiveSendAllowed({
+    phone: to,
+    contactId,
+    kind: "consent_opening",
+    adminInitiated: opts.adminInitiated === true,
+  });
   if (!allowlist.allowed) {
     await log("skipped", { contact_id: contactId, reason: allowlist.reason });
     return { ...base, reason: allowlist.reason, reason_he: allowlist.reason_he };
