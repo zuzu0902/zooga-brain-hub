@@ -377,6 +377,25 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     contact = await healStaleHumanOwnership(contact as any);
   }
 
+  // ---- HUMAN HANDOFF IS A COLLABORATION STATE, NEVER A LOCK --------------
+  // A stale transfer (no recent contact-specific manager activity) returns
+  // ownership to Tamar for ANY inbound; explicit re-engagement/reset returns
+  // it even while a manager is active. An actually-active handling gets ONE
+  // concise status reply, never a per-message boilerplate loop.
+  const earlyReset = isConversationResetRequest(rawMessage);
+  let handoffOwnership: { action: string; reason: string } = { action: "none", reason: "not_frozen" };
+  if (contact && !input.simulate) {
+    const { resolveHandoffOwnership } = await import("./handoff-activity.server");
+    const outcome = await resolveHandoffOwnership({
+      contact,
+      resetRequested: earlyReset,
+    }).catch(() => null);
+    if (outcome) {
+      contact = outcome.contact;
+      handoffOwnership = { action: outcome.action, reason: outcome.reason };
+    }
+  }
+
   const dyn = (contact?.dynamic_profile_fields ?? {}) as Record<string, any>;
   const pendingStepKey: string | null = dyn?.["v2_pending_step"] ?? null;
   const ambiguityTurns: number = Number(dyn?.["v2_ambiguity_turns"] ?? 0);
@@ -1114,6 +1133,31 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     ...orchestratorCodes,
     ...guardCodes,
   ];
+
+  // Active human handling: exactly ONE concise status reply, then the thread
+  // stays quiet (the message is still ingested, persisted and escalated).
+  if (handoffOwnership.action === "status_reply" || handoffOwnership.action === "status_quiet") {
+    const { HANDOFF_ACTIVE_STATUS_TEXT } = await import("./handoff-activity");
+    if (handoffOwnership.action === "status_reply") {
+      decision.messages = [{ kind: "text", body: HANDOFF_ACTIVE_STATUS_TEXT } as any];
+      decision.silent = false;
+    } else {
+      decision.messages = [];
+      decision.silent = true;
+    }
+    decision.marketing_allowed = false;
+    decision.reason_codes = [
+      ...(decision.reason_codes ?? []),
+      `handoff_${handoffOwnership.action}`,
+      `handoff_activity_${handoffOwnership.reason}`,
+    ];
+  } else if (handoffOwnership.action === "resume_tamar") {
+    decision.reason_codes = [
+      ...(decision.reason_codes ?? []),
+      "handoff_resume_tamar",
+      `handoff_activity_${handoffOwnership.reason}`,
+    ];
+  }
 
 
 
