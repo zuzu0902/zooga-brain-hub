@@ -191,17 +191,60 @@ export const createBroadcast = createServerFn({ method: "POST" })
     return { id: created.id as string, status, targets: rows.length };
   });
 
+/**
+ * Real stop: works for a RUNNING broadcast too. Every target that has not been
+ * sent yet is marked `skipped`, so the runner has nothing left to send and a
+ * later run cannot resume it. Messages already delivered stay `sent`.
+ */
 export const cancelBroadcast = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const db = await admin();
+
+    const { error: tErr } = await db
+      .from("whatsapp_broadcast_targets")
+      .update({ status: "skipped", error_text: "cancelled_by_admin" } as never)
+      .eq("broadcast_id", data.id)
+      .in("status", ["pending", "queued"]);
+    if (tErr) throw new Error(tErr.message);
+
     const { error } = await db
       .from("whatsapp_broadcasts")
-      .update({ status: "cancelled" })
+      .update({
+        status: "cancelled",
+        pending_count: 0,
+        lease_owner: null,
+        lease_expires_at: null,
+        finished_at: new Date().toISOString(),
+        last_error: "cancelled_by_admin",
+      } as never)
       .eq("id", data.id)
-      .in("status", ["draft", "queued"]);
+      .in("status", ["draft", "queued", "running"]);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Removes a broadcast that is not currently active from the queue/history. */
+export const deleteBroadcast = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const db = await admin();
+    const { data: row, error: readErr } = await db
+      .from("whatsapp_broadcasts")
+      .select("id, status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!row) throw new Error("broadcast_not_found");
+    if (row.status === "running") throw new Error("יש לעצור את ההפצה לפני מחיקה");
+
+    const { error: tErr } = await db.from("whatsapp_broadcast_targets").delete().eq("broadcast_id", data.id);
+    if (tErr) throw new Error(tErr.message);
+    const { error } = await db.from("whatsapp_broadcasts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

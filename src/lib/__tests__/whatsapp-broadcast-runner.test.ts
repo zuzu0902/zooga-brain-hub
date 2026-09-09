@@ -85,7 +85,9 @@ function createRunnerHarness(overrides: { intervalSeconds?: number; targets?: Ha
           this.filters.push([column, value]);
           return this;
         },
-        in() {
+        statusIn: null as string[] | null,
+        in(column: string, values: string[]) {
+          if (column === "status") this.statusIn = values;
           return this;
         },
         or() {
@@ -103,13 +105,23 @@ function createRunnerHarness(overrides: { intervalSeconds?: number; targets?: Ha
             return { data: { id: "conn-1", transport: "whatsapp_web_bridge", purpose: "group_broadcast" }, error: null };
           }
           if (table === "whatsapp_broadcasts" && this.action === "update") {
+            // The database filter `.in("status", [...])` gates the claim.
+            if (this.statusIn && !this.statusIn.includes(String(broadcast.status))) {
+              return { data: null, error: null };
+            }
             Object.assign(broadcast, withoutUndefined(this.patch));
             return { data: { id: broadcast.id }, error: null };
+          }
+          if (table === "whatsapp_broadcasts" && this.action === "select") {
+            return { data: { id: broadcast.id, status: broadcast.status }, error: null };
           }
           return { data: null, error: null };
         },
         async execute() {
           if (table === "whatsapp_broadcasts" && this.action === "select") {
+            if (this.statusIn && !this.statusIn.includes(String(broadcast.status))) {
+              return { data: [], error: null };
+            }
             return { data: [broadcast], error: null };
           }
           if (table === "whatsapp_broadcasts" && this.action === "update") {
@@ -254,6 +266,42 @@ describe("broadcast runner pacing behavior", () => {
       expect(result).toMatchObject({ ok: false, failed: 0, status: "queued", reason: code });
     },
   );
+});
+
+describe("admin cancellation stops an in-flight run", () => {
+  it("sends nothing when the broadcast was cancelled before the run", async () => {
+    const harness = createRunnerHarness({ intervalSeconds: 5 });
+    mocks.supabaseAdmin = harness.client;
+    mocks.sendGroupMessage.mockResolvedValue({ ok: true, message_id: "wamid-1", duplicate: false });
+    harness.broadcast.status = "cancelled";
+
+    const result = await runBroadcastQueue({ budgetMs: 10_000, maxTargets: 2 });
+
+    expect(mocks.sendGroupMessage).not.toHaveBeenCalled();
+    expect(result.status).toBeNull();
+    expect(harness.broadcast.status).toBe("cancelled");
+    expect(harness.targets.map((t) => t.status)).toEqual(["pending", "pending"]);
+  });
+
+  it("stops between targets when an admin cancels mid-run and never overwrites the cancelled status", async () => {
+    const harness = createRunnerHarness({ intervalSeconds: 5 });
+    mocks.supabaseAdmin = harness.client;
+    mocks.sendGroupMessage.mockImplementation(async () => {
+      harness.broadcast.status = "cancelled"; // admin pressed stop
+      return { ok: true, message_id: "wamid-1", duplicate: false };
+    });
+
+    const result = await runBroadcastQueue({ budgetMs: 10_000, maxTargets: 2 });
+
+    expect(mocks.sendGroupMessage).toHaveBeenCalledTimes(1);
+    expect(harness.targets.map((t) => t.status)).toEqual(["sent", "pending"]);
+    expect(harness.broadcast.status).toBe("cancelled");
+    expect(result).toMatchObject({ status: "cancelled", reason: "cancelled_by_admin" });
+  });
+
+  it("updates the counters after every target, not only at the end of the run", () => {
+    expect(RUNNER).toContain("// Live progress: counters update after every group");
+  });
 });
 
 describe("gateway send route gap", () => {

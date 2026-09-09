@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createBroadcast,
   cancelBroadcast,
+  deleteBroadcast,
   deleteGroupFolder,
   listGroupFolders,
   saveGroupFolder,
@@ -71,7 +72,13 @@ function BroadcastsPage() {
 
   const connections = useQuery({ queryKey: ["wa", "connections"], queryFn: () => connFn({}) });
   const groupsQ = useQuery({ queryKey: ["wa", "groups"], queryFn: () => groupsFn({}) });
-  const historyQ = useQuery({ queryKey: ["wa", "broadcasts"], queryFn: () => historyFn({}) });
+  const historyQ = useQuery({
+    queryKey: ["wa", "broadcasts"],
+    queryFn: () => historyFn({}),
+    // Live progress while a broadcast is actually sending.
+    refetchInterval: (q) =>
+      ((q.state.data ?? []) as any[]).some((b) => b.status === "running") ? 5_000 : 30_000,
+  });
 
   const bridgeStatusFn = useServerFn(getBridgeStatus);
   const bridgeStatusQ = useQuery({
@@ -267,10 +274,34 @@ function BroadcastsPage() {
   const cancel = useMutation({
     mutationFn: useServerFn(cancelBroadcast),
     onSuccess: () => {
-      toast.success("ההפצה בוטלה");
+      toast.success("ההפצה נעצרה. הודעות שכבר נשלחו אינן מבוטלות");
       qc.invalidateQueries({ queryKey: ["wa", "broadcasts"] });
     },
+    onError: (e: any) => toast.error(String(e?.message ?? e)),
   });
+
+  const stopBroadcast = (b: any) => {
+    const running = b.status === "running";
+    const msg = running
+      ? "לעצור את השליחה עכשיו? קבוצות שטרם קיבלו לא יקבלו את ההודעה. הודעות שכבר נשלחו לא מבוטלות."
+      : "לבטל את ההפצה?";
+    if (!window.confirm(msg)) return;
+    cancel.mutate({ data: { id: b.id } });
+  };
+
+  const removeBroadcast = useMutation({
+    mutationFn: useServerFn(deleteBroadcast),
+    onSuccess: () => {
+      toast.success("ההפצה נמחקה");
+      qc.invalidateQueries({ queryKey: ["wa", "broadcasts"] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e)),
+  });
+
+  const removeBroadcastConfirm = (b: any) => {
+    if (!window.confirm("למחוק את ההפצה מהתור?")) return;
+    removeBroadcast.mutate({ data: { id: b.id } });
+  };
 
   const runNow = useMutation({
     mutationFn: useServerFn(runBroadcastNow),
@@ -782,20 +813,35 @@ function BroadcastsPage() {
                     <Button
                       size="sm"
                       className="ms-auto"
-                      disabled={runNow.isPending}
+                      disabled={runNow.isPending || b.status === "running"}
                       onClick={() => runNow.mutate({ data: { id: b.id } })}
                     >
                       {runNow.isPending ? "שולח…" : "שלח עכשיו"}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => cancel.mutate({ data: { id: b.id } })}>
-                      ביטול
+                    <Button
+                      size="sm"
+                      variant={b.status === "running" ? "destructive" : "ghost"}
+                      disabled={cancel.isPending}
+                      onClick={() => stopBroadcast(b)}
+                    >
+                      {b.status === "running" ? "עצור שליחה" : "ביטול"}
                     </Button>
+                    {b.status !== "running" && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={removeBroadcast.isPending}
+                        onClick={() => removeBroadcastConfirm(b)}
+                      >
+                        מחיקה
+                      </Button>
+                    )}
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                     <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    נשלחו {b.success_count} · נכשלו {b.failed_count} · ממתינות {b.pending_count}
+                    נשלחו {b.success_count} מתוך {total} · נכשלו {b.failed_count} · ממתינות {b.pending_count}
                     {b.last_run_at ? ` · ריצה אחרונה ${formatDate(b.last_run_at)}` : ""}
                   </div>
                   {b.last_error && (
@@ -827,9 +873,19 @@ function BroadcastsPage() {
                   סה״כ {b.total_groups} · נשלחו {b.success_count} · נכשלו {b.failed_count} · ממתינות {b.pending_count}
                 </span>
                 <span className="text-muted-foreground">{formatDate(b.created_at)}</span>
-                {(b.status === "draft" || b.status === "queued") && (
-                  <Button size="sm" variant="ghost" onClick={() => cancel.mutate({ data: { id: b.id } })}>
-                    ביטול
+                {(b.status === "draft" || b.status === "queued" || b.status === "running") && (
+                  <Button size="sm" variant="ghost" disabled={cancel.isPending} onClick={() => stopBroadcast(b)}>
+                    {b.status === "running" ? "עצור שליחה" : "ביטול"}
+                  </Button>
+                )}
+                {b.status !== "running" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={removeBroadcast.isPending}
+                    onClick={() => removeBroadcastConfirm(b)}
+                  >
+                    מחיקה
                   </Button>
                 )}
               </CardContent>
