@@ -33,7 +33,13 @@ const TARGET_LABELS: Record<string, string> = {
 function BroadcastDetailsPage() {
   const { id } = Route.useParams();
   const fn = useServerFn(getBroadcastDetails);
-  const q = useQuery({ queryKey: ["wa", "broadcast", id], queryFn: () => fn({ data: { id } }) });
+  const q = useQuery({
+    queryKey: ["wa", "broadcast", id],
+    queryFn: () => fn({ data: { id } }),
+    // Live progress while the broadcast is sending.
+    refetchInterval: (query) =>
+      (query.state.data as any)?.broadcast?.status === "running" ? 5_000 : 30_000,
+  });
   const b = (q.data as any)?.broadcast;
   const targets = ((q.data as any)?.targets ?? []) as any[];
 

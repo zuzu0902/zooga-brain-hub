@@ -101,6 +101,12 @@ async function releaseLease(client: any, id: string, patch: Record<string, unkno
     .eq("id", id);
 }
 
+/** True when an admin cancelled the broadcast while the run was in progress. */
+async function isCancelled(client: any, id: string): Promise<boolean> {
+  const { data } = await client.from("whatsapp_broadcasts").select("status").eq("id", id).maybeSingle();
+  return !data || data.status === "cancelled";
+}
+
 async function refreshCounts(client: any, id: string) {
   const { data } = await client.from("whatsapp_broadcast_targets").select("status").eq("broadcast_id", id);
   const rows = (data ?? []) as { status: string }[];
@@ -166,10 +172,16 @@ export async function runBroadcastQueue(
     let failed = 0;
     let lastError: string | null = null;
     let stopped = false;
+    let cancelled = false;
     const list = (targets ?? []) as any[];
 
     for (let i = 0; i < list.length; i++) {
       if (Date.now() > deadline) break;
+      // Admin cancellation is honoured between targets: no further send.
+      if (await isCancelled(client, id)) {
+        cancelled = true;
+        break;
+      }
       const t = list[i];
       const res = await sendGroupMessage({
         chat_id: String(t.whatsapp_chat_id_snapshot ?? ""),
@@ -205,10 +217,37 @@ export async function runBroadcastQueue(
           .eq("id", t.id);
       }
 
+      // Live progress: counters update after every group, not only at the end.
+      await refreshCounts(client, id);
+
+      // Cancelled during the send itself: do not even start the pacing wait.
+      if (await isCancelled(client, id)) {
+        cancelled = true;
+        break;
+      }
+
       if (i < list.length - 1) {
         if (Date.now() + interval * 1000 > deadline) break;
         await sleep(interval * 1000);
+        if (await isCancelled(client, id)) {
+          cancelled = true;
+          break;
+        }
       }
+    }
+
+    if (cancelled) {
+      // Never overwrite the cancelled status; just drop the lease and exit.
+      await releaseLease(client, id, {});
+      return {
+        ok: true,
+        broadcast_id: id,
+        sent,
+        failed,
+        remaining: 0,
+        status: "cancelled",
+        reason: "cancelled_by_admin",
+      };
     }
 
     const counts = await refreshCounts(client, id);
