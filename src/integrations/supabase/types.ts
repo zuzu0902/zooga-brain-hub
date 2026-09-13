@@ -5363,6 +5363,30 @@ export type Database = {
           },
         ]
       }
+      zooga_core_gateway_credentials: {
+        Row: {
+          active: boolean
+          created_at: string
+          credential_id: string
+          rotated_at: string | null
+          token_digest: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          credential_id: string
+          rotated_at?: string | null
+          token_digest: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          credential_id?: string
+          rotated_at?: string | null
+          token_digest?: string
+        }
+        Relationships: []
+      }
       zooga_shadow_brain_config: {
         Row: {
           created_at: string
@@ -6177,6 +6201,46 @@ export type Database = {
         Returns: {
           bearer_token: string
           gateway_url: string
+        }[]
+      }
+      zooga_core_gateway_authorized: {
+        Args: { _gateway_token: string }
+        Returns: boolean
+      }
+      zooga_core_read_catalog_context: {
+        Args: {
+          _cursor?: string
+          _gateway_token: string
+          _limit?: number
+          _tenant_id?: string
+        }
+        Returns: {
+          category: string
+          commercial: Json
+          external_ref: string
+          lifecycle_status: string
+          source_system: string
+          source_updated_at: string
+          title: string
+          verified_facts: Json
+        }[]
+      }
+      zooga_core_read_contact_context: {
+        Args: {
+          _cursor?: string
+          _gateway_token: string
+          _limit?: number
+          _tenant_id?: string
+        }
+        Returns: {
+          consent_state: Json
+          external_ref: string
+          identity: Json
+          lifecycle: Json
+          profile: Json
+          source_created_at: string
+          source_system: string
+          source_updated_at: string
         }[]
       }
       zooga_gateway_status: { Args: { _gateway_token: string }; Returns: Json }
