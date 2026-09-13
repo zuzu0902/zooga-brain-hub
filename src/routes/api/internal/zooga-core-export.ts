@@ -1,0 +1,96 @@
+/**
+ * ZOOGA CORE MIGRATION BRIDGE — temporary, read-only CRM export adapter.
+ *
+ * GET /api/internal/zooga-core-export?kind=contact|catalog&cursor=&limit=
+ *
+ * Auth: Authorization: Bearer <gateway token>, validated ONLY through the
+ * public.zooga_core_gateway_authorized RPC. No arbitrary SQL/table access,
+ * no write method, no secret or database-error disclosure.
+ */
+import { createFileRoute } from "@tanstack/react-router";
+
+const KIND_RPC = {
+  contact: "zooga_core_read_contact_context",
+  catalog: "zooga_core_read_catalog_context",
+} as const;
+
+type ExportKind = keyof typeof KIND_RPC;
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json", "cache-control": "no-store" },
+  });
+}
+
+/** Extracts the bearer token, or null when the header is missing/malformed. */
+export function extractGatewayToken(header: string | null): string | null {
+  if (!header) return null;
+  const match = /^Bearer\s+(\S+)$/.exec(header.trim());
+  const token = match?.[1]?.trim();
+  return token && token.length >= 20 ? token : null;
+}
+
+export function parseKind(raw: string | null): ExportKind | null {
+  return raw === "contact" || raw === "catalog" ? raw : null;
+}
+
+/** Returns a bounded limit, or null when the value is present but invalid. */
+export function parseLimit(raw: string | null): number | null {
+  if (raw === null || raw === "") return 50;
+  if (!/^\d+$/.test(raw)) return null;
+  const n = Number(raw);
+  if (n < 1 || n > 200) return null;
+  return n;
+}
+
+export function nextCursor(rows: Array<{ external_ref?: string }>, limit: number): string | null {
+  if (rows.length < limit || rows.length === 0) return null;
+  return rows[rows.length - 1]?.external_ref ?? null;
+}
+
+export const Route = createFileRoute("/api/internal/zooga-core-export")({
+  server: {
+    handlers: {
+      GET: async ({ request }) => {
+        const token = extractGatewayToken(request.headers.get("authorization"));
+        if (!token) return json({ ok: false, error_code: "unauthorized" }, 401);
+
+        const url = new URL(request.url);
+        const kind = parseKind(url.searchParams.get("kind"));
+        if (!kind) return json({ ok: false, error_code: "invalid_kind" }, 400);
+        const limit = parseLimit(url.searchParams.get("limit"));
+        if (limit === null) return json({ ok: false, error_code: "invalid_limit" }, 400);
+        const cursorParam = url.searchParams.get("cursor");
+        const cursor = cursorParam && cursorParam.length > 0 ? cursorParam : undefined;
+
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        let authorized = false;
+        try {
+          const { data, error } = await (supabaseAdmin as any).rpc(
+            "zooga_core_gateway_authorized",
+            { _gateway_token: token },
+          );
+          authorized = !error && data === true;
+        } catch {
+          authorized = false;
+        }
+        if (!authorized) return json({ ok: false, error_code: "unauthorized" }, 401);
+
+        try {
+          const { data, error } = await (supabaseAdmin as any).rpc(KIND_RPC[kind], {
+            _gateway_token: token,
+            _cursor: cursor,
+            _limit: limit,
+          });
+          if (error) return json({ ok: false, error_code: "read_unavailable" }, 503);
+          const rows = Array.isArray(data) ? data : [];
+          return json({ ok: true, kind, rows, next_cursor: nextCursor(rows, limit) });
+        } catch {
+          return json({ ok: false, error_code: "read_unavailable" }, 503);
+        }
+      },
+    },
+  },
+});

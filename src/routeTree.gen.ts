@@ -48,6 +48,7 @@ import { Route as ApiIntrospectCrmSummaryRouteImport } from './routes/api/intros
 import { Route as ApiIntrospectCampaignsSummaryRouteImport } from './routes/api/introspect/campaigns-summary'
 import { Route as ApiIntrospectBackendMapRouteImport } from './routes/api/introspect/backend-map'
 import { Route as ApiIntrospectAgentsSummaryRouteImport } from './routes/api/introspect/agents-summary'
+import { Route as ApiInternalZoogaCoreExportRouteImport } from './routes/api/internal/zooga-core-export'
 import { Route as ApiDebugTamarConfigRouteImport } from './routes/api/debug/tamar-config'
 import { Route as ApiDebugSystemSummaryRouteImport } from './routes/api/debug/system-summary'
 import { Route as ApiDebugSchemaSummaryRouteImport } from './routes/api/debug/schema-summary'
@@ -288,6 +289,12 @@ const ApiIntrospectAgentsSummaryRoute =
     path: '/api/introspect/agents-summary',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiInternalZoogaCoreExportRoute =
+  ApiInternalZoogaCoreExportRouteImport.update({
+    id: '/api/internal/zooga-core-export',
+    path: '/api/internal/zooga-core-export',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiDebugTamarConfigRoute = ApiDebugTamarConfigRouteImport.update({
   id: '/api/debug/tamar-config',
   path: '/api/debug/tamar-config',
@@ -499,6 +506,7 @@ export interface FileRoutesByFullPath {
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
   '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
+  '/api/internal/zooga-core-export': typeof ApiInternalZoogaCoreExportRoute
   '/api/introspect/agents-summary': typeof ApiIntrospectAgentsSummaryRoute
   '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
   '/api/introspect/campaigns-summary': typeof ApiIntrospectCampaignsSummaryRoute
@@ -570,6 +578,7 @@ export interface FileRoutesByTo {
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
   '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
+  '/api/internal/zooga-core-export': typeof ApiInternalZoogaCoreExportRoute
   '/api/introspect/agents-summary': typeof ApiIntrospectAgentsSummaryRoute
   '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
   '/api/introspect/campaigns-summary': typeof ApiIntrospectCampaignsSummaryRoute
@@ -643,6 +652,7 @@ export interface FileRoutesById {
   '/api/debug/schema-summary': typeof ApiDebugSchemaSummaryRoute
   '/api/debug/system-summary': typeof ApiDebugSystemSummaryRoute
   '/api/debug/tamar-config': typeof ApiDebugTamarConfigRoute
+  '/api/internal/zooga-core-export': typeof ApiInternalZoogaCoreExportRoute
   '/api/introspect/agents-summary': typeof ApiIntrospectAgentsSummaryRoute
   '/api/introspect/backend-map': typeof ApiIntrospectBackendMapRoute
   '/api/introspect/campaigns-summary': typeof ApiIntrospectCampaignsSummaryRoute
@@ -716,6 +726,7 @@ export interface FileRouteTypes {
     | '/api/debug/schema-summary'
     | '/api/debug/system-summary'
     | '/api/debug/tamar-config'
+    | '/api/internal/zooga-core-export'
     | '/api/introspect/agents-summary'
     | '/api/introspect/backend-map'
     | '/api/introspect/campaigns-summary'
@@ -787,6 +798,7 @@ export interface FileRouteTypes {
     | '/api/debug/schema-summary'
     | '/api/debug/system-summary'
     | '/api/debug/tamar-config'
+    | '/api/internal/zooga-core-export'
     | '/api/introspect/agents-summary'
     | '/api/introspect/backend-map'
     | '/api/introspect/campaigns-summary'
@@ -859,6 +871,7 @@ export interface FileRouteTypes {
     | '/api/debug/schema-summary'
     | '/api/debug/system-summary'
     | '/api/debug/tamar-config'
+    | '/api/internal/zooga-core-export'
     | '/api/introspect/agents-summary'
     | '/api/introspect/backend-map'
     | '/api/introspect/campaigns-summary'
@@ -903,6 +916,7 @@ export interface RootRouteChildren {
   ApiDebugSchemaSummaryRoute: typeof ApiDebugSchemaSummaryRoute
   ApiDebugSystemSummaryRoute: typeof ApiDebugSystemSummaryRoute
   ApiDebugTamarConfigRoute: typeof ApiDebugTamarConfigRoute
+  ApiInternalZoogaCoreExportRoute: typeof ApiInternalZoogaCoreExportRoute
   ApiIntrospectAgentsSummaryRoute: typeof ApiIntrospectAgentsSummaryRoute
   ApiIntrospectBackendMapRoute: typeof ApiIntrospectBackendMapRoute
   ApiIntrospectCampaignsSummaryRoute: typeof ApiIntrospectCampaignsSummaryRoute
@@ -1205,6 +1219,13 @@ declare module '@tanstack/react-router' {
       path: '/api/introspect/agents-summary'
       fullPath: '/api/introspect/agents-summary'
       preLoaderRoute: typeof ApiIntrospectAgentsSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/zooga-core-export': {
+      id: '/api/internal/zooga-core-export'
+      path: '/api/internal/zooga-core-export'
+      fullPath: '/api/internal/zooga-core-export'
+      preLoaderRoute: typeof ApiInternalZoogaCoreExportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/debug/tamar-config': {
@@ -1549,6 +1570,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDebugSchemaSummaryRoute: ApiDebugSchemaSummaryRoute,
   ApiDebugSystemSummaryRoute: ApiDebugSystemSummaryRoute,
   ApiDebugTamarConfigRoute: ApiDebugTamarConfigRoute,
+  ApiInternalZoogaCoreExportRoute: ApiInternalZoogaCoreExportRoute,
   ApiIntrospectAgentsSummaryRoute: ApiIntrospectAgentsSummaryRoute,
   ApiIntrospectBackendMapRoute: ApiIntrospectBackendMapRoute,
   ApiIntrospectCampaignsSummaryRoute: ApiIntrospectCampaignsSummaryRoute,
