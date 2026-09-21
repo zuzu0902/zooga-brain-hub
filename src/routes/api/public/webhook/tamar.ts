@@ -247,7 +247,29 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
         const results: any[] = [];
         const jobByWamid = new Map<string, { jobId: string; vaultId: string; attempt: number }>();
         for (const msg of messages) {
+          // ---- CANARY GATE ------------------------------------------------
+          // Signature is verified and the envelope is durably vaulted. Every
+          // inbound from any number other than the canonical canary number is
+          // hard-blocked HERE: before contact creation, model calls, workflow
+          // state transitions or any outbound reply. Meta still gets a 200.
+          const canaryGate = await gateInboundForCanary({
+            phone: msg.from,
+            inboundMessageId: msg.wamid,
+            messageType: msg.type ?? null,
+          });
+          if (!canaryGate.allowed) {
+            results.push({
+              wamid: msg.wamid,
+              blocked: true,
+              reply_sent: false,
+              canary: canaryGate.reason,
+              no_reply_reason: "canary_blocked",
+            });
+            continue;
+          }
+
           const vaultRef = vaultByEventId.get(msg.wamid) ?? null;
+
           // ---- One reply per inbound (provider_message_id) ----
           // Sales path and recommendation path can both fire in one turn; only
           // the first send for this wamid is allowed to leave the system.
