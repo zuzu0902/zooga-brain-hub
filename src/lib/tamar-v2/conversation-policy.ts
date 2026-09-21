@@ -1,6 +1,15 @@
 /** Canonical, customer-visible Tamar conversation policy (pure). */
 export const POST_CONSENT_OPENING = "האם אתה מכיר את זוגה או שתרצה שאספר לך קצת עלינו?";
 
+/**
+ * The ONLY permitted reply to a true first inbound message (the customer
+ * wrote first and there is no prior accepted inbound conversation turn).
+ * Product-owned copy: never rephrased, never appended to, never followed by
+ * a question, an offer, a destination or any technical text.
+ */
+export const FIRST_INBOUND_GREETING =
+  "היי, איזה כיף שכתבת לי! אני תמר. אתה כבר מכיר את זוגה או שתרצה שאספר לך קצת עלינו?";
+
 export const KNOWN_ZOOGA_REPLY =
   "איזה כיף! אני אשמח להכיר אותך קצת יותר אישית כדי להתאים לך רעיונות בהמשך. יש לך כמה דקות שנדבר?";
 

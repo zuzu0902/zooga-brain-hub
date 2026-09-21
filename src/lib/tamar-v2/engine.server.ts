@@ -255,6 +255,25 @@ export async function isConsentPhase(input: { phone?: string | null; contact_id?
   return state === "new_inbound" || state === "consent_asked";
 }
 
+/**
+ * TRUE first inbound test: no conversation row exists for this contact other
+ * than the current provider message. Retries of the same wamid stay "first".
+ */
+async function isTrueFirstInbound(contactId: string | null, inboundMessageId: string | null): Promise<boolean> {
+  if (!contactId) return true;
+  try {
+    const { data } = await supabaseAdmin
+      .from("interactions")
+      .select("id, provider_message_id")
+      .eq("contact_id", contactId)
+      .limit(5);
+    const rows = ((data as any[]) ?? []);
+    return !rows.some((r) => String(r?.provider_message_id ?? "") !== String(inboundMessageId ?? ""));
+  } catch {
+    return false;
+  }
+}
+
 /** Run one WhatsApp turn through the v2 engine. */
 /**
  * Rolling context for the decision layer: the last N transcript lines.
@@ -405,6 +424,12 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
   const answeredCount: number = Number(dyn?.["v2_answered_count"] ?? 0);
 
   const state = deriveState(contact);
+  // TRUE first inbound: the customer wrote first and nothing else was ever
+  // exchanged. A provider retry of the SAME wamid is not a new first inbound,
+  // so the reply stays byte-identical and idempotent.
+  const firstInbound = state === "new_inbound"
+    ? await isTrueFirstInbound(contact?.id ?? null, input.inbound_message_id ?? null)
+    : false;
   const knownFields = knownFieldsFromContact(contact ?? {}, agent.steps);
   const offers = await loadSellableOffers();
 
@@ -1128,6 +1153,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     terminalOfferIds: selectedOfferIds,
     // No downstream layer may list offers unless recommending IS the action.
     allowRecommendation: orchestrator.recommendation_allowed,
+    firstInbound,
   };
 
   const decision = decideTurn(turnInput);
@@ -1669,12 +1695,37 @@ async function persistTurn(args: {
   } catch { /* ignore */ }
 
   // runtime execution row (dashboards depend on this table)
+  //
+  // `output_text` is the DATABASE-ONLY audit of the exact final customer-facing
+  // text handed to WhatsApp for this turn. It is written here, i.e. before the
+  // delivery ledger, is NULL for an intentionally silent turn, and is never
+  // forwarded to the Gateway, to Shadow payloads or to logs.
+  const inboundId = args.input.inbound_message_id ?? null;
+  const finalOutputText = args.outbound.length
+    ? args.outbound.map(messageText).join("\n---\n")
+    : null;
+  let execAlreadyRecorded = false;
   try {
+    // One runtime execution row per inbound provider message (retry-safe).
+    if (inboundId) {
+      const { data: existing } = await supabaseAdmin
+        .from("tamar_runtime_executions")
+        .select("id")
+        .eq("contact_id", contact.id)
+        .eq("inbound_message_id", inboundId)
+        .limit(1);
+      execAlreadyRecorded = !!((existing as any[]) ?? []).length;
+    }
+  } catch { /* fall through to insert */ }
+  try {
+    if (execAlreadyRecorded) throw new Error("runtime_execution_already_recorded");
     const { data: execRow } = await supabaseAdmin.from("tamar_runtime_executions").insert({
       contact_id: contact.id,
       channel: "whatsapp",
       source: args.input.source ?? "meta_webhook",
       inbound_message: message,
+      inbound_message_id: inboundId,
+      output_text: finalOutputText,
       outbound_reply: args.outbound.map(messageText).join("\n---\n"),
       runtime_mode: "brain_v2",
       composition_version: `v2.${agent.version}`,

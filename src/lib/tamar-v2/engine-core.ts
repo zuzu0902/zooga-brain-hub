@@ -20,6 +20,7 @@ import {
 import { RESET_ACK_TEXT } from "./reset";
 import {
   classifyZoogaFamiliarity,
+  FIRST_INBOUND_GREETING,
   KNOWN_ZOOGA_REPLY,
   NEW_TO_ZOOGA_REPLY,
   POST_CONSENT_OPENING,
@@ -80,6 +81,13 @@ export type TurnInput = {
    * behaviour for the pure scenario suite.
    */
   allowRecommendation?: boolean;
+  /**
+   * TRUE first inbound: the customer wrote first and there is no prior
+   * accepted inbound conversation turn (a provider retry of the same message
+   * is NOT a new first inbound). The reply is then exactly
+   * `FIRST_INBOUND_GREETING` and nothing else.
+   */
+  firstInbound?: boolean;
 };
 
 
@@ -329,14 +337,62 @@ export function decideTurn(input: TurnInput): TurnDecision {
     };
   }
 
-  // 5. First inbound — ALWAYS the exact opener, as ONE interactive message.
+  // 5. First inbound.
   if (input.state === "new_inbound") {
+    // 5a. TRUE customer-initiated first inbound: exactly one greeting, no
+    //     appended question, offer, destination or technical text.
+    if (input.firstInbound) {
+      return baseDecision(input, {
+        next_state: target(input, "consent_asked"),
+        messages: [text(FIRST_INBOUND_GREETING)],
+        ask_step_key: ZOOGA_FAMILIARITY_STEP,
+        marketing_allowed: false,
+        ambiguity_turns: 0,
+        reason_codes: ["first_inbound_greeting"],
+      });
+    }
+    // 5b. Tamar-initiated thread — the approved opener with consent buttons.
     return baseDecision(input, {
       next_state: target(input, "consent_asked"),
       messages: [openerMessage()],
       ask_step_key: "consent",
       marketing_allowed: false,
       reason_codes: ["first_inbound_opener"],
+    });
+  }
+
+  // 5c. The approved onboarding bridge always precedes configured intake and
+  //     precedes consent classification: it is persisted as the pending step,
+  //     so it runs once and cannot be skipped by the planner or a generated
+  //     answer, and a familiarity answer is never read as a consent answer.
+  if (input.pendingStepKey === ZOOGA_FAMILIARITY_STEP) {
+    const familiarity = classifyZoogaFamiliarity(msg);
+    if (familiarity === "known") {
+      return baseDecision(input, {
+        next_state: target(input, "consented"),
+        messages: [text(KNOWN_ZOOGA_REPLY)],
+        ask_step_key: null,
+        marketing_allowed: false,
+        ambiguity_turns: 0,
+        reason_codes: ["zooga_known_exact_reply"],
+      });
+    }
+    if (familiarity === "new") {
+      return baseDecision(input, {
+        next_state: target(input, "consented"),
+        messages: [text(NEW_TO_ZOOGA_REPLY)],
+        ask_step_key: null,
+        marketing_allowed: false,
+        ambiguity_turns: 0,
+        reason_codes: ["zooga_intro_reply"],
+      });
+    }
+    return baseDecision(input, {
+      messages: [text(POST_CONSENT_OPENING)],
+      ask_step_key: ZOOGA_FAMILIARITY_STEP,
+      marketing_allowed: false,
+      ambiguity_turns: input.ambiguityTurns + 1,
+      reason_codes: ["zooga_familiarity_clarification"],
     });
   }
 
@@ -394,35 +450,6 @@ export function decideTurn(input: TurnInput): TurnDecision {
   }
 
   // ---- consented / intake_active / recommendation_ready / value_delivered ----
-  // The approved onboarding bridge always precedes configured intake. It is
-  // persisted as the pending step, so it runs once and cannot be skipped by
-  // the planner or by a generated answer.
-  if (input.pendingStepKey === ZOOGA_FAMILIARITY_STEP) {
-    const familiarity = classifyZoogaFamiliarity(msg);
-    if (familiarity === "known") {
-      return baseDecision(input, {
-        messages: [text(KNOWN_ZOOGA_REPLY)],
-        ask_step_key: null,
-        ambiguity_turns: 0,
-        reason_codes: ["zooga_known_exact_reply"],
-      });
-    }
-    if (familiarity === "new") {
-      return baseDecision(input, {
-        messages: [text(NEW_TO_ZOOGA_REPLY)],
-        ask_step_key: null,
-        ambiguity_turns: 0,
-        reason_codes: ["zooga_intro_reply"],
-      });
-    }
-    return baseDecision(input, {
-      messages: [text(POST_CONSENT_OPENING)],
-      ask_step_key: ZOOGA_FAMILIARITY_STEP,
-      ambiguity_turns: input.ambiguityTurns + 1,
-      reason_codes: ["zooga_familiarity_clarification"],
-    });
-  }
-
   const captured: Record<string, string> = {};
   if (input.pendingStepKey) {
     const step = input.agent.steps.find((s) => s.step_key === input.pendingStepKey);
@@ -492,7 +519,7 @@ export function decideTurn(input: TurnInput): TurnDecision {
     // STRICT RELEVANCE: a direct question is answered and NOTHING else is
     // appended. No generic offer, no intake question. The grounded answer
     // already carries anything essential to that same question (e.g. the
-    // offer link). A question about Baku can never drag Dubai/Vietnam along.
+    // offer link). A question about one destination never drags others along.
     return baseDecision(input, {
       messages,
       actions,

@@ -8,6 +8,13 @@
       "when": 1790005474484,
       "tag": "0000_canary_restart_tamar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790011970004,
+      "tag": "0001_tamar_runtime_output_text_audit",
+      "breakpoints": true
     }
   ]
 }
