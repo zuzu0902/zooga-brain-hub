@@ -204,7 +204,7 @@ export const SCENARIOS: Scenario[] = [
   { name: "hi in english opens", category: "consent", state: "new_inbound", inbound: "hi", expect: { next_state: "consent_asked", asks: "consent" } },
   { name: "first message that is a question still opens", category: "consent", state: "new_inbound", inbound: "יש טיול לאלבניה?", expect: { next_state: "consent_asked", asks: "consent", marketing_allowed: false } },
   { name: "greeting never treated as ambiguous consent", category: "consent", state: "new_inbound", inbound: "היי", expect: { reason: "first_inbound_opener" } },
-  { name: "consent yes advances to intake", category: "consent", state: "consent_asked", inbound: "כן", expect: { next_state: "intake_active", action: "consent_granted", asks: "relationship_status" } },
+  { name: "consent yes opens Zooga familiarity before intake", category: "consent", state: "consent_asked", inbound: "כן", expect: { next_state: "consented", action: "consent_granted", asks: "zooga_familiarity", includes: "האם אתה מכיר את זוגה או שתרצה שאספר לך קצת עלינו?" } },
   { name: "consent yes by button", category: "consent", state: "consent_asked", inbound: "כן, בשמחה", optionId: "consent_1", ...consentButtons, expect: { action: "consent_granted" } },
   { name: "consent no closes once, exact sign-off", category: "consent", state: "consent_asked", inbound: "לא, תודה", expect: { next_state: "opted_out", action: "opt_out", includes: "תודה ולהתראות" } },
   { name: "consent no by button", category: "consent", state: "consent_asked", inbound: "לא", optionId: "consent_2", ...consentButtons, expect: { next_state: "opted_out" } },
@@ -255,7 +255,7 @@ export const SCENARIOS: Scenario[] = [
   { name: "recommendation includes the sales link", category: "offers", state: "consented", inbound: "אילו טיולים יש?", expect: { includes: "https://www.zooga.co.il/albania" } },
   { name: "no sellable offers = honest answer", category: "offers", state: "consented", inbound: "יש טיולים?", offers: [], expect: { includes: "מעדיפה לא להמציא", offers_max: 0 } },
   { name: "offers only after consent", category: "offers", state: "consent_asked", inbound: "אילו טיולים יש?", expect: { offers_max: 0 } },
-  { name: "enough context triggers a recommendation", category: "offers", state: "intake_active", inbound: "מעניין אותי טיול", answeredCount: 2, known: { relationship_status: "single", goal: "trips", preferred_activity: "abroad" }, expect: { action: "recommend" } },
+  { name: "context alone never triggers a recommendation", category: "offers", state: "intake_active", inbound: "מעניין אותי טיול", answeredCount: 2, known: { relationship_status: "single", goal: "trips", preferred_activity: "abroad" }, expect: { no_action: "recommend", excludes: "טיול לאלבניה" } },
   { name: "recommendation asks a single follow-up", category: "offers", state: "consented", inbound: "אילו טיולים יש?", expect: { max_questions: 1 } },
 
   // ---------- grounded answers ----------
@@ -288,7 +288,7 @@ export const SCENARIOS: Scenario[] = [
   { name: "opener is a single message", category: "consent", state: "new_inbound", inbound: "בוקר טוב", expect: { includes: "שלום, אני תמר" } },
   { name: "first inbound with an opt-out word still opts out", category: "consent", state: "new_inbound", inbound: "הסר", expect: { next_state: "opted_out" } },
   { name: "first inbound asking for a human hands off", category: "consent", state: "new_inbound", inbound: "אני רוצה לדבר עם נציג", expect: { action: "handoff" } },
-  { name: "consent yes then intake keeps marketing allowed", category: "consent", state: "consent_asked", inbound: "כן", expect: { next_state: "intake_active" } },
+  { name: "consent yes pauses intake for the approved opening", category: "consent", state: "consent_asked", inbound: "כן", expect: { next_state: "consented", asks: "zooga_familiarity" } },
 
   // ---------- intake depth ----------
   { name: "asks goal after relationship status", category: "intake", state: "intake_active", inbound: "אוקיי", known: { relationship_status: "single" }, expect: { asks: "goal" } },
@@ -315,7 +315,7 @@ export const SCENARIOS: Scenario[] = [
   { name: "offers never sent while queued", category: "offers", state: "human_handoff_queued", inbound: "אילו טיולים יש?", expect: { offers_max: 0 } },
   { name: "recommendation moves the state forward", category: "offers", state: "intake_active", inbound: "מה יש לכם בטיולים?", expect: { next_state: "recommendation_ready" } },
   { name: "event interest also recommends", category: "offers", state: "consented", inbound: "יש אירוע קרוב?", expect: { action: "recommend" } },
-  { name: "vacation wording recommends", category: "offers", state: "consented", inbound: "רוצה חופשה", expect: { action: "recommend" } },
+  { name: "general vacation interest does not trigger an unsolicited offer", category: "offers", state: "consented", inbound: "רוצה חופשה", expect: { no_action: "recommend", excludes: "טיול לאלבניה" } },
   { name: "no offers available never invents", category: "offers", state: "consented", inbound: "יש טיול ליפן?", offers: [], expect: { excludes: "יפן" } },
   { name: "recommendation keeps one follow-up question", category: "offers", state: "consented", inbound: "יש אירועים?", expect: { max_questions: 1 } },
 

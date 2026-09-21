@@ -32,7 +32,7 @@ import { interpretDeterministic } from "./interpret-rules";
 import { deriveState, marketingAllowed } from "./state-machine";
 import { isUserQuestion, isExplicitOptOut } from "./classify";
 import { wantsHuman } from "./classify";
-import { ORCHESTRATOR_VERSION, selectResponseAction } from "./response-orchestrator";
+import { asksForRecommendations, ORCHESTRATOR_VERSION, selectResponseAction } from "./response-orchestrator";
 import { guardResponse, buildDeterministicOfferAnswer } from "./response-guard";
 import {
   SAFE_CLARIFY_TEXT,
@@ -84,6 +84,7 @@ import {
 
 import { detectSensitiveTopic, hasGroundedSensitiveData, sensitiveVerificationText } from "./sensitive";
 import { writeGroundedAnswer } from "./writer.server";
+import { isCustomerFacingHebrewClean } from "./conversation-policy";
 
 /** Contact columns we may write intake values into directly. */
 const CONTACT_COLUMNS = new Set([
@@ -847,6 +848,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         .map(([k]) => k),
       explicitMention: resolution.reason === "exact" || resolution.reason === "alias",
       resolvedReference: resolution.reason === "context",
+      explicitRecommendationRequest: asksForRecommendations(message),
       resetRequested,
     },
     fallback: fallbackPlan,
@@ -1316,6 +1318,13 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
         outgoing = [{ kind: "text", body: bodyCheck.replacement } as OutboundMessage];
         emptyBodyGuard = bodyCheck.reason;
         decision.reason_codes = [...(decision.reason_codes ?? []), bodyCheck.reason ?? "empty_body_guard"];
+      }
+
+      // Customer-language boundary: generated or recovered copy may not leak
+      // model/tool/state terminology or unexplained foreign-language fragments.
+      if (outgoing.some((m) => !isCustomerFacingHebrewClean(messageText(m)))) {
+        outgoing = [{ kind: "text", body: SAFE_ERROR_TEXT } as OutboundMessage];
+        decision.reason_codes = [...(decision.reason_codes ?? []), "customer_language_guard"];
       }
 
       // ---- ACTUAL FINAL SEND BOUNDARY: URL deduplication ---------------

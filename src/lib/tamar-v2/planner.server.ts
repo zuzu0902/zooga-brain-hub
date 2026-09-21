@@ -31,6 +31,7 @@ Hard rules:
 - Only cite offer ids and source ids that appear in the provided context. Never invent an id.
 - Never plan an intake question that already appears in intake.answered. At most one question.
 - Never plan a generic recommendation. Recommend only a genuine, cited match, and never instead of answering.
+- Never recommend or name a specific trip, destination, event or offer unless the customer explicitly asked about it, asked what is available, or requested a recommendation in THIS message.
 - facts_required may only list fact keys present in the active offer facts/knowledge.`;
 
 export type PlanOutcome = {

@@ -62,6 +62,8 @@ export type PlanValidationContext = {
   /** a referential phrase was successfully resolved this turn */
   resolvedReference?: boolean;
   resetRequested?: boolean;
+  /** the customer explicitly requested recommendations/options this turn */
+  explicitRecommendationRequest?: boolean;
 };
 
 export type PlanValidation = {
@@ -188,6 +190,7 @@ export function validatePlan(plan: TurnPlan, ctx: PlanValidationContext): PlanVa
     // never instead of answering the customer's actual question.
     if (plan.direct_answer_needed) violations.push("recommendation_before_answer");
     if (!plan.cited_offer_ids.length) violations.push("generic_recommendation");
+    if (!ctx.explicitRecommendationRequest) violations.push("unsolicited_recommendation");
   }
 
   if (plan.facts_required.length && ctx.groundedFactKeys.length >= 0) {

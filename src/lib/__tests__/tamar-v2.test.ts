@@ -6,6 +6,13 @@ import { CONSENT_BUTTONS, OPENER_TEXT, decideTurn, openerMessage } from "@/lib/t
 import { interpretDeterministic } from "@/lib/tamar-v2/interpret-rules";
 import { buildButtonsPayload, parseInboundMessages } from "@/lib/whatsapp-meta.server";
 import type { AgentVersion, FlowStep } from "@/lib/tamar-v2/types";
+import {
+  isCustomerFacingHebrewClean,
+  KNOWN_ZOOGA_REPLY,
+  POST_CONSENT_OPENING,
+  ZOOGA_FAMILIARITY_STEP,
+} from "@/lib/tamar-v2/conversation-policy";
+import { buildTamarRuntimeComposition } from "@/lib/tamar-runtime-composition";
 
 describe("Tamar Brain V2 — acceptance scenarios", () => {
   for (const sc of SCENARIOS) {
@@ -195,13 +202,33 @@ describe("inbound button replies", () => {
     });
   }
 
-  it("yes button consents and asks exactly one question", () => {
+  it("yes button consents and asks only the exact Zooga opening", () => {
     const d = consentTurn("consent_yes", "כן");
     expect(d.actions).toContain("consent_granted");
-    expect(d.next_state).toBe("intake_active");
-    expect(d.ask_step_key).toBe("relationship_status");
+    expect(d.next_state).toBe("consented");
+    expect(d.ask_step_key).toBe(ZOOGA_FAMILIARITY_STEP);
+    expect(d.messages).toHaveLength(1);
+    expect(d.messages[0]!.body).toBe(POST_CONSENT_OPENING);
+    expect(d.messages[0]!.body).not.toContain("שאלה relationship_status");
     const questions = (d.messages.map((m) => m.body).join("\n").match(/[?？]/g) ?? []).length;
     expect(questions).toBe(1);
+  });
+
+  it("uses the exact approved reply when the customer knows Zooga", () => {
+    const d = decideTurn({
+      state: "consented",
+      message: "כן, אני מכיר את זוגה",
+      agent: LIVE_AGENT,
+      interpretation: interpretDeterministic("כן, אני מכיר את זוגה"),
+      knownFields: {},
+      pendingStepKey: ZOOGA_FAMILIARITY_STEP,
+      ambiguityTurns: 0,
+      answeredCount: 0,
+      offers: [],
+    });
+    expect(d.messages).toHaveLength(1);
+    expect(d.messages[0]!.body).toBe(KNOWN_ZOOGA_REPLY);
+    expect(d.ask_step_key).toBeNull();
   });
 
   it("no button opts out with a single closing message", () => {
@@ -218,6 +245,40 @@ describe("inbound button replies", () => {
       expect(d.actions).not.toContain("opt_out");
       expect(d.next_state).not.toBe("opted_out");
     }
+  });
+});
+
+describe("canonical conversation voice", () => {
+  it("does not introduce a specific trip without an explicit request", () => {
+    const d = decideTurn({
+      state: "intake_active",
+      message: "אני אוהב טבע",
+      agent: LIVE_AGENT,
+      interpretation: interpretDeterministic("אני אוהב טבע"),
+      knownFields: { relationship_status: "single", goal: "new_people", preferred_activity: "nature" },
+      pendingStepKey: null,
+      ambiguityTurns: 0,
+      answeredCount: 3,
+      offers: [{ id: "az", title: "אזרבייג'ן", offer_url: null, summary: "טיול טבע" }],
+    });
+    expect(d.actions).not.toContain("recommend");
+    expect(d.messages.map((m) => m.body).join(" ")).not.toContain("אזרבייג'ן");
+  });
+
+  it("keeps customer-facing policy copy free of implementation jargon", () => {
+    expect(isCustomerFacingHebrewClean(POST_CONSENT_OPENING)).toBe(true);
+    expect(isCustomerFacingHebrewClean(KNOWN_ZOOGA_REPLY)).toBe(true);
+    expect(isCustomerFacingHebrewClean("המודל עבר ל-state intake_active והפעיל tool")).toBe(false);
+    expect(isCustomerFacingHebrewClean("אפשר להמשיך עם runtime fallback")).toBe(false);
+    expect(isCustomerFacingHebrewClean("כל הפרטים כאן: https://www.zooga.co.il/trip")).toBe(true);
+  });
+
+  it("defines Tamar as a concierge, not a telemarketer, and preserves answer-first", () => {
+    const prompt = buildTamarRuntimeComposition({ inboundMessage: "שלום" }).runtimePromptContext.messages[0]!.content;
+    expect(prompt).toContain("warm host and personal concierge");
+    expect(prompt).toContain("never a telemarketing salesperson");
+    expect(prompt).toContain("Answer the user's actual question first");
+    expect(prompt).toContain("Never proactively mention or present a specific trip");
   });
 });
 

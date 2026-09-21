@@ -67,7 +67,7 @@ export type OrchestratorDecision = {
  * destination ("רוצה לנסוע ללונדון") is NEVER permission to list others.
  */
 const EXPLICIT_RECOMMENDATION_RE =
-  /(מה\s*עוד|עוד\s*אפשרויות|אפשרויות\s*נוספות|אפשרויות\s*אחרות|הצעות\s*נוספות|הצעות\s*אחרות|מה\s*יש\s*לכם|מה\s*יש\s*עוד|אילו\s*(טיולים|אירועים|הצעות)|איזה\s*(טיולים|אירועים|הצעות)|חוץ\s*מ|במקום\s*זה|תציעי|תמליצי|המלצות)/;
+  /(מה\s*עוד|עוד\s*אפשרויות|אפשרויות\s*נוספות|אפשרויות\s*אחרות|הצעות\s*נוספות|הצעות\s*אחרות|מה\s*יש\s*לכם|מה\s*יש\s*עוד|אילו\s*(טיולים|אירועים|הצעות)|איזה\s*(טיולים|אירועים|הצעות)|יש\s*(טיול|טיולים|אירוע|אירועים|חופשה|חופשות)(?:\s+ל[^?]+|\s+קרוב(?:ים|ות)?)?\s*\??|חוץ\s*מ|במקום\s*זה|תציעי|תמליצי|המלצות)/;
 
 const EXPLICIT_LINK_RE = /(קישור|לינק|להירשם|הרשמה|לרשום|לשלם|תשלום\s*מקוון|איך\s*נרשמים)/;
 
@@ -128,20 +128,15 @@ export function selectResponseAction(i: OrchestratorInput): OrchestratorDecision
     return { ...base, action: "answer", reasons: ["terminal_sensitive_verification"] };
   }
 
-  // ---- Recommendations: permitted ONLY on an explicit request, or when
-  //      there is no active offer and recommending IS the primary action.
+  // ---- Recommendations: permitted ONLY on an explicit request. Profile
+  //      completeness, browse state, or an available catalog never grants
+  //      permission to introduce a specific trip/event/offer proactively.
   const explicitRecommendation = asksForRecommendations(i.message);
-  const browsing = i.intent === "browse_offers" || i.intent === "offer_interest";
   const mayRecommend = i.marketingAllowed && i.catalogSize > 0;
   if (mayRecommend && explicitRecommendation) {
     reasons.push("explicit_recommendation_request");
     return { ...base, applies: true, action: "recommend_products", recommendation_allowed: true, reasons };
   }
-  if (mayRecommend && !i.activeOfferId && !i.resolvedOfferId && browsing) {
-    reasons.push("no_active_offer_browse_intent");
-    return { ...base, applies: true, action: "recommend_products", recommendation_allowed: true, reasons };
-  }
-
   if (i.answerText) {
     const offerIds = [i.resolvedOfferId ?? i.activeOfferId].filter(Boolean) as string[];
     if (asksForVerifiedLink(i.message) && i.hasVerifiedLink) {

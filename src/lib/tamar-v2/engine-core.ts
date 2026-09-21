@@ -18,6 +18,14 @@ import {
   wantsExplanation,
 } from "./classify";
 import { RESET_ACK_TEXT } from "./reset";
+import {
+  classifyZoogaFamiliarity,
+  KNOWN_ZOOGA_REPLY,
+  NEW_TO_ZOOGA_REPLY,
+  POST_CONSENT_OPENING,
+  ZOOGA_FAMILIARITY_STEP,
+} from "./conversation-policy";
+import { asksForRecommendations } from "./response-orchestrator";
 import { automationFrozen, canTransition, marketingAllowed } from "./state-machine";
 import type {
   AgentVersion,
@@ -139,7 +147,7 @@ function consentMessage(_agent: AgentVersion): OutboundMessage {
 export const COPY = {
   consent_explain:
     "זוגה היא קהילה ישראלית לטיולים, אירועים והיכרויות. אני שולחת רק דברים שמתאימים למה שסיפרת לי, אפשר להפסיק בכל רגע, ואפשר תמיד לבקש לדבר עם אדם.",
-  consent_yes_ack: "תודה 🙏 אשמח להכיר אותך קצת כדי להתאים לך דברים שבאמת מתאימים.",
+  consent_yes_ack: POST_CONSENT_OPENING,
   consent_no_close:
     "בסדר גמור, לא אשלח לך עדכונים. אם תרצה/י בעתיד אפשר לכתוב לי \"התחל\". תודה ולהתראות",
   opt_out_confirm:
@@ -337,16 +345,13 @@ export function decideTurn(input: TurnInput): TurnDecision {
     const answer = classifyConsent(msg, { optionValue: input.optionValue ?? null });
 
     if (answer === "yes") {
-      const step = nextStep(input.agent, input.knownFields, "intake");
-      const messages: OutboundMessage[] = [text(COPY.consent_yes_ack)];
-      if (step) messages.push(stepMessage(step));
       return baseDecision(input, {
-        next_state: target(input, step ? "intake_active" : "consented"),
-        messages,
+        next_state: target(input, "consented"),
+        messages: [text(POST_CONSENT_OPENING)],
         actions: ["consent_granted"],
-        ask_step_key: step?.step_key ?? null,
+        ask_step_key: ZOOGA_FAMILIARITY_STEP,
         ambiguity_turns: 0,
-        reason_codes: ["consent_yes"],
+        reason_codes: ["consent_yes", "zooga_familiarity_opening"],
       });
     }
 
@@ -389,6 +394,35 @@ export function decideTurn(input: TurnInput): TurnDecision {
   }
 
   // ---- consented / intake_active / recommendation_ready / value_delivered ----
+  // The approved onboarding bridge always precedes configured intake. It is
+  // persisted as the pending step, so it runs once and cannot be skipped by
+  // the planner or by a generated answer.
+  if (input.pendingStepKey === ZOOGA_FAMILIARITY_STEP) {
+    const familiarity = classifyZoogaFamiliarity(msg);
+    if (familiarity === "known") {
+      return baseDecision(input, {
+        messages: [text(KNOWN_ZOOGA_REPLY)],
+        ask_step_key: null,
+        ambiguity_turns: 0,
+        reason_codes: ["zooga_known_exact_reply"],
+      });
+    }
+    if (familiarity === "new") {
+      return baseDecision(input, {
+        messages: [text(NEW_TO_ZOOGA_REPLY)],
+        ask_step_key: null,
+        ambiguity_turns: 0,
+        reason_codes: ["zooga_intro_reply"],
+      });
+    }
+    return baseDecision(input, {
+      messages: [text(POST_CONSENT_OPENING)],
+      ask_step_key: ZOOGA_FAMILIARITY_STEP,
+      ambiguity_turns: input.ambiguityTurns + 1,
+      reason_codes: ["zooga_familiarity_clarification"],
+    });
+  }
+
   const captured: Record<string, string> = {};
   if (input.pendingStepKey) {
     const step = input.agent.steps.find((s) => s.step_key === input.pendingStepKey);
@@ -479,11 +513,7 @@ export function decideTurn(input: TurnInput): TurnDecision {
   //    In the production runtime this path is reachable ONLY when the Single
   //    Response Orchestrator selected `recommend_products`
   //    (`allowRecommendation`). It can never append a catalog after an answer.
-  const wantsOffers =
-    interp.intent === "browse_offers" ||
-    interp.intent === "offer_interest" ||
-    /(טיול|הצעה|הצעות|מה\s+יש|אירוע|חופשה)/.test(msg);
-  const enoughContext = answeredCount >= 2 || Object.keys(known).length >= 3;
+  const wantsOffers = asksForRecommendations(msg) || input.explicitOfferRequest === true;
   const canMarket =
     input.allowRecommendation !== false &&
     marketingAllowed(input.state) &&
@@ -501,7 +531,7 @@ export function decideTurn(input: TurnInput): TurnDecision {
     });
   }
 
-  if (canMarket && (wantsOffers || enoughContext) && input.offers.length) {
+  if (canMarket && wantsOffers && input.offers.length) {
     const rec = recommendation(input);
     messages.push(...rec.messages);
     reason.push("recommend_offers");
