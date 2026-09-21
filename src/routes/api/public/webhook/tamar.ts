@@ -25,7 +25,7 @@ import { gateInboundForCanary, runCanaryRestart, isCanaryRestartPhrase } from "@
 import { applyCanaryHandoffOverride } from "@/lib/tamar-canary/handoff-override.server";
 
 
-import { isOptInMessage, isOptOutMessage, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from "@/lib/optout";
+import { isOptInMessage, isOptOutMessage, OPT_OUT_CONFIRMATION } from "@/lib/optout";
 import { applyOptIn, applyOptOut, applyStatusUpdate, markReplied } from "@/lib/whatsapp-status.server";
 import {
   parseInboundMessages,
