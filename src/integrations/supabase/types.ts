@@ -4357,10 +4357,12 @@ export type Database = {
           fallback_reason: string | null
           id: string
           inbound_message: string | null
+          inbound_message_id: string | null
           latency_ms: number | null
           offer_id: string | null
           offer_intelligence_injected: boolean
           outbound_reply: string | null
+          output_text: string | null
           prompt_blocks_injected: Json
           raw_payload: Json | null
           runtime_mode: string
@@ -4382,10 +4384,12 @@ export type Database = {
           fallback_reason?: string | null
           id?: string
           inbound_message?: string | null
+          inbound_message_id?: string | null
           latency_ms?: number | null
           offer_id?: string | null
           offer_intelligence_injected?: boolean
           outbound_reply?: string | null
+          output_text?: string | null
           prompt_blocks_injected?: Json
           raw_payload?: Json | null
           runtime_mode?: string
@@ -4407,10 +4411,12 @@ export type Database = {
           fallback_reason?: string | null
           id?: string
           inbound_message?: string | null
+          inbound_message_id?: string | null
           latency_ms?: number | null
           offer_id?: string | null
           offer_intelligence_injected?: boolean
           outbound_reply?: string | null
+          output_text?: string | null
           prompt_blocks_injected?: Json
           raw_payload?: Json | null
           runtime_mode?: string
