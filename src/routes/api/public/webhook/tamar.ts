@@ -22,6 +22,8 @@ import { isConsentPhase } from "@/lib/tamar-v2/engine.server";
 import { v2Enabled } from "@/lib/tamar-v2/flags.server";
 import { claimInbound, markNoReply, recordReply } from "@/lib/runtime-inbound-dedupe";
 import { gateInboundForCanary, runCanaryRestart, isCanaryRestartPhrase } from "@/lib/tamar-canary/canary.server";
+import { applyCanaryHandoffOverride } from "@/lib/tamar-canary/handoff-override.server";
+
 
 import { isOptInMessage, isOptOutMessage, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from "@/lib/optout";
 import { applyOptIn, applyOptOut, applyStatusUpdate, markReplied } from "@/lib/whatsapp-status.server";
@@ -355,6 +357,21 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               payload: { inbound_message_id: msg.wamid },
             } as any);
           }
+
+          // ---- CANARY HANDOFF OVERRIDE -------------------------------------
+          // Canary number only: an active human-handoff / ownership freeze may
+          // never silence this line. Operational state is cleared (history,
+          // CRM, consent, identity, vault and audit are untouched) and the turn
+          // continues as clean new-inbound state. No-op when nothing is frozen,
+          // so an ordinary canary conversation is never reset.
+          {
+            const override = await applyCanaryHandoffOverride({
+              phone: msg.from,
+              inboundMessageId: msg.wamid,
+            });
+            if (override.applied) contactCache.id = undefined;
+          }
+
 
 
           // ---- Inbound voice note: transcribe server-side, then continue
