@@ -10,6 +10,8 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ensureHandoff } from "@/lib/tamar-handoff-core.server";
+import { suppressManagerAlertFor } from "@/lib/tamar-canary/handoff-override.server";
+
 import { retrieveKnowledge } from "@/lib/tamar-brain/knowledge.server";
 import {
   phoneVariants,
