@@ -519,7 +519,7 @@ export function decideTurn(input: TurnInput): TurnDecision {
     // STRICT RELEVANCE: a direct question is answered and NOTHING else is
     // appended. No generic offer, no intake question. The grounded answer
     // already carries anything essential to that same question (e.g. the
-    // offer link). A question about Baku can never drag Dubai/Vietnam along.
+    // offer link). A question about one destination never drags others along.
     return baseDecision(input, {
       messages,
       actions,
