@@ -356,6 +356,21 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             } as any);
           }
 
+          // ---- CANARY HANDOFF OVERRIDE -------------------------------------
+          // Canary number only: an active human-handoff / ownership freeze may
+          // never silence this line. Operational state is cleared (history,
+          // CRM, consent, identity, vault and audit are untouched) and the turn
+          // continues as clean new-inbound state. No-op when nothing is frozen,
+          // so an ordinary canary conversation is never reset.
+          {
+            const override = await applyCanaryHandoffOverride({
+              phone: msg.from,
+              inboundMessageId: msg.wamid,
+            });
+            if (override.applied) contactCache.id = undefined;
+          }
+
+
 
           // ---- Inbound voice note: transcribe server-side, then continue
           // through the exact same conversational pipeline as text. ----
