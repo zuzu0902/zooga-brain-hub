@@ -63,11 +63,15 @@ export type OrchestratorDecision = {
 };
 
 /**
- * The customer explicitly asked for options/alternatives. Naming a single
- * destination ("רוצה לנסוע ללונדון") is NEVER permission to list others.
+ * FRESH CONCIERGE POLICY. Tamar may name a trip, destination, event or offer
+ * ONLY when the customer explicitly asked what Zooga offers or where it
+ * travels ("מה יש לכם להציע?", "לאן מטיילים?"), asked for a recommendation,
+ * or asked about that specific item. Naming a single destination
+ * ("רוצה לנסוע ללונדון") is NEVER permission to list others, and profile
+ * completeness or an available catalog is never permission at all.
  */
 const EXPLICIT_RECOMMENDATION_RE =
-  /(מה\s*עוד|עוד\s*אפשרויות|אפשרויות\s*נוספות|אפשרויות\s*אחרות|הצעות\s*נוספות|הצעות\s*אחרות|מה\s*יש\s*לכם|מה\s*יש\s*עוד|אילו\s*(טיולים|אירועים|הצעות)|איזה\s*(טיולים|אירועים|הצעות)|יש\s*(טיול|טיולים|אירוע|אירועים|חופשה|חופשות)(?:\s+ל[^?]+|\s+קרוב(?:ים|ות)?)?\s*\??|חוץ\s*מ|במקום\s*זה|תציעי|תמליצי|המלצות)/;
+  /(מה\s*עוד|עוד\s*אפשרויות|אפשרויות\s*נוספות|אפשרויות\s*אחרות|הצעות\s*נוספות|הצעות\s*אחרות|מה\s*יש\s*לכם|מה\s*יש\s*להציע|מה\s*אתם\s*מציעים|מה\s*יש\s*עוד|לאן\s*(מטיילים|נוסעים|טסים|אפשר\s*לטייל|אתם\s*(מטיילים|נוסעים|טסים))|אילו\s*(טיולים|אירועים|הצעות)|איזה\s*(טיולים|אירועים|הצעות)|יש\s*(טיול|טיולים|אירוע|אירועים|חופשה|חופשות)(?:\s+ל[^?]+|\s+קרוב(?:ים|ות)?)?\s*\??|חוץ\s*מ|במקום\s*זה|תציעי|תמליצי|המלצות)/;
 
 const EXPLICIT_LINK_RE = /(קישור|לינק|להירשם|הרשמה|לרשום|לשלם|תשלום\s*מקוון|איך\s*נרשמים)/;
 
