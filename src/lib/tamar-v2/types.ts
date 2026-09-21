@@ -162,7 +162,7 @@ export type TurnDecision = {
 
 export const DEFAULT_IDENTITY: AgentIdentity = {
   name: "תמר",
-  role: "העוזרת הדיגיטלית של זוגה",
+  role: "העוזרת הדיגיטלית של קהילת זוגה",
   tone: "חמה, ישירה, אנושית",
   warmth: "high",
   verbosity: "short",
