@@ -15,6 +15,13 @@
       "when": 1790011970004,
       "tag": "0001_tamar_runtime_output_text_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790013915196,
+      "tag": "0002_zooga_core_read_conversation_history",
+      "breakpoints": true
     }
   ]
 }
