@@ -21,6 +21,8 @@ import { RESET_ACK_TEXT } from "./reset";
 import {
   classifyZoogaFamiliarity,
   FIRST_INBOUND_GREETING,
+  IDENTITY_REPLY,
+  isIdentityQuestion,
   KNOWN_ZOOGA_REPLY,
   NEW_TO_ZOOGA_REPLY,
   POST_CONSENT_OPENING,
@@ -88,6 +90,12 @@ export type TurnInput = {
    * `FIRST_INBOUND_GREETING` and nothing else.
    */
   firstInbound?: boolean;
+  /**
+   * The previous turn was an explicit "התחל מחדש": all conversational
+   * context was cleared, so this inbound is treated as a clean new
+   * conversation and receives exactly the approved first reply.
+   */
+  freshStart?: boolean;
 };
 
 
