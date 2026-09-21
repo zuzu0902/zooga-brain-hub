@@ -6,6 +6,7 @@ import {
   parsePublicKind,
   parsePublicLimit,
   normalizeExportPhone,
+  normalizeTranscriptRow,
 } from "@/routes/api/public/zooga-core-export";
 
 const SRC = readFileSync(
@@ -95,5 +96,69 @@ describe("public conversation export — safety", () => {
     expect(INTERNAL).toContain("zooga_core_read_contact_context");
     expect(INTERNAL).toContain("zooga_core_read_catalog_context");
     expect(INTERNAL).toContain("zooga_core_read_conversation_history");
+  });
+});
+
+describe("public conversation export — 500 hardening", () => {
+  it("wraps the whole handler so no unexpected throw escapes as a 500", () => {
+    const handler = SRC.slice(SRC.indexOf("GET: async"));
+    expect(handler).toMatch(/GET: async \(\{ request \}\) => \{\s*try \{/);
+    expect(handler).toContain('return json({ ok: false, error_code: "read_unavailable" }, 503);');
+    expect(SRC).toContain('await import("@/integrations/supabase/client.server")');
+    // the dynamic import must itself be guarded
+    expect(SRC).toMatch(/try \{\s*const mod = await import/);
+    expect(SRC).toContain('typeof client.rpc !== "function"');
+  });
+
+  it("maps database-level auth and phone errors to their strict status codes", () => {
+    expect(SRC).toContain('code === "28000"');
+    expect(SRC).toContain('code === "22023"');
+  });
+
+  it("normalizes rows defensively, including rows with no message text", () => {
+    expect(
+      normalizeTranscriptRow({
+        direction: "outbound",
+        occurred_at: "2026-09-21T18:01:11.284Z",
+        status: "sent",
+        provider_message_id: "wamid.X",
+        message_text: "x",
+      }),
+    ).toEqual({
+      direction: "outbound",
+      occurred_at: "2026-09-21T18:01:11.284Z",
+      status: "sent",
+      provider_message_id: "wamid.X",
+      message_text: "x",
+    });
+
+    expect(normalizeTranscriptRow({ direction: "inbound" })).toEqual({
+      direction: "inbound",
+      occurred_at: null,
+      status: null,
+      provider_message_id: null,
+      message_text: null,
+    });
+
+    expect(normalizeTranscriptRow({ direction: "inbound", message_text: "" })?.message_text).toBeNull();
+    expect(normalizeTranscriptRow(null)).toBeNull();
+    expect(normalizeTranscriptRow("nope")).toBeNull();
+  });
+
+  it("serializes Date timestamps and defaults unknown directions to inbound", () => {
+    const d = new Date("2026-09-21T18:01:11.284Z");
+    expect(normalizeTranscriptRow({ direction: "weird", occurred_at: d })).toEqual({
+      direction: "inbound",
+      occurred_at: "2026-09-21T18:01:11.284Z",
+      status: null,
+      provider_message_id: null,
+      message_text: null,
+    });
+  });
+
+  it("still requires a bearer token of at least 20 characters", () => {
+    expect(extractGatewayToken("Bearer short")).toBeNull();
+    expect(extractGatewayToken(null)).toBeNull();
+    expect(extractGatewayToken("Bearer " + "a".repeat(24))).toBe("a".repeat(24));
   });
 });
