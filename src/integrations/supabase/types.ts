@@ -3338,6 +3338,44 @@ export type Database = {
         }
         Relationships: []
       }
+      tamar_canary_restarts: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          inbound_message_id: string
+          phone_masked: string | null
+          reason: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          inbound_message_id: string
+          phone_masked?: string | null
+          reason?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          inbound_message_id?: string
+          phone_masked?: string | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tamar_canary_restarts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tamar_context_failures: {
         Row: {
           contact_id: string | null
@@ -5971,6 +6009,10 @@ export type Database = {
           p_reason: string
           p_reset_intake?: boolean
         }
+        Returns: Json
+      }
+      canary_restart_tamar: {
+        Args: { p_inbound_message_id: string; p_phone: string }
         Returns: Json
       }
       has_role: {

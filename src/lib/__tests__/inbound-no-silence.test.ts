@@ -190,7 +190,7 @@ async function post(messages: any[]) {
   return res.json();
 }
 
-const msg = (id: string, text = "היי", from = "972501112233") => ({ id, wamid: id, from, type: "text", text, name: "t" });
+const msg = (id: string, text = "היי", from = "972512277533") => ({ id, wamid: id, from, type: "text", text, name: "t" });
 
 // Warm the (heavy) route + worker module graph once, outside any test's timeout.
 // Under a fully parallel suite the first transform+import alone can exceed the
@@ -235,14 +235,14 @@ describe("no silence, no duplicates, no false succeeded", () => {
   });
 
   it("brand new phone: the contact is resolved before the gate", async () => {
-    const out = await post([msg("wamid.C", "היי", "972520000880")]);
+    const out = await post([msg("wamid.C", "היי", "972512277533")]);
     expect(out.results[0].contact_id).toBe("c1");
     expect(out.results[0].reply_sent).toBe(true);
   });
 
   it("contact create race: the row created by the concurrent delivery is used", async () => {
     resolveMode = "race";
-    const out = await post([msg("wamid.D", "היי", "972520000880")]);
+    const out = await post([msg("wamid.D", "היי", "972512277533")]);
     expect(raceContactCreated).toBe(true);
     // The insert lost the race but the turn still runs on the existing row.
     expect(out.results[0].reply_sent).toBe(true);
@@ -314,7 +314,7 @@ describe("no silence, no duplicates, no false succeeded", () => {
   });
 
   it("an unsupported message type is an explicit, recorded no-reply", async () => {
-    const out = await post([{ id: "wamid.K", wamid: "wamid.K", from: "972501112233", type: "sticker" }]);
+    const out = await post([{ id: "wamid.K", wamid: "wamid.K", from: "972512277533", type: "sticker" }]);
     expect(out.results[0].no_reply_reason).toBe("unsupported_message_type");
     expect(dedupe("wamid.K")!.state).toBe("completed");
     expect(finished[0]!.success).toBe(true);
@@ -344,7 +344,7 @@ describe("worker recovery re-runs the same reply pipeline", () => {
       {
         id: "v1",
         event_type: "message.text",
-        normalized_phone: "+972501112233",
+        normalized_phone: "+972512277533",
         raw_payload: { message: { id: "wamid.W1", text: { body: "היי" } } },
       },
     ];

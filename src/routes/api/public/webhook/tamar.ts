@@ -21,6 +21,8 @@ import { runV2Turn } from "@/lib/tamar-v2/engine.server";
 import { isConsentPhase } from "@/lib/tamar-v2/engine.server";
 import { v2Enabled } from "@/lib/tamar-v2/flags.server";
 import { claimInbound, markNoReply, recordReply } from "@/lib/runtime-inbound-dedupe";
+import { gateInboundForCanary, runCanaryRestart, isCanaryRestartPhrase } from "@/lib/tamar-canary/canary.server";
+
 import { isOptInMessage, isOptOutMessage, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from "@/lib/optout";
 import { applyOptIn, applyOptOut, applyStatusUpdate, markReplied } from "@/lib/whatsapp-status.server";
 import {
@@ -247,7 +249,29 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
         const results: any[] = [];
         const jobByWamid = new Map<string, { jobId: string; vaultId: string; attempt: number }>();
         for (const msg of messages) {
+          // ---- CANARY GATE ------------------------------------------------
+          // Signature is verified and the envelope is durably vaulted. Every
+          // inbound from any number other than the canonical canary number is
+          // hard-blocked HERE: before contact creation, model calls, workflow
+          // state transitions or any outbound reply. Meta still gets a 200.
+          const canaryGate = await gateInboundForCanary({
+            phone: msg.from,
+            inboundMessageId: msg.wamid,
+            messageType: msg.type ?? null,
+          });
+          if (!canaryGate.allowed) {
+            results.push({
+              wamid: msg.wamid,
+              blocked: true,
+              reply_sent: false,
+              canary: canaryGate.reason,
+              no_reply_reason: "canary_blocked",
+            });
+            continue;
+          }
+
           const vaultRef = vaultByEventId.get(msg.wamid) ?? null;
+
           // ---- One reply per inbound (provider_message_id) ----
           // Sales path and recommendation path can both fire in one turn; only
           // the first send for this wamid is allowed to leave the system.
@@ -316,6 +340,22 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               type: msg.type,
             },
           } as any);
+
+          // ---- CANARY RESTART ("התחל מחדש") --------------------------------
+          // Canary number only, after signature verification and the gate.
+          // Durable + idempotent per wamid inside the database function;
+          // consent/opt-out, history, identity and profile are preserved.
+          // The turn then continues normally so Tamar answers the customer.
+          if (isCanaryRestartPhrase(msg.text)) {
+            const restart = await runCanaryRestart({ phone: msg.from, inboundMessageId: msg.wamid });
+            await supabaseAdmin.from("webhook_logs").insert({
+              source: "tamar_canary_gate",
+              status: restart.ok ? (restart.duplicate ? "canary_restart_duplicate" : "canary_restart_applied") : "canary_restart_failed",
+              error: restart.error ?? null,
+              payload: { inbound_message_id: msg.wamid },
+            } as any);
+          }
+
 
           // ---- Inbound voice note: transcribe server-side, then continue
           // through the exact same conversational pipeline as text. ----

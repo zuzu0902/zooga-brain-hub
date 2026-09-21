@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790005474484,
+      "tag": "0000_canary_restart_tamar",
+      "breakpoints": true
+    }
+  ]
+}
