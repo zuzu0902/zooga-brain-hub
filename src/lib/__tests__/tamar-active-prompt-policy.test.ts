@@ -24,7 +24,7 @@ const ACTIVE_PROMPT_BLOCKS: Record<string, { body: string; version: number }> = 
   first_response: {
     version: 1,
     body:
-      'תגובה ראשונה בשיחה חדשה היא בדיוק: "האם אתה מכיר את זוגה או שתרצה שאספר לך קצת עלינו?" בלי תוספות, בלי הצעה, בלי יעד ובלי טקסט טכני.',
+      'תגובה ראשונה בשיחה חדשה היא בדיוק: "שלום לך, אני תמר העוזרת הקולית של קהילת זוגה, תודה שפנית אלינו.  מה שמך? האם את מכירה את קהילת זוגה או שתרצי שאספר לך קצת על הקהילה ועל הפעילויות שלנו?" בלי תוספות, בלי הצעה, בלי יעד ובלי טקסט טכני.',
   },
   sales_behavior: {
     version: 1,
@@ -38,6 +38,9 @@ const DESTINATION_WORDS = [/אזרבייג/i, /באקו/i, /azerbaij/i, /baku/i]
 describe("active production prompt policy", () => {
   it("active first_response block carries the exact canonical greeting", () => {
     expect(ACTIVE_PROMPT_BLOCKS.first_response.body).toContain(FIRST_INBOUND_GREETING);
+    expect(FIRST_INBOUND_GREETING).toBe(
+      "שלום לך, אני תמר העוזרת הקולית של קהילת זוגה, תודה שפנית אלינו.  מה שמך? האם את מכירה את קהילת זוגה או שתרצי שאספר לך קצת על הקהילה ועל הפעילויות שלנו?",
+    );
   });
 
   it("active core_identity block carries the exact identity line", () => {

@@ -7,7 +7,8 @@ export const POST_CONSENT_OPENING = "האם אתה מכיר את זוגה או �
  * "התחל מחדש"). Product-owned copy: never rephrased, never appended to,
  * never followed by a question, an offer, a destination or technical text.
  */
-export const FIRST_INBOUND_GREETING = POST_CONSENT_OPENING;
+export const FIRST_INBOUND_GREETING =
+  "שלום לך, אני תמר העוזרת הקולית של קהילת זוגה, תודה שפנית אלינו.  מה שמך? האם את מכירה את קהילת זוגה או שתרצי שאספר לך קצת על הקהילה ועל הפעילויות שלנו?";
 
 export const KNOWN_ZOOGA_REPLY =
   "איזה כיף! אני אשמח להכיר אותך קצת יותר אישית כדי להתאים לך רעיונות. יש לך כמה דקות שנדבר?";
