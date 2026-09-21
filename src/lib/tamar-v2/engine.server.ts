@@ -1704,6 +1704,7 @@ async function persistTurn(args: {
   const finalOutputText = args.outbound.length
     ? args.outbound.map(messageText).join("\n---\n")
     : null;
+  let execAlreadyRecorded = false;
   try {
     // One runtime execution row per inbound provider message (retry-safe).
     if (inboundId) {
@@ -1713,10 +1714,11 @@ async function persistTurn(args: {
         .eq("contact_id", contact.id)
         .eq("inbound_message_id", inboundId)
         .limit(1);
-      if (((existing as any[]) ?? []).length) return;
+      execAlreadyRecorded = !!((existing as any[]) ?? []).length;
     }
   } catch { /* fall through to insert */ }
   try {
+    if (execAlreadyRecorded) throw new Error("runtime_execution_already_recorded");
     const { data: execRow } = await supabaseAdmin.from("tamar_runtime_executions").insert({
       contact_id: contact.id,
       channel: "whatsapp",
