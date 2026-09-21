@@ -21,6 +21,8 @@ import { runV2Turn } from "@/lib/tamar-v2/engine.server";
 import { isConsentPhase } from "@/lib/tamar-v2/engine.server";
 import { v2Enabled } from "@/lib/tamar-v2/flags.server";
 import { claimInbound, markNoReply, recordReply } from "@/lib/runtime-inbound-dedupe";
+import { gateInboundForCanary, runCanaryRestart, isCanaryRestartPhrase } from "@/lib/tamar-canary/canary.server";
+
 import { isOptInMessage, isOptOutMessage, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from "@/lib/optout";
 import { applyOptIn, applyOptOut, applyStatusUpdate, markReplied } from "@/lib/whatsapp-status.server";
 import {
