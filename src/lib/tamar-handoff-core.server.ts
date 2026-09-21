@@ -299,6 +299,24 @@ export async function ensureHandoff(input: EnsureHandoffInput): Promise<EnsureHa
     receipt_text: receipt,
   };
 
+  // CANARY ONLY: the canary line never creates a manager alert, a manager
+  // attention flag or a human freeze. Every other number is unchanged.
+  if (suppressManagerAlertFor(input.customerPhone)) {
+    try {
+      await supabaseAdmin.from("webhook_logs").insert({
+        source: "tamar_canary_gate",
+        status: "canary_manager_alert_suppressed",
+        payload: {
+          contact_id: input.contactId ?? null,
+          reason_codes: input.reasonCodes ?? [],
+          runtime: input.runtime ?? null,
+        },
+      } as any);
+    } catch { /* auditing must never break the reply */ }
+    return { ...base, alert_state: "skipped", manager_configured: false };
+  }
+
+
   try {
     const now = new Date();
     const nowIso = now.toISOString();
