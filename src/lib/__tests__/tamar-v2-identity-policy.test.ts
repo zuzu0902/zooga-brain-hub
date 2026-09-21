@@ -62,7 +62,9 @@ describe("exact canonical copy", () => {
   it("the first reply of a clean new conversation is exactly the approved opening", () => {
     const d = decideTurn(input({ firstInbound: true, message: "היי" }));
     expect(d.messages).toHaveLength(1);
-    expect(bodies(d)).toBe("האם אתה מכיר את זוגה או שתרצה שאספר לך קצת עלינו?");
+    expect(bodies(d)).toBe(
+      "שלום לך, אני תמר העוזרת הקולית של קהילת זוגה, תודה שפנית אלינו.  מה שמך? האם את מכירה את קהילת זוגה או שתרצי שאספר לך קצת על הקהילה ועל הפעילויות שלנו?",
+    );
     expect(bodies(d)).toBe(FIRST_INBOUND_GREETING);
     expect(d.ask_step_key).toBe(ZOOGA_FAMILIARITY_STEP);
   });
