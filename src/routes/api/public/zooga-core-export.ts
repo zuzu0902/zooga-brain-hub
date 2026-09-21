@@ -60,43 +60,97 @@ export function normalizeExportPhone(raw: string | null): string | null {
   return d;
 }
 
+type TranscriptRow = {
+  direction: string;
+  occurred_at: string | null;
+  status: string | null;
+  provider_message_id: string | null;
+  message_text: string | null;
+};
+
+/**
+ * Normalizes an RPC row defensively: missing/null columns must never throw or
+ * leak; rows without any message text are returned with message_text null.
+ */
+export function normalizeTranscriptRow(raw: unknown): TranscriptRow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const direction = r["direction"] === "outbound" ? "outbound" : "inbound";
+  const occurred = r["occurred_at"];
+  let occurred_at: string | null = null;
+  if (typeof occurred === "string") occurred_at = occurred;
+  else if (occurred instanceof Date && !Number.isNaN(occurred.getTime()))
+    occurred_at = occurred.toISOString();
+  const text = r["message_text"];
+  return {
+    direction,
+    occurred_at,
+    status: typeof r["status"] === "string" ? r["status"] : null,
+    provider_message_id:
+      typeof r["provider_message_id"] === "string" ? r["provider_message_id"] : null,
+    message_text: typeof text === "string" && text.length > 0 ? text : null,
+  };
+}
+
 export const Route = createFileRoute("/api/public/zooga-core-export")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const token = extractGatewayToken(request.headers.get("authorization"));
-        if (!token) return json({ ok: false, error_code: "unauthorized" }, 401);
-
-        const url = new URL(request.url);
-        const kind = parsePublicKind(url.searchParams.get("kind"));
-        if (!kind) return json({ ok: false, error_code: "invalid_kind" }, 400);
-        const limit = parsePublicLimit(url.searchParams.get("limit"));
-        if (limit === null) return json({ ok: false, error_code: "invalid_limit" }, 400);
-        const phone = normalizeExportPhone(url.searchParams.get("phone"));
-        if (!phone) return json({ ok: false, error_code: "invalid_phone" }, 400);
-
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-        let authorized = false;
         try {
-          const { data, error } = await (supabaseAdmin as any).rpc(
-            "zooga_core_gateway_authorized",
-            { _gateway_token: token },
-          );
-          authorized = !error && data === true;
-        } catch {
-          authorized = false;
-        }
-        if (!authorized) return json({ ok: false, error_code: "unauthorized" }, 401);
+          const token = extractGatewayToken(request.headers.get("authorization"));
+          if (!token) return json({ ok: false, error_code: "unauthorized" }, 401);
 
-        try {
-          const { data, error } = await (supabaseAdmin as any).rpc(CONVERSATION_RPC, {
-            _gateway_token: token,
-            _phone: phone,
-            _limit: limit,
-          });
-          if (error) return json({ ok: false, error_code: "read_unavailable" }, 503);
-          const rows = Array.isArray(data) ? data : [];
+          const url = new URL(request.url);
+          const kind = parsePublicKind(url.searchParams.get("kind"));
+          if (!kind) return json({ ok: false, error_code: "invalid_kind" }, 400);
+          const limit = parsePublicLimit(url.searchParams.get("limit"));
+          if (limit === null) return json({ ok: false, error_code: "invalid_limit" }, 400);
+          const phone = normalizeExportPhone(url.searchParams.get("phone"));
+          if (!phone) return json({ ok: false, error_code: "invalid_phone" }, 400);
+
+          let client: any = null;
+          try {
+            const mod = await import("@/integrations/supabase/client.server");
+            client = (mod as any).supabaseAdmin ?? null;
+          } catch {
+            client = null;
+          }
+          if (!client || typeof client.rpc !== "function") {
+            return json({ ok: false, error_code: "read_unavailable" }, 503);
+          }
+
+          let authorized = false;
+          try {
+            const { data, error } = await client.rpc("zooga_core_gateway_authorized", {
+              _gateway_token: token,
+            });
+            authorized = !error && data === true;
+          } catch {
+            authorized = false;
+          }
+          if (!authorized) return json({ ok: false, error_code: "unauthorized" }, 401);
+
+          let data: unknown = null;
+          try {
+            const res = await client.rpc(CONVERSATION_RPC, {
+              _gateway_token: token,
+              _phone: phone,
+              _limit: limit,
+            });
+            if (res?.error) {
+              const code = String(res.error?.code ?? "");
+              if (code === "28000") return json({ ok: false, error_code: "unauthorized" }, 401);
+              if (code === "22023") return json({ ok: false, error_code: "invalid_phone" }, 400);
+              return json({ ok: false, error_code: "read_unavailable" }, 503);
+            }
+            data = res?.data ?? null;
+          } catch {
+            return json({ ok: false, error_code: "read_unavailable" }, 503);
+          }
+
+          const rows = (Array.isArray(data) ? data : [])
+            .map(normalizeTranscriptRow)
+            .filter((row): row is TranscriptRow => row !== null);
           return json({ ok: true, kind, rows, next_cursor: null });
         } catch {
           return json({ ok: false, error_code: "read_unavailable" }, 503);
