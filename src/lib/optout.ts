@@ -42,5 +42,7 @@ export function isOptInMessage(text: string | null | undefined): boolean {
 export const OPT_OUT_CONFIRMATION =
   "הוסרת מרשימת הדיוור של זוגה ולא נשלח אליך יותר תוכן שיווקי. אם תרצה לחזור — פשוט כתוב לנו \"התחל\". תודה ולהתראות 🌿";
 
-export const OPT_IN_CONFIRMATION =
-  "שמחים שחזרת! נמשיך לעדכן אותך בטיולים ובאירועים של זוגה 🌿";
+// There is deliberately NO automatic "welcome back" opt-in acknowledgement.
+// Re-opt-in is recorded durably; the conversation continues through the normal
+// concierge flow instead of emitting a canned marketing greeting.
+

@@ -25,7 +25,7 @@ import { gateInboundForCanary, runCanaryRestart, isCanaryRestartPhrase } from "@
 import { applyCanaryHandoffOverride } from "@/lib/tamar-canary/handoff-override.server";
 
 
-import { isOptInMessage, isOptOutMessage, OPT_IN_CONFIRMATION, OPT_OUT_CONFIRMATION } from "@/lib/optout";
+import { isOptInMessage, isOptOutMessage, OPT_OUT_CONFIRMATION } from "@/lib/optout";
 import { applyOptIn, applyOptOut, applyStatusUpdate, markReplied } from "@/lib/whatsapp-status.server";
 import {
   parseInboundMessages,
@@ -530,12 +530,26 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             const contactId = await ensureContactForTurn(contactCache, msg.from, msg.name);
             if (optOut) await applyOptOut(msg.from, contactId);
             else await applyOptIn(msg.from, contactId);
-            const confirmation = optOut ? OPT_OUT_CONFIRMATION : OPT_IN_CONFIRMATION;
+            if (!optOut) {
+              // Re-opt-in is recorded durably, but there is deliberately no
+              // automatic "welcome back" message. The next inbound turn runs
+              // through the normal concierge flow.
+              await markNoReply(msg.wamid, "silent_by_policy").catch(() => {});
+              results.push({
+                wamid: msg.wamid,
+                contact_id: contactId,
+                consent_command: "opt_in",
+                reply_sent: false,
+                no_reply_reason: "silent_by_policy",
+              });
+              continue;
+            }
+            const confirmation = OPT_OUT_CONFIRMATION;
             // Compliance acknowledgement: recorded for loop telemetry, never rewritten.
             const consentGuard = await guardOutbound({
               contactId,
               phone: msg.from,
-              route: optOut ? "consent_opt_out_ack" : "consent_opt_in_ack",
+              route: "consent_opt_out_ack",
               inboundMessageId: msg.wamid,
               inboundText,
               candidateText: confirmation,
@@ -548,12 +562,13 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
               text: confirmation,
               result: ack,
               inboundMessageId: msg.wamid,
-              kind: optOut ? "opt_out_ack" : "opt_in_ack",
+              kind: "opt_out_ack",
             });
             await recordReply(msg.wamid, confirmation).catch(() => {});
-            results.push({ wamid: msg.wamid, contact_id: contactId, consent_command: optOut ? "opt_out" : "opt_in", reply_sent: ack.ok });
+            results.push({ wamid: msg.wamid, contact_id: contactId, consent_command: "opt_out", reply_sent: ack.ok });
             continue;
           }
+
 
           // ---- Consent-opening answer (zooga_opening_consent) --------------
           // Fires only while the consent question is open. Idempotent, one
