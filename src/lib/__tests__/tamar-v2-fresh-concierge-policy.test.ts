@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { decideTurn, type TurnInput } from "@/lib/tamar-v2/engine-core";
-import { orchestrateResponse } from "@/lib/tamar-v2/response-orchestrator";
+import { selectResponseAction, type OrchestratorInput } from "@/lib/tamar-v2/response-orchestrator";
 import {
   FIRST_INBOUND_GREETING,
   isCustomerFacingHebrewClean,
@@ -125,27 +125,35 @@ describe("no unprompted destination copy", () => {
 });
 
 describe("offers require an explicit catalogue or travel question", () => {
-  const base: any = {
+  const base: OrchestratorInput = {
+    message: "",
+    isQuestion: true,
+    intent: "question",
+    wantsHuman: false,
     state: "consented",
-    interpretation,
-    productAsked: false,
+    resetRequested: false,
+    groundingPath: "none",
+    answerText: null,
     activeOfferId: null,
-    hasGroundedAnswer: false,
-    intakeMissing: ["area"],
-    offersAvailable: true,
+    resolvedOfferId: null,
+    planValid: false,
+    planAskIntake: false,
+    planIntakeKey: null,
+    missingIntakeKeys: ["area"],
+    catalogSize: 3,
+    marketingAllowed: true,
+    hasVerifiedLink: false,
   };
 
   for (const q of ["מה יש לכם להציע?", "לאן מטיילים?", "לאן אתם נוסעים?", "מה אתם מציעים?"]) {
     it(`"${q}" permits a recommendation`, () => {
-      const r = orchestrateResponse({ ...base, message: q });
-      expect(r.recommendation_allowed).toBe(true);
+      expect(selectResponseAction({ ...base, message: q }).recommendation_allowed).toBe(true);
     });
   }
 
   for (const q of ["מה שלומך?", "אני מתל אביב", "תודה רבה"]) {
     it(`"${q}" never permits a recommendation`, () => {
-      const r = orchestrateResponse({ ...base, message: q });
-      expect(r.recommendation_allowed).toBe(false);
+      expect(selectResponseAction({ ...base, message: q }).recommendation_allowed).toBe(false);
     });
   }
 });
