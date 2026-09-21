@@ -19,7 +19,7 @@ export const NEW_TO_ZOOGA_REPLY =
 export const IDENTITY_REPLY = "אני תמר, העוזרת הדיגיטלית של קהילת זוגה.";
 
 const IDENTITY_QUESTION_RE =
-  /(מי\s+את\b|מי\s+זאת\b|מי\s+זו\b|מי\s+מדבר(?:ת)?\b|את\s+מי\s+אני\s+מדבר|מי\s+אתם\b|את\s+רובוט|את\s+בוט|בוט\s*\?|את\s+בן\s*אדם|את\s+אדם\s+אמיתי|עם\s+מי\s+אני\s+מדבר(?:ת)?)/;
+  /(מי\s+את(?![\u0590-\u05FF])|מי\s+זאת|מי\s+זו(?![\u0590-\u05FF])|מי\s+מדבר(?:ת)?|את\s+מי\s+אני\s+מדבר|מי\s+אתם|את\s+רובוט|את\s+בוט|בוט\s*\?|את\s+בן\s*אדם|את\s+אדם\s+אמיתי|עם\s+מי\s+אני\s+מדבר(?:ת)?)/;
 
 /** Deterministic: the customer asked who Tamar is. */
 export function isIdentityQuestion(message: string | null | undefined): boolean {
