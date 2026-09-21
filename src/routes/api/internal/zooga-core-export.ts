@@ -12,6 +12,7 @@ import { createFileRoute } from "@tanstack/react-router";
 const KIND_RPC = {
   contact: "zooga_core_read_contact_context",
   catalog: "zooga_core_read_catalog_context",
+  conversation: "zooga_core_read_conversation_history",
 } as const;
 
 type ExportKind = keyof typeof KIND_RPC;
@@ -32,16 +33,33 @@ export function extractGatewayToken(header: string | null): string | null {
 }
 
 export function parseKind(raw: string | null): ExportKind | null {
-  return raw === "contact" || raw === "catalog" ? raw : null;
+  return raw === "contact" || raw === "catalog" || raw === "conversation" ? raw : null;
 }
 
 /** Returns a bounded limit, or null when the value is present but invalid. */
-export function parseLimit(raw: string | null): number | null {
+export function parseLimit(raw: string | null, kind: ExportKind = "contact"): number | null {
+  const max = kind === "conversation" ? 100 : 200;
   if (raw === null || raw === "") return 50;
   if (!/^\d+$/.test(raw)) return null;
   const n = Number(raw);
-  if (n < 1 || n > 200) return null;
+  if (n < 1 || n > max) return null;
   return n;
+}
+
+/**
+ * Normalizes an exact phone parameter to bare MSISDN digits (Israeli
+ * +972 / 972 / 05X variants included). Returns null when unusable.
+ */
+export function normalizeExportPhone(raw: string | null): string | null {
+  if (!raw) return null;
+  let d = raw.replace(/\D/g, "");
+  if (!d) return null;
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.startsWith("972")) d = "972" + d.slice(3).replace(/^0+/, "");
+  else if (d.startsWith("0")) d = "972" + d.slice(1).replace(/^0+/, "");
+  else if (d.length === 9 && d.startsWith("5")) d = "972" + d;
+  if (d.length < 8 || d.length > 15) return null;
+  return d;
 }
 
 export function nextCursor(rows: Array<{ external_ref?: string }>, limit: number): string | null {
