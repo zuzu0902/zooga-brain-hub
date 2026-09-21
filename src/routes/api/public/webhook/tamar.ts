@@ -339,6 +339,22 @@ export const Route = createFileRoute("/api/public/webhook/tamar")({
             },
           } as any);
 
+          // ---- CANARY RESTART ("התחל מחדש") --------------------------------
+          // Canary number only, after signature verification and the gate.
+          // Durable + idempotent per wamid inside the database function;
+          // consent/opt-out, history, identity and profile are preserved.
+          // The turn then continues normally so Tamar answers the customer.
+          if (isCanaryRestartPhrase(msg.text)) {
+            const restart = await runCanaryRestart({ phone: msg.from, inboundMessageId: msg.wamid });
+            await supabaseAdmin.from("webhook_logs").insert({
+              source: "tamar_canary_gate",
+              status: restart.ok ? (restart.duplicate ? "canary_restart_duplicate" : "canary_restart_applied") : "canary_restart_failed",
+              error: restart.error ?? null,
+              payload: { inbound_message_id: msg.wamid },
+            } as any);
+          }
+
+
           // ---- Inbound voice note: transcribe server-side, then continue
           // through the exact same conversational pipeline as text. ----
           if (msg.audio?.id) {
