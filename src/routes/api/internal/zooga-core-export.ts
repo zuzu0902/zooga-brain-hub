@@ -77,10 +77,15 @@ export const Route = createFileRoute("/api/internal/zooga-core-export")({
         const url = new URL(request.url);
         const kind = parseKind(url.searchParams.get("kind"));
         if (!kind) return json({ ok: false, error_code: "invalid_kind" }, 400);
-        const limit = parseLimit(url.searchParams.get("limit"));
+        const limit = parseLimit(url.searchParams.get("limit"), kind);
         if (limit === null) return json({ ok: false, error_code: "invalid_limit" }, 400);
         const cursorParam = url.searchParams.get("cursor");
         const cursor = cursorParam && cursorParam.length > 0 ? cursorParam : undefined;
+        const phone =
+          kind === "conversation" ? normalizeExportPhone(url.searchParams.get("phone")) : null;
+        if (kind === "conversation" && !phone) {
+          return json({ ok: false, error_code: "invalid_phone" }, 400);
+        }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -97,13 +102,16 @@ export const Route = createFileRoute("/api/internal/zooga-core-export")({
         if (!authorized) return json({ ok: false, error_code: "unauthorized" }, 401);
 
         try {
-          const { data, error } = await (supabaseAdmin as any).rpc(KIND_RPC[kind], {
-            _gateway_token: token,
-            _cursor: cursor,
-            _limit: limit,
-          });
+          const params =
+            kind === "conversation"
+              ? { _gateway_token: token, _phone: phone, _limit: limit }
+              : { _gateway_token: token, _cursor: cursor, _limit: limit };
+          const { data, error } = await (supabaseAdmin as any).rpc(KIND_RPC[kind], params);
           if (error) return json({ ok: false, error_code: "read_unavailable" }, 503);
           const rows = Array.isArray(data) ? data : [];
+          if (kind === "conversation") {
+            return json({ ok: true, kind, rows, next_cursor: null });
+          }
           return json({ ok: true, kind, rows, next_cursor: nextCursor(rows, limit) });
         } catch {
           return json({ ok: false, error_code: "read_unavailable" }, 503);
