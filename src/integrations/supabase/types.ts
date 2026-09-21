@@ -6291,11 +6291,22 @@ export type Database = {
           source_updated_at: string
         }[]
       }
+      zooga_core_read_conversation_history: {
+        Args: { _gateway_token: string; _limit?: number; _phone: string }
+        Returns: {
+          direction: string
+          message_text: string
+          occurred_at: string
+          provider_message_id: string
+          status: string
+        }[]
+      }
       zooga_gateway_status: { Args: { _gateway_token: string }; Returns: Json }
       zooga_ingest_shadow: {
         Args: { _event: Json; _gateway_token: string }
         Returns: Json
       }
+      zooga_normalize_msisdn: { Args: { _raw: string }; Returns: string }
       zooga_shadow_claim: {
         Args: { p_lease_seconds?: number; p_limit?: number; p_worker: string }
         Returns: {
