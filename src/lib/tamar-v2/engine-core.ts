@@ -168,7 +168,9 @@ export const COPY = {
     "בסדר גמור, לא אשלח לך עדכונים. אם תרצה/י בעתיד אפשר לכתוב לי \"התחל\". תודה ולהתראות",
   opt_out_confirm:
     "הוסרת מרשימת הדיוור של זוגה ולא יישלח אליך תוכן שיווקי. אם תרצה/י לחזור — פשוט כתוב/כתבי \"התחל\". תודה ולהתראות",
-  opt_in_ack: "שמחה שחזרת 🌿 נמשיך לעדכן אותך בטיולים ובאירועים של זוגה.",
+  // No canned "welcome back" copy: a restored opt-in re-opens the normal
+  // concierge opening instead of an automatic marketing greeting.
+  opt_in_ack: POST_CONSENT_OPENING,
   handoff_ack:
     "כמובן. העברתי את הבקשה שלך לאדם מהצוות של זוגה, והוא יחזור אליך בהקדם. אם תרצה/י להוסיף משהו, אפשר לכתוב לי כאן ואצרף אותו לבקשה.",
   handoff_frozen_ack:
