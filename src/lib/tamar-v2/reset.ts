@@ -60,5 +60,8 @@ export function applyResetToDynamic(dyn: Record<string, any> | null | undefined)
     delete out[key];
   }
   out["v2_reset_at"] = new Date().toISOString();
+  // The NEXT inbound is a clean new conversation and receives exactly the
+  // approved first reply — never a continuation of the cleared context.
+  out["v2_fresh_start"] = true;
   return { dyn: out, cleared };
 }

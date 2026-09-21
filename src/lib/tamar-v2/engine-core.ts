@@ -21,6 +21,8 @@ import { RESET_ACK_TEXT } from "./reset";
 import {
   classifyZoogaFamiliarity,
   FIRST_INBOUND_GREETING,
+  IDENTITY_REPLY,
+  isIdentityQuestion,
   KNOWN_ZOOGA_REPLY,
   NEW_TO_ZOOGA_REPLY,
   POST_CONSENT_OPENING,
@@ -88,6 +90,12 @@ export type TurnInput = {
    * `FIRST_INBOUND_GREETING` and nothing else.
    */
   firstInbound?: boolean;
+  /**
+   * The previous turn was an explicit "התחל מחדש": all conversational
+   * context was cleared, so this inbound is treated as a clean new
+   * conversation and receives exactly the approved first reply.
+   */
+  freshStart?: boolean;
 };
 
 
@@ -337,11 +345,12 @@ export function decideTurn(input: TurnInput): TurnDecision {
     };
   }
 
-  // 5. First inbound.
-  if (input.state === "new_inbound") {
-    // 5a. TRUE customer-initiated first inbound: exactly one greeting, no
-    //     appended question, offer, destination or technical text.
-    if (input.firstInbound) {
+  // 5. First inbound / clean restart.
+  if (input.state === "new_inbound" || input.freshStart) {
+    // 5a. Clean new conversation (true customer-initiated first inbound, or
+    //     the first inbound after an explicit "התחל מחדש"): exactly one
+    //     greeting, no appended question, offer, destination or technical text.
+    if (input.firstInbound || input.freshStart) {
       return baseDecision(input, {
         next_state: target(input, "consent_asked"),
         messages: [text(FIRST_INBOUND_GREETING)],
@@ -360,6 +369,18 @@ export function decideTurn(input: TurnInput): TurnDecision {
       reason_codes: ["first_inbound_opener"],
     });
   }
+
+  // 5b2. "מי את?" — the canonical, verbatim self-identification. Deterministic
+  //      and terminal: no offer, no destination, no technical wording.
+  if (isIdentityQuestion(msg)) {
+    return baseDecision(input, {
+      messages: [text(IDENTITY_REPLY)],
+      ask_step_key: input.pendingStepKey ?? null,
+      marketing_allowed: false,
+      reason_codes: ["identity_question"],
+    });
+  }
+
 
   // 5c. The approved onboarding bridge always precedes configured intake and
   //     precedes consent classification: it is persisted as the pending step,

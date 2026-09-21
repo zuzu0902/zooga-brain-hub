@@ -469,6 +469,8 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
 
   // Deterministic, pre-model: "נתחיל מחדש" costs no model call at all.
   const resetRequested = isConversationResetRequest(message);
+  // The previous turn was an explicit reset: this inbound starts clean.
+  const freshStart = dyn?.["v2_fresh_start"] === true && !resetRequested;
 
 
   // ---- Canonical bounded context package (one per turn) ------------------
@@ -1154,6 +1156,7 @@ export async function runV2Turn(input: V2TurnInput): Promise<V2TurnResult> {
     // No downstream layer may list offers unless recommending IS the action.
     allowRecommendation: orchestrator.recommendation_allowed,
     firstInbound,
+    freshStart,
   };
 
   const decision = decideTurn(turnInput);
@@ -1628,6 +1631,9 @@ async function persistTurn(args: {
     const reset = applyResetToDynamic(dyn);
     for (const k of Object.keys(dyn)) delete dyn[k];
     Object.assign(dyn, reset.dyn);
+  } else {
+    // The clean-restart flag is consumed by the very next inbound turn.
+    delete dyn["v2_fresh_start"];
   }
 
   const patch: Record<string, unknown> = {

@@ -2,19 +2,29 @@
 export const POST_CONSENT_OPENING = "האם אתה מכיר את זוגה או שתרצה שאספר לך קצת עלינו?";
 
 /**
- * The ONLY permitted reply to a true first inbound message (the customer
- * wrote first and there is no prior accepted inbound conversation turn).
- * Product-owned copy: never rephrased, never appended to, never followed by
- * a question, an offer, a destination or any technical text.
+ * The ONLY permitted reply to a clean new inbound conversation (the customer
+ * wrote first with no prior accepted inbound turn, or right after an explicit
+ * "התחל מחדש"). Product-owned copy: never rephrased, never appended to,
+ * never followed by a question, an offer, a destination or technical text.
  */
-export const FIRST_INBOUND_GREETING =
-  "היי, איזה כיף שכתבת לי! אני תמר. אתה כבר מכיר את זוגה או שתרצה שאספר לך קצת עלינו?";
+export const FIRST_INBOUND_GREETING = POST_CONSENT_OPENING;
 
 export const KNOWN_ZOOGA_REPLY =
-  "איזה כיף! אני אשמח להכיר אותך קצת יותר אישית כדי להתאים לך רעיונות בהמשך. יש לך כמה דקות שנדבר?";
+  "איזה כיף! אני אשמח להכיר אותך קצת יותר אישית כדי להתאים לך רעיונות. יש לך כמה דקות שנדבר?";
 
 export const NEW_TO_ZOOGA_REPLY =
   "בשמחה. זוגה היא קהילה ישראלית שמחברת בין אנשים דרך טיולים, אירועים ומפגשים חברתיים. יש לך כמה דקות שנכיר קצת?";
+
+/** The canonical self-identification, used verbatim for "מי את?". */
+export const IDENTITY_REPLY = "אני תמר, העוזרת הדיגיטלית של קהילת זוגה.";
+
+const IDENTITY_QUESTION_RE =
+  /(מי\s+את(?![\u0590-\u05FF])|מי\s+זאת|מי\s+זו(?![\u0590-\u05FF])|מי\s+מדבר(?:ת)?|את\s+מי\s+אני\s+מדבר|מי\s+אתם|את\s+רובוט|את\s+בוט|בוט\s*\?|את\s+בן\s*אדם|את\s+אדם\s+אמיתי|עם\s+מי\s+אני\s+מדבר(?:ת)?)/;
+
+/** Deterministic: the customer asked who Tamar is. */
+export function isIdentityQuestion(message: string | null | undefined): boolean {
+  return IDENTITY_QUESTION_RE.test(String(message ?? ""));
+}
 
 export const ZOOGA_FAMILIARITY_STEP = "zooga_familiarity";
 
