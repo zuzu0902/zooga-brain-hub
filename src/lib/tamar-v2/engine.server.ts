@@ -1738,7 +1738,7 @@ async function persistTurn(args: {
       });
     } catch { /* handoff row failure must not lose the reply */ }
   }
-  if (isHandoff) {
+  if (isHandoff && !suppressManagerAlertFor(contact.whatsapp_number ?? contact.phone ?? null)) {
     try {
       await supabaseAdmin
         .from("contacts")
@@ -1746,4 +1746,5 @@ async function persistTurn(args: {
         .eq("id", contact.id);
     } catch { /* ignore */ }
   }
+
 }

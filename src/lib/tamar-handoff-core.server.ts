@@ -22,6 +22,8 @@ import {
   buildManagerAlertComponents,
   buildManagerAlertText,
 } from "@/lib/handoff-template-params";
+import { suppressManagerAlertFor } from "@/lib/tamar-canary/handoff-override.server";
+
 
 /** A1 — exact receipt sent to the customer the moment a human is requested. */
 export const HANDOFF_RECEIPT_TEXT =
