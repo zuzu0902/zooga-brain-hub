@@ -31,6 +31,30 @@ export const Route = createFileRoute("/api/public/cron/zero-loss-worker")({
         }
         try {
           const res = await runWorker({ worker: `edge-${Math.random().toString(36).slice(2, 8)}`, limit: 25 });
+          
+          // Trigger the active brain executor directly from the shared worker cron path
+          let brainExecution: unknown = null;
+          try {
+            const webhookToken = request.headers.get("x-api-token");
+            const host = request.headers.get("host") || "localhost:3000";
+            const protocol = request.url.startsWith("https") ? "https" : "http";
+            
+            const brainRes = await fetch(`${protocol}://${host}/api/public/cron/zooga-brain-executor`, {
+              method: "POST",
+              headers: {
+                "x-api-token": webhookToken || "",
+                "Content-Type": "application/json"
+              }
+            });
+            if (brainRes.ok) {
+              brainExecution = await brainRes.json();
+            } else {
+              brainExecution = { error: `http_status_${brainRes.status}` };
+            }
+          } catch (brainErr: any) {
+            brainExecution = { error: brainErr.message };
+          }
+
           // Shared drain: admin-only relationship insight jobs run on the same
           // reliable schedule. A failure here never fails the zero-loss drain.
           let insights: unknown = null;
@@ -51,7 +75,7 @@ export const Route = createFileRoute("/api/public/cron/zero-loss-worker")({
           } catch (err: any) {
             activations = { error: String(err?.message ?? err) };
           }
-          return Response.json({ ok: true, ...res, insights, activations });
+          return Response.json({ ok: true, ...res, brainExecution, insights, activations });
         } catch (err: any) {
           return new Response(JSON.stringify({ ok: false, error: String(err?.message ?? err) }), {
             status: 503,
