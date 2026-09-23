@@ -52,8 +52,8 @@ export function isGroupJid(value: unknown): boolean {
 }
 
 /**
- * True only for the canonical canary number, accepting the equivalent
- * normalized forms +972512277533 / 972512277533 / 0512277533.
+ * True only for an allowlisted canary number, accepting the equivalent
+ * normalized forms +9725XXXXXXXX / 9725XXXXXXXX / 05XXXXXXXX.
  */
 export function isCanaryPhone(phone: unknown): boolean {
   if (phone == null) return false;
@@ -61,9 +61,24 @@ export function isCanaryPhone(phone: unknown): boolean {
   if (!raw || isGroupJid(raw)) return false;
   const digits = onlyDigits(raw);
   if (!digits) return false;
-  if (digits === CANARY_DIGITS || digits === onlyDigits(CANARY_LOCAL_DIGITS)) return true;
+  if (CANARY_DIGITS_SET.has(digits)) return true;
   const normalized = normalizePhone(raw);
-  return !!normalized && onlyDigits(normalized) === CANARY_DIGITS;
+  return !!normalized && CANARY_DIGITS_SET.has(onlyDigits(normalized));
+}
+
+/**
+ * The narrower primary-line predicate: handoff override and manager-alert
+ * suppression stay scoped to the original canonical canary number only.
+ */
+export function isCanaryPrimaryPhone(phone: unknown): boolean {
+  if (phone == null) return false;
+  const raw = String(phone).trim();
+  if (!raw || isGroupJid(raw)) return false;
+  const digits = onlyDigits(raw) || "";
+  const primary = CANARY_PHONE_E164.replace(/\D/g, "");
+  if (digits === primary || digits === "0" + primary.slice(3)) return true;
+  const normalized = normalizePhone(raw);
+  return !!normalized && onlyDigits(normalized) === primary;
 }
 
 /** Webhook boundary decision for one inbound message. */
