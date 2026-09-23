@@ -1945,6 +1945,9 @@ export async function runTamarTurn(body: any): Promise<TamarTurnResult> {
         traceId: (trace as any)?.id ?? null,
         conversationMode,
         runtime: "v1",
+        // Gateway-execution path: Lovable persists the handoff but never
+        // sends the manager alert itself.
+        deferManagerAlert: body?.suppress_outbound === true,
       });
       handoffId = res.handoff_id;
       managerNotified = res.alert_state === "sent";
