@@ -269,6 +269,12 @@ export type EnsureHandoffInput = {
   /** true when the thread was already frozen and the customer wrote again */
   followUp?: boolean;
   runtime?: string;
+  /**
+   * Agent-centric migration: on the gateway-execution path Lovable must not
+   * reach Meta at all. The handoff row, task and freeze are still created;
+   * only the outbound manager alert is deferred to the retry worker.
+   */
+  deferManagerAlert?: boolean;
 };
 
 export type EnsureHandoffResult = {
