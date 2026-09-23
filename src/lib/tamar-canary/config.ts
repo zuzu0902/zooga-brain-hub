@@ -13,12 +13,27 @@
  */
 import { normalizePhone } from "@/lib/phone";
 
-/** Canonical canary number in E.164. */
+/**
+ * Canonical canary number in E.164 (primary line; also the only number the
+ * handoff override / manager-alert suppression applies to).
+ */
 export const CANARY_PHONE_E164 = "+972512277533";
 
+/**
+ * The complete, explicit canary allowlist. Exactly these two individual
+ * numbers may reach the live Tamar path. Every other number and every group
+ * JID stays hard-blocked before contact creation, model call or send.
+ */
+export const CANARY_PHONES_E164 = ["+972512277533", "+972547702620"] as const;
+
 /** Canonical digits, used for equivalence across +972 / 972 / 0 shapes. */
-const CANARY_DIGITS = "972512277533";
-const CANARY_LOCAL_DIGITS = "0512277533";
+const CANARY_DIGITS_SET = new Set(
+  CANARY_PHONES_E164.flatMap((p) => {
+    const d = p.replace(/\D/g, "");
+    return [d, "0" + d.slice(3)];
+  }),
+);
+
 
 /** The exact Hebrew restart phrase honoured for the canary contact only. */
 export const CANARY_RESTART_PHRASE = "התחל מחדש";
