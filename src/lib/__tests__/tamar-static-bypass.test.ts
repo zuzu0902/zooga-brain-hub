@@ -16,10 +16,6 @@ vi.mock("@/lib/runtime-inbound-dedupe", () => ({
 vi.mock("@/lib/whatsapp-meta.server", () => ({
   sendWhatsAppText: (...a: any[]) => sendWhatsAppText(...a),
   recordDelivery: (...a: any[]) => recordDelivery(...a),
-  toE164: (v: any) => {
-    const d = String(v ?? "").replace(/\D/g, "");
-    return d ? "+" + d : null;
-  },
 }));
 
 import {

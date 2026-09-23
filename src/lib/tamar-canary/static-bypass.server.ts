@@ -14,7 +14,7 @@
 import { normalizePhone } from "@/lib/phone";
 import { isGroupJid } from "./config";
 import { claimInbound, recordReply } from "@/lib/runtime-inbound-dedupe";
-import { recordDelivery, sendWhatsAppText, toE164 } from "@/lib/whatsapp-meta.server";
+import { recordDelivery, sendWhatsAppText } from "@/lib/whatsapp-meta.server";
 
 /** The only number the static bypass applies to. */
 export const STATIC_BYPASS_PHONE_E164 = "+972547702620";
@@ -54,7 +54,7 @@ export async function runStaticBypass(args: {
   phone: string | null | undefined;
   metaMessageId: string | null;
 }): Promise<StaticBypassResult> {
-  const to = toE164(args.phone) ?? STATIC_BYPASS_PHONE_E164;
+  const to = normalizePhone(String(args.phone ?? "")) ?? STATIC_BYPASS_PHONE_E164;
   const wamid = String(args.metaMessageId ?? "").trim();
 
   if (wamid) {
