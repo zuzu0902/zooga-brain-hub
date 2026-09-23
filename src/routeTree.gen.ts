@@ -73,6 +73,7 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
 import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
+import { Route as ApiPublicRuntimeAgentCommandRouteImport } from './routes/api/public/runtime/agent-command'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
 import { Route as ApiPublicCronZoogaShadowDrainRouteImport } from './routes/api/public/cron/zooga-shadow-drain'
 import { Route as ApiPublicCronZoogaBrainExecutorRouteImport } from './routes/api/public/cron/zooga-brain-executor'
@@ -423,6 +424,12 @@ const ApiPublicRuntimeConversationDebugRoute =
     path: '/api/public/runtime/conversation-debug',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicRuntimeAgentCommandRoute =
+  ApiPublicRuntimeAgentCommandRouteImport.update({
+    id: '/api/public/runtime/agent-command',
+    path: '/api/public/runtime/agent-command',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicIntelligenceExtractRoute =
   ApiPublicIntelligenceExtractRouteImport.update({
     id: '/api/public/intelligence/extract',
@@ -547,6 +554,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/zooga-brain-executor': typeof ApiPublicCronZoogaBrainExecutorRoute
   '/api/public/cron/zooga-shadow-drain': typeof ApiPublicCronZoogaShadowDrainRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/agent-command': typeof ApiPublicRuntimeAgentCommandRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
@@ -621,6 +629,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/zooga-brain-executor': typeof ApiPublicCronZoogaBrainExecutorRoute
   '/api/public/cron/zooga-shadow-drain': typeof ApiPublicCronZoogaShadowDrainRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/agent-command': typeof ApiPublicRuntimeAgentCommandRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
@@ -697,6 +706,7 @@ export interface FileRoutesById {
   '/api/public/cron/zooga-brain-executor': typeof ApiPublicCronZoogaBrainExecutorRoute
   '/api/public/cron/zooga-shadow-drain': typeof ApiPublicCronZoogaShadowDrainRoute
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
+  '/api/public/runtime/agent-command': typeof ApiPublicRuntimeAgentCommandRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
@@ -773,6 +783,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/zooga-brain-executor'
     | '/api/public/cron/zooga-shadow-drain'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/agent-command'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
     | '/api/public/webhook/tamar'
@@ -847,6 +858,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/zooga-brain-executor'
     | '/api/public/cron/zooga-shadow-drain'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/agent-command'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
     | '/api/public/webhook/tamar'
@@ -922,6 +934,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/zooga-brain-executor'
     | '/api/public/cron/zooga-shadow-drain'
     | '/api/public/intelligence/extract'
+    | '/api/public/runtime/agent-command'
     | '/api/public/runtime/conversation-debug'
     | '/api/public/runtime/tamar-turn'
     | '/api/public/webhook/tamar'
@@ -969,6 +982,7 @@ export interface RootRouteChildren {
   ApiPublicCronZoogaBrainExecutorRoute: typeof ApiPublicCronZoogaBrainExecutorRoute
   ApiPublicCronZoogaShadowDrainRoute: typeof ApiPublicCronZoogaShadowDrainRoute
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
+  ApiPublicRuntimeAgentCommandRoute: typeof ApiPublicRuntimeAgentCommandRoute
   ApiPublicRuntimeConversationDebugRoute: typeof ApiPublicRuntimeConversationDebugRoute
   ApiPublicRuntimeTamarTurnRoute: typeof ApiPublicRuntimeTamarTurnRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
@@ -1424,6 +1438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRuntimeConversationDebugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/runtime/agent-command': {
+      id: '/api/public/runtime/agent-command'
+      path: '/api/public/runtime/agent-command'
+      fullPath: '/api/public/runtime/agent-command'
+      preLoaderRoute: typeof ApiPublicRuntimeAgentCommandRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/intelligence/extract': {
       id: '/api/public/intelligence/extract'
       path: '/api/public/intelligence/extract'
@@ -1640,6 +1661,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronZoogaBrainExecutorRoute: ApiPublicCronZoogaBrainExecutorRoute,
   ApiPublicCronZoogaShadowDrainRoute: ApiPublicCronZoogaShadowDrainRoute,
   ApiPublicIntelligenceExtractRoute: ApiPublicIntelligenceExtractRoute,
+  ApiPublicRuntimeAgentCommandRoute: ApiPublicRuntimeAgentCommandRoute,
   ApiPublicRuntimeConversationDebugRoute:
     ApiPublicRuntimeConversationDebugRoute,
   ApiPublicRuntimeTamarTurnRoute: ApiPublicRuntimeTamarTurnRoute,
