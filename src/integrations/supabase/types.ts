@@ -5366,6 +5366,45 @@ export type Database = {
         }
         Relationships: []
       }
+      zooga_agent_commands: {
+        Row: {
+          command: string
+          completed_at: string | null
+          correlation_id: string
+          created_at: string
+          id: string
+          idempotency_key: string
+          reason: string | null
+          result: Json
+          status: string
+          target_masked: string | null
+        }
+        Insert: {
+          command: string
+          completed_at?: string | null
+          correlation_id?: string
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          reason?: string | null
+          result?: Json
+          status?: string
+          target_masked?: string | null
+        }
+        Update: {
+          command?: string
+          completed_at?: string | null
+          correlation_id?: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          reason?: string | null
+          result?: Json
+          status?: string
+          target_masked?: string | null
+        }
+        Relationships: []
+      }
       zooga_audit_events: {
         Row: {
           actor_id: string | null
@@ -5428,6 +5467,42 @@ export type Database = {
           credential_id?: string
           rotated_at?: string | null
           token_digest?: string
+        }
+        Relationships: []
+      }
+      zooga_deploy_requests: {
+        Row: {
+          correlation_id: string
+          id: string
+          idempotency_key: string
+          reason: string
+          requested_at: string
+          requested_by: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          correlation_id?: string
+          id?: string
+          idempotency_key: string
+          reason: string
+          requested_at?: string
+          requested_by?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          correlation_id?: string
+          id?: string
+          idempotency_key?: string
+          reason?: string
+          requested_at?: string
+          requested_by?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -6201,6 +6276,16 @@ export type Database = {
           p_value_hash: string
         }
         Returns: string
+      }
+      zooga_agent_patch_contact: {
+        Args: {
+          _conversation_state: string
+          _gateway_token: string
+          _phone: string
+          _reason: string
+          _status: string
+        }
+        Returns: Json
       }
       zooga_brain_claim_runs: {
         Args: { _gateway_token: string; _limit?: number }
