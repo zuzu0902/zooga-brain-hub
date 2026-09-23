@@ -73,6 +73,7 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
 import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
 import { Route as ApiPublicRuntimeTamarGenerateRouteImport } from './routes/api/public/runtime/tamar-generate'
+import { Route as ApiPublicRuntimeTamarDeliveryAuditRouteImport } from './routes/api/public/runtime/tamar-delivery-audit'
 import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
 import { Route as ApiPublicRuntimeAgentCommandRouteImport } from './routes/api/public/runtime/agent-command'
 import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
@@ -425,6 +426,12 @@ const ApiPublicRuntimeTamarGenerateRoute =
     path: '/api/public/runtime/tamar-generate',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicRuntimeTamarDeliveryAuditRoute =
+  ApiPublicRuntimeTamarDeliveryAuditRouteImport.update({
+    id: '/api/public/runtime/tamar-delivery-audit',
+    path: '/api/public/runtime/tamar-delivery-audit',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicRuntimeConversationDebugRoute =
   ApiPublicRuntimeConversationDebugRouteImport.update({
     id: '/api/public/runtime/conversation-debug',
@@ -563,6 +570,7 @@ export interface FileRoutesByFullPath {
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/agent-command': typeof ApiPublicRuntimeAgentCommandRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
+  '/api/public/runtime/tamar-delivery-audit': typeof ApiPublicRuntimeTamarDeliveryAuditRoute
   '/api/public/runtime/tamar-generate': typeof ApiPublicRuntimeTamarGenerateRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
@@ -639,6 +647,7 @@ export interface FileRoutesByTo {
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/agent-command': typeof ApiPublicRuntimeAgentCommandRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
+  '/api/public/runtime/tamar-delivery-audit': typeof ApiPublicRuntimeTamarDeliveryAuditRoute
   '/api/public/runtime/tamar-generate': typeof ApiPublicRuntimeTamarGenerateRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
@@ -717,6 +726,7 @@ export interface FileRoutesById {
   '/api/public/intelligence/extract': typeof ApiPublicIntelligenceExtractRoute
   '/api/public/runtime/agent-command': typeof ApiPublicRuntimeAgentCommandRoute
   '/api/public/runtime/conversation-debug': typeof ApiPublicRuntimeConversationDebugRoute
+  '/api/public/runtime/tamar-delivery-audit': typeof ApiPublicRuntimeTamarDeliveryAuditRoute
   '/api/public/runtime/tamar-generate': typeof ApiPublicRuntimeTamarGenerateRoute
   '/api/public/runtime/tamar-turn': typeof ApiPublicRuntimeTamarTurnRoute
   '/api/public/webhook/tamar': typeof ApiPublicWebhookTamarRoute
@@ -795,6 +805,7 @@ export interface FileRouteTypes {
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/agent-command'
     | '/api/public/runtime/conversation-debug'
+    | '/api/public/runtime/tamar-delivery-audit'
     | '/api/public/runtime/tamar-generate'
     | '/api/public/runtime/tamar-turn'
     | '/api/public/webhook/tamar'
@@ -871,6 +882,7 @@ export interface FileRouteTypes {
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/agent-command'
     | '/api/public/runtime/conversation-debug'
+    | '/api/public/runtime/tamar-delivery-audit'
     | '/api/public/runtime/tamar-generate'
     | '/api/public/runtime/tamar-turn'
     | '/api/public/webhook/tamar'
@@ -948,6 +960,7 @@ export interface FileRouteTypes {
     | '/api/public/intelligence/extract'
     | '/api/public/runtime/agent-command'
     | '/api/public/runtime/conversation-debug'
+    | '/api/public/runtime/tamar-delivery-audit'
     | '/api/public/runtime/tamar-generate'
     | '/api/public/runtime/tamar-turn'
     | '/api/public/webhook/tamar'
@@ -997,6 +1010,7 @@ export interface RootRouteChildren {
   ApiPublicIntelligenceExtractRoute: typeof ApiPublicIntelligenceExtractRoute
   ApiPublicRuntimeAgentCommandRoute: typeof ApiPublicRuntimeAgentCommandRoute
   ApiPublicRuntimeConversationDebugRoute: typeof ApiPublicRuntimeConversationDebugRoute
+  ApiPublicRuntimeTamarDeliveryAuditRoute: typeof ApiPublicRuntimeTamarDeliveryAuditRoute
   ApiPublicRuntimeTamarGenerateRoute: typeof ApiPublicRuntimeTamarGenerateRoute
   ApiPublicRuntimeTamarTurnRoute: typeof ApiPublicRuntimeTamarTurnRoute
   ApiPublicWebhookTamarRoute: typeof ApiPublicWebhookTamarRoute
@@ -1452,6 +1466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRuntimeTamarGenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/runtime/tamar-delivery-audit': {
+      id: '/api/public/runtime/tamar-delivery-audit'
+      path: '/api/public/runtime/tamar-delivery-audit'
+      fullPath: '/api/public/runtime/tamar-delivery-audit'
+      preLoaderRoute: typeof ApiPublicRuntimeTamarDeliveryAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/runtime/conversation-debug': {
       id: '/api/public/runtime/conversation-debug'
       path: '/api/public/runtime/conversation-debug'
@@ -1685,6 +1706,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicRuntimeAgentCommandRoute: ApiPublicRuntimeAgentCommandRoute,
   ApiPublicRuntimeConversationDebugRoute:
     ApiPublicRuntimeConversationDebugRoute,
+  ApiPublicRuntimeTamarDeliveryAuditRoute:
+    ApiPublicRuntimeTamarDeliveryAuditRoute,
   ApiPublicRuntimeTamarGenerateRoute: ApiPublicRuntimeTamarGenerateRoute,
   ApiPublicRuntimeTamarTurnRoute: ApiPublicRuntimeTamarTurnRoute,
   ApiPublicWebhookTamarRoute: ApiPublicWebhookTamarRoute,
