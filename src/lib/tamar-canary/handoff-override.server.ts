@@ -18,7 +18,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { OPEN_HANDOFF_STATUSES, releaseThreadToTamar } from "@/lib/tamar-handoff-core.server";
 import { quiet } from "@/lib/db-safe";
-import { isCanaryPhone } from "./config";
+import { isCanaryPrimaryPhone } from "./config";
 
 export const CANARY_OVERRIDE_SOURCE = "tamar_canary_gate";
 export const CANARY_OVERRIDE_STATUS = "canary_handoff_override";
@@ -54,7 +54,7 @@ export async function applyCanaryHandoffOverride(args: {
   phone: string | null | undefined;
   inboundMessageId?: string | null;
 }): Promise<CanaryHandoffOverrideResult> {
-  if (!isCanaryPhone(args.phone)) return none("not_canary");
+  if (!isCanaryPrimaryPhone(args.phone)) return none("not_canary");
 
   const digits = String(args.phone ?? "").replace(/\D/g, "");
   const { data: contacts } = await supabaseAdmin
@@ -142,5 +142,5 @@ export async function applyCanaryHandoffOverride(args: {
  * suppressed for this phone. Canary only; every other number is unchanged.
  */
 export function suppressManagerAlertFor(phone: unknown): boolean {
-  return isCanaryPhone(phone);
+  return isCanaryPrimaryPhone(phone);
 }
