@@ -19,6 +19,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
 import { gateInboundForCanary } from "@/lib/tamar-canary/canary.server";
+import { isStaticBypassPhone, runStaticBypass } from "@/lib/tamar-canary/static-bypass.server";
+
 
 export type TurnAuth = { ok: true; origin: "api_token" | "gateway" } | { ok: false };
 
