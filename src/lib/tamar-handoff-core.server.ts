@@ -463,6 +463,16 @@ export async function ensureHandoff(input: EnsureHandoffInput): Promise<EnsureHa
     const alreadyNotified = existing?.manager_notified === true;
     const shouldNotify = created || !alreadyNotified || cooldownPassed;
 
+    if (handoffId && input.deferManagerAlert) {
+      // Gateway-execution path: never send from Lovable. The row stays
+      // queued so the existing retry worker delivers the alert.
+      base.alert_state = "queued";
+      base.alert_error = "gateway_execution_deferred";
+      base.manager_configured = true;
+      base.escalated_now = false;
+      return base;
+    }
+
     if (handoffId && shouldNotify) {
       const outcome = await notifyManagerForHandoff(handoffId);
       base.alert_state = outcome.alert_state;
