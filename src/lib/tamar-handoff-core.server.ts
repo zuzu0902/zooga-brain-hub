@@ -269,6 +269,12 @@ export type EnsureHandoffInput = {
   /** true when the thread was already frozen and the customer wrote again */
   followUp?: boolean;
   runtime?: string;
+  /**
+   * Agent-centric migration: on the gateway-execution path Lovable must not
+   * reach Meta at all. The handoff row, task and freeze are still created;
+   * only the outbound manager alert is deferred to the retry worker.
+   */
+  deferManagerAlert?: boolean;
 };
 
 export type EnsureHandoffResult = {
@@ -456,6 +462,16 @@ export async function ensureHandoff(input: EnsureHandoffInput): Promise<EnsureHa
     const cooldownPassed = !lastEscalated || now.getTime() - lastEscalated >= ESCALATION_COOLDOWN_MS;
     const alreadyNotified = existing?.manager_notified === true;
     const shouldNotify = created || !alreadyNotified || cooldownPassed;
+
+    if (handoffId && input.deferManagerAlert) {
+      // Gateway-execution path: never send from Lovable. The row stays
+      // queued so the existing retry worker delivers the alert.
+      base.alert_state = "queued";
+      base.alert_error = "gateway_execution_deferred";
+      base.manager_configured = true;
+      base.escalated_now = false;
+      return base;
+    }
 
     if (handoffId && shouldNotify) {
       const outcome = await notifyManagerForHandoff(handoffId);
