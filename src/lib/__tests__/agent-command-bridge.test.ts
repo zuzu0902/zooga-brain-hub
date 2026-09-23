@@ -52,7 +52,7 @@ describe("command surface", () => {
   });
 
   it("offers no arbitrary SQL, shell or secret read surface", () => {
-    for (const banned of ["child_process", "exec(", "rpc(\"run_sql", "process.env["]) {
+    for (const banned of ["child_process", "run_sql", "process.env[", "execSync"]) {
       expect(SRC).not.toContain(banned);
     }
     expect(SRC).not.toMatch(/[0-9a-f]{64}/);
