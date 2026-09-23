@@ -19,6 +19,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
 import { gateInboundForCanary } from "@/lib/tamar-canary/canary.server";
+import { isStaticBypassPhone, runStaticBypass } from "@/lib/tamar-canary/static-bypass.server";
+
 
 export type TurnAuth = { ok: true; origin: "api_token" | "gateway" } | { ok: false };
 
@@ -89,7 +91,20 @@ export const Route = createFileRoute("/api/public/runtime/tamar-turn")({
           return json({ ok: false, error: "blocked", reason: gate.reason, reply_sent: false }, 403);
         }
 
+        // TEMPORARY diagnostic: one fixed reply for the bypass number only.
+        if (isStaticBypassPhone(phone)) {
+          const bypass = await runStaticBypass({ phone, metaMessageId: metaMessageId || null });
+          return json({
+            ok: true,
+            reply_text: bypass.reply_text,
+            reply_sent: bypass.reply_sent,
+            runtime_mode: bypass.runtime_mode,
+            duplicate: bypass.duplicate,
+          });
+        }
+
         const result = await runTamarTurn(body);
+
         return new Response(JSON.stringify(result.payload), {
           status: result.status,
           headers: { "Content-Type": "application/json" },
