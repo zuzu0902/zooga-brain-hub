@@ -43,6 +43,13 @@
       "when": 1790274181828,
       "tag": "0005_zooga_core_read_migration_history",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790274396465,
+      "tag": "0006_zooga_core_migration_history_runtime_audit",
+      "breakpoints": true
     }
   ]
 }
