@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { coreApi, toCorePatch } from "@/lib/hostinger-core/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,13 +64,17 @@ function ContactProfile() {
   const [resetOpen, setResetOpen] = useState(false);
   const [releaseOpen, setReleaseOpen] = useState(false);
 
-  const { data: contact, isLoading } = useQuery({
+  const { data: contact, isLoading, error: contactError } = useQuery({
     queryKey: ["contact", id],
     refetchInterval: 20000,
+    retry: (n, e: any) => e?.status !== 404 && n < 2,
     queryFn: async () => {
-      const { data, error } = await supabase.from("contacts").select("*").eq("id", id).maybeSingle();
-      if (error) throw error;
-      return data as any;
+      try {
+        return (await coreApi.getContact(id)) as any;
+      } catch (e: any) {
+        if (e?.status === 404) return null;
+        throw e;
+      }
     },
   });
 
@@ -125,13 +130,19 @@ function ContactProfile() {
   const [activeSection, setActiveSection] = useState<"memory" | "actions" | "timeline" | "edit">("memory");
 
   async function update(patch: any) {
-    const { error } = await supabase.from("contacts").update(patch).eq("id", id);
-    if (error) { toast.error(t("שגיאה: ") + error.message); return; }
+    try {
+      await coreApi.patchContact(id, toCorePatch(patch));
+    } catch (e: any) {
+      toast.error(t("שגיאה: ") + (e?.code ?? t("העדכון נכשל")));
+      return;
+    }
     toast.success(t("עודכן"));
     qc.invalidateQueries({ queryKey: ["contact", id] });
+    qc.invalidateQueries({ queryKey: ["core-contacts"] });
   }
 
   if (isLoading) return <div className="p-6 text-muted-foreground">{t("טוען...")}</div>;
+  if (contactError) return <div className="p-6 text-destructive">{t("לא ניתן לטעון את איש הקשר כרגע. נסה שוב בעוד רגע.")}</div>;
   if (!contact) return <div className="p-6">{t("איש קשר לא נמצא")}</div>;
 
   const initials = (contact.full_name || contact.first_name || "?").trim().slice(0, 1);
@@ -822,12 +833,17 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
     const value = p.proposed_value?.value;
     const field = p.field_name;
     if (!field) return;
-    const { data: cur } = await supabase.from("contacts").select(field).eq("id", contactId).maybeSingle();
+    const cur = await coreApi.getContact(contactId);
     const oldVal = (cur as any)?.[field];
     const newVal = Array.isArray(value) && Array.isArray(oldVal)
       ? Array.from(new Set([...oldVal, ...value]))
       : value;
-    await supabase.from("contacts").update({ [field]: newVal } as any).eq("id", contactId);
+    try {
+      await coreApi.patchContact(contactId, toCorePatch({ [field]: newVal }));
+    } catch {
+      toast.error(t("שגיאה בעדכון הפרופיל"));
+      return;
+    }
     await supabase.from("pending_ai_insights")
       .update({ status: "approved", reviewed_at: new Date().toISOString() })
       .eq("id", p.id);
