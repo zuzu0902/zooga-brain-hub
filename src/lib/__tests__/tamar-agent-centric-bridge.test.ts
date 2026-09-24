@@ -14,6 +14,7 @@ import {
   validateAuditBody,
 } from "@/routes/api/public/runtime/tamar-delivery-audit";
 import { extractBearerToken } from "@/lib/zooga-gateway/gateway-route-auth.server";
+import { generateInboundDecision } from "@/routes/api/public/runtime/tamar-generate";
 
 const GENERATE_SRC = readFileSync("src/routes/api/public/runtime/tamar-generate.ts", "utf8");
 const AUDIT_SRC = readFileSync("src/routes/api/public/runtime/tamar-delivery-audit.ts", "utf8");
@@ -69,9 +70,20 @@ describe("tamar-generate never reaches Meta", () => {
     );
   });
 
-  it("still enforces the inbound allowlist before any engine work", () => {
-    expect(GENERATE_SRC.indexOf("gateInboundForCanary")).toBeLessThan(GENERATE_SRC.indexOf("runTamarTurn("));
+  it("enforces the group/invalid-phone gate before any engine work, with no number allowlist", () => {
+    expect(GENERATE_SRC.indexOf("generateInboundDecision(phone)")).toBeLessThan(GENERATE_SRC.indexOf("runTamarTurn("));
     expect(GENERATE_SRC).toContain('error: "blocked"');
+    expect(GENERATE_SRC).not.toContain("gateInboundForCanary");
+  });
+
+  it("accepts a non-canary individual phone and rejects group JIDs", () => {
+    expect(generateInboundDecision("+972501234567")).toEqual({ allowed: true, reason: "individual_allowed" });
+    expect(generateInboundDecision("0521112233").allowed).toBe(true);
+    expect(generateInboundDecision("120363001234567890@g.us").reason).toBe("blocked_group");
+    expect(generateInboundDecision("972512277833-1600000000").reason).toBe("blocked_group");
+    expect(generateInboundDecision("972501234567@s.whatsapp.net").allowed).toBe(false);
+    expect(generateInboundDecision("abc").reason).toBe("blocked_invalid_phone");
+    expect(generateInboundDecision("123").reason).toBe("blocked_invalid_phone");
   });
 });
 
