@@ -6,4 +6,4 @@
 - [x] Fresh concierge override: no unprompted destinations, exact first-inbound greeting, database-only output_text audit.
 - [x] Replace Tamar’s canonical First Inbound Response in code, active database prompt, and tests; verify and publish.
 - [ ] Intake campaign page streamline — plan not approved yet (awaiting user).
-- [ ] Migrate dashboard, contacts list/detail, offers/catalog UI to Hostinger Core API (no deploy).
+- [x] Migrate dashboard, contacts list/detail, offers/catalog UI to Hostinger Core API (no deploy).
