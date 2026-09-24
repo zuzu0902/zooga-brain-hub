@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { coreApi, listAll } from "@/lib/hostinger-core/client";
+import { buildDashboard } from "@/lib/hostinger-core/dashboard";
 import { Card } from "@/components/ui/card";
 import { Users, Sparkles, UserCheck, Heart, Crown, Pause, TrendingUp, Activity } from "lucide-react";
 import { Link } from "@tanstack/react-router";
@@ -41,57 +42,15 @@ function Stat({
 
 function Dashboard() {
   const t = useT();
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard"],
+  // MIGRATION: dashboard CRM data comes from Hostinger Core.
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["core-dashboard"],
     queryFn: async () => {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-
-      const [contacts, newToday, interactions] = await Promise.all([
-        supabase.from("contacts").select("status, interests, engagement_score, full_name, id, last_interaction_at"),
-        supabase
-          .from("contacts")
-          .select("id", { count: "exact", head: true })
-          .gte("created_at", todayStart.toISOString())
-          .eq("status", "new_lead"),
-        supabase
-          .from("interactions")
-          .select("id, type, content, timestamp, contact_id, contacts(full_name)")
-          .order("timestamp", { ascending: false })
-          .limit(8),
+      const [overview, all] = await Promise.all([
+        coreApi.overview().catch(() => ({} as Record<string, any>)),
+        listAll((p) => coreApi.listContacts(p), 1000),
       ]);
-
-      const all = contacts.data ?? [];
-      const counts: Record<string, number> = {
-        new_lead: 0,
-        active_member: 0,
-        interested: 0,
-        customer: 0,
-        VIP: 0,
-        inactive: 0,
-      };
-      const interestCounts: Record<string, number> = {};
-      all.forEach((c: any) => {
-        counts[c.status] = (counts[c.status] || 0) + 1;
-        (c.interests || []).forEach((i: string) => {
-          interestCounts[i] = (interestCounts[i] || 0) + 1;
-        });
-      });
-      const topInterests = Object.entries(interestCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6);
-      const topEngaged = [...all]
-        .sort((a: any, b: any) => (b.engagement_score || 0) - (a.engagement_score || 0))
-        .slice(0, 6);
-
-      return {
-        total: all.length,
-        newToday: newToday.count ?? 0,
-        counts,
-        topInterests,
-        recent: interactions.data ?? [],
-        topEngaged,
-      };
+      return buildDashboard(overview, all);
     },
   });
 

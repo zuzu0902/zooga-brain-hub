@@ -136,7 +136,16 @@ function OffersPage() {
             </div>
           </Card>
         ))}
-        {shown.length === 0 && (
+        {offersLoading && (
+          <Card className="p-8 text-center text-muted-foreground col-span-full">{t("טוען...")}</Card>
+        )}
+        {!offersLoading && offersError && (
+          <Card className="p-8 text-center text-destructive col-span-full">
+            {t("לא ניתן לטעון את הקטלוג כרגע.")}{" "}
+            <button className="underline" onClick={() => refetchOffers()}>{t("נסה שוב")}</button>
+          </Card>
+        )}
+        {!offersLoading && !offersError && shown.length === 0 && (
           <Card className="p-8 text-center text-muted-foreground col-span-full">{t("אין הצעות. צור הצעה חדשה.")}</Card>
         )}
       </div>
