@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { coreApi, listAll } from "@/lib/hostinger-core/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -56,27 +56,11 @@ function ContactsPage() {
   const [open, setOpen] = useState(false);
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
 
-  const { data: contacts, isLoading, refetch } = useQuery({
-    queryKey: ["contacts-rich"],
-    refetchInterval: 15000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("id, full_name, first_name, last_name, phone, email, status, source, region, city, age, age_range, gender, relationship_status, interests, activity_score, engagement_score, sales_temperature, manager_attention_required, consent_marketing, last_interaction_at, interaction_count, created_at")
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      if (error) throw error;
-      return data ?? [];
-    },
+  const { data: contacts, isLoading, error: loadError, refetch } = useQuery({
+    queryKey: ["core-contacts"],
+    refetchInterval: 30000,
+    queryFn: () => listAll((p) => coreApi.listContacts(p), 1000),
   });
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("contacts-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "contacts" }, () => refetch())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [refetch]);
 
   const regions = useMemo(() => {
     const s = new Set<string>();
@@ -187,7 +171,13 @@ function ContactsPage() {
               {isLoading && (
                 <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("טוען...")}</td></tr>
               )}
-              {!isLoading && filtered.length === 0 && (
+              {!isLoading && loadError && (
+                <tr><td colSpan={14} className="p-10 text-center text-destructive">
+                  {t("לא ניתן לטעון אנשי קשר כרגע.")}{" "}
+                  <button className="underline" onClick={() => refetch()}>{t("נסה שוב")}</button>
+                </td></tr>
+              )}
+              {!isLoading && !loadError && filtered.length === 0 && (
                 <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("אין אנשי קשר התואמים לסינון")}</td></tr>
               )}
               {filtered.map((c: any) => {

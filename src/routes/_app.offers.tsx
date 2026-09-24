@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { analyzeOfferIntelligence } from "@/lib/offer-intelligence.functions";
 import { validateOfferUrl } from "@/lib/offer-pricing-block";
 import { supabase } from "@/integrations/supabase/client";
+import { coreApi, listAll } from "@/lib/hostinger-core/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,12 +39,10 @@ function OffersPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<OfferBucket>("active");
-  const { data: offers } = useQuery({
+  // MIGRATION: catalog list is read from Hostinger Core.
+  const { data: offers, isLoading: offersLoading, error: offersError, refetch: refetchOffers } = useQuery({
     queryKey: ["offers"],
-    queryFn: async () => {
-      const { data } = await supabase.from("offers").select("*").order("created_at", { ascending: false });
-      return data ?? [];
-    },
+    queryFn: () => listAll((p) => coreApi.listCatalog(p), 1000),
   });
 
   // Bucketing is computed from event_end_date vs now — it does NOT depend on
@@ -137,7 +136,16 @@ function OffersPage() {
             </div>
           </Card>
         ))}
-        {shown.length === 0 && (
+        {offersLoading && (
+          <Card className="p-8 text-center text-muted-foreground col-span-full">{t("טוען...")}</Card>
+        )}
+        {!offersLoading && offersError && (
+          <Card className="p-8 text-center text-destructive col-span-full">
+            {t("לא ניתן לטעון את הקטלוג כרגע.")}{" "}
+            <button className="underline" onClick={() => refetchOffers()}>{t("נסה שוב")}</button>
+          </Card>
+        )}
+        {!offersLoading && !offersError && shown.length === 0 && (
           <Card className="p-8 text-center text-muted-foreground col-span-full">{t("אין הצעות. צור הצעה חדשה.")}</Card>
         )}
       </div>
