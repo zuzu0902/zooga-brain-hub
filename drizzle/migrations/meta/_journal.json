@@ -36,6 +36,13 @@
       "when": 1790173612401,
       "tag": "0004_tighten_permissive_rls_policies_to_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790274181828,
+      "tag": "0005_zooga_core_read_migration_history",
+      "breakpoints": true
     }
   ]
 }

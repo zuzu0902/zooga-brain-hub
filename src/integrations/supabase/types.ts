@@ -6386,6 +6386,24 @@ export type Database = {
           status: string
         }[]
       }
+      zooga_core_read_migration_history: {
+        Args: {
+          _cursor?: string
+          _gateway_token: string
+          _kind: string
+          _limit?: number
+        }
+        Returns: {
+          contact_external_ref: string
+          external_ref: string
+          payload: Json
+          source_created_at: string
+          source_system: string
+          source_table: string
+          source_updated_at: string
+        }[]
+      }
+      zooga_core_strip_sensitive: { Args: { _payload: Json }; Returns: Json }
       zooga_gateway_status: { Args: { _gateway_token: string }; Returns: Json }
       zooga_ingest_shadow: {
         Args: { _event: Json; _gateway_token: string }
