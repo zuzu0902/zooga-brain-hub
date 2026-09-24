@@ -62,25 +62,66 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
   return {
     overview: () => request<Record<string, any>>("/v1/admin/overview"),
     listContacts: async (p: { limit?: number; cursor?: string | null } = {}) =>
-      normalizePage<CoreContact>(await request<any>(`/v1/admin/contacts${qs(p)}`), "contacts"),
+      mapPage(normalizePage<any>(await request<any>(`/v1/admin/contacts${qs(p)}`), "contacts"), normalizeContact),
     getContact: async (id: string) =>
-      unwrap<CoreContact>(await request<any>(`/v1/admin/contacts/${encodeURIComponent(id)}`), "contact"),
+      normalizeContact(unwrap<any>(await request<any>(`/v1/admin/contacts/${encodeURIComponent(id)}`), "contact")),
     patchContact: async (id: string, patch: CoreContactPatch) =>
-      unwrap<CoreContact>(
+      normalizeContact(unwrap<any>(
         await request<any>(`/v1/admin/contacts/${encodeURIComponent(id)}`, {
           method: "PATCH",
           body: JSON.stringify(patch),
         }),
         "contact",
-      ),
+      )),
     listCatalog: async (p: { limit?: number; cursor?: string | null } = {}) =>
-      normalizePage<CoreCatalogItem>(await request<any>(`/v1/admin/catalog${qs(p)}`), "catalog"),
+      mapPage(normalizePage<any>(await request<any>(`/v1/admin/catalog${qs(p)}`), "catalog"), normalizeCatalogItem),
   };
 }
 
 export function normalizePage<T>(body: any, key: string): CorePage<T> {
-  const items = Array.isArray(body) ? body : body?.items ?? body?.data ?? body?.[key] ?? [];
+  const items = Array.isArray(body) ? body : body?.rows ?? body?.items ?? body?.data ?? body?.[key] ?? [];
   return { items: Array.isArray(items) ? items : [], next_cursor: body?.next_cursor ?? body?.cursor ?? null };
+}
+
+function mapPage<A, B>(p: CorePage<A>, f: (a: A) => B): CorePage<B> {
+  return { items: p.items.map(f), next_cursor: p.next_cursor };
+}
+
+const obj = (v: unknown): Record<string, any> => (v && typeof v === "object" && !Array.isArray(v) ? (v as any) : {});
+
+/**
+ * Flatten a Core contact ({identity, profile, lifecycle, consent_state, ...})
+ * into the flat shape the screens render. Raw nested objects are retained.
+ */
+export function normalizeContact(raw: any): CoreContact {
+  const r = obj(raw);
+  const { identity, profile, lifecycle, consent_state, ...top } = r;
+  const flat: Record<string, any> = {
+    ...top,
+    ...obj(identity),
+    ...obj(profile),
+    ...obj(lifecycle),
+    ...obj(consent_state),
+    id: r.id,
+    identity, profile, lifecycle, consent_state,
+  };
+  if (flat.created_at == null && r.source_created_at != null) flat.created_at = r.source_created_at;
+  if (flat.updated_at == null && r.source_updated_at != null) flat.updated_at = r.source_updated_at;
+  return flat as CoreContact;
+}
+
+/** Flatten a Core catalog item (commercial + verified_facts; lifecycle_status → status). */
+export function normalizeCatalogItem(raw: any): CoreCatalogItem {
+  const r = obj(raw);
+  const { commercial, verified_facts, ...top } = r;
+  const flat: Record<string, any> = {
+    ...obj(verified_facts),
+    ...obj(commercial),
+    ...top,
+    commercial, verified_facts,
+  };
+  if (flat.status == null && r.lifecycle_status != null) flat.status = r.lifecycle_status;
+  return flat as CoreCatalogItem;
 }
 
 export function unwrap<T>(body: any, key: string): T {
