@@ -261,10 +261,9 @@ function ContactsPage() {
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setToDelete({ id: c.id, name: c.full_name || t("ללא שם") });
-                        }}
+                        disabled
+                        title={PENDING_CORE_MSG}
+                        onClick={(e) => e.stopPropagation()}
                         aria-label={t("מחק")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
