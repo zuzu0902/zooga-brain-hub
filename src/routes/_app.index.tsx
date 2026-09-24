@@ -65,6 +65,11 @@ function Dashboard() {
 
       {isLoading ? (
         <div className="text-muted-foreground">{t("טוען נתונים...")}</div>
+      ) : error || !data ? (
+        <Card className="p-6 text-destructive">
+          {t("לא ניתן לטעון נתוני CRM כרגע.")}{" "}
+          <button className="underline" onClick={() => refetch()}>{t("נסה שוב")}</button>
+        </Card>
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
