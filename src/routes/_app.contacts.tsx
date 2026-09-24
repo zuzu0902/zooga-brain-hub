@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate, Link, Outlet, useLocation } from "@tansta
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { coreApi, listAll } from "@/lib/hostinger-core/client";
+import { PENDING_CORE_MSG } from "@/lib/hostinger-core/pending";
+
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -109,9 +111,10 @@ function ContactsPage() {
             {filtered.length.toLocaleString("he-IL")} {t("מתוך")} {(contacts?.length ?? 0).toLocaleString("he-IL")}
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} className="gap-2">
+        <Button disabled title={PENDING_CORE_MSG} className="gap-2">
           <Plus className="h-4 w-4" /> {t("הוסף איש קשר")}
         </Button>
+        <p className="w-full text-xs text-muted-foreground">{PENDING_CORE_MSG}: {t("הוספה ומחיקה של אנשי קשר")}</p>
       </header>
 
       <Card className="p-4 space-y-3">
@@ -258,10 +261,9 @@ function ContactsPage() {
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setToDelete({ id: c.id, name: c.full_name || t("ללא שם") });
-                        }}
+                        disabled
+                        title={PENDING_CORE_MSG}
+                        onClick={(e) => e.stopPropagation()}
                         aria-label={t("מחק")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -275,18 +277,6 @@ function ContactsPage() {
         </div>
       </Card>
 
-      <ContactCreateDialog open={open} onOpenChange={setOpen} onCreated={() => refetch()} />
-      <ContactDeleteDialog
-        open={!!toDelete}
-        onOpenChange={(v) => !v && setToDelete(null)}
-        contactId={toDelete?.id ?? null}
-        contactName={toDelete?.name ?? null}
-        onDeleted={(r) => {
-          setToDelete(null);
-          toast.success(t("איש הקשר נמחק") + ` · ${r?.identities_preserved ?? 0} זהויות נשמרו`);
-          refetch();
-        }}
-      />
     </div>
   );
 }

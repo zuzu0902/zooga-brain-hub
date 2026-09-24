@@ -17,9 +17,12 @@ export function buildDashboard(overview: Record<string, any>, all: any[]) {
   if (byStatus && typeof byStatus === "object") for (const k of Object.keys(counts)) {
     if (typeof byStatus[k] === "number") counts[k] = byStatus[k];
   }
+  const oc = ov.counts && typeof ov.counts === "object" ? ov.counts : {};
   const recent = Array.isArray(ov.recent_interactions) ? ov.recent_interactions : [];
   return {
-    total: typeof ov.contacts_total === "number" ? ov.contacts_total : all.length,
+    total: typeof oc.contacts === "number" ? oc.contacts : typeof ov.contacts_total === "number" ? ov.contacts_total : all.length,
+    catalogTotal: typeof oc.catalog === "number" ? oc.catalog : null,
+    openHandoffs: typeof oc.open_handoffs === "number" ? oc.open_handoffs : null,
     newToday: typeof ov.new_leads_today === "number" ? ov.new_leads_today : newToday,
     counts,
     topInterests: Object.entries(interestCounts).sort((a, b) => b[1] - a[1]).slice(0, 6),

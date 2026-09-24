@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { coreApi, toCorePatch } from "@/lib/hostinger-core/client";
+import { PENDING_CORE_MSG, pendingCore } from "@/lib/hostinger-core/pending";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,49 +81,20 @@ function ContactProfile() {
   const { data: interactions } = useQuery({
     queryKey: ["interactions", id],
     refetchInterval: 15000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("interactions")
-        .select("*")
-        .eq("contact_id", id)
-        .order("timestamp", { ascending: false });
-      return data ?? [];
-    },
+    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
   });
 
   const { data: tasks } = useQuery({
     queryKey: ["tasks", id],
-    queryFn: async () => {
-      const { data } = await supabase.from("tasks").select("*").eq("contact_id", id)
-        .order("created_at", { ascending: false });
-      return data ?? [];
-    },
+    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
   });
 
   const { data: webhookLogs } = useQuery({
     queryKey: ["webhook-logs-for", contact?.phone],
     enabled: !!contact?.phone,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("webhook_logs").select("*")
-        .order("created_at", { ascending: false }).limit(200);
-      return (data ?? []).filter((l: any) => {
-        const p = l.payload || {};
-        const candidates = [p.phone, p.whatsapp_number, p?.from?.phone].filter(Boolean);
-        return candidates.some((c: string) => normalizeP(c) === normalizeP(contact!.phone));
-      });
-    },
+    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
   });
 
-  useEffect(() => {
-    const ch = supabase.channel(`c-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contacts", filter: `id=eq.${id}` },
-        () => qc.invalidateQueries({ queryKey: ["contact", id] }))
-      .on("postgres_changes", { event: "*", schema: "public", table: "interactions", filter: `contact_id=eq.${id}` },
-        () => qc.invalidateQueries({ queryKey: ["interactions", id] }))
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [id, qc]);
 
   const [interactionOpen, setInteractionOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
@@ -170,10 +141,10 @@ function ContactProfile() {
           initials={initials}
           id={id}
           update={update}
-          onMessage={() => setInteractionOpen(true)}
-          onTask={() => setTaskOpen(true)}
-          onDelete={() => setDeleteOpen(true)}
-          onReset={() => setResetOpen(true)}
+          onMessage={pendingCore}
+          onTask={pendingCore}
+          onDelete={pendingCore}
+          onReset={pendingCore}
         />
 
         {/* === HUMAN LOCK: who holds this thread, and the way back to Tamar === */}
@@ -203,6 +174,7 @@ function ContactProfile() {
           <div className="space-y-6 min-w-0">
             <ProfileNav active={activeSection} onChange={setActiveSection} />
 
+            <p className="text-xs text-muted-foreground rounded-md border p-2">{PENDING_CORE_MSG}: {"היסטוריה, משימות, הערות, זיכרון, הצעות AI, מחיקה ואיפוס"}</p>
             {activeSection === "memory" && (
               <RelationshipMemorySection contactId={id} />
             )}
@@ -211,7 +183,7 @@ function ContactProfile() {
                 contact={contact}
                 contactId={id}
                 tasks={tasks ?? []}
-                openTask={() => setTaskOpen(true)}
+                openTask={pendingCore}
                 onTaskChange={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
                 update={update}
               />
@@ -220,7 +192,7 @@ function ContactProfile() {
               <UnifiedTimeline
                 contactId={id}
                 interactions={interactions ?? []}
-                onAdd={() => setInteractionOpen(true)}
+                onAdd={pendingCore}
               />
             )}
             {activeSection === "edit" && (
@@ -232,7 +204,7 @@ function ContactProfile() {
                 <SectionHeading>{t("פרופיל אישי")}</SectionHeading>
                 <PersonalTab contact={contact} update={update} />
                 <SectionHeading>{t("שיחות ואינטראקציות")}</SectionHeading>
-                <ConversationsTab interactions={interactions ?? []} onAdd={() => setInteractionOpen(true)} />
+                <ConversationsTab interactions={interactions ?? []} onAdd={pendingCore} />
                 <SectionHeading>{t("פעילות ומכירות")}</SectionHeading>
                 <SalesTab contact={contact} update={update} />
                 <SectionHeading>{t("הערות ומשימות")}</SectionHeading>
@@ -242,7 +214,7 @@ function ContactProfile() {
                   tasks={tasks ?? []}
                   onTaskChange={() => qc.invalidateQueries({ queryKey: ["tasks", id] })}
                   contactId={id}
-                  openTask={() => setTaskOpen(true)}
+                  openTask={pendingCore}
                 />
                 <SectionHeading>{t("נתונים גולמיים")}</SectionHeading>
                 <RawTab contact={contact} webhookLogs={webhookLogs ?? []} />
@@ -664,22 +636,9 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
   const { data: memories } = useQuery({
     queryKey: ["contact-memories", contactId],
     refetchInterval: 20000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("contact_memories").select("*")
-        .eq("contact_id", contactId)
-        .order("created_at", { ascending: false });
-      return data ?? [];
-    },
+    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
   });
 
-  useEffect(() => {
-    const ch = supabase.channel(`mem-${contactId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contact_memories", filter: `contact_id=eq.${contactId}` },
-        () => qc.invalidateQueries({ queryKey: ["contact-memories", contactId] }))
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [contactId, qc]);
 
   async function runNow() {
     setRunning(true);
@@ -778,14 +737,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
   const { data: pending } = useQuery({
     queryKey: ["contact-pending", contactId],
     refetchInterval: 15000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("pending_ai_insights").select("*")
-        .eq("contact_id", contactId)
-        .eq("status", "pending")
-        .order("confidence_score", { ascending: false });
-      return data ?? [];
-    },
+    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
   });
 
   // Build derived suggestions from contact AI fields
@@ -844,16 +796,10 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
       toast.error(t("שגיאה בעדכון הפרופיל"));
       return;
     }
-    await supabase.from("pending_ai_insights")
-      .update({ status: "approved", reviewed_at: new Date().toISOString() })
-      .eq("id", p.id);
     toast.success(t("יושם בפרופיל"));
   }
   async function reject(p: any) {
-    await supabase.from("pending_ai_insights")
-      .update({ status: "rejected", reviewed_at: new Date().toISOString() })
-      .eq("id", p.id);
-    toast.success(t("נדחה"));
+    pendingCore();
   }
 
   return (
@@ -925,8 +871,8 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
                   {p.reasoning && <div className="text-xs text-muted-foreground mt-1">{p.reasoning}</div>}
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <Button size="icon" variant="outline" onClick={() => approve(p)}><CheckSquare className="h-4 w-4 text-success" /></Button>
-                  <Button size="icon" variant="outline" onClick={() => reject(p)}><X className="h-4 w-4 text-destructive" /></Button>
+                  <Button size="icon" variant="outline" disabled title={PENDING_CORE_MSG}><CheckSquare className="h-4 w-4 text-success" /></Button>
+                  <Button size="icon" variant="outline" disabled title={PENDING_CORE_MSG}><X className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </div>
             ))}
@@ -953,10 +899,8 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
                 <input
                   type="checkbox"
                   className="mt-1"
-                  onChange={async () => {
-                    await supabase.from("tasks").update({ status: "done" }).eq("id", tk.id);
-                    onTaskChange();
-                  }}
+                  disabled
+                  title={PENDING_CORE_MSG}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium">{tk.title}</div>
@@ -981,13 +925,7 @@ function UnifiedTimeline({ contactId, interactions, onAdd }: any) {
   const { data: history } = useQuery({
     queryKey: ["contact-history", contactId],
     refetchInterval: 30000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("contact_profile_history").select("*")
-        .eq("contact_id", contactId)
-        .order("created_at", { ascending: false });
-      return data ?? [];
-    },
+    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
   });
 
   const events = useMemo(() => {
@@ -1723,10 +1661,8 @@ function NotesTasksTab({ contact, update, tasks, onTaskChange, contactId, openTa
               <input
                 type="checkbox"
                 checked={t.status === "done"}
-                onChange={async (e) => {
-                  await supabase.from("tasks").update({ status: e.target.checked ? "done" : "open" }).eq("id", t.id);
-                  onTaskChange();
-                }}
+                disabled
+                title={PENDING_CORE_MSG}
                 className="mt-1"
               />
               <div className="flex-1 min-w-0">
@@ -1744,8 +1680,7 @@ function NotesTasksTab({ contact, update, tasks, onTaskChange, contactId, openTa
                   <span>נוצר: {formatRelative(t.created_at)}</span>
                 </div>
               </div>
-              <Button size="icon" variant="ghost" className="h-7 w-7"
-                onClick={async () => { await supabase.from("tasks").delete().eq("id", t.id); onTaskChange(); }}>
+              <Button size="icon" variant="ghost" className="h-7 w-7" disabled title={PENDING_CORE_MSG}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1815,9 +1750,7 @@ function AddInteractionDialog({ open, onOpenChange, contactId, onAdded }: any) {
 
   async function save() {
     setSaving(true);
-    const { error } = await supabase.from("interactions").insert({
-      contact_id: contactId, type: type as any, content, source: "admin",
-    });
+    const error = { message: PENDING_CORE_MSG }; // MIGRATION: no Core endpoint
     setSaving(false);
     if (error) { toast.error("שגיאה: " + error.message); return; }
     toast.success("נוסף");
@@ -1863,10 +1796,7 @@ function AddTaskDialog({ open, onOpenChange, contactId, onAdded }: any) {
   async function save() {
     if (!title.trim()) { toast.error("נדרש כותרת"); return; }
     setSaving(true);
-    const { error } = await supabase.from("tasks").insert({
-      contact_id: contactId, title, description, assigned_to: assignedTo || null,
-      priority, due_date: dueDate ? new Date(dueDate).toISOString() : null, status: "open",
-    });
+    const error = { message: PENDING_CORE_MSG }; // MIGRATION: no Core endpoint
     setSaving(false);
     if (error) { toast.error("שגיאה: " + error.message); return; }
     toast.success("המשימה נוצרה");
@@ -1950,15 +1880,7 @@ function IntakeProgressCard({ contact, contactId }: { contact: any; contactId: s
 
   const { data: captures } = useQuery({
     queryKey: ["intake-captures", contactId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("intake_field_captures" as any)
-        .select("*")
-        .eq("contact_id", contactId)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      return (data ?? []) as any[];
-    },
+    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
   });
 
   return (
