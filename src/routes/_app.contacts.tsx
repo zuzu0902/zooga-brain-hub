@@ -171,7 +171,13 @@ function ContactsPage() {
               {isLoading && (
                 <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("טוען...")}</td></tr>
               )}
-              {!isLoading && filtered.length === 0 && (
+              {!isLoading && loadError && (
+                <tr><td colSpan={14} className="p-10 text-center text-destructive">
+                  {t("לא ניתן לטעון אנשי קשר כרגע.")}{" "}
+                  <button className="underline" onClick={() => refetch()}>{t("נסה שוב")}</button>
+                </td></tr>
+              )}
+              {!isLoading && !loadError && filtered.length === 0 && (
                 <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("אין אנשי קשר התואמים לסינון")}</td></tr>
               )}
               {filtered.map((c: any) => {
