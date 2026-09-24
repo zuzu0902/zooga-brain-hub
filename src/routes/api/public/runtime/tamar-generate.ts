@@ -16,12 +16,24 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { runTamarTurn } from "@/lib/tamar-engine.server";
-import { gateInboundForCanary } from "@/lib/tamar-canary/canary.server";
+import { isGroupJid } from "@/lib/tamar-canary/config";
+import { normalizePhone } from "@/lib/phone";
 import { authorizeGatewayRequest, jsonResponse } from "@/lib/zooga-gateway/gateway-route-auth.server";
 
 export const GENERATE_RUNTIME_MODE = "gateway_execution";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Pure inbound decision for tamar-generate: any valid individual number; groups rejected. */
+export function generateInboundDecision(phone: unknown): {
+  allowed: boolean;
+  reason: "individual_allowed" | "blocked_group" | "blocked_invalid_phone";
+} {
+  const raw = String(phone ?? "").trim();
+  if (isGroupJid(raw) || /@/.test(raw)) return { allowed: false, reason: "blocked_group" };
+  if (/[a-z]/i.test(raw) || !normalizePhone(raw)) return { allowed: false, reason: "blocked_invalid_phone" };
+  return { allowed: true, reason: "individual_allowed" };
+}
 
 /**
  * Handoff signal derivation (pure).
@@ -78,12 +90,9 @@ export const Route = createFileRoute("/api/public/runtime/tamar-generate")({
         const phone = body?.phone ?? body?.whatsapp_number ?? body?.from ?? null;
         if (!phone) return jsonResponse({ ok: false, error: "phone_required" }, 400);
 
-        // Safety allowlist stays enforced, before contact creation or model call.
-        const gate = await gateInboundForCanary({
-          phone,
-          inboundMessageId: metaMessageId,
-          messageType: "text",
-        });
+        // Open individual access: groups/JIDs and invalid phones are rejected
+        // before contact creation or model call. No number allowlist here.
+        const gate = generateInboundDecision(phone);
         if (!gate.allowed) {
           return jsonResponse({ ok: false, error: "blocked", reason: gate.reason }, 403);
         }
