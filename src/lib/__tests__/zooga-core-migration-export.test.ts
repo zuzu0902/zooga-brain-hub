@@ -20,6 +20,11 @@ const SQL = readFileSync(
   join(process.cwd(), "drizzle/migrations/0005_zooga_core_read_migration_history.sql"),
   "utf8",
 );
+// 0006 supersedes the function body from 0005 (applied migrations are immutable).
+const SQL6 = readFileSync(
+  join(process.cwd(), "drizzle/migrations/0006_zooga_core_migration_history_runtime_audit.sql"),
+  "utf8",
+);
 const TOKEN = "g".repeat(32);
 
 const EXPECTED = [
@@ -148,10 +153,40 @@ describe("migration export — read-only, no group surfaces, no arbitrary tables
     for (const t of tables) {
       expect(t).not.toMatch(/whatsapp|broadcast|group|api_settings|gateway_credentials|tamar_runtime_executions|connections/);
     }
+    const tables6 = [...SQL6.matchAll(/FROM public\.([a-z_]+)/g)].map((m) => m[1]);
+    for (const t of tables6) expect(t).not.toMatch(/whatsapp|broadcast|group|api_settings|gateway_credentials|connections/);
     expect(SQL).toContain("zooga_core_strip_sensitive");
   });
 
   it("every row carries external_ref, source_system, contact ref, timestamps and payload", () => {
     expect(SQL).toMatch(/RETURNS TABLE\(external_ref text, source_system text, source_table text, contact_external_ref text,\s*source_created_at timestamp with time zone, source_updated_at timestamp with time zone, payload jsonb\)/);
+  });
+
+  it("0006 keeps allowlist, read-only posture and grants", () => {
+    for (const k of EXPECTED) expect(SQL6).toContain(`'${k}'`);
+    expect(SQL6).not.toMatch(/\b(INSERT|UPDATE|DELETE|TRUNCATE|DROP|ALTER TABLE|EXECUTE format)\b/i);
+    expect(SQL6).toContain("STABLE SECURITY DEFINER");
+    expect(SQL6).toContain("zooga_core_gateway_authorized");
+    expect(SQL6).toMatch(/REVOKE ALL ON FUNCTION[\s\S]*FROM PUBLIC, anon, authenticated/);
+  });
+});
+
+describe("migration export — sanitized runtime execution audit (0006)", () => {
+  const block = SQL6.slice(SQL6.indexOf("'tamar_runtime_executions:'"), SQL6.indexOf("FROM public.tamar_runtime_executions r"));
+
+  it("adds tamar_runtime_executions to the tamar_audit_record union with metadata", () => {
+    expect(block.length).toBeGreaterThan(0);
+    for (const f of ["contact_id", "created_at", "channel", "source", "runtime_mode", "runtime_pack_fetch_ok", "composition_version", "deployment_sha", "latency_ms", "fallback_reason", "has_error", "conversation_mode", "conversation_mode_reasons", "prompt_blocks_injected", "offer_intelligence_injected", "campaign_injected"]) {
+      expect(block).toContain(`'${f}'`);
+    }
+  });
+
+  it("never reads or exports message content, raw payloads or free-text errors", () => {
+    expect(block).not.toMatch(/to_jsonb\(r\)/);
+    for (const f of ["inbound_message", "outbound_reply", "output_text", "raw_payload"]) {
+      expect(block).not.toMatch(new RegExp(`\\b${f}\\b`));
+    }
+    expect(block).not.toMatch(/'error',/);
+    expect(block).not.toMatch(/secret|token|password|credential/i);
   });
 });
