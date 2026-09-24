@@ -93,7 +93,7 @@ describe("tamar-generate response contract", () => {
   });
 
   it("relies on engine idempotency keyed on meta_message_id", () => {
-    expect(GENERATE_SRC).toContain("duplicate: payload.duplicate === true");
+    expect(GENERATE_SRC).toContain("const duplicate = payload.duplicate === true");
     expect(ENGINE_SRC).toContain('.eq("raw_payload->>meta_message_id", metaMessageId)');
   });
 });
