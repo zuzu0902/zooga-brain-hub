@@ -174,6 +174,7 @@ function ContactProfile() {
           <div className="space-y-6 min-w-0">
             <ProfileNav active={activeSection} onChange={setActiveSection} />
 
+            <p className="text-xs text-muted-foreground rounded-md border p-2">{PENDING_CORE_MSG}: {"היסטוריה, משימות, הערות, זיכרון, הצעות AI, מחיקה ואיפוס"}</p>
             {activeSection === "memory" && (
               <RelationshipMemorySection contactId={id} />
             )}

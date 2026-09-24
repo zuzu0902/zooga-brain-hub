@@ -74,6 +74,7 @@ function Dashboard() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <Stat label={t("סה״כ אנשי קשר")} value={data!.total} icon={Users} tint="var(--gradient-warm)" />
+            {data!.catalogTotal != null && <Stat label={t("פריטי קטלוג")} value={data!.catalogTotal} icon={Sparkles} tint="oklch(0.7 0.1 200)" />}
             <Stat label={t("לידים חדשים היום")} value={data!.newToday} icon={Sparkles} tint="oklch(0.78 0.13 85)" />
             <Stat label={t("חברים פעילים")} value={data!.counts.active_member} icon={UserCheck} tint="oklch(0.7 0.09 160)" />
             <Stat label={t("מתעניינים")} value={data!.counts.interested} icon={Heart} tint="oklch(0.65 0.18 320)" />

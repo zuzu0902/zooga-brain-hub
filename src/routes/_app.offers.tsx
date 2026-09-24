@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzeOfferIntelligence } from "@/lib/offer-intelligence.functions";
 import { validateOfferUrl } from "@/lib/offer-pricing-block";
-import { supabase } from "@/integrations/supabase/client";
+import { PENDING_CORE_MSG } from "@/lib/hostinger-core/pending";
 import { coreApi, listAll } from "@/lib/hostinger-core/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,7 @@ function OffersPage() {
           <h1 className="text-3xl font-bold">{t("הצעות")}</h1>
           <p className="text-muted-foreground mt-1">{t("אירועים, טיולים, מסיבות, סדנאות ועוד")}</p>
         </div>
-        <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="h-4 w-4" />{t("הצעה חדשה")}</Button>
+        <div className="text-end space-y-1"><Button disabled title={PENDING_CORE_MSG} className="gap-2"><Plus className="h-4 w-4" />{t("הצעה חדשה")}</Button><p className="text-xs text-muted-foreground">{PENDING_CORE_MSG}</p></div>
       </header>
       <ContextBanner id="offers-list">
         <strong>{t("הצעות")}</strong> = מה שאת מוכרת (טיול, סדנה, מסיבה). כל הצעה תוכל להיות מקודמת ב<strong>קמפיין</strong> אחד או יותר.
@@ -179,17 +179,7 @@ function OfferDialog({ open, onOpenChange, onCreated }: any) {
 
     setBusy("creating");
     const placeholderTitle = title.trim() || cleanUrl;
-    const { data: created, error } = await supabase
-      .from("offers")
-      .insert({
-        title: placeholderTitle,
-        category: category as any,
-        status: "active",
-        offer_url: cleanUrl,
-        currency: "ILS",
-      })
-      .select("id")
-      .single();
+    const created: { id: string } | null = null; const error = { message: PENDING_CORE_MSG }; // MIGRATION: no Core create endpoint
     if (error || !created) {
       setBusy("idle");
       toast.error(error?.message || t("שגיאה ביצירת ההצעה"));
