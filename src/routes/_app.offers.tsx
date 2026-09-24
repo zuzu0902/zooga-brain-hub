@@ -179,7 +179,7 @@ function OfferDialog({ open, onOpenChange, onCreated }: any) {
 
     setBusy("creating");
     const placeholderTitle = title.trim() || cleanUrl;
-    const created: { id: string } | null = null; const error = { message: PENDING_CORE_MSG }; // MIGRATION: no Core create endpoint
+    const created = null as { id: string } | null; const error = { message: PENDING_CORE_MSG } as { message: string } | null; // MIGRATION: no Core create endpoint
     if (error || !created) {
       setBusy("idle");
       toast.error(error?.message || t("שגיאה ביצירת ההצעה"));
