@@ -1,7 +1,11 @@
 /**
  * ZOOGA CORE MIGRATION BRIDGE — temporary, read-only CRM export adapter.
  *
- * GET /api/internal/zooga-core-export?kind=contact|catalog&cursor=&limit=
+ * GET /api/internal/zooga-core-export?kind=<allowlisted kind>&cursor=&limit=
+ *
+ * Migration kinds (paginated, read-only) go through the single static
+ * zooga_core_read_migration_history RPC; the kind is allowlisted here and
+ * again inside the database function. No table name ever comes from input.
  *
  * Auth: Authorization: Bearer <gateway token>, validated ONLY through the
  * public.zooga_core_gateway_authorized RPC. No arbitrary SQL/table access,
@@ -15,7 +19,37 @@ const KIND_RPC = {
   conversation: "zooga_core_read_conversation_history",
 } as const;
 
-type ExportKind = keyof typeof KIND_RPC;
+/** Allowlisted, paginated, read-only migration kinds (see migration 0005). */
+export const MIGRATION_KINDS = [
+  "interaction_history",
+  "message_history",
+  "conversation_turn_history",
+  "task_history",
+  "contact_memory_history",
+  "contact_profile_fact_history",
+  "contact_profile_change_history",
+  "manager_handoff_history",
+  "organizational_knowledge_source",
+  "organizational_knowledge_chunk",
+  "tamar_audit_record",
+] as const;
+
+export type MigrationKind = (typeof MIGRATION_KINDS)[number];
+const MIGRATION_RPC = "zooga_core_read_migration_history";
+const MAX_CURSOR_LENGTH = 200;
+
+type ExportKind = keyof typeof KIND_RPC | MigrationKind;
+
+export function isMigrationKind(kind: string | null): kind is MigrationKind {
+  return kind !== null && (MIGRATION_KINDS as readonly string[]).includes(kind);
+}
+
+/** Returns a cursor, undefined when absent, or null when present but invalid. */
+export function parseCursor(raw: string | null): string | undefined | null {
+  if (raw === null || raw === "") return undefined;
+  if (raw.length > MAX_CURSOR_LENGTH || !/^[A-Za-z0-9_:\-]+$/.test(raw)) return null;
+  return raw;
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -33,7 +67,8 @@ export function extractGatewayToken(header: string | null): string | null {
 }
 
 export function parseKind(raw: string | null): ExportKind | null {
-  return raw === "contact" || raw === "catalog" || raw === "conversation" ? raw : null;
+  if (raw === "contact" || raw === "catalog" || raw === "conversation") return raw;
+  return isMigrationKind(raw) ? raw : null;
 }
 
 /** Returns a bounded limit, or null when the value is present but invalid. */
@@ -79,8 +114,8 @@ export const Route = createFileRoute("/api/internal/zooga-core-export")({
         if (!kind) return json({ ok: false, error_code: "invalid_kind" }, 400);
         const limit = parseLimit(url.searchParams.get("limit"), kind);
         if (limit === null) return json({ ok: false, error_code: "invalid_limit" }, 400);
-        const cursorParam = url.searchParams.get("cursor");
-        const cursor = cursorParam && cursorParam.length > 0 ? cursorParam : undefined;
+        const cursor = parseCursor(url.searchParams.get("cursor"));
+        if (cursor === null) return json({ ok: false, error_code: "invalid_cursor" }, 400);
         const phone =
           kind === "conversation" ? normalizeExportPhone(url.searchParams.get("phone")) : null;
         if (kind === "conversation" && !phone) {
@@ -102,11 +137,22 @@ export const Route = createFileRoute("/api/internal/zooga-core-export")({
         if (!authorized) return json({ ok: false, error_code: "unauthorized" }, 401);
 
         try {
+          if (isMigrationKind(kind)) {
+            const { data, error } = await (supabaseAdmin as any).rpc(MIGRATION_RPC, {
+              _gateway_token: token,
+              _kind: kind,
+              _cursor: cursor ?? null,
+              _limit: limit,
+            });
+            if (error) return json({ ok: false, error_code: "read_unavailable" }, 503);
+            const rows = Array.isArray(data) ? data : [];
+            return json({ ok: true, kind, rows, next_cursor: nextCursor(rows, limit) });
+          }
           const params =
             kind === "conversation"
               ? { _gateway_token: token, _phone: phone, _limit: limit }
               : { _gateway_token: token, _cursor: cursor, _limit: limit };
-          const { data, error } = await (supabaseAdmin as any).rpc(KIND_RPC[kind], params);
+          const { data, error } = await (supabaseAdmin as any).rpc(KIND_RPC[kind as keyof typeof KIND_RPC], params);
           if (error) return json({ ok: false, error_code: "read_unavailable" }, 503);
           const rows = Array.isArray(data) ? data : [];
           if (kind === "conversation") {
