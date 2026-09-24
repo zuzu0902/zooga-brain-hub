@@ -21,6 +21,45 @@ import { authorizeGatewayRequest, jsonResponse } from "@/lib/zooga-gateway/gatew
 
 export const GENERATE_RUNTIME_MODE = "gateway_execution";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Handoff signal derivation (pure).
+ * Fresh turn: engine payload.handoff_requested === true (this turn asked for
+ * a human); handoff_id from payload.handoff.id.
+ * Duplicate: the engine replay always reports false, so the flag is true only
+ * when a stored manager_handoffs row was created by this exact trace.
+ */
+export function deriveHandoffSignal(
+  payload: any,
+  storedHandoffId: string | null,
+): { handoff_requested: boolean; handoff_id: string | null } {
+  const safeId = (v: unknown) => (typeof v === "string" && UUID_RE.test(v) ? v : null);
+  if (payload?.duplicate === true) {
+    const id = safeId(storedHandoffId);
+    return { handoff_requested: !!id, handoff_id: id };
+  }
+  const requested = payload?.handoff_requested === true;
+  return { handoff_requested: requested, handoff_id: requested ? safeId(payload?.handoff?.id) : null };
+}
+
+async function findHandoffForTrace(traceId: unknown): Promise<string | null> {
+  if (typeof traceId !== "string" || !UUID_RE.test(traceId)) return null;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("manager_handoffs" as any)
+      .select("id")
+      .eq("runtime_trace_id", traceId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return ((data as any)?.id as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const Route = createFileRoute("/api/public/runtime/tamar-generate")({
   server: {
     handlers: {
@@ -64,12 +103,18 @@ export const Route = createFileRoute("/api/public/runtime/tamar-generate")({
           return jsonResponse({ ok: false, error: payload.error ?? "turn_failed" }, result.status || 500);
         }
 
+        const duplicate = payload.duplicate === true;
+        const storedHandoffId = duplicate ? await findHandoffForTrace(payload.trace_id) : null;
+        const signal = deriveHandoffSignal(payload, storedHandoffId);
+
         return jsonResponse({
           ok: true,
           reply_text: payload.reply_text ?? "",
           trace_id: payload.trace_id ?? null,
-          duplicate: payload.duplicate === true,
+          duplicate,
           runtime_mode: GENERATE_RUNTIME_MODE,
+          handoff_requested: signal.handoff_requested,
+          ...(signal.handoff_id ? { handoff_id: signal.handoff_id } : {}),
         });
       },
     },
