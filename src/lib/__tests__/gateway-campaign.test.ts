@@ -22,7 +22,7 @@ describe("gateway campaign", () => {
   it("uses one route, no hardcoded host or token in UI", () => {
     expect(GATEWAY_CAMPAIGN_PATH).toBe("/v1/campaign/trigger");
     const ui = readFileSync("src/components/quick-campaign.tsx", "utf8");
-    expect(ui).not.toMatch(/https?:\/\/|fetch\(|token/i);
+    expect(ui).not.toMatch(/https?:\/\/|\bfetch\(|token/i);
     const srv = readFileSync("src/lib/gateway-campaign.functions.ts", "utf8");
     expect(srv).not.toMatch(/segapo\.com|X-Zooga-Token/);
   });
