@@ -31,9 +31,10 @@ export function QuickCampaign() {
 
   const parsed = useMemo(() => parseBulk(text), [text]);
 
-  const { data: tpl } = useQuery({
+  const [syncing, setSyncing] = useState(false);
+  const { data: tpl, refetch: refetchTemplates } = useQuery({
     queryKey: ["wa-templates"],
-    queryFn: async () => (await templatesFn({} as any)) as any,
+    queryFn: async () => (await templatesFn({ data: {} } as any)) as any,
   });
   const approved: any[] = useMemo(
     () => Array.from(new Map((tpl?.templates ?? []).filter((t: any) => t.status === "APPROVED").map((t: any) => [t.name, t])).values()),
@@ -44,6 +45,24 @@ export function QuickCampaign() {
     setTemplate(approved.some((t) => t.name === DEFAULT_TEMPLATE) ? DEFAULT_TEMPLATE : approved[0].name);
   }, [approved, template]);
   const missingDefault = approved.length > 0 && !approved.some((t) => t.name === DEFAULT_TEMPLATE);
+
+  async function syncTemplates() {
+    setSyncing(true);
+    try {
+      const res: any = await templatesFn({ data: { force: true } } as any);
+      if (res?.ok === false) {
+        toast.error("סנכרון התבניות נכשל — בדוק את החיבור לוואטסאפ עסקי");
+        return;
+      }
+      const count = (res?.templates ?? []).filter((t: any) => t.status === "APPROVED").length;
+      toast.success(`סונכרנו ${count} תבניות מאושרות`);
+      await refetchTemplates();
+    } catch {
+      toast.error("סנכרון התבניות נכשל");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const { data: recent, refetch, isLoading } = useQuery({
     queryKey: ["gateway-dispatches"],
