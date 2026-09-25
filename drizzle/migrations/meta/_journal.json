@@ -57,6 +57,13 @@
       "when": 1790333583143,
       "tag": "0007_gateway_campaign_dispatches",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790343472854,
+      "tag": "0008_grant_contacts_authenticated",
+      "breakpoints": true
     }
   ]
 }
