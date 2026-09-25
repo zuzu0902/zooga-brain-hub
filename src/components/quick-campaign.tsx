@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Rocket } from "lucide-react";
+import { Loader2, RefreshCw, Rocket } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -107,7 +107,13 @@ export function QuickCampaign() {
           </p>
         </div>
         <div className="space-y-2 max-w-sm">
-          <Label>תבנית מאושרת</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label>תבנית מאושרת</Label>
+            <Button type="button" variant="ghost" size="sm" disabled={syncing} onClick={syncTemplates}>
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              סנכרן תבניות
+            </Button>
+          </div>
           <Select value={template} onValueChange={setTemplate}>
             <SelectTrigger><SelectValue placeholder="בחר תבנית" /></SelectTrigger>
             <SelectContent>
