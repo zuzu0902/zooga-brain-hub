@@ -71,20 +71,41 @@ export function QuickCampaign() {
   });
 
   const tooMany = parsed.valid.length > 500;
+  const [progress, setProgress] = useState<{ done: number; total: number; sent: number; skipped: number; failed: number } | null>(null);
+  const stopRef = useRef(false);
 
   async function launch() {
     setBusy(true);
+    setConfirm(false);
+    stopRef.current = false;
+    const list = parsed.valid;
+    const batch_id = crypto.randomUUID();
+    const p = { done: 0, total: list.length, sent: 0, skipped: 0, failed: 0 };
+    setProgress({ ...p });
     try {
-      const res: any = await triggerFn({ data: { template_name: template, contacts: parsed.valid } });
-      if (!res?.ok) { toast.error("השיגור נכשל: " + (res?.error ?? "שגיאה לא ידועה")); return; }
-      toast.success(`התקבל בשער — ${res.count} אנשי קשר, 5 שניות בין הודעה להודעה`);
+      for (let i = 0; i < list.length; i++) {
+        if (stopRef.current) break;
+        const c = list[i];
+        let r: any;
+        try {
+          r = await sendFn({ data: { template_name: template, batch_id, phone: c.phone, name: c.name ?? null } });
+        } catch { r = { ok: false, result: "error" }; }
+        if (r?.result === "forbidden" || r?.result === "template_blocked") {
+          toast.error(r.result === "forbidden" ? "אין הרשאת מנהל" : "התבנית לא מאושרת לשליחה");
+          break;
+        }
+        p.done++;
+        if (r?.result === "sent") p.sent++;
+        else if (String(r?.result).startsWith("skipped")) p.skipped++;
+        else p.failed++;
+        setProgress({ ...p });
+        if (r?.result === "sent" && i < list.length - 1) await new Promise((res) => setTimeout(res, 5000));
+      }
+      toast.success(`הסתיים: ${p.sent} נשלחו · ${p.skipped} דולגו · ${p.failed} נכשלו`);
       setText("");
       refetch();
-    } catch (e: any) {
-      toast.error("השיגור נכשל: " + (e?.message ?? ""));
     } finally {
       setBusy(false);
-      setConfirm(false);
     }
   }
 
@@ -123,14 +144,23 @@ export function QuickCampaign() {
           </Select>
           {missingDefault && <p className="text-xs text-destructive">התבנית {DEFAULT_TEMPLATE} לא נמצאה — נבחרה תבנית חלופית</p>}
         </div>
-        <Button
-          size="lg"
-          disabled={busy || !template || parsed.valid.length === 0 || tooMany}
-          onClick={() => setConfirm(true)}
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-          שגר קמפיין
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            size="lg"
+            disabled={busy || !template || parsed.valid.length === 0 || tooMany}
+            onClick={() => setConfirm(true)}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+            שגר קמפיין
+          </Button>
+          {busy && <Button variant="outline" onClick={() => { stopRef.current = true; }}>עצור</Button>}
+        </div>
+        {progress && (
+          <p className="text-sm text-muted-foreground">
+            {progress.done}/{progress.total} · נשלחו {progress.sent} · דולגו {progress.skipped} · נכשלו {progress.failed}
+            {busy && " · יש להשאיר את העמוד פתוח עד הסיום"}
+          </p>
+        )}
       </Card>
 
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
