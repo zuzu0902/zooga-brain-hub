@@ -18,7 +18,7 @@ import { listTemplates } from "@/lib/campaign-send.functions";
 import { triggerGatewayCampaign, listRecentDispatches } from "@/lib/gateway-campaign.functions";
 import { parseBulk, maskPhone } from "@/lib/phone-bulk";
 
-const DEFAULT_TEMPLATE = "tamar_intro";
+const DEFAULT_TEMPLATE = "new_members_first_time";
 
 export function QuickCampaign() {
   const [text, setText] = useState("");
@@ -121,7 +121,7 @@ export function QuickCampaign() {
               {approved.length === 0 && <SelectItem value="__none" disabled>לא נמצאו תבניות מאושרות</SelectItem>}
             </SelectContent>
           </Select>
-          {missingDefault && <p className="text-xs text-destructive">התבנית tamar_intro לא נמצאה — נבחרה תבנית חלופית</p>}
+          {missingDefault && <p className="text-xs text-destructive">התבנית {DEFAULT_TEMPLATE} לא נמצאה — נבחרה תבנית חלופית</p>}
         </div>
         <Button
           size="lg"
