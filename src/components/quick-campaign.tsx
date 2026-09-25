@@ -18,7 +18,7 @@ import { listTemplates } from "@/lib/campaign-send.functions";
 import { triggerGatewayCampaign, listRecentDispatches } from "@/lib/gateway-campaign.functions";
 import { parseBulk, maskPhone } from "@/lib/phone-bulk";
 
-const DEFAULT_TEMPLATE = "tamar_intro";
+const DEFAULT_TEMPLATE = "new_members_first_time";
 
 export function QuickCampaign() {
   const [text, setText] = useState("");
