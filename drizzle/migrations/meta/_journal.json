@@ -50,6 +50,13 @@
       "when": 1790274396465,
       "tag": "0006_zooga_core_migration_history_runtime_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790333583143,
+      "tag": "0007_gateway_campaign_dispatches",
+      "breakpoints": true
     }
   ]
 }
