@@ -1311,6 +1311,39 @@ export type Database = {
         }
         Relationships: []
       }
+      gateway_campaign_dispatches: {
+        Row: {
+          batch_id: string
+          created_by: string | null
+          dispatched_at: string
+          gateway_status: number | null
+          id: string
+          name: string | null
+          phone: string
+          template_name: string
+        }
+        Insert: {
+          batch_id: string
+          created_by?: string | null
+          dispatched_at?: string
+          gateway_status?: number | null
+          id?: string
+          name?: string | null
+          phone: string
+          template_name: string
+        }
+        Update: {
+          batch_id?: string
+          created_by?: string | null
+          dispatched_at?: string
+          gateway_status?: number | null
+          id?: string
+          name?: string | null
+          phone?: string
+          template_name?: string
+        }
+        Relationships: []
+      }
       imported_leads: {
         Row: {
           attempts: number
