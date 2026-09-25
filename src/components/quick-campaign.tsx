@@ -121,7 +121,7 @@ export function QuickCampaign() {
               {approved.length === 0 && <SelectItem value="__none" disabled>לא נמצאו תבניות מאושרות</SelectItem>}
             </SelectContent>
           </Select>
-          {missingDefault && <p className="text-xs text-destructive">התבנית tamar_intro לא נמצאה — נבחרה תבנית חלופית</p>}
+          {missingDefault && <p className="text-xs text-destructive">התבנית {DEFAULT_TEMPLATE} לא נמצאה — נבחרה תבנית חלופית</p>}
         </div>
         <Button
           size="lg"
