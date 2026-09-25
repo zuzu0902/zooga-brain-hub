@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listTemplates } from "@/lib/campaign-send.functions";
-import { triggerGatewayCampaign, listRecentDispatches } from "@/lib/gateway-campaign.functions";
+import { listRecentDispatches } from "@/lib/gateway-campaign.functions";
+import { sendQuickCampaignOne } from "@/lib/quick-campaign-direct.functions";
 import { parseBulk, maskPhone } from "@/lib/phone-bulk";
 
 const DEFAULT_TEMPLATE = "new_members_first_time";
@@ -26,7 +27,7 @@ export function QuickCampaign() {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const templatesFn = useServerFn(listTemplates);
-  const triggerFn = useServerFn(triggerGatewayCampaign);
+  const sendFn = useServerFn(sendQuickCampaignOne);
   const recentFn = useServerFn(listRecentDispatches);
 
   const parsed = useMemo(() => parseBulk(text), [text]);
