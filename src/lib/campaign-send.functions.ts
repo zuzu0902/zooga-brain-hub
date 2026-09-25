@@ -24,9 +24,10 @@ export const checkTemplate = createServerFn({ method: "POST" })
 /** List every template on the WABA (name/status/language only — never tokens). */
 export const listTemplates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .inputValidator((input) => z.object({ force: z.boolean().optional() }).optional().parse(input))
+  .handler(async ({ data }) => {
     const { listMetaTemplates } = await import("@/lib/whatsapp-templates.server");
-    return listMetaTemplates();
+    return listMetaTemplates({ force: data?.force === true });
   });
 
 /**

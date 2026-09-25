@@ -57,9 +57,9 @@ async function resolveWabaId(token: string, phoneId: string): Promise<string | n
   }
 }
 
-/** List every message template on the connected WABA. */
-export async function listMetaTemplates(): Promise<TemplateLookup> {
-  if (_cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.value;
+/** List every message template on the connected WABA. `force` bypasses the cache. */
+export async function listMetaTemplates(opts: { force?: boolean } = {}): Promise<TemplateLookup> {
+  if (!opts.force && _cache && Date.now() - _cache.at < CACHE_TTL_MS) return _cache.value;
   const value = await fetchMetaTemplates();
   // Only a successful lookup is cached; a transient API failure must retry.
   if (value.ok) _cache = { at: Date.now(), value };
