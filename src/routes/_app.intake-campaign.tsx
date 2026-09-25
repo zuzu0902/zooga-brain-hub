@@ -25,8 +25,19 @@ import {
 } from "@/lib/campaign-send.functions";
 import { useT, useLanguage } from "@/lib/language-context";
 
+import { QuickCampaign } from "@/components/quick-campaign";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
+
 export const Route = createFileRoute("/_app/intake-campaign")({
-  head: () => ({ meta: [{ title: "קמפיין אינטייק — Zooga CRM" }] }),
+  head: () => ({
+    meta: [
+      { title: "קמפיין אינטייק — Zooga CRM" },
+      { name: "description", content: "שיגור מהיר של תבנית תמר לרשימת מספרים ומעקב אחר תגובות." },
+      { property: "og:title", content: "קמפיין אינטייק — Zooga CRM" },
+      { property: "og:description", content: "שיגור מהיר של תבנית תמר לרשימת מספרים ומעקב אחר תגובות." },
+    ],
+  }),
   component: IntakeCampaignPage,
 });
 
@@ -43,6 +54,27 @@ const SEND_STATE_LABELS: Record<string, string> = {
 };
 
 function IntakeCampaignPage() {
+  const { dir } = useLanguage();
+  return (
+    <div className="p-6 space-y-6" dir={dir}>
+      <header>
+        <h1 className="text-3xl font-bold">קמפיין אינטייק</h1>
+        <p className="text-muted-foreground mt-1">הדביקו מספרים, בחרו תבנית ושגרו.</p>
+      </header>
+      <QuickCampaign />
+      <Collapsible>
+        <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronDown className="h-4 w-4" /> מתקדם
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-4">
+          <AdvancedCampaignTools />
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+}
+
+function AdvancedCampaignTools() {
   const t = useT();
   const { dir } = useLanguage();
   const [campaignName, setCampaignName] = useState("Zooga Intake " + new Date().toLocaleDateString("he-IL"));
@@ -172,13 +204,7 @@ function IntakeCampaignPage() {
   const approved = (templates?.templates ?? []).filter((tp: any) => tp.status === "APPROVED");
 
   return (
-    <div className="p-6 space-y-5" dir={dir}>
-      <header>
-        <h1 className="text-3xl font-bold">{t("קמפיין אינטייק")}</h1>
-        <p className="text-muted-foreground mt-1">
-          {t("שליחת תבנית WhatsApp מאושרת ללידים בעלי הסכמה, במנות מבוקרות, עם מעקב מלא לכל ליד")}
-        </p>
-      </header>
+    <div className="space-y-5" dir={dir}>
 
       <Card className="p-5 space-y-4 max-w-3xl">
         <div className="grid sm:grid-cols-2 gap-4">
