@@ -15,6 +15,18 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    // Pre-bundle deps Vite otherwise discovers late; late discovery triggers a
+    // mid-load reload that mixes two React copies ("resolveDispatcher().use" crash).
+    optimizeDeps: {
+      include: [
+        "@tanstack/router-core",
+        "@tanstack/router-core/ssr/client",
+        "@tanstack/history",
+        "seroval",
+        "h3-v2",
+        "@tanstack/router-core/ssr/server",
+      ],
+    },
   },
 
 
