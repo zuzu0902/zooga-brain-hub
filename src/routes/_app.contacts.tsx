@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { fetchCanonicalContacts } from "@/lib/contacts-read";
+import { coreApi, listAll } from "@/lib/hostinger-core/client";
 import { PENDING_CORE_MSG } from "@/lib/hostinger-core/pending";
 
 import { Card } from "@/components/ui/card";
@@ -61,7 +61,7 @@ function ContactsPage() {
   const { data: contacts, isLoading, error: loadError, refetch } = useQuery({
     queryKey: ["contacts-canonical"],
     refetchInterval: 30000,
-    queryFn: fetchCanonicalContacts,
+    queryFn: () => listAll((p) => coreApi.listContacts(p), 5000),
   });
 
   const regions = useMemo(() => {

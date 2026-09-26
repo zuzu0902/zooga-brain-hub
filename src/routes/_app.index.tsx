@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { fetchCanonicalContacts } from "@/lib/contacts-read";
+import { coreApi, listAll } from "@/lib/hostinger-core/client";
 import { buildDashboard } from "@/lib/hostinger-core/dashboard";
 import { Card } from "@/components/ui/card";
 import { Users, Sparkles, UserCheck, Heart, Crown, Pause, TrendingUp, Activity } from "lucide-react";
@@ -45,8 +45,11 @@ function Dashboard() {
   const t = useT();
   // MIGRATION: dashboard CRM data comes from Hostinger Core.
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["dashboard-canonical"],
-    queryFn: async () => buildDashboard({}, await fetchCanonicalContacts()),
+    queryKey: ["core-dashboard"],
+    queryFn: async () => {
+      const [overview, contacts] = await Promise.all([coreApi.overview(), listAll((p) => coreApi.listContacts(p), 5000)]);
+      return buildDashboard(overview, contacts);
+    },
   });
 
   return (
