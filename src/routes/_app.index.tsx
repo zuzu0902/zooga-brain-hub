@@ -8,6 +8,7 @@ import { Link } from "@tanstack/react-router";
 import { STATUS_LABELS, INTEREST_LABELS, INTERACTION_TYPE_LABELS, formatDate } from "@/lib/i18n";
 import { useT } from "@/lib/language-context";
 import { ZoogaCoreCard } from "@/components/zooga-core-card";
+import { MigrationVerificationPanel } from "@/components/migration-verification-panel";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({ meta: [{ title: "דשבורד — Zooga CRM" }] }),
@@ -56,6 +57,8 @@ function Dashboard() {
       </header>
 
       <ZoogaCoreCard />
+
+      <MigrationVerificationPanel />
 
       {isLoading ? (
         <div className="text-muted-foreground">{t("טוען נתונים...")}</div>
