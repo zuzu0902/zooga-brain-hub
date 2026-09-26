@@ -60,7 +60,8 @@ function ContactsPage() {
 
   const { data: contacts, isLoading, error: loadError, refetch } = useQuery({
     queryKey: ["core-contacts"],
-    refetchInterval: 30000,
+    refetchInterval: (q) => (q.state.error ? false : 30000),
+    retry: 1,
     queryFn: () => listAll((p) => coreApi.listContacts(p), 5000),
   });
 
@@ -176,7 +177,12 @@ function ContactsPage() {
               )}
               {!isLoading && loadError && (
                 <tr><td colSpan={14} className="p-10 text-center text-destructive">
-                  {t("לא ניתן לטעון אנשי קשר כרגע.")}{" "}
+                  {t("לא ניתן לטעון אנשי קשר מ-Hostinger Core כרגע.")}{" "}
+                  {(loadError as any)?.status == null && (
+                    <span className="block text-xs text-muted-foreground mt-1">
+                      {t("השרת החיצוני חוסם גישה מכתובת זו (זמין רק מהאתר המפורסם).")}
+                    </span>
+                  )}
                   <button className="underline" onClick={() => refetch()}>{t("נסה שוב")}</button>
                 </td></tr>
               )}
