@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { coreApi, listAll } from "@/lib/hostinger-core/client";
 import { buildDashboard } from "@/lib/hostinger-core/dashboard";
