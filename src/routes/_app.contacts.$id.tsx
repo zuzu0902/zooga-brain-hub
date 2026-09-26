@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { PENDING_CORE_MSG, pendingCore } from "@/lib/hostinger-core/pending";
@@ -66,10 +67,12 @@ function ContactProfile() {
   // CUTOVER: contact profile is read from Hostinger Core only. Views Core does
   // not expose yet (history, tasks, memories, raw events) show an explicit
   // unavailable state — no database fallback.
-  const { data: contact, isLoading, error: contactError } = useQuery({
+  const { session: authSession, loading: authLoading } = useAuth();
+  const { data: contact, isLoading: contactQueryLoading, error: contactError } = useQuery({
     queryKey: ["core-contact", id],
+    enabled: !authLoading && !!authSession,
     refetchInterval: (q) => (q.state.error ? false : 20000),
-    retry: (n, e: any) => e?.status !== 404 && n < 1,
+    retry: (n, e: any) => (e?.status === 401 ? n < 2 : e?.status !== 404 && n < 1),
     queryFn: async () => {
       try {
         return await coreApi.getContact(id);
@@ -101,7 +104,7 @@ function ContactProfile() {
     qc.invalidateQueries({ queryKey: ["core-contacts"] });
   }
 
-  if (isLoading) return <div className="p-6 text-muted-foreground">{t("טוען...")}</div>;
+  if (authLoading || contactQueryLoading) return <div className="p-6 text-muted-foreground">{t("טוען...")}</div>;
   if (contactError) return <div className="p-6 text-destructive">{t("לא ניתן לטעון את איש הקשר כרגע. נסה שוב בעוד רגע.")}</div>;
   if (!contact) return <div className="p-6">{t("איש קשר לא נמצא")}</div>;
 

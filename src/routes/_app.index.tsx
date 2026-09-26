@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { coreApi, listAll } from "@/lib/hostinger-core/client";
 import { buildDashboard } from "@/lib/hostinger-core/dashboard";
@@ -44,13 +45,17 @@ function Stat({
 function Dashboard() {
   const t = useT();
   // MIGRATION: dashboard CRM data comes from Hostinger Core.
-  const { data, isLoading, error, refetch } = useQuery({
+  const { session, loading: authLoading } = useAuth();
+  const { data, isLoading: queryLoading, error, refetch } = useQuery({
     queryKey: ["core-dashboard"],
+    enabled: !authLoading && !!session,
+    retry: (n, e: any) => (e?.status === 401 ? n < 2 : n < 1),
     queryFn: async () => {
       const [overview, contacts] = await Promise.all([coreApi.overview(), listAll((p) => coreApi.listContacts(p), 5000)]);
       return buildDashboard(overview, contacts);
     },
   });
+  const isLoading = authLoading || queryLoading;
 
   return (
     <div className="p-6 space-y-6">

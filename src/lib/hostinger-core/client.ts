@@ -26,9 +26,39 @@ export type CoreContactPatch = { profile?: Record<string, unknown>; lifecycle?: 
 type TokenGetter = () => Promise<string | null>;
 type Fetcher = typeof fetch;
 
+/**
+ * In the embedded preview the auth session is restored asynchronously through
+ * the editor broker (postMessage). A getSession() call made right after a
+ * refresh can resolve null before the broker answers. Wait for the auth
+ * client's INITIAL_SESSION, then retry a few times before giving up.
+ */
+let authReady: Promise<void> | null = null;
+function waitForAuthReady(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (!authReady) {
+    authReady = new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 5000);
+      const { data } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
+          clearTimeout(timer);
+          data.subscription.unsubscribe();
+          resolve();
+        }
+      });
+    });
+  }
+  return authReady;
+}
+
 const defaultToken: TokenGetter = async () => {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  await waitForAuthReady();
+  for (let i = 0; i < 4; i++) {
+    const { data } = await supabase.auth.getSession();
+    const t = data.session?.access_token;
+    if (t) return t;
+    await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+  }
+  return null;
 };
 
 export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetcher; baseUrl?: string } = {}) {
