@@ -73,6 +73,22 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
         }),
         "contact",
       )),
+    createContact: async (body: CoreContactPatch) =>
+      normalizeContact(unwrap<any>(
+        await request<any>(`/v1/admin/contacts`, { method: "POST", body: JSON.stringify(body) }),
+        "contact",
+      )),
+    /** Soft delete in Core; reversible via restoreContact. */
+    deleteContact: async (id: string, reason?: string) =>
+      request<any>(`/v1/admin/contacts/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        ...(reason ? { body: JSON.stringify({ reason }) } : {}),
+      }),
+    restoreContact: async (id: string) =>
+      normalizeContact(unwrap<any>(
+        await request<any>(`/v1/admin/contacts/${encodeURIComponent(id)}/restore`, { method: "POST", body: "{}" }),
+        "contact",
+      )),
     listCatalog: async (p: { limit?: number; cursor?: string | null } = {}) =>
       mapPage(normalizePage<any>(await request<any>(`/v1/admin/catalog${qs(p)}`), "catalog"), normalizeCatalogItem),
   };

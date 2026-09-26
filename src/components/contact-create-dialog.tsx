@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { coreApi, toCorePatch } from "@/lib/hostinger-core/client";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -35,28 +35,27 @@ export function ContactCreateDialog({
       return;
     }
     setSaving(true);
-    const { data, error } = await supabase
-      .from("contacts")
-      .insert({
+    let created: any;
+    try {
+      created = await coreApi.createContact(toCorePatch({
         first_name: first || null,
         last_name: last || null,
         phone: phone || null,
         email: email || null,
         city: city || null,
         region: region || null,
-        source: source as any,
-      })
-      .select("id")
-      .single();
-    setSaving(false);
-    if (error) {
-      toast.error(t("שגיאה: ") + error.message);
+        source,
+      }));
+    } catch (e: any) {
+      setSaving(false);
+      toast.error(t("שגיאה: ") + String(e?.code ?? e?.message ?? e));
       return;
     }
+    setSaving(false);
     toast.success(t("איש הקשר נוצר"));
     setFirst(""); setLast(""); setPhone(""); setEmail(""); setCity(""); setRegion("");
     onOpenChange(false);
-    onCreated?.(data!.id);
+    onCreated?.(created.id);
   }
 
   return (
