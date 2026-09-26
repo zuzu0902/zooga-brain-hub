@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { coreApi, toCorePatch } from "@/lib/hostinger-core/client";
+import { supabase } from "@/integrations/supabase/client";
 import { PENDING_CORE_MSG, pendingCore } from "@/lib/hostinger-core/pending";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,30 +69,58 @@ function ContactProfile() {
     refetchInterval: 20000,
     retry: (n, e: any) => e?.status !== 404 && n < 2,
     queryFn: async () => {
-      try {
-        return (await coreApi.getContact(id)) as any;
-      } catch (e: any) {
-        if (e?.status === 404) return null;
-        throw e;
-      }
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data; // null → "איש קשר לא נמצא"
     },
   });
 
   const { data: interactions } = useQuery({
     queryKey: ["interactions", id],
     refetchInterval: 15000,
-    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("interactions")
+        .select("*")
+        .eq("contact_id", id)
+        .order("timestamp", { ascending: false })
+        .limit(200);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
   });
 
   const { data: tasks } = useQuery({
     queryKey: ["tasks", id],
-    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("contact_id", id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
   });
 
   const { data: webhookLogs } = useQuery({
     queryKey: ["webhook-logs-for", contact?.phone],
     enabled: !!contact?.phone,
-    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("webhook_logs")
+        .select("*")
+        .eq("payload->>phone", String(contact!.phone))
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
   });
 
 
@@ -101,15 +129,14 @@ function ContactProfile() {
   const [activeSection, setActiveSection] = useState<"memory" | "actions" | "timeline" | "edit">("memory");
 
   async function update(patch: any) {
-    try {
-      await coreApi.patchContact(id, toCorePatch(patch));
-    } catch (e: any) {
-      toast.error(t("שגיאה: ") + (e?.code ?? t("העדכון נכשל")));
+    const { error } = await supabase.from("contacts").update(patch).eq("id", id);
+    if (error) {
+      toast.error(t("שגיאה: ") + error.message);
       return;
     }
     toast.success(t("עודכן"));
     qc.invalidateQueries({ queryKey: ["contact", id] });
-    qc.invalidateQueries({ queryKey: ["core-contacts"] });
+    qc.invalidateQueries({ queryKey: ["contacts-canonical"] });
   }
 
   if (isLoading) return <div className="p-6 text-muted-foreground">{t("טוען...")}</div>;
@@ -636,7 +663,16 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
   const { data: memories } = useQuery({
     queryKey: ["contact-memories", contactId],
     refetchInterval: 20000,
-    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contact_memories")
+        .select("*")
+        .eq("contact_id", contactId)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
   });
 
 
@@ -785,18 +821,11 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
     const value = p.proposed_value?.value;
     const field = p.field_name;
     if (!field) return;
-    const cur = await coreApi.getContact(contactId);
-    const oldVal = (cur as any)?.[field];
+    const oldVal = (contact as any)?.[field];
     const newVal = Array.isArray(value) && Array.isArray(oldVal)
       ? Array.from(new Set([...oldVal, ...value]))
       : value;
-    try {
-      await coreApi.patchContact(contactId, toCorePatch({ [field]: newVal }));
-    } catch {
-      toast.error(t("שגיאה בעדכון הפרופיל"));
-      return;
-    }
-    toast.success(t("יושם בפרופיל"));
+    await update({ [field]: newVal });
   }
   async function reject(p: any) {
     pendingCore();
@@ -925,7 +954,16 @@ function UnifiedTimeline({ contactId, interactions, onAdd }: any) {
   const { data: history } = useQuery({
     queryKey: ["contact-history", contactId],
     refetchInterval: 30000,
-    queryFn: async () => [] as any[], // MIGRATION: pending Core endpoint
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contact_profile_history")
+        .select("*")
+        .eq("contact_id", contactId)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
   });
 
   const events = useMemo(() => {
@@ -1744,13 +1782,19 @@ function RawTab({ contact, webhookLogs }: any) {
 /* ---------- Dialogs ---------- */
 
 function AddInteractionDialog({ open, onOpenChange, contactId, onAdded }: any) {
-  const [type, setType] = useState("admin_note");
+  const [type, setType] = useState<any>("admin_note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function save() {
     setSaving(true);
-    const error = { message: PENDING_CORE_MSG }; // MIGRATION: no Core endpoint
+    const { error } = await supabase.from("interactions").insert({
+      contact_id: contactId,
+      type,
+      content: content.trim() || null,
+      source: "admin",
+      timestamp: new Date().toISOString(),
+    });
     setSaving(false);
     if (error) { toast.error("שגיאה: " + error.message); return; }
     toast.success("נוסף");
@@ -1796,7 +1840,15 @@ function AddTaskDialog({ open, onOpenChange, contactId, onAdded }: any) {
   async function save() {
     if (!title.trim()) { toast.error("נדרש כותרת"); return; }
     setSaving(true);
-    const error = { message: PENDING_CORE_MSG }; // MIGRATION: no Core endpoint
+    const { error } = await supabase.from("tasks").insert({
+      contact_id: contactId,
+      title: title.trim(),
+      description: description.trim() || null,
+      assigned_to: assignedTo.trim() || null,
+      priority,
+      due_date: dueDate ? new Date(dueDate).toISOString() : null,
+      status: "open",
+    });
     setSaving(false);
     if (error) { toast.error("שגיאה: " + error.message); return; }
     toast.success("המשימה נוצרה");
