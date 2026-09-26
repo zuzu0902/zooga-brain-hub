@@ -66,10 +66,12 @@ function ContactProfile() {
   // CUTOVER: contact profile is read from Hostinger Core only. Views Core does
   // not expose yet (history, tasks, memories, raw events) show an explicit
   // unavailable state — no database fallback.
-  const { data: contact, isLoading, error: contactError } = useQuery({
+  const { session: authSession, loading: authLoading } = useAuth();
+  const { data: contact, isLoading: contactQueryLoading, error: contactError } = useQuery({
     queryKey: ["core-contact", id],
+    enabled: !authLoading && !!authSession,
     refetchInterval: (q) => (q.state.error ? false : 20000),
-    retry: (n, e: any) => e?.status !== 404 && n < 1,
+    retry: (n, e: any) => (e?.status === 401 ? n < 2 : e?.status !== 404 && n < 1),
     queryFn: async () => {
       try {
         return await coreApi.getContact(id);

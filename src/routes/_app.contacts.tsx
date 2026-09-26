@@ -58,12 +58,16 @@ function ContactsPage() {
   const [open, setOpen] = useState(false);
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
 
-  const { data: contacts, isLoading, error: loadError, refetch } = useQuery({
+  const { session, loading: authLoading } = useAuth();
+  const authed = !authLoading && !!session;
+  const { data: contacts, isLoading: queryLoading, error: loadError, refetch } = useQuery({
     queryKey: ["core-contacts"],
+    enabled: authed,
     refetchInterval: (q) => (q.state.error ? false : 30000),
-    retry: 1,
+    retry: (n, e: any) => (e?.status === 401 ? n < 2 : n < 1),
     queryFn: () => listAll((p) => coreApi.listContacts(p), 5000),
   });
+  const isLoading = authLoading || queryLoading;
 
   const regions = useMemo(() => {
     const s = new Set<string>();
