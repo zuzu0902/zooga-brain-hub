@@ -98,6 +98,7 @@ export function normalizeContact(raw: any): CoreContact {
   const { identity, profile, lifecycle, consent_state, ...top } = r;
   const flat: Record<string, any> = {
     ...top,
+    ...obj(consent_state),
     ...obj(identity),
     ...obj(profile),
     ...obj(lifecycle),
