@@ -59,7 +59,7 @@ function ContactsPage() {
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const { data: contacts, isLoading, error: loadError, refetch } = useQuery({
-    queryKey: ["contacts-canonical"],
+    queryKey: ["core-contacts"],
     refetchInterval: 30000,
     queryFn: () => listAll((p) => coreApi.listContacts(p), 5000),
   });
