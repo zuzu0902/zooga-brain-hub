@@ -37,7 +37,7 @@ import {
 } from "@/lib/i18n";
 import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
 import { TamarDecisionStrip } from "@/components/tamar-decision-strip";
-import { ContactConversation } from "@/components/contact-conversation";
+import { coreApi, CoreApiError, toCorePatch } from "@/lib/hostinger-core/client";
 import { useT, useLanguage } from "@/lib/language-context";
 import { OnboardingPanel } from "@/components/onboarding-panel";
 import { useServerFn } from "@tanstack/react-start";
@@ -64,79 +64,42 @@ function ContactProfile() {
   const [resetOpen, setResetOpen] = useState(false);
   const [releaseOpen, setReleaseOpen] = useState(false);
 
+  // CUTOVER: contact profile is read from Hostinger Core only. Views Core does
+  // not expose yet (history, tasks, memories, raw events) show an explicit
+  // unavailable state — no database fallback.
   const { data: contact, isLoading, error: contactError } = useQuery({
-    queryKey: ["contact", id],
+    queryKey: ["core-contact", id],
     refetchInterval: 20000,
     retry: (n, e: any) => e?.status !== 404 && n < 2,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contacts")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      return data; // null → "איש קשר לא נמצא"
+      try {
+        return await coreApi.getContact(id);
+      } catch (e: any) {
+        if (e instanceof CoreApiError && e.status === 404) return null;
+        throw e;
+      }
     },
   });
-
-  const { data: interactions } = useQuery({
-    queryKey: ["interactions", id],
-    refetchInterval: 15000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("interactions")
-        .select("*")
-        .eq("contact_id", id)
-        .order("timestamp", { ascending: false })
-        .limit(200);
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
-  });
-
-  const { data: tasks } = useQuery({
-    queryKey: ["tasks", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("contact_id", id)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
-  });
-
-  const { data: webhookLogs } = useQuery({
-    queryKey: ["webhook-logs-for", contact?.phone],
-    enabled: !!contact?.phone,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("webhook_logs")
-        .select("*")
-        .eq("payload->>phone", String(contact!.phone))
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
-  });
-
+  const interactions: any[] = [];
+  const tasks: any[] = [];
+  const webhookLogs: any[] = [];
+  // Tamar runtime panels are keyed by the legacy CRM id carried as external_ref.
+  const legacyId: string = (contact as any)?.external_ref ?? id;
 
   const [interactionOpen, setInteractionOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"memory" | "actions" | "timeline" | "edit">("memory");
 
   async function update(patch: any) {
-    const { error } = await supabase.from("contacts").update(patch).eq("id", id);
-    if (error) {
-      toast.error(t("שגיאה: ") + error.message);
+    try {
+      await coreApi.patchContact(id, toCorePatch(patch));
+    } catch (e: any) {
+      toast.error(t("שגיאה: ") + (e instanceof CoreApiError ? `${e.status} ${e.code}` : t("השרת אינו זמין")));
       return;
     }
     toast.success(t("עודכן"));
-    qc.invalidateQueries({ queryKey: ["contact", id] });
-    qc.invalidateQueries({ queryKey: ["contacts-canonical"] });
+    qc.invalidateQueries({ queryKey: ["core-contact", id] });
+    qc.invalidateQueries({ queryKey: ["core-contacts"] });
   }
 
   if (isLoading) return <div className="p-6 text-muted-foreground">{t("טוען...")}</div>;
@@ -175,26 +138,27 @@ function ContactProfile() {
         />
 
         {/* === HUMAN LOCK: who holds this thread, and the way back to Tamar === */}
-        <HumanLockBanner contactId={id} onRelease={() => setReleaseOpen(true)} />
+        <HumanLockBanner contactId={legacyId} onRelease={() => setReleaseOpen(true)} />
 
         {/* === MANUAL TAMAR ACTIVATION === */}
-        <TamarActivationCard contactId={id} contactName={contact.full_name} />
+        <TamarActivationCard contactId={legacyId} contactName={contact.full_name} />
 
         {/* === AI RELATIONSHIP SUMMARY === */}
         <AIRelationshipSummary contact={contact} />
 
         {/* === TAMAR DECISION STRIP === */}
-        <TamarDecisionStrip contactId={id} contact={contact} />
+        <TamarDecisionStrip contactId={legacyId} contact={contact} />
 
         {/* === INTAKE PROGRESS (V1) === */}
         <IntakeProgressCard contact={contact} contactId={id} />
 
         {/* === CONSENT / BASELINE INTAKE / PROFILE FACTS (STAGE 1) === */}
-        <OnboardingPanel contactId={id} />
-        <RelationshipIntakePanel contactId={id} />
+        <OnboardingPanel contactId={legacyId} />
+        <RelationshipIntakePanel contactId={legacyId} />
 
         {/* === LIVE CONVERSATION === */}
-        <ContactConversation contactId={id} />
+        <CoreUnavailable title="שיחת Tamar" />
+        <CoreUnavailable title="היסטוריה, משימות, זיכרונות ואירועים גולמיים" />
 
         {/* === MAIN GRID: left content + right insights rail === */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6 items-start">
@@ -660,20 +624,7 @@ function RelationshipMemorySection({ contactId }: { contactId: string }) {
   const qc = useQueryClient();
   const [running, setRunning] = useState(false);
 
-  const { data: memories } = useQuery({
-    queryKey: ["contact-memories", contactId],
-    refetchInterval: 20000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contact_memories")
-        .select("*")
-        .eq("contact_id", contactId)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
-  });
+  const memories: any[] = []; // CUTOVER: not exposed by Hostinger Core yet
 
 
   async function runNow() {
@@ -951,20 +902,7 @@ function SuggestedActionsSection({ contact, contactId, tasks, openTask, onTaskCh
 /* ---------- Unified Timeline ---------- */
 
 function UnifiedTimeline({ contactId, interactions, onAdd }: any) {
-  const { data: history } = useQuery({
-    queryKey: ["contact-history", contactId],
-    refetchInterval: 30000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contact_profile_history")
-        .select("*")
-        .eq("contact_id", contactId)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (error) throw new Error(error.message);
-      return data ?? [];
-    },
-  });
+  const history: any[] = []; // CUTOVER: not exposed by Hostinger Core yet
 
   const events = useMemo(() => {
     const all: any[] = [];
@@ -1788,7 +1726,7 @@ function AddInteractionDialog({ open, onOpenChange, contactId, onAdded }: any) {
 
   async function save() {
     setSaving(true);
-    const { error } = await supabase.from("interactions").insert({
+    const { error } = pendingWrite({
       contact_id: contactId,
       type,
       content: content.trim() || null,
@@ -1840,7 +1778,7 @@ function AddTaskDialog({ open, onOpenChange, contactId, onAdded }: any) {
   async function save() {
     if (!title.trim()) { toast.error("נדרש כותרת"); return; }
     setSaving(true);
-    const { error } = await supabase.from("tasks").insert({
+    const { error } = pendingWrite({
       contact_id: contactId,
       title: title.trim(),
       description: description.trim() || null,
@@ -2020,6 +1958,25 @@ function IntakeProgressCard({ contact, contactId }: { contact: any; contactId: s
           </div>
         </details>
       )}
+    </Card>
+  );
+}
+
+/** CUTOVER: writes with no Core endpoint are refused, never sent to the database. */
+function pendingWrite(_row: unknown): { error: { message: string } } {
+  return { error: { message: PENDING_CORE_MSG } };
+}
+
+function CoreUnavailable({ title }: { title: string }) {
+  const t = useT();
+  return (
+    <Card className="p-4 border-dashed">
+      <div className="flex items-center gap-2 text-sm">
+        <AlertCircle className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium">{t(title)}</span>
+        <Badge variant="outline" className="text-[10px]">{t("לא זמין")}</Badge>
+      </div>
+      <p className="text-xs text-muted-foreground mt-1">{t("התצוגה הזו עדיין לא זמינה ב-Hostinger Core.")}</p>
     </Card>
   );
 }
