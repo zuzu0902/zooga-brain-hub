@@ -115,7 +115,7 @@ function ContactProfile() {
       const { data, error } = await supabase
         .from("webhook_logs")
         .select("*")
-        .eq("payload->>phone", contact!.phone)
+        .eq("payload->>phone", String(contact!.phone))
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw new Error(error.message);
@@ -1782,7 +1782,7 @@ function RawTab({ contact, webhookLogs }: any) {
 /* ---------- Dialogs ---------- */
 
 function AddInteractionDialog({ open, onOpenChange, contactId, onAdded }: any) {
-  const [type, setType] = useState("admin_note");
+  const [type, setType] = useState<any>("admin_note");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
 
