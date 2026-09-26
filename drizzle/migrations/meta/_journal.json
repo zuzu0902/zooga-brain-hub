@@ -64,6 +64,13 @@
       "when": 1790343472854,
       "tag": "0008_grant_contacts_authenticated",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790417157288,
+      "tag": "0009_allow_bridge_path_keys_in_connection_config",
+      "breakpoints": true
     }
   ]
 }
