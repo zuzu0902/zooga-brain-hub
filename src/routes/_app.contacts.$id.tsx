@@ -68,8 +68,8 @@ function ContactProfile() {
   // unavailable state — no database fallback.
   const { data: contact, isLoading, error: contactError } = useQuery({
     queryKey: ["core-contact", id],
-    refetchInterval: 20000,
-    retry: (n, e: any) => e?.status !== 404 && n < 2,
+    refetchInterval: (q) => (q.state.error ? false : 20000),
+    retry: (n, e: any) => e?.status !== 404 && n < 1,
     queryFn: async () => {
       try {
         return await coreApi.getContact(id);
