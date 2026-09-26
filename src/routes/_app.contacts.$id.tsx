@@ -104,7 +104,7 @@ function ContactProfile() {
     qc.invalidateQueries({ queryKey: ["core-contacts"] });
   }
 
-  if (isLoading) return <div className="p-6 text-muted-foreground">{t("טוען...")}</div>;
+  if (authLoading || contactQueryLoading) return <div className="p-6 text-muted-foreground">{t("טוען...")}</div>;
   if (contactError) return <div className="p-6 text-destructive">{t("לא ניתן לטעון את איש הקשר כרגע. נסה שוב בעוד רגע.")}</div>;
   if (!contact) return <div className="p-6">{t("איש קשר לא נמצא")}</div>;
 
