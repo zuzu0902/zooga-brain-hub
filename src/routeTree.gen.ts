@@ -85,6 +85,7 @@ import { Route as ApiPublicCronWhatsappBroadcastRunnerRouteImport } from './rout
 import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
 import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
 import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
+import { Route as ApiInternalGatewayRotateCredentialRouteImport } from './routes/api/internal/gateway/rotate-credential'
 
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
@@ -497,6 +498,12 @@ const ApiPublicAdminBackfillMemoriesRoute =
     path: '/api/public/admin/backfill-memories',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiInternalGatewayRotateCredentialRoute =
+  ApiInternalGatewayRotateCredentialRouteImport.update({
+    id: '/api/internal/gateway/rotate-credential',
+    path: '/api/internal/gateway/rotate-credential',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -559,6 +566,7 @@ export interface FileRoutesByFullPath {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/zooga-core-export': typeof ApiPublicZoogaCoreExportRoute
   '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
+  '/api/internal/gateway/rotate-credential': typeof ApiInternalGatewayRotateCredentialRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -636,6 +644,7 @@ export interface FileRoutesByTo {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/zooga-core-export': typeof ApiPublicZoogaCoreExportRoute
   '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
+  '/api/internal/gateway/rotate-credential': typeof ApiInternalGatewayRotateCredentialRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -715,6 +724,7 @@ export interface FileRoutesById {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/zooga-core-export': typeof ApiPublicZoogaCoreExportRoute
   '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
+  '/api/internal/gateway/rotate-credential': typeof ApiInternalGatewayRotateCredentialRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -794,6 +804,7 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/zooga-core-export'
     | '/api/zooga/gateway-status'
+    | '/api/internal/gateway/rotate-credential'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -871,6 +882,7 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/zooga-core-export'
     | '/api/zooga/gateway-status'
+    | '/api/internal/gateway/rotate-credential'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -949,6 +961,7 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/zooga-core-export'
     | '/api/zooga/gateway-status'
+    | '/api/internal/gateway/rotate-credential'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -999,6 +1012,7 @@ export interface RootRouteChildren {
   ApiIntrospectUiGapsRoute: typeof ApiIntrospectUiGapsRoute
   ApiPublicZoogaCoreExportRoute: typeof ApiPublicZoogaCoreExportRoute
   ApiZoogaGatewayStatusRoute: typeof ApiZoogaGatewayStatusRoute
+  ApiInternalGatewayRotateCredentialRoute: typeof ApiInternalGatewayRotateCredentialRoute
   ApiPublicAdminBackfillMemoriesRoute: typeof ApiPublicAdminBackfillMemoriesRoute
   ApiPublicAiAssistantRunRoute: typeof ApiPublicAiAssistantRunRoute
   ApiPublicCronRetryHandoffsRoute: typeof ApiPublicCronRetryHandoffsRoute
@@ -1550,6 +1564,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAdminBackfillMemoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/internal/gateway/rotate-credential': {
+      id: '/api/internal/gateway/rotate-credential'
+      path: '/api/internal/gateway/rotate-credential'
+      fullPath: '/api/internal/gateway/rotate-credential'
+      preLoaderRoute: typeof ApiInternalGatewayRotateCredentialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1693,6 +1714,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIntrospectUiGapsRoute: ApiIntrospectUiGapsRoute,
   ApiPublicZoogaCoreExportRoute: ApiPublicZoogaCoreExportRoute,
   ApiZoogaGatewayStatusRoute: ApiZoogaGatewayStatusRoute,
+  ApiInternalGatewayRotateCredentialRoute:
+    ApiInternalGatewayRotateCredentialRoute,
   ApiPublicAdminBackfillMemoriesRoute: ApiPublicAdminBackfillMemoriesRoute,
   ApiPublicAiAssistantRunRoute: ApiPublicAiAssistantRunRoute,
   ApiPublicCronRetryHandoffsRoute: ApiPublicCronRetryHandoffsRoute,

@@ -6443,6 +6443,10 @@ export type Database = {
         Returns: Json
       }
       zooga_normalize_msisdn: { Args: { _raw: string }; Returns: string }
+      zooga_rotate_gateway_credential: {
+        Args: { _bearer: string; _gateway_token: string }
+        Returns: boolean
+      }
       zooga_shadow_claim: {
         Args: { p_lease_seconds?: number; p_limit?: number; p_worker: string }
         Returns: {

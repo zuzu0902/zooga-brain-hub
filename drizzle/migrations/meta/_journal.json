@@ -71,6 +71,13 @@
       "when": 1790417157288,
       "tag": "0009_allow_bridge_path_keys_in_connection_config",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790440619038,
+      "tag": "0010_gateway_credential_rotation_fn",
+      "breakpoints": true
     }
   ]
 }
