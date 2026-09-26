@@ -11,7 +11,7 @@ const json = (body: unknown, status: number) =>
     headers: { "content-type": "application/json", "cache-control": "no-store" },
   });
 
-export const Route = createFileRoute("/api/internal/gateway/rotate-credential")({
+export const Route = createFileRoute("/api/public/runtime/gateway-rotate-credential")({
   server: {
     handlers: {
       POST: async ({ request }) => {
