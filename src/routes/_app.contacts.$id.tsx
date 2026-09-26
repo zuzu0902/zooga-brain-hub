@@ -108,12 +108,8 @@ function ContactProfile() {
   const initials = (contact.full_name || contact.first_name || "?").trim().slice(0, 1);
 
   function onDeleted(result: any) {
-    toast.success(
-      t("איש הקשר נמחק") + ` · ${result?.identities_preserved ?? 0} זהויות נשמרו במרשם` +
-        (result?.suppression_tombstone ? " · נשמר סימון חסימה" : ""),
-    );
     setDeleteOpen(false);
-    qc.invalidateQueries({ queryKey: ["contacts-rich"] });
+    qc.invalidateQueries({ queryKey: ["core-contacts"] });
     navigate({ to: "/contacts" });
   }
 
@@ -132,7 +128,7 @@ function ContactProfile() {
           update={update}
           onMessage={pendingCore}
           onTask={pendingCore}
-          onDelete={pendingCore}
+          onDelete={() => setDeleteOpen(true)}
           onReset={pendingCore}
         />
 
@@ -164,7 +160,7 @@ function ContactProfile() {
           <div className="space-y-6 min-w-0">
             <ProfileNav active={activeSection} onChange={setActiveSection} />
 
-            <p className="text-xs text-muted-foreground rounded-md border p-2">{PENDING_CORE_MSG}: {"היסטוריה, משימות, הערות, זיכרון, הצעות AI, מחיקה ואיפוס"}</p>
+            <p className="text-xs text-muted-foreground rounded-md border p-2">{PENDING_CORE_MSG}: {"היסטוריה, משימות, הערות, זיכרון, הצעות AI ואיפוס"}</p>
             {activeSection === "memory" && (
               <RelationshipMemorySection contactId={id} />
             )}

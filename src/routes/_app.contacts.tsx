@@ -112,10 +112,9 @@ function ContactsPage() {
             {filtered.length.toLocaleString("he-IL")} {t("מתוך")} {(contacts?.length ?? 0).toLocaleString("he-IL")}
           </p>
         </div>
-        <Button disabled title={PENDING_CORE_MSG} className="gap-2">
+        <Button onClick={() => setOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" /> {t("הוסף איש קשר")}
         </Button>
-        <p className="w-full text-xs text-muted-foreground">{PENDING_CORE_MSG}: {t("הוספה ומחיקה של אנשי קשר")}</p>
       </header>
 
       <Card className="p-4 space-y-3">
@@ -267,9 +266,7 @@ function ContactsPage() {
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        disabled
-                        title={PENDING_CORE_MSG}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); setToDelete({ id: c.id, name: c.full_name || "" }); }}
                         aria-label={t("מחק")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -283,6 +280,18 @@ function ContactsPage() {
         </div>
       </Card>
 
+      <ContactCreateDialog
+        open={open}
+        onOpenChange={setOpen}
+        onCreated={(id) => { refetch(); navigate({ to: "/contacts/$id", params: { id } }); }}
+      />
+      <ContactDeleteDialog
+        open={!!toDelete}
+        onOpenChange={(v) => !v && setToDelete(null)}
+        contactId={toDelete?.id ?? null}
+        contactName={toDelete?.name}
+        onDeleted={() => { setToDelete(null); refetch(); }}
+      />
     </div>
   );
 }
