@@ -98,10 +98,13 @@ export function normalizeContact(raw: any): CoreContact {
   const { identity, profile, lifecycle, consent_state, ...top } = r;
   const flat: Record<string, any> = {
     ...top,
+    ...obj(consent_state),
     ...obj(identity),
     ...obj(profile),
     ...obj(lifecycle),
-    ...obj(consent_state),
+    // Consent lives under its own keys so it never overwrites lifecycle status.
+    consent_status: obj(consent_state).status ?? null,
+    consent_evidence: obj(consent_state).evidence ?? null,
     id: r.id,
     identity, profile, lifecycle, consent_state,
   };
