@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Filter, X, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, X, AlertCircle, Trash2, ArrowUpDown } from "lucide-react";
 import { ContactDeleteDialog } from "@/components/contact-delete-dialog";
 import { toast } from "sonner";
 import {
@@ -56,6 +56,7 @@ function ContactsPage() {
   const [temperature, setTemperature] = useState<string>("all");
   const [activity, setActivity] = useState<string>("all");
   const [consent, setConsent] = useState<string>("all");
+  const [sort, setSort] = useState<string>("newest");
   const [open, setOpen] = useState(false);
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
 
