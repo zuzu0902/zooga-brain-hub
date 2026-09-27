@@ -142,6 +142,20 @@ function ContactsPage() {
             />
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            <Select value={sort} onValueChange={setSort}>
+              <SelectTrigger className="bg-background h-9 w-[200px] text-xs">
+                <SelectValue placeholder={t("מיון")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">{t("החדשים ביותר (סדר הגעה)")}</SelectItem>
+                <SelectItem value="oldest">{t("הוותיקים ביותר (סדר הגעה)")}</SelectItem>
+                <SelectItem value="activity">{t("פעילות אחרונה")}</SelectItem>
+                <SelectItem value="name">{t("שם (א׳–ת׳)")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Filter className="h-3.5 w-3.5" />
             {filterCount > 0 ? `${filterCount} ${t("סינונים פעילים")}` : t("ללא סינון")}
             {filterCount > 0 && (
