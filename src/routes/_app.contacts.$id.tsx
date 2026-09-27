@@ -37,6 +37,7 @@ import {
 } from "@/lib/i18n";
 import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
 import { TamarDecisionStrip } from "@/components/tamar-decision-strip";
+import { ContactConversation } from "@/components/contact-conversation";
 import { coreApi, CoreApiError, toCorePatch } from "@/lib/hostinger-core/client";
 import { useT, useLanguage } from "@/lib/language-context";
 import { OnboardingPanel } from "@/components/onboarding-panel";
@@ -155,7 +156,7 @@ function ContactProfile() {
         <RelationshipIntakePanel contactId={legacyId} />
 
         {/* === LIVE CONVERSATION === */}
-        <CoreUnavailable title="שיחת Tamar" />
+        <ContactConversation contactId={legacyId} />
         <CoreUnavailable title="היסטוריה, משימות, זיכרונות ואירועים גולמיים" />
 
         {/* === MAIN GRID: left content + right insights rail === */}
