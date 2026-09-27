@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -81,25 +81,42 @@ export function QuickCampaign() {
 
   const tooMany = parsed.valid.length > 500;
   const [lastError, setLastError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; ok: number; failed: number; total: number } | null>(null);
+  const stopRef = useRef(false);
 
   async function launch() {
     if (busy) return;
+    const list = [...parsed.valid];
     setBusy(true);
     setConfirm(false);
     setLastError(null);
+    stopRef.current = false;
+    let ok = 0, failed = 0;
+    const errors: string[] = [];
+    setProgress({ done: 0, ok, failed, total: list.length });
     try {
-      const res: any = await triggerFn({ data: { template_name: template, contacts: parsed.valid, confirmed: true } });
-      if (!res?.ok) {
-        const msg = GATEWAY_ERRORS[res?.error] ?? `שגיאה מהשער (${res?.error ?? "לא ידועה"})`;
-        setLastError(msg + (res?.detail ? ` · ${res.detail}` : ""));
-        toast.error("השיגור נכשל — לא נשלחה אף הודעה");
-        return;
+      for (let i = 0; i < list.length; i++) {
+        if (stopRef.current) break;
+        if (i > 0) await new Promise((r) => setTimeout(r, 5000));
+        if (stopRef.current) break;
+        try {
+          const res: any = await triggerFn({ data: { template_name: template, contacts: [list[i]], confirmed: true } });
+          if (res?.ok) ok++;
+          else {
+            failed++;
+            const msg = GATEWAY_ERRORS[res?.error] ?? `שגיאה מהשער (${res?.error ?? "לא ידועה"})`;
+            errors.push(`${maskPhone(list[i].phone)}: ${msg}${res?.detail ? ` · ${res.detail}` : ""}`);
+          }
+        } catch (e: any) {
+          failed++;
+          errors.push(`${maskPhone(list[i].phone)}: ${e?.message ?? "שגיאה"}`);
+        }
+        setProgress({ done: i + 1, ok, failed, total: list.length });
+        refetch();
       }
-      toast.success(`השער קיבל את הבקשה — ${res.count} אנשי קשר, 5 שניות בין הודעה להודעה`);
-      setText("");
-      refetch();
-    } catch (e: any) {
-      setLastError("השיגור נכשל: " + (e?.message ?? "שגיאה לא ידועה"));
+      if (errors.length) setLastError(errors.slice(0, 5).join("\n"));
+      toast[failed ? "warning" : "success"](`הסתיים: ${ok} נשלחו, ${failed} נכשלו${stopRef.current ? " (נעצר)" : ""}`);
+      if (!failed && !stopRef.current) setText("");
     } finally {
       setBusy(false);
     }
@@ -148,7 +165,13 @@ export function QuickCampaign() {
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
           שגר קמפיין
         </Button>
-        {lastError && <p className="text-sm text-destructive">{lastError}</p>}
+        {progress && (
+          <div className="flex items-center gap-3 text-sm">
+            <span>{progress.done}/{progress.total} · {progress.ok} נשלחו · {progress.failed} נכשלו</span>
+            {busy && <Button type="button" variant="outline" size="sm" onClick={() => { stopRef.current = true; }}>עצור</Button>}
+          </div>
+        )}
+        {lastError && <p className="text-sm text-destructive whitespace-pre-line">{lastError}</p>}
       </Card>
 
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
