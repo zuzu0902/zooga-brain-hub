@@ -79,7 +79,7 @@ function ContactsPage() {
 
   const filtered = useMemo(() => {
     const t = search.trim().toLowerCase();
-    return (contacts ?? []).filter((c: any) => {
+    const list = (contacts ?? []).filter((c: any) => {
       if (status !== "all" && c.status !== status) return false;
       if (source !== "all" && c.source !== source) return false;
       if (region !== "all" && c.region !== region) return false;
@@ -99,7 +99,14 @@ function ContactsPage() {
       }
       return true;
     });
-  }, [contacts, search, status, source, region, interest, temperature, activity, consent]);
+    const ts = (d: any) => (d ? new Date(d).getTime() : 0);
+    const sorted = [...list];
+    if (sort === "newest") sorted.sort((a, b) => ts(b.created_at) - ts(a.created_at));
+    else if (sort === "oldest") sorted.sort((a, b) => ts(a.created_at) - ts(b.created_at));
+    else if (sort === "activity") sorted.sort((a, b) => ts(b.last_interaction_at) - ts(a.last_interaction_at));
+    else if (sort === "name") sorted.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || "", "he"));
+    return sorted;
+  }, [contacts, search, status, source, region, interest, temperature, activity, consent, sort]);
 
   function clearFilters() {
     setSearch(""); setStatus("all"); setSource("all"); setRegion("all");
