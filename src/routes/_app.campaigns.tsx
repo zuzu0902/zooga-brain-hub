@@ -111,9 +111,14 @@ function CampaignsListPage() {
           <h1 className="text-3xl font-bold tracking-tight">{t("קמפיינים")}</h1>
           <p className="text-muted-foreground mt-1">{t("מערכת בינת-קמפיינים המאפשרת לתמר להבין את ההקשר של כל פנייה")}</p>
         </div>
-        <Link to="/campaigns/new" search={{ offer_id: undefined }}>
-          <Button className="gap-2"><Plus className="h-4 w-4" /> {t("קמפיין חדש")}</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/campaign-manager">
+            <Button variant="outline" className="gap-2"><Megaphone className="h-4 w-4" /> מנהל קמפיינים</Button>
+          </Link>
+          <Link to="/campaigns/new" search={{ offer_id: undefined }}>
+            <Button className="gap-2"><Plus className="h-4 w-4" /> {t("קמפיין חדש")}</Button>
+          </Link>
+        </div>
       </header>
 
       <ContextBanner id="campaigns-list">

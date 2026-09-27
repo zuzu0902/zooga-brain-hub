@@ -90,6 +90,14 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
   }
 
   return {
+    /** Creates approval-held outbound drafts only. Never sends WhatsApp. */
+    createOutboundCampaign: (body: {
+      idempotency_key: string;
+      campaign_name: string;
+      opening_script: string;
+      tamar_follow_up_instruction: string;
+      recipients: { name: string; phone: string }[];
+    }) => request<Record<string, any>>("/v1/admin/outbound/campaigns", { method: "POST", body: JSON.stringify(body) }),
     overview: () => request<Record<string, any>>("/v1/admin/overview"),
     listContacts: async (p: { limit?: number; cursor?: string | null } = {}) =>
       mapPage(normalizePage<any>(await request<any>(`/v1/admin/contacts${qs(p)}`), "contacts"), normalizeContact),
