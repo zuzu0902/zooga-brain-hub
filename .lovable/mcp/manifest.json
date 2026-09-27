@@ -11,9 +11,9 @@
   },
   "mcp": {
     "server": {
-      "name": "zooga-crm-mcp",
-      "version": "0.1.0",
-      "title": "Zooga CRM"
+      "name": "zooga-os",
+      "version": "0.2.0",
+      "title": "Zooga OS"
     },
     "tools": [
       {
@@ -47,6 +47,95 @@
         "name": "get_contact",
         "title": "Get contact",
         "description": "Fetch a single contact by id, with recent interactions and extracted attributes.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "contact_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Contact UUID."
+            }
+          },
+          "required": [
+            "contact_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_recent_messages",
+        "title": "List recent WhatsApp messages",
+        "description": "Latest WhatsApp messages across all contacts (customer messages and Tamar replies), newest first, with contact name and phone.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Max messages (default 50).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "since": {
+              "description": "Only messages after this ISO time.",
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_contact_conversation",
+        "title": "Get contact conversation",
+        "description": "Full WhatsApp conversation between one contact and Tamar, in chronological order. Find the contact by id or phone.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "contact_id": {
+              "description": "Contact UUID.",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "phone": {
+              "description": "Phone number or its last digits.",
+              "type": "string",
+              "minLength": 4
+            },
+            "limit": {
+              "description": "Max messages (default 100, most recent).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_contact_intake",
+        "title": "Get contact intake",
+        "description": "Intake answers and profile facts Tamar has collected for one contact (current values only).",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
