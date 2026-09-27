@@ -25,7 +25,7 @@ export default defineTool({
     const [{ data: contact, error: cErr }, { data: interactions }, { data: attributes }] =
       await Promise.all([
         sb.from("contacts").select("*").eq("id", contact_id).maybeSingle(),
-        sb.from("interactions").select("id,type,direction,content,timestamp").eq("contact_id", contact_id).order("timestamp", { ascending: false }).limit(20),
+        sb.from("interactions").select("id,type,source,content,timestamp").eq("contact_id", contact_id).order("timestamp", { ascending: false }).limit(20),
         sb.from("extracted_attributes").select("attribute_key,attribute_value,confidence,updated_at").eq("contact_id", contact_id),
       ]);
     if (cErr) return { content: [{ type: "text", text: cErr.message }], isError: true };
