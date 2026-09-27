@@ -38,7 +38,7 @@ import {
 import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
 import { TamarDecisionStrip } from "@/components/tamar-decision-strip";
 import { ContactConversation } from "@/components/contact-conversation";
-import { coreApi, CoreApiError, toCorePatch } from "@/lib/hostinger-core/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useT, useLanguage } from "@/lib/language-context";
 import { OnboardingPanel } from "@/components/onboarding-panel";
 import { useServerFn } from "@tanstack/react-start";
