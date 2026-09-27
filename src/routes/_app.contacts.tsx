@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link, Outlet, useLocation } from "@tansta
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { coreApi, listAll } from "@/lib/hostinger-core/client";
+import { fetchCanonicalContacts } from "@/lib/contacts-read";
 import { PENDING_CORE_MSG } from "@/lib/hostinger-core/pending";
 
 import { Card } from "@/components/ui/card";
@@ -67,7 +67,8 @@ function ContactsPage() {
     enabled: authed,
     refetchInterval: (q) => (q.state.error ? false : 30000),
     retry: (n, e: any) => (e?.status === 401 ? n < 2 : n < 1),
-    queryFn: () => listAll((p) => coreApi.listContacts(p), 5000),
+    // Contacts are read from the app's own database (source of truth for CRM + conversations).
+    queryFn: () => fetchCanonicalContacts(),
   });
   const isLoading = authLoading || queryLoading;
 
