@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Filter, X, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, Search, Filter, X, AlertCircle, Trash2, ArrowUpDown } from "lucide-react";
 import { ContactDeleteDialog } from "@/components/contact-delete-dialog";
 import { toast } from "sonner";
 import {
@@ -56,6 +56,7 @@ function ContactsPage() {
   const [temperature, setTemperature] = useState<string>("all");
   const [activity, setActivity] = useState<string>("all");
   const [consent, setConsent] = useState<string>("all");
+  const [sort, setSort] = useState<string>("newest");
   const [open, setOpen] = useState(false);
   const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
 
@@ -78,7 +79,7 @@ function ContactsPage() {
 
   const filtered = useMemo(() => {
     const t = search.trim().toLowerCase();
-    return (contacts ?? []).filter((c: any) => {
+    const list = (contacts ?? []).filter((c: any) => {
       if (status !== "all" && c.status !== status) return false;
       if (source !== "all" && c.source !== source) return false;
       if (region !== "all" && c.region !== region) return false;
@@ -98,7 +99,14 @@ function ContactsPage() {
       }
       return true;
     });
-  }, [contacts, search, status, source, region, interest, temperature, activity, consent]);
+    const ts = (d: any) => (d ? new Date(d).getTime() : 0);
+    const sorted = [...list];
+    if (sort === "newest") sorted.sort((a, b) => ts(b.created_at) - ts(a.created_at));
+    else if (sort === "oldest") sorted.sort((a, b) => ts(a.created_at) - ts(b.created_at));
+    else if (sort === "activity") sorted.sort((a, b) => ts(b.last_interaction_at) - ts(a.last_interaction_at));
+    else if (sort === "name") sorted.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || "", "he"));
+    return sorted;
+  }, [contacts, search, status, source, region, interest, temperature, activity, consent, sort]);
 
   function clearFilters() {
     setSearch(""); setStatus("all"); setSource("all"); setRegion("all");
@@ -132,6 +140,20 @@ function ContactsPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="pr-9 bg-background"
             />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            <Select value={sort} onValueChange={setSort}>
+              <SelectTrigger className="bg-background h-9 w-[200px] text-xs">
+                <SelectValue placeholder={t("מיון")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">{t("החדשים ביותר (סדר הגעה)")}</SelectItem>
+                <SelectItem value="oldest">{t("הוותיקים ביותר (סדר הגעה)")}</SelectItem>
+                <SelectItem value="activity">{t("פעילות אחרונה")}</SelectItem>
+                <SelectItem value="name">{t("שם (א׳–ת׳)")}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Filter className="h-3.5 w-3.5" />
