@@ -38,7 +38,7 @@ import {
 import { AIIntelligencePanel } from "@/components/ai-intelligence-panel";
 import { TamarDecisionStrip } from "@/components/tamar-decision-strip";
 import { ContactConversation } from "@/components/contact-conversation";
-import { coreApi, CoreApiError, toCorePatch } from "@/lib/hostinger-core/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useT, useLanguage } from "@/lib/language-context";
 import { OnboardingPanel } from "@/components/onboarding-panel";
 import { useServerFn } from "@tanstack/react-start";
@@ -75,29 +75,24 @@ function ContactProfile() {
     refetchInterval: (q) => (q.state.error ? false : 20000),
     retry: (n, e: any) => (e?.status === 401 ? n < 2 : e?.status !== 404 && n < 1),
     queryFn: async () => {
-      try {
-        return await coreApi.getContact(id);
-      } catch (e: any) {
-        if (e instanceof CoreApiError && e.status === 404) return null;
-        throw e;
-      }
+      const { data, error } = await supabase.from("contacts").select("*").eq("id", id).maybeSingle();
+      if (error) throw new Error(error.message);
+      return data as any;
     },
   });
   const interactions: any[] = [];
   const tasks: any[] = [];
   const webhookLogs: any[] = [];
-  // Tamar runtime panels are keyed by the legacy CRM id carried as external_ref.
-  const legacyId: string = (contact as any)?.external_ref ?? id;
+  const legacyId: string = id;
 
   const [interactionOpen, setInteractionOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"memory" | "actions" | "timeline" | "edit">("memory");
 
   async function update(patch: any) {
-    try {
-      await coreApi.patchContact(id, toCorePatch(patch));
-    } catch (e: any) {
-      toast.error(t("שגיאה: ") + (e instanceof CoreApiError ? `${e.status} ${e.code}` : t("השרת אינו זמין")));
+    const { error } = await supabase.from("contacts").update(patch).eq("id", id);
+    if (error) {
+      toast.error(t("שגיאה: ") + error.message);
       return;
     }
     toast.success(t("עודכן"));
