@@ -5,5 +5,8 @@
 - [x] Run affected tests, typecheck, and production build; report results before publishing.
 - [x] Fresh concierge override: no unprompted destinations, exact first-inbound greeting, database-only output_text audit.
 - [x] Replace Tamar’s canonical First Inbound Response in code, active database prompt, and tests; verify and publish.
-- [ ] Intake campaign page streamline — plan not approved yet (awaiting user).
+- [x] Intake campaign page streamline — completed in previous work.
 - [x] Migrate dashboard, contacts list/detail, offers/catalog UI to Hostinger Core API (no deploy).
+- [ ] Refactor Hebrew operator navigation and Core-only Command Center.
+- [ ] Remove direct database reads from daily contact/conversation/task/handoff views without changing delivery.
+- [ ] Verify authenticated Core response, focused tests, desktop/mobile behavior; do not publish.
