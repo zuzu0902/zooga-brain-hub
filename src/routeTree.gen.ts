@@ -33,6 +33,7 @@ import { Route as AppBroadcastsRouteImport } from './routes/_app.broadcasts'
 import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as AppContactsIndexRouteImport } from './routes/_app.contacts.index'
 import { Route as ApiZoogaGatewayStatusRouteImport } from './routes/api/zooga/gateway-status'
 import { Route as ApiPublicZoogaCoreExportRouteImport } from './routes/api/public/zooga-core-export'
 import { Route as ApiIntrospectUiGapsRouteImport } from './routes/api/introspect/ui-gaps'
@@ -209,6 +210,11 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppContactsIndexRoute = AppContactsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppContactsRoute,
+} as any)
 const ApiZoogaGatewayStatusRoute = ApiZoogaGatewayStatusRouteImport.update({
   id: '/api/zooga/gateway-status',
   path: '/api/zooga/gateway-status',
@@ -573,6 +579,7 @@ export interface FileRoutesByFullPath {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/zooga-core-export': typeof ApiPublicZoogaCoreExportRoute
   '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
+  '/contacts/': typeof AppContactsIndexRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -599,7 +606,6 @@ export interface FileRoutesByTo {
   '/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/campaign-manager': typeof AppCampaignManagerRoute
   '/campaigns': typeof AppCampaignsRouteWithChildren
-  '/contacts': typeof AppContactsRouteWithChildren
   '/handoff': typeof AppHandoffRoute
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
@@ -652,6 +658,7 @@ export interface FileRoutesByTo {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/zooga-core-export': typeof ApiPublicZoogaCoreExportRoute
   '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
+  '/contacts': typeof AppContactsIndexRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -733,6 +740,7 @@ export interface FileRoutesById {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/zooga-core-export': typeof ApiPublicZoogaCoreExportRoute
   '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
+  '/_app/contacts/': typeof AppContactsIndexRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -814,6 +822,7 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/zooga-core-export'
     | '/api/zooga/gateway-status'
+    | '/contacts/'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -840,7 +849,6 @@ export interface FileRouteTypes {
     | '/broadcasts'
     | '/campaign-manager'
     | '/campaigns'
-    | '/contacts'
     | '/handoff'
     | '/import-leads'
     | '/inbox'
@@ -893,6 +901,7 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/zooga-core-export'
     | '/api/zooga/gateway-status'
+    | '/contacts'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -973,6 +982,7 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/zooga-core-export'
     | '/api/zooga/gateway-status'
+    | '/_app/contacts/'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -1211,6 +1221,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/.mcp/list-tools'
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/contacts/': {
+      id: '/_app/contacts/'
+      path: '/'
+      fullPath: '/contacts/'
+      preLoaderRoute: typeof AppContactsIndexRouteImport
+      parentRoute: typeof AppContactsRoute
     }
     '/api/zooga/gateway-status': {
       id: '/api/zooga/gateway-status'
@@ -1621,10 +1638,12 @@ const AppCampaignsRouteWithChildren = AppCampaignsRoute._addFileChildren(
 
 interface AppContactsRouteChildren {
   AppContactsIdRoute: typeof AppContactsIdRoute
+  AppContactsIndexRoute: typeof AppContactsIndexRoute
 }
 
 const AppContactsRouteChildren: AppContactsRouteChildren = {
   AppContactsIdRoute: AppContactsIdRoute,
+  AppContactsIndexRoute: AppContactsIndexRoute,
 }
 
 const AppContactsRouteWithChildren = AppContactsRoute._addFileChildren(
