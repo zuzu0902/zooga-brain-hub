@@ -44,12 +44,12 @@ const PRIMARY_NAV: NavEntry[] = [
   { to: "/contacts", label: "אנשים", icon: Users },
   { to: "/inbox", label: "שיחות", icon: Inbox },
   { to: "/tasks", label: "משימות", icon: CheckSquare },
-  { to: "/pilot", label: "פיילוט תמר", icon: Rocket },
   {
-    label: "קמפיינים ומכירות",
+    label: "קטלוג ומכירות",
     icon: Megaphone,
     children: [
-      { to: "/offers", label: "הצעות", icon: Tag },
+      { to: "/catalog", label: "קטלוג", icon: Tag },
+      { to: "/campaign-manager", label: "מנהל קמפיינים", icon: Megaphone },
       { to: "/campaigns", label: "ניהול קמפיינים", icon: Megaphone },
       { to: "/send-offer", label: "שליחת הצעה", icon: Send },
       { to: "/import-leads", label: "ייבוא לידים", icon: Upload },
@@ -64,10 +64,14 @@ const PRIMARY_NAV: NavEntry[] = [
       { to: "/broadcasts", label: "הפצה לקבוצות", icon: Radio },
     ],
   },
-  { to: "/settings/api", label: "הגדרות", icon: Settings },
+  { to: "/settings", label: "הגדרות", icon: Settings, exact: true },
 ];
 
 const ADVANCED_NAV: NavItem[] = [
+  { to: "/pilot", label: "פיילוט תמר", icon: Rocket },
+  { to: "/settings/api", label: "API", icon: Settings },
+  { to: "/operator-diagnostics", label: "אימות ונתוני מעבר", icon: Wrench },
+  { to: "/offers", label: "הצעות — מערכת קודמת", icon: Tag },
   { to: "/system-readiness", label: "מוכנות מערכת", icon: ShieldCheck },
   { to: "/settings/tamar-studio", label: "Tamar Studio", icon: Sparkles },
 
@@ -228,7 +232,7 @@ function AppLayout() {
   );
 
   return (
-    <div className="min-h-screen flex bg-background" dir={dir}>
+    <div className="min-h-screen flex bg-background" dir="rtl">
       <div className="hidden md:flex">{sidebar}</div>
 
       {mobileOpen && (
@@ -261,8 +265,7 @@ function AppLayout() {
           <div className="m-4 p-4 rounded-md border border-warning/40 bg-warning/10 text-sm">
             <div className="font-semibold mb-1">{t("חשבון ללא הרשאות מנהל")}</div>
             <div className="text-muted-foreground">
-              {t("המשתמש")} <span className="font-mono">{user.email}</span>{" "}
-              {t("מחובר אך אינו מוגדר כ-admin, לכן כל הנתונים מסוננים על ידי RLS ויופיעו ריקים. המשתמש הראשון שנרשם הופך אוטומטית ל-admin. אם זה אינו המקרה, יש להוסיף שורה בטבלת user_roles עם role=admin עבור user_id זה.")}
+               {t("אין לחשבון זה הרשאות ניהול. יש לפנות למנהל המערכת.")}
             </div>
           </div>
         )}
