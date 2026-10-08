@@ -1,0 +1,352 @@
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { coreApi, listAll } from "@/lib/hostinger-core/client";
+import { operatorHead } from "@/lib/hostinger-core/operator-head";
+import { PENDING_CORE_MSG } from "@/lib/hostinger-core/pending";
+
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Plus, Search, Filter, X, AlertCircle, Trash2, ArrowUpDown } from "lucide-react";
+import { ContactDeleteDialog } from "@/components/contact-delete-dialog";
+import { toast } from "sonner";
+import {
+  STATUS_LABELS, SOURCE_LABELS, INTEREST_LABELS, ALL_INTERESTS,
+  SALES_TEMP_LABELS, SALES_TEMP_TONE, formatRelative,
+} from "@/lib/i18n";
+import { ContactCreateDialog } from "@/components/contact-create-dialog";
+import { useT } from "@/lib/language-context";
+import { useLanguage } from "@/lib/language-context";
+
+export const Route = createFileRoute("/_app/contacts/")({
+  head: () => operatorHead("אנשים", "אנשי קשר, פרטי קשר ומצב פעילות במרכז השליטה של זוגה."),
+  component: ContactsPage,
+});
+
+const STATUS_TONE: Record<string, string> = {
+  new_lead: "bg-info/10 text-info border-info/30",
+  active_member: "bg-success/15 text-success border-success/30",
+  interested: "bg-warning/15 text-warning-foreground border-warning/30",
+  customer: "bg-primary/10 text-primary border-primary/30",
+  VIP: "bg-warning/15 text-warning-foreground border-warning/30",
+  inactive: "bg-muted text-muted-foreground border-border",
+};
+
+function ContactsPage() {
+  const t = useT();
+  const { dir } = useLanguage();
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<string>("all");
+  const [source, setSource] = useState<string>("all");
+  const [region, setRegion] = useState<string>("all");
+  const [interest, setInterest] = useState<string>("all");
+  const [temperature, setTemperature] = useState<string>("all");
+  const [activity, setActivity] = useState<string>("all");
+  const [consent, setConsent] = useState<string>("all");
+  const [sort, setSort] = useState<string>("newest");
+  const [open, setOpen] = useState(false);
+  const [toDelete, setToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  const { session, loading: authLoading } = useAuth();
+  const authed = !authLoading && !!session;
+  const { data: contacts, isLoading: queryLoading, error: loadError, refetch } = useQuery({
+    queryKey: ["core-contacts", session?.user.id],
+    enabled: authed,
+    refetchInterval: (q) => (q.state.error ? false : 30000),
+    retry: (n, e: any) => (e?.status === 401 ? n < 2 : n < 1),
+    queryFn: () => listAll((p) => coreApi.listContacts(p), 5000),
+  });
+  const isLoading = authLoading || queryLoading;
+
+  const regions = useMemo(() => {
+    const s = new Set<string>();
+    (contacts ?? []).forEach((c: any) => c.region && s.add(c.region));
+    return Array.from(s).sort();
+  }, [contacts]);
+
+  const filtered = useMemo(() => {
+    const t = search.trim().toLowerCase();
+    const list = (contacts ?? []).filter((c: any) => {
+      if (status !== "all" && c.status !== status) return false;
+      if (source !== "all" && c.source !== source) return false;
+      if (region !== "all" && c.region !== region) return false;
+      if (interest !== "all" && !(c.interests || []).includes(interest)) return false;
+      if (temperature !== "all" && c.sales_temperature !== temperature) return false;
+      if (activity === "low" && (c.activity_score ?? 0) >= 30) return false;
+      if (activity === "med" && ((c.activity_score ?? 0) < 30 || (c.activity_score ?? 0) > 70)) return false;
+      if (activity === "high" && (c.activity_score ?? 0) < 70) return false;
+      if (consent === "yes" && !c.consent_marketing) return false;
+      if (consent === "no" && c.consent_marketing) return false;
+      if (t) {
+        const hay = [
+          c.full_name, c.phone, c.email, c.city,
+          ...(c.interests || []).map((i: string) => INTEREST_LABELS[i] || i),
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(t)) return false;
+      }
+      return true;
+    });
+    const ts = (d: any) => (d ? new Date(d).getTime() : 0);
+    const sorted = [...list];
+    if (sort === "newest") sorted.sort((a, b) => ts(b.created_at) - ts(a.created_at));
+    else if (sort === "oldest") sorted.sort((a, b) => ts(a.created_at) - ts(b.created_at));
+    else if (sort === "activity") sorted.sort((a, b) => ts(b.last_interaction_at) - ts(a.last_interaction_at));
+    else if (sort === "name") sorted.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || "", "he"));
+    return sorted;
+  }, [contacts, search, status, source, region, interest, temperature, activity, consent, sort]);
+
+  function clearFilters() {
+    setSearch(""); setStatus("all"); setSource("all"); setRegion("all");
+    setInterest("all"); setTemperature("all"); setActivity("all"); setConsent("all");
+  }
+
+  const filterCount = [status, source, region, interest, temperature, activity, consent]
+    .filter((x) => x !== "all").length + (search ? 1 : 0);
+
+  return (
+    <div className="p-6 space-y-5 max-w-[1600px] mx-auto">
+      <header className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("אנשי קשר")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {filtered.length.toLocaleString("he-IL")} {t("מתוך")} {(contacts?.length ?? 0).toLocaleString("he-IL")}
+          </p>
+        </div>
+        <Button onClick={() => setOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" /> {t("הוסף איש קשר")}
+        </Button>
+      </header>
+
+      <Card className="p-4 space-y-3">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder={t("חיפוש לפי שם, טלפון, עיר או תחום עניין")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pr-9 bg-background"
+            />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ArrowUpDown className="h-3.5 w-3.5" />
+            <Select value={sort} onValueChange={setSort}>
+              <SelectTrigger className="bg-background h-9 w-[200px] text-xs">
+                <SelectValue placeholder={t("מיון")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">{t("החדשים ביותר (סדר הגעה)")}</SelectItem>
+                <SelectItem value="oldest">{t("הוותיקים ביותר (סדר הגעה)")}</SelectItem>
+                <SelectItem value="activity">{t("פעילות אחרונה")}</SelectItem>
+                <SelectItem value="name">{t("שם (א׳–ת׳)")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Filter className="h-3.5 w-3.5" />
+            {filterCount > 0 ? `${filterCount} ${t("סינונים פעילים")}` : t("ללא סינון")}
+            {filterCount > 0 && (
+              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={clearFilters}>
+                <X className="h-3.5 w-3.5 ml-1" /> {t("איפוס")}
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+          <FilterSelect value={status} onChange={setStatus} placeholder={t("סטטוס")} options={STATUS_LABELS} />
+          <FilterSelect value={source} onChange={setSource} placeholder={t("מקור")} options={SOURCE_LABELS} />
+          <FilterSelect value={region} onChange={setRegion} placeholder={t("אזור")} options={Object.fromEntries(regions.map((r) => [r, r]))} />
+          <FilterSelect value={interest} onChange={setInterest} placeholder={t("תחום עניין")} options={Object.fromEntries(ALL_INTERESTS.map((k) => [k, INTEREST_LABELS[k]]))} />
+          <FilterSelect value={temperature} onChange={setTemperature} placeholder={t("טמפרטורה")} options={SALES_TEMP_LABELS} />
+          <FilterSelect value={activity} onChange={setActivity} placeholder={t("פעילות")} options={{ low: t("נמוכה"), med: t("בינונית"), high: t("גבוהה") }} />
+          <FilterSelect value={consent} onChange={setConsent} placeholder={t("הסכמה")} options={{ yes: t("אישרו"), no: t("לא אישרו") }} />
+        </div>
+      </Card>
+
+      <Card className="overflow-hidden p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-right text-xs uppercase tracking-wider text-muted-foreground bg-muted/40 border-b">
+                <th className="px-4 py-3 font-medium">{t("שם")}</th>
+                <th className="px-4 py-3 font-medium">{t("טלפון")}</th>
+                <th className="px-4 py-3 font-medium">{t("מקור")}</th>
+                <th className="px-4 py-3 font-medium">{t("סטטוס")}</th>
+                <th className="px-4 py-3 font-medium">{t("אזור / עיר")}</th>
+                <th className="px-4 py-3 font-medium">{t("גיל / מגדר")}</th>
+                <th className="px-4 py-3 font-medium">{t("סטטוס משפחתי")}</th>
+                <th className="px-4 py-3 font-medium">{t("תחומי עניין")}</th>
+                <th className="px-4 py-3 font-medium">{t("פעילות")}</th>
+                <th className="px-4 py-3 font-medium">{t("טמפ׳")}</th>
+                <th className="px-4 py-3 font-medium">{t("אינטר׳")}</th>
+                <th className="px-4 py-3 font-medium">{t("הסכמה")}</th>
+                <th className="px-4 py-3 font-medium">{t("אחרון")}</th>
+                <th className="px-4 py-3 font-medium w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading && (
+                <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("טוען...")}</td></tr>
+              )}
+              {!isLoading && loadError && (
+                <tr><td colSpan={14} className="p-10 text-center text-destructive">
+                  {t("לא ניתן לטעון אנשי קשר מ-Hostinger Core כרגע.")}{" "}
+                  {(loadError as any)?.status == null && (
+                    <span className="block text-xs text-muted-foreground mt-1">
+                      {t("השרת החיצוני חוסם גישה מכתובת זו (זמין רק מהאתר המפורסם).")}
+                    </span>
+                  )}
+                  <button className="underline" onClick={() => refetch()}>{t("נסה שוב")}</button>
+                </td></tr>
+              )}
+              {!isLoading && !loadError && filtered.length === 0 && (
+                <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("אין אנשי קשר התואמים לסינון")}</td></tr>
+              )}
+              {filtered.map((c: any) => {
+                const initials = (c.full_name || c.first_name || "?").trim().slice(0, 1);
+                return (
+                  <tr
+                    key={c.id}
+                    onClick={() => navigate({ to: "/contacts/$id", params: { id: c.id } })}
+                    className="border-b last:border-b-0 hover:bg-muted/40 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-2.5">
+                      <Link
+                        to="/contacts/$id"
+                        params={{ id: c.id }}
+                        preload="intent"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-2.5 hover:text-primary"
+                      >
+                        <div className="h-8 w-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center text-xs font-semibold shrink-0">
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate flex items-center gap-1.5">
+                            {c.full_name || t("ללא שם")}
+                            {c.manager_attention_required && (
+                              <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                            )}
+                          </div>
+                          {c.email && <div className="text-[11px] text-muted-foreground truncate">{c.email}</div>}
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap" dir="ltr">{c.phone || "—"}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{SOURCE_LABELS[c.source] || c.source || "—"}</td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${STATUS_TONE[c.status] || "bg-muted text-muted-foreground border-border"}`}>
+                        {STATUS_LABELS[c.status] || c.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground">
+                      {[c.region, c.city].filter(Boolean).join(" · ") || "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                      {c.age || c.age_range || "—"}{c.gender ? ` · ${genderHe(c.gender)}` : ""}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{c.relationship_status || "—"}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex flex-wrap gap-1 max-w-[220px]">
+                        {(c.interests || []).slice(0, 3).map((i: string) => (
+                          <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
+                            {t(INTEREST_LABELS[i] || i)}
+                          </Badge>
+                        ))}
+                        {(c.interests || []).length > 3 && (
+                          <span className="text-[10px] text-muted-foreground">+{c.interests.length - 3}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <ScoreBar value={c.activity_score ?? 0} />
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {c.sales_temperature ? (
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium border ${SALES_TEMP_TONE[c.sales_temperature] || "border-border"}`}>
+                          {SALES_TEMP_LABELS[c.sales_temperature]}
+                        </span>
+                      ) : <span className="text-muted-foreground text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground tabular-nums">{c.interaction_count ?? 0}</td>
+                    <td className="px-4 py-2.5">
+                      {c.consent_marketing
+                        ? <span className="text-success text-xs font-medium">✓</span>
+                        : <span className="text-muted-foreground text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs whitespace-nowrap">{formatRelative(c.last_interaction_at)}</td>
+                    <td className="px-4 py-2.5">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => { e.stopPropagation(); setToDelete({ id: c.id, name: c.full_name || "" }); }}
+                        aria-label={t("מחק")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <ContactCreateDialog
+        open={open}
+        onOpenChange={setOpen}
+        onCreated={(id) => { refetch(); navigate({ to: "/contacts/$id", params: { id } }); }}
+      />
+      <ContactDeleteDialog
+        open={!!toDelete}
+        onOpenChange={(v) => !v && setToDelete(null)}
+        contactId={toDelete?.id ?? null}
+        contactName={toDelete?.name}
+        onDeleted={() => { setToDelete(null); refetch(); }}
+      />
+    </div>
+  );
+}
+
+function FilterSelect({ value, onChange, placeholder, options }: {
+  value: string; onChange: (v: string) => void; placeholder: string; options: Record<string, string>;
+}) {
+  const t = useT();
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="bg-background h-9 text-xs"><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">{placeholder} — {t("הכל")}</SelectItem>
+        {Object.entries(options).map(([k, v]) => (
+          <SelectItem key={k} value={k}>{t(v)}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ScoreBar({ value }: { value: number }) {
+  const v = Math.min(100, Math.max(0, value || 0));
+  const tone = v >= 70 ? "bg-success" : v >= 30 ? "bg-warning" : "bg-muted-foreground/40";
+  return (
+    <div className="flex items-center gap-2 min-w-[80px]">
+      <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full ${tone}`} style={{ width: `${v}%` }} />
+      </div>
+      <span className="text-[10px] text-muted-foreground tabular-nums w-6">{v}</span>
+    </div>
+  );
+}
+
+function genderHe(g: string) {
+  return ({ male: "ז", female: "נ", other: "א", prefer_not_to_say: "—" } as any)[g] || g;
+}
