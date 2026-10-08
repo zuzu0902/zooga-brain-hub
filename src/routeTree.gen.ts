@@ -17,9 +17,11 @@ import { Route as AppZeroLossRouteImport } from './routes/_app.zero-loss'
 import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppTamarLiteRouteImport } from './routes/_app.tamar-lite'
 import { Route as AppSystemReadinessRouteImport } from './routes/_app.system-readiness'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
 import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
 import { Route as AppPilotRouteImport } from './routes/_app.pilot'
+import { Route as AppOperatorDiagnosticsRouteImport } from './routes/_app.operator-diagnostics'
 import { Route as AppOffersRouteImport } from './routes/_app.offers'
 import { Route as AppManagerAlertsRouteImport } from './routes/_app.manager-alerts'
 import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-campaign'
@@ -27,12 +29,15 @@ import { Route as AppInboxRouteImport } from './routes/_app.inbox'
 import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
 import { Route as AppHandoffRouteImport } from './routes/_app.handoff'
 import { Route as AppContactsRouteImport } from './routes/_app.contacts'
+import { Route as AppCatalogRouteImport } from './routes/_app.catalog'
 import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
 import { Route as AppCampaignManagerRouteImport } from './routes/_app.campaign-manager'
 import { Route as AppBroadcastsRouteImport } from './routes/_app.broadcasts'
 import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
+import { Route as AppContactsIndexRouteImport } from './routes/_app.contacts.index'
 import { Route as ApiZoogaGatewayStatusRouteImport } from './routes/api/zooga/gateway-status'
 import { Route as ApiPublicZoogaCoreExportRouteImport } from './routes/api/public/zooga-core-export'
 import { Route as ApiIntrospectUiGapsRouteImport } from './routes/api/introspect/ui-gaps'
@@ -127,6 +132,11 @@ const AppSystemReadinessRoute = AppSystemReadinessRouteImport.update({
   path: '/system-readiness',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSendOfferRoute = AppSendOfferRouteImport.update({
   id: '/send-offer',
   path: '/send-offer',
@@ -140,6 +150,11 @@ const AppRuntimeTraceRoute = AppRuntimeTraceRouteImport.update({
 const AppPilotRoute = AppPilotRouteImport.update({
   id: '/pilot',
   path: '/pilot',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOperatorDiagnosticsRoute = AppOperatorDiagnosticsRouteImport.update({
+  id: '/operator-diagnostics',
+  path: '/operator-diagnostics',
   getParentRoute: () => AppRoute,
 } as any)
 const AppOffersRoute = AppOffersRouteImport.update({
@@ -177,6 +192,11 @@ const AppContactsRoute = AppContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCatalogRoute = AppCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCampaignsRoute = AppCampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
@@ -209,6 +229,16 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppContactsIndexRoute = AppContactsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppContactsRoute,
+} as any)
 const ApiZoogaGatewayStatusRoute = ApiZoogaGatewayStatusRouteImport.update({
   id: '/api/zooga/gateway-status',
   path: '/api/zooga/gateway-status',
@@ -351,34 +381,34 @@ const ApiDebugAgentsSummaryRoute = ApiDebugAgentsSummaryRouteImport.update({
 } as any)
 const AppSettingsWhatsappConnectionsRoute =
   AppSettingsWhatsappConnectionsRouteImport.update({
-    id: '/settings/whatsapp-connections',
-    path: '/settings/whatsapp-connections',
-    getParentRoute: () => AppRoute,
+    id: '/whatsapp-connections',
+    path: '/whatsapp-connections',
+    getParentRoute: () => AppSettingsRoute,
   } as any)
 const AppSettingsTamarStudioRoute = AppSettingsTamarStudioRouteImport.update({
-  id: '/settings/tamar-studio',
-  path: '/settings/tamar-studio',
-  getParentRoute: () => AppRoute,
+  id: '/tamar-studio',
+  path: '/tamar-studio',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsTamarBrainRoute = AppSettingsTamarBrainRouteImport.update({
-  id: '/settings/tamar-brain',
-  path: '/settings/tamar-brain',
-  getParentRoute: () => AppRoute,
+  id: '/tamar-brain',
+  path: '/tamar-brain',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsTamarBlocksRoute = AppSettingsTamarBlocksRouteImport.update({
-  id: '/settings/tamar-blocks',
-  path: '/settings/tamar-blocks',
-  getParentRoute: () => AppRoute,
+  id: '/tamar-blocks',
+  path: '/tamar-blocks',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsTamarRoute = AppSettingsTamarRouteImport.update({
-  id: '/settings/tamar',
-  path: '/settings/tamar',
-  getParentRoute: () => AppRoute,
+  id: '/tamar',
+  path: '/tamar',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
-  id: '/settings/api',
-  path: '/settings/api',
-  getParentRoute: () => AppRoute,
+  id: '/api',
+  path: '/api',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppOffersIdRoute = AppOffersIdRouteImport.update({
   id: '/$id',
@@ -521,6 +551,7 @@ export interface FileRoutesByFullPath {
   '/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/campaign-manager': typeof AppCampaignManagerRoute
   '/campaigns': typeof AppCampaignsRouteWithChildren
+  '/catalog': typeof AppCatalogRoute
   '/contacts': typeof AppContactsRouteWithChildren
   '/handoff': typeof AppHandoffRoute
   '/import-leads': typeof AppImportLeadsRoute
@@ -528,9 +559,11 @@ export interface FileRoutesByFullPath {
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/manager-alerts': typeof AppManagerAlertsRoute
   '/offers': typeof AppOffersRouteWithChildren
+  '/operator-diagnostics': typeof AppOperatorDiagnosticsRoute
   '/pilot': typeof AppPilotRoute
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
+  '/settings': typeof AppSettingsRouteWithChildren
   '/system-readiness': typeof AppSystemReadinessRoute
   '/tamar-lite': typeof AppTamarLiteRoute
   '/tasks': typeof AppTasksRoute
@@ -573,6 +606,8 @@ export interface FileRoutesByFullPath {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/zooga-core-export': typeof ApiPublicZoogaCoreExportRoute
   '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
+  '/contacts/': typeof AppContactsIndexRoute
+  '/settings/': typeof AppSettingsIndexRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -599,13 +634,14 @@ export interface FileRoutesByTo {
   '/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/campaign-manager': typeof AppCampaignManagerRoute
   '/campaigns': typeof AppCampaignsRouteWithChildren
-  '/contacts': typeof AppContactsRouteWithChildren
+  '/catalog': typeof AppCatalogRoute
   '/handoff': typeof AppHandoffRoute
   '/import-leads': typeof AppImportLeadsRoute
   '/inbox': typeof AppInboxRoute
   '/intake-campaign': typeof AppIntakeCampaignRoute
   '/manager-alerts': typeof AppManagerAlertsRoute
   '/offers': typeof AppOffersRouteWithChildren
+  '/operator-diagnostics': typeof AppOperatorDiagnosticsRoute
   '/pilot': typeof AppPilotRoute
   '/runtime-trace': typeof AppRuntimeTraceRoute
   '/send-offer': typeof AppSendOfferRoute
@@ -652,6 +688,8 @@ export interface FileRoutesByTo {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/zooga-core-export': typeof ApiPublicZoogaCoreExportRoute
   '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
+  '/contacts': typeof AppContactsIndexRoute
+  '/settings': typeof AppSettingsIndexRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -680,6 +718,7 @@ export interface FileRoutesById {
   '/_app/broadcasts': typeof AppBroadcastsRouteWithChildren
   '/_app/campaign-manager': typeof AppCampaignManagerRoute
   '/_app/campaigns': typeof AppCampaignsRouteWithChildren
+  '/_app/catalog': typeof AppCatalogRoute
   '/_app/contacts': typeof AppContactsRouteWithChildren
   '/_app/handoff': typeof AppHandoffRoute
   '/_app/import-leads': typeof AppImportLeadsRoute
@@ -687,9 +726,11 @@ export interface FileRoutesById {
   '/_app/intake-campaign': typeof AppIntakeCampaignRoute
   '/_app/manager-alerts': typeof AppManagerAlertsRoute
   '/_app/offers': typeof AppOffersRouteWithChildren
+  '/_app/operator-diagnostics': typeof AppOperatorDiagnosticsRoute
   '/_app/pilot': typeof AppPilotRoute
   '/_app/runtime-trace': typeof AppRuntimeTraceRoute
   '/_app/send-offer': typeof AppSendOfferRoute
+  '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/system-readiness': typeof AppSystemReadinessRoute
   '/_app/tamar-lite': typeof AppTamarLiteRoute
   '/_app/tasks': typeof AppTasksRoute
@@ -733,6 +774,8 @@ export interface FileRoutesById {
   '/api/introspect/ui-gaps': typeof ApiIntrospectUiGapsRoute
   '/api/public/zooga-core-export': typeof ApiPublicZoogaCoreExportRoute
   '/api/zooga/gateway-status': typeof ApiZoogaGatewayStatusRoute
+  '/_app/contacts/': typeof AppContactsIndexRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
   '/api/public/admin/backfill-memories': typeof ApiPublicAdminBackfillMemoriesRoute
   '/api/public/ai-assistant/run': typeof ApiPublicAiAssistantRunRoute
   '/api/public/cron/retry-handoffs': typeof ApiPublicCronRetryHandoffsRoute
@@ -762,6 +805,7 @@ export interface FileRouteTypes {
     | '/broadcasts'
     | '/campaign-manager'
     | '/campaigns'
+    | '/catalog'
     | '/contacts'
     | '/handoff'
     | '/import-leads'
@@ -769,9 +813,11 @@ export interface FileRouteTypes {
     | '/intake-campaign'
     | '/manager-alerts'
     | '/offers'
+    | '/operator-diagnostics'
     | '/pilot'
     | '/runtime-trace'
     | '/send-offer'
+    | '/settings'
     | '/system-readiness'
     | '/tamar-lite'
     | '/tasks'
@@ -814,6 +860,8 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/zooga-core-export'
     | '/api/zooga/gateway-status'
+    | '/contacts/'
+    | '/settings/'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -840,13 +888,14 @@ export interface FileRouteTypes {
     | '/broadcasts'
     | '/campaign-manager'
     | '/campaigns'
-    | '/contacts'
+    | '/catalog'
     | '/handoff'
     | '/import-leads'
     | '/inbox'
     | '/intake-campaign'
     | '/manager-alerts'
     | '/offers'
+    | '/operator-diagnostics'
     | '/pilot'
     | '/runtime-trace'
     | '/send-offer'
@@ -893,6 +942,8 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/zooga-core-export'
     | '/api/zooga/gateway-status'
+    | '/contacts'
+    | '/settings'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -920,6 +971,7 @@ export interface FileRouteTypes {
     | '/_app/broadcasts'
     | '/_app/campaign-manager'
     | '/_app/campaigns'
+    | '/_app/catalog'
     | '/_app/contacts'
     | '/_app/handoff'
     | '/_app/import-leads'
@@ -927,9 +979,11 @@ export interface FileRouteTypes {
     | '/_app/intake-campaign'
     | '/_app/manager-alerts'
     | '/_app/offers'
+    | '/_app/operator-diagnostics'
     | '/_app/pilot'
     | '/_app/runtime-trace'
     | '/_app/send-offer'
+    | '/_app/settings'
     | '/_app/system-readiness'
     | '/_app/tamar-lite'
     | '/_app/tasks'
@@ -973,6 +1027,8 @@ export interface FileRouteTypes {
     | '/api/introspect/ui-gaps'
     | '/api/public/zooga-core-export'
     | '/api/zooga/gateway-status'
+    | '/_app/contacts/'
+    | '/_app/settings/'
     | '/api/public/admin/backfill-memories'
     | '/api/public/ai-assistant/run'
     | '/api/public/cron/retry-handoffs'
@@ -1100,6 +1156,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSystemReadinessRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/send-offer': {
       id: '/_app/send-offer'
       path: '/send-offer'
@@ -1119,6 +1182,13 @@ declare module '@tanstack/react-router' {
       path: '/pilot'
       fullPath: '/pilot'
       preLoaderRoute: typeof AppPilotRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/operator-diagnostics': {
+      id: '/_app/operator-diagnostics'
+      path: '/operator-diagnostics'
+      fullPath: '/operator-diagnostics'
+      preLoaderRoute: typeof AppOperatorDiagnosticsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/offers': {
@@ -1170,6 +1240,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppContactsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/catalog': {
+      id: '/_app/catalog'
+      path: '/catalog'
+      fullPath: '/catalog'
+      preLoaderRoute: typeof AppCatalogRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/campaigns': {
       id: '/_app/campaigns'
       path: '/campaigns'
@@ -1211,6 +1288,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/.mcp/list-tools'
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/contacts/': {
+      id: '/_app/contacts/'
+      path: '/'
+      fullPath: '/contacts/'
+      preLoaderRoute: typeof AppContactsIndexRouteImport
+      parentRoute: typeof AppContactsRoute
     }
     '/api/zooga/gateway-status': {
       id: '/api/zooga/gateway-status'
@@ -1389,45 +1480,45 @@ declare module '@tanstack/react-router' {
     }
     '/_app/settings/whatsapp-connections': {
       id: '/_app/settings/whatsapp-connections'
-      path: '/settings/whatsapp-connections'
+      path: '/whatsapp-connections'
       fullPath: '/settings/whatsapp-connections'
       preLoaderRoute: typeof AppSettingsWhatsappConnectionsRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/tamar-studio': {
       id: '/_app/settings/tamar-studio'
-      path: '/settings/tamar-studio'
+      path: '/tamar-studio'
       fullPath: '/settings/tamar-studio'
       preLoaderRoute: typeof AppSettingsTamarStudioRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/tamar-brain': {
       id: '/_app/settings/tamar-brain'
-      path: '/settings/tamar-brain'
+      path: '/tamar-brain'
       fullPath: '/settings/tamar-brain'
       preLoaderRoute: typeof AppSettingsTamarBrainRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/tamar-blocks': {
       id: '/_app/settings/tamar-blocks'
-      path: '/settings/tamar-blocks'
+      path: '/tamar-blocks'
       fullPath: '/settings/tamar-blocks'
       preLoaderRoute: typeof AppSettingsTamarBlocksRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/tamar': {
       id: '/_app/settings/tamar'
-      path: '/settings/tamar'
+      path: '/tamar'
       fullPath: '/settings/tamar'
       preLoaderRoute: typeof AppSettingsTamarRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
     }
     '/_app/settings/api': {
       id: '/_app/settings/api'
-      path: '/settings/api'
+      path: '/api'
       fullPath: '/settings/api'
       preLoaderRoute: typeof AppSettingsApiRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppSettingsRoute
     }
     '/_app/offers/$id': {
       id: '/_app/offers/$id'
@@ -1621,10 +1712,12 @@ const AppCampaignsRouteWithChildren = AppCampaignsRoute._addFileChildren(
 
 interface AppContactsRouteChildren {
   AppContactsIdRoute: typeof AppContactsIdRoute
+  AppContactsIndexRoute: typeof AppContactsIndexRoute
 }
 
 const AppContactsRouteChildren: AppContactsRouteChildren = {
   AppContactsIdRoute: AppContactsIdRoute,
+  AppContactsIndexRoute: AppContactsIndexRoute,
 }
 
 const AppContactsRouteWithChildren = AppContactsRoute._addFileChildren(
@@ -1643,11 +1736,36 @@ const AppOffersRouteWithChildren = AppOffersRoute._addFileChildren(
   AppOffersRouteChildren,
 )
 
+interface AppSettingsRouteChildren {
+  AppSettingsApiRoute: typeof AppSettingsApiRoute
+  AppSettingsTamarRoute: typeof AppSettingsTamarRoute
+  AppSettingsTamarBlocksRoute: typeof AppSettingsTamarBlocksRoute
+  AppSettingsTamarBrainRoute: typeof AppSettingsTamarBrainRoute
+  AppSettingsTamarStudioRoute: typeof AppSettingsTamarStudioRoute
+  AppSettingsWhatsappConnectionsRoute: typeof AppSettingsWhatsappConnectionsRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+}
+
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsApiRoute: AppSettingsApiRoute,
+  AppSettingsTamarRoute: AppSettingsTamarRoute,
+  AppSettingsTamarBlocksRoute: AppSettingsTamarBlocksRoute,
+  AppSettingsTamarBrainRoute: AppSettingsTamarBrainRoute,
+  AppSettingsTamarStudioRoute: AppSettingsTamarStudioRoute,
+  AppSettingsWhatsappConnectionsRoute: AppSettingsWhatsappConnectionsRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAiAssistantRoute: typeof AppAiAssistantRoute
   AppBroadcastsRoute: typeof AppBroadcastsRouteWithChildren
   AppCampaignManagerRoute: typeof AppCampaignManagerRoute
   AppCampaignsRoute: typeof AppCampaignsRouteWithChildren
+  AppCatalogRoute: typeof AppCatalogRoute
   AppContactsRoute: typeof AppContactsRouteWithChildren
   AppHandoffRoute: typeof AppHandoffRoute
   AppImportLeadsRoute: typeof AppImportLeadsRoute
@@ -1655,20 +1773,16 @@ interface AppRouteChildren {
   AppIntakeCampaignRoute: typeof AppIntakeCampaignRoute
   AppManagerAlertsRoute: typeof AppManagerAlertsRoute
   AppOffersRoute: typeof AppOffersRouteWithChildren
+  AppOperatorDiagnosticsRoute: typeof AppOperatorDiagnosticsRoute
   AppPilotRoute: typeof AppPilotRoute
   AppRuntimeTraceRoute: typeof AppRuntimeTraceRoute
   AppSendOfferRoute: typeof AppSendOfferRoute
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppSystemReadinessRoute: typeof AppSystemReadinessRoute
   AppTamarLiteRoute: typeof AppTamarLiteRoute
   AppTasksRoute: typeof AppTasksRoute
   AppZeroLossRoute: typeof AppZeroLossRoute
   AppIndexRoute: typeof AppIndexRoute
-  AppSettingsApiRoute: typeof AppSettingsApiRoute
-  AppSettingsTamarRoute: typeof AppSettingsTamarRoute
-  AppSettingsTamarBlocksRoute: typeof AppSettingsTamarBlocksRoute
-  AppSettingsTamarBrainRoute: typeof AppSettingsTamarBrainRoute
-  AppSettingsTamarStudioRoute: typeof AppSettingsTamarStudioRoute
-  AppSettingsWhatsappConnectionsRoute: typeof AppSettingsWhatsappConnectionsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1676,6 +1790,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBroadcastsRoute: AppBroadcastsRouteWithChildren,
   AppCampaignManagerRoute: AppCampaignManagerRoute,
   AppCampaignsRoute: AppCampaignsRouteWithChildren,
+  AppCatalogRoute: AppCatalogRoute,
   AppContactsRoute: AppContactsRouteWithChildren,
   AppHandoffRoute: AppHandoffRoute,
   AppImportLeadsRoute: AppImportLeadsRoute,
@@ -1683,20 +1798,16 @@ const AppRouteChildren: AppRouteChildren = {
   AppIntakeCampaignRoute: AppIntakeCampaignRoute,
   AppManagerAlertsRoute: AppManagerAlertsRoute,
   AppOffersRoute: AppOffersRouteWithChildren,
+  AppOperatorDiagnosticsRoute: AppOperatorDiagnosticsRoute,
   AppPilotRoute: AppPilotRoute,
   AppRuntimeTraceRoute: AppRuntimeTraceRoute,
   AppSendOfferRoute: AppSendOfferRoute,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
   AppSystemReadinessRoute: AppSystemReadinessRoute,
   AppTamarLiteRoute: AppTamarLiteRoute,
   AppTasksRoute: AppTasksRoute,
   AppZeroLossRoute: AppZeroLossRoute,
   AppIndexRoute: AppIndexRoute,
-  AppSettingsApiRoute: AppSettingsApiRoute,
-  AppSettingsTamarRoute: AppSettingsTamarRoute,
-  AppSettingsTamarBlocksRoute: AppSettingsTamarBlocksRoute,
-  AppSettingsTamarBrainRoute: AppSettingsTamarBrainRoute,
-  AppSettingsTamarStudioRoute: AppSettingsTamarStudioRoute,
-  AppSettingsWhatsappConnectionsRoute: AppSettingsWhatsappConnectionsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

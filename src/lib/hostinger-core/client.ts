@@ -8,6 +8,7 @@
  * service token ever reaches the browser.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { parseControlCenter } from "./control-center";
 
 // MIGRATION: public Hostinger Core base URL (non-secret).
 export const HOSTINGER_CORE_BASE_URL = "https://zooga-core.72-62-31-90.sslip.io";
@@ -90,6 +91,7 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
   }
 
   return {
+    controlCenter: async () => parseControlCenter(await request<unknown>("/v1/admin/control-center")),
     /** Creates approval-held outbound drafts only. Never sends WhatsApp. */
     createOutboundCampaign: (body: {
       idempotency_key: string;
