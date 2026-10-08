@@ -50,10 +50,6 @@ const PRIMARY_NAV: NavEntry[] = [
     children: [
       { to: "/catalog", label: "קטלוג", icon: Tag },
       { to: "/campaign-manager", label: "מנהל קמפיינים", icon: Megaphone },
-      { to: "/campaigns", label: "ניהול קמפיינים", icon: Megaphone },
-      { to: "/send-offer", label: "שליחת הצעה", icon: Send },
-      { to: "/import-leads", label: "ייבוא לידים", icon: Upload },
-      { to: "/intake-campaign", label: "קמפיין אינטייק", icon: Megaphone },
     ],
   },
   {
@@ -68,6 +64,10 @@ const PRIMARY_NAV: NavEntry[] = [
 ];
 
 const ADVANCED_NAV: NavItem[] = [
+  { to: "/campaigns", label: "ניהול קמפיינים — קודם", icon: Megaphone },
+  { to: "/send-offer", label: "שליחת הצעה", icon: Send },
+  { to: "/import-leads", label: "ייבוא לידים", icon: Upload },
+  { to: "/intake-campaign", label: "קמפיין אינטייק", icon: Megaphone },
   { to: "/pilot", label: "פיילוט תמר", icon: Rocket },
   { to: "/settings/api", label: "API", icon: Settings },
   { to: "/operator-diagnostics", label: "אימות ונתוני מעבר", icon: Wrench },

@@ -63,7 +63,7 @@ function ContactsPage() {
     retry: (n, e: any) => (e?.status === 401 ? n < 2 : n < 1),
     queryFn: () => listAll((p) => coreApi.listContacts(p), 5000),
   });
-  const isLoading = authLoading || queryLoading;
+  const isLoading = authLoading || !session || queryLoading;
 
   const regions = useMemo(() => {
     const s = new Set<string>();
@@ -111,12 +111,12 @@ function ContactsPage() {
     .filter((x) => x !== "all").length + (search ? 1 : 0);
 
   return (
-    <div className="p-6 space-y-5 max-w-[1600px] mx-auto">
+    <div className="p-4 md:p-6 space-y-5 max-w-[1600px] mx-auto" dir="rtl">
       <header className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("אנשי קשר")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {filtered.length.toLocaleString("he-IL")} {t("מתוך")} {(contacts?.length ?? 0).toLocaleString("he-IL")}
+            {isLoading ? t("טוען…") : loadError ? t("הנתונים אינם זמינים כרגע") : `${filtered.length.toLocaleString("he-IL")} ${t("מתוך")} ${(contacts?.length ?? 0).toLocaleString("he-IL")}`}
           </p>
         </div>
         <Button onClick={() => setOpen(true)} className="gap-2">
@@ -124,7 +124,7 @@ function ContactsPage() {
         </Button>
       </header>
 
-      <Card className="p-4 space-y-3">
+      <section className="border-y py-4 space-y-3">
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -168,7 +168,7 @@ function ContactsPage() {
           <FilterSelect value={activity} onChange={setActivity} placeholder={t("פעילות")} options={{ low: t("נמוכה"), med: t("בינונית"), high: t("גבוהה") }} />
           <FilterSelect value={consent} onChange={setConsent} placeholder={t("הסכמה")} options={{ yes: t("אישרו"), no: t("לא אישרו") }} />
         </div>
-      </Card>
+      </section>
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -198,18 +198,13 @@ function ContactsPage() {
               {!isLoading && loadError && (
                 <tr><td colSpan={14} className="p-10 text-center text-destructive">
                   {t("לא ניתן לטעון אנשי קשר מ-Hostinger Core כרגע.")}{" "}
-                  {(loadError as any)?.status == null && (
-                    <span className="block text-xs text-muted-foreground mt-1">
-                      {t("השרת החיצוני חוסם גישה מכתובת זו (זמין רק מהאתר המפורסם).")}
-                    </span>
-                  )}
-                  <button className="underline" onClick={() => refetch()}>{t("נסה שוב")}</button>
+                  <Button variant="outline" className="mt-2" onClick={() => refetch()}>{t("נסה שוב")}</Button>
                 </td></tr>
               )}
               {!isLoading && !loadError && filtered.length === 0 && (
                 <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("אין אנשי קשר התואמים לסינון")}</td></tr>
               )}
-              {filtered.map((c: any) => {
+              {!loadError && !isLoading && filtered.map((c: any) => {
                 const initials = (c.full_name || c.first_name || "?").trim().slice(0, 1);
                 return (
                   <tr
