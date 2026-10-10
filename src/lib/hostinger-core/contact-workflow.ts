@@ -14,7 +14,7 @@ export type WorkflowTask = { id: string; title: string | null; description: stri
 export type ContactWorkflow = {
   contact_id: string;
   customer_consent: "unknown" | "asked" | "granted" | "declined";
-  intake: { state: string | null; completed: string[]; missing: string[]; completion_score: number };
+  intake: { state: string | null; completed: string[]; missing: string[]; required: string[]; completion_score: number; definitions_source: string | null };
   consents: WorkflowConsent[]; messages: WorkflowMessage[]; next_cursor: string | null;
   memories: WorkflowMemory[]; facts: WorkflowFact[]; audits: WorkflowAudit[]; handoffs: WorkflowHandoff[]; tasks: WorkflowTask[];
 };
@@ -42,7 +42,7 @@ export function parseContactWorkflow(body: unknown, expectedId: string): Contact
   });
   return {
     contact_id: expectedId, customer_consent: cc,
-    intake: { state: s(intake.state), completed: strs(intake.completed), missing: strs(intake.missing), completion_score: Number.isFinite(Number(intake.completion_score)) ? Number(intake.completion_score) : 0 },
+    intake: { state: s(intake.state), completed: strs(intake.completed), missing: strs(intake.missing), required: strs(intake.required), definitions_source: s(intake.definitions_source), completion_score: Number.isFinite(Number(intake.completion_score)) ? Number(intake.completion_score) : 0 },
     consents: arr(w, "consents").map((c) => { const r = o(c); return { channel: s(r.channel), status: s(r.status), wording_version: s(r.wording_version), evidence: o(r.evidence), source_system: s(r.source_system), recorded_at: s(r.recorded_at) }; }),
     messages, next_cursor: s(w.next_cursor),
     memories: arr(w, "memories").map((m) => { const r = o(m); return { memory_key: s(r.memory_key) ?? "", memory_value: r.memory_value, source_updated_at: s(r.source_updated_at) }; }),
@@ -90,6 +90,7 @@ const FIELD_LABELS: Record<string, string> = {
   first_name: "שם פרטי", last_name: "שם משפחה", full_name: "שם מלא", phone: "טלפון", email: "אימייל", city: "עיר", region: "אזור",
   age: "גיל", age_range: "טווח גיל", gender: "מגדר", relationship_status: "סטטוס משפחתי", interests: "תחומי עניין",
   budget: "תקציב", preferred_dates: "תאריכים מועדפים", accessibility: "נגישות", occupation: "עיסוק", children: "ילדים",
+  birth_date: "תאריך לידה", primary_goal: "מטרת הקשר", manager_summary: "סיכום מנהל",
   social_or_relationship_goal: "מטרה חברתית או זוגית", preferred_activity_type: "סוג פעילות מועדף", city_or_region: "עיר או אזור",
   age_or_birth_date: "גיל או תאריך לידה", source_attribution: "מקור הגעה", budget_sensitivity_or_range: "תקציב או רגישות למחיר",
   language_style_preference: "סגנון שפה מועדף", conversation_summary: "סיכום שיחה",
@@ -115,3 +116,12 @@ export function memoryText(v: unknown): string {
   if (Array.isArray(v)) return v.map(memoryText).join(", ");
   return Object.entries(o(v)).filter(([, x]) => x != null && x !== "").map(([k, x]) => `${fieldLabel(k)}: ${memoryText(x)}`).join(" · ") || "—";
 }
+
+export type AuditSource = "manager" | "historical" | "model";
+/** Manager outcomes and historical repairs are not model analysis. */
+export function auditSource(a: { record_kind: string | null; mode: string | null }): AuditSource {
+  if (a.record_kind === "manager_outcome") return "manager";
+  if (a.mode === "historical_repair") return "historical";
+  return "model";
+}
+export const AUDIT_SOURCE_LABEL: Record<AuditSource, string> = { manager: "סיכום מנהל", historical: "סקירה היסטורית", model: "ניתוח מודל" };
