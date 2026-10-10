@@ -43,16 +43,27 @@ export function matchesFilter(item: Record<string, any>, f: CatalogFilter, now =
 }
 
 export type CatalogForm = {
-  title: string; category: string; lifecycle_status: CatalogLifecycle; url: string; description: string;
+  title: string; category: string; lifecycle_status: CatalogLifecycle; url: string; description: string; event_knowledge: string;
   event_date: string; event_end_date: string; price: string; currency: string; sellable: boolean;
 };
 export function emptyForm(): CatalogForm {
-  return { title: "", category: "", lifecycle_status: "draft", url: "", description: "", event_date: "", event_end_date: "", price: "", currency: "ILS", sellable: false };
+  return { title: "", category: "", lifecycle_status: "draft", url: "", description: "", event_knowledge: "", event_date: "", event_end_date: "", price: "", currency: "ILS", sellable: false };
 }
 const toLocal = (v: unknown) => { if (!v) return ""; const d = new Date(String(v)); return isNaN(d.getTime()) ? "" : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 export function formFromItem(i: Record<string, any>): CatalogForm {
-  return { title: i.title ?? "", category: i.category ?? "", lifecycle_status: lifecycleOf(i), url: i.url ?? "", description: i.description ?? "",
+  return { title: i.title ?? "", category: i.category ?? "", lifecycle_status: lifecycleOf(i), url: i.url ?? "", description: i.description ?? "", event_knowledge: typeof i.event_knowledge === "string" ? i.event_knowledge : "",
     event_date: toLocal(i.event_date), event_end_date: toLocal(i.event_end_date), price: typeof i.price === "number" ? String(i.price) : "", currency: i.currency || "ILS", sellable: i.sellable === true };
+}
+
+/** Preserve any existing ISO currency instead of replacing it with a default. */
+export function catalogCurrencyOptions(current: string): { code: string; label: string }[] {
+  const options = [
+    { code: "ILS", label: "₪ (ILS)" },
+    { code: "EUR", label: "אירו (EUR)" },
+    { code: "USD", label: "דולר אמריקאי (USD)" },
+  ];
+  if (current && !options.some(option => option.code === current)) options.push({ code: current, label: current });
+  return options;
 }
 
 /** Validate and convert a form into a Core request body. Returns errors (Hebrew) or body. */
@@ -71,5 +82,5 @@ export function formToInput(f: CatalogForm): { errors: string[]; body?: CoreCata
   if (start && end && end < start) errors.push("תאריך סיום לפני תאריך התחלה");
   if (errors.length) return { errors };
   return { errors, body: { title, category: f.category.trim() || null, lifecycle_status: f.lifecycle_status, url: url || null,
-    description: f.description.trim() || null, event_date: start, event_end_date: end, price, currency: currency || null, sellable: f.sellable } };
+    description: f.description.trim() || null, event_knowledge: f.event_knowledge.trim() || null, event_date: start, event_end_date: end, price, currency: currency || null, sellable: f.sellable } };
 }

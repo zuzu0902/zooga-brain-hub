@@ -6,7 +6,7 @@ import { Plus, Pencil, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { coreApi, listAll, CoreApiError, type CatalogLifecycle, type CoreCatalogItem } from "@/lib/hostinger-core/client";
 import { operatorHead } from "@/lib/hostinger-core/operator-head";
-import { tamarEligibility, matchesFilter, lifecycleOf, emptyForm, formFromItem, formToInput, type CatalogFilter, type CatalogForm } from "@/lib/hostinger-core/catalog";
+import { tamarEligibility, matchesFilter, lifecycleOf, emptyForm, formFromItem, formToInput, catalogCurrencyOptions, type CatalogFilter, type CatalogForm } from "@/lib/hostinger-core/catalog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CoreReadState, Empty } from "@/components/operator-data";
 
@@ -57,7 +58,8 @@ function Catalog() {
             {typeof item.price === "number" && <div className="text-foreground font-medium">{new Intl.NumberFormat("he-IL", { style: "currency", currency: /^[A-Z]{3}$/.test(item.currency ?? "") ? item.currency : "ILS" }).format(item.price)}</div>}
             {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="text-primary break-all block" dir="ltr">{item.url}</a> : <div>ללא קישור</div>}
           </div>
-          {el.ready ? <div className="flex items-center gap-2 text-sm text-success"><CheckCircle2 className="h-4 w-4" />מוכן לתמר</div>
+           {typeof item.event_knowledge === "string" && item.event_knowledge.trim() && <Badge variant="outline" className="self-start">יש מידע לתמר</Badge>}
+           {el.ready ? <div className="flex items-center gap-2 text-sm text-success"><CheckCircle2 className="h-4 w-4" />מוכן לתמר</div>
             : <div className="text-sm text-warning-foreground flex gap-2"><AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /><span>לא מוכן לתמר: {el.reasons.join(" · ")}</span></div>}
           <div className="flex flex-wrap gap-2 mt-auto pt-2">
             <Button size="sm" variant="outline" onClick={() => setEditing(item)}><Pencil className="h-3.5 w-3.5" />עריכה</Button>
@@ -88,10 +90,11 @@ function EditDialog({ item, onClose, onSaved }: { item: CoreCatalogItem | null; 
         <div><Label>סטטוס</Label><select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={f.lifecycle_status} onChange={e => set("lifecycle_status", e.target.value as CatalogLifecycle)}>{Object.entries(LIFE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div></div>
       <div><Label>קישור (https)</Label><Input dir="ltr" value={f.url} onChange={e => set("url", e.target.value)} placeholder="https://" /></div>
       <div><Label>תיאור</Label><Textarea rows={3} value={f.description} onChange={e => set("description", e.target.value)} /></div>
+      <div><Label htmlFor="catalog-event-knowledge">מידע לתמר על האירוע</Label><Textarea id="catalog-event-knowledge" name="event_knowledge" rows={5} value={f.event_knowledge} onChange={e => set("event_knowledge", e.target.value)} placeholder="מה קורה באירוע, קהל יעד, מיקום ולו״ז, תנאים, ומה מותר או אסור להבטיח — עובדות מאומתות בלבד" /></div>
       <div className="grid grid-cols-2 gap-3"><div><Label>תאריך התחלה</Label><Input type="datetime-local" value={f.event_date} onChange={e => set("event_date", e.target.value)} /></div>
         <div><Label>תאריך סיום</Label><Input type="datetime-local" value={f.event_end_date} onChange={e => set("event_end_date", e.target.value)} /></div></div>
       <div className="grid grid-cols-2 gap-3"><div><Label>מחיר</Label><Input type="number" min={0} value={f.price} onChange={e => set("price", e.target.value)} /></div>
-        <div><Label>מטבע</Label><Input dir="ltr" maxLength={3} value={f.currency} onChange={e => set("currency", e.target.value)} /></div></div>
+         <div><Label htmlFor="catalog-currency">מטבע</Label><Select dir="rtl" value={f.currency} onValueChange={v => set("currency", v)}><SelectTrigger id="catalog-currency"><SelectValue /></SelectTrigger><SelectContent>{catalogCurrencyOptions(f.currency).map(option => <SelectItem key={option.code} value={option.code}>{option.label}</SelectItem>)}</SelectContent></Select></div></div>
       <label className="flex items-center gap-3 text-sm"><Switch checked={f.sellable} onCheckedChange={v => set("sellable", v)} />זמין למכירה</label>
       {errors.length > 0 && <ul role="alert" className="text-sm text-destructive list-disc ps-5">{errors.map(e => <li key={e}>{e}</li>)}</ul>}
     </div>
