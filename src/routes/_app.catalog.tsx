@@ -6,7 +6,7 @@ import { Plus, Pencil, CheckCircle2, AlertTriangle, Sparkles } from "lucide-reac
 import { useAuth } from "@/lib/auth-context";
 import { coreApi, listAll, CoreApiError, type CatalogLifecycle, type CoreCatalogItem } from "@/lib/hostinger-core/client";
 import { operatorHead } from "@/lib/hostinger-core/operator-head";
-import { tamarEligibility, matchesFilter, lifecycleOf, emptyForm, formFromItem, formToInput, catalogCurrencyOptions, type CatalogFilter, type CatalogForm } from "@/lib/hostinger-core/catalog";
+import { tamarEligibility, matchesFilter, lifecycleOf, emptyForm, formFromItem, formToInput, catalogCurrencyOptions, applyCatalogSuggestion, type CatalogFilter, type CatalogForm } from "@/lib/hostinger-core/catalog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
