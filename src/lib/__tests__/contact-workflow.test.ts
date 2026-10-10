@@ -9,7 +9,7 @@ export const fixture = { ok: true, workflow: {
   contact_id: ID, customer_consent: "granted",
   intake: { state: "in_progress", completed: ["first_name", "city"], missing: ["relationship_status"], completion_score: 0.66 },
   consents: [
-    { channel: "whatsapp", status: "granted", wording_version: "v2", evidence: { ask: { wording: "אפשר לדבר כאן?", sent_at: "2026-10-01T10:00:00Z" }, response: { answer: "yes", text: "כן בכיף", provider_message_id: "wamid.1", responded_at: "2026-10-01T10:01:00Z" } }, source_system: "tamar", recorded_at: "2026-10-01T10:01:00Z" },
+    { channel: "whatsapp", status: "granted", wording_version: "v2", evidence: { ask: { wording: "אפשר לדבר כאן?", sent_at: "2026-10-01T10:00:00Z", envelope_id: "env1" }, linked: true, response: { answer: "yes", text: "כן בכיף", provider_message_id: "wamid.1", responded_at: "2026-10-01T10:01:00Z" } }, source_system: "tamar", recorded_at: "2026-10-01T10:01:00Z" },
     { channel: "whatsapp", status: "granted", wording_version: null, evidence: {}, source_system: "operator", recorded_at: "2026-10-02T10:00:00Z" },
   ],
   conversations: [], messages: [msg("m2", "outbound", "שלום Kobi!\nאני תמר", "2026-10-01T10:00:00Z"), msg("m3", "inbound", "כן בכיף", "2026-10-01T10:01:00Z")],
@@ -54,5 +54,27 @@ describe("contact workflow", () => {
     const w = parseContactWorkflow(fixture, ID);
     const olderPage = parseContactWorkflow({ ok: true, workflow: { ...fixture.workflow, messages: [msg("m1", "outbound", "a", "2026-09-30T10:00:00Z"), msg("m2", "outbound", "dup", "x")], next_cursor: null } }, ID);
     expect(mergeOlderMessages(olderPage.messages, w.messages).map(m => m.id)).toEqual(["m1", "m2", "m3"]);
+  });
+  it("Hebrew labels for contract fields, states and intents", async () => {
+    const { fieldLabel, stateLabel } = await import("@/lib/hostinger-core/contact-workflow");
+    for (const k of ["social_or_relationship_goal", "preferred_activity_type", "city_or_region", "age_or_birth_date", "source_attribution", "budget_sensitivity_or_range", "language_style_preference", "conversation_summary"]) expect(fieldLabel(k)).toMatch(/[\u0590-\u05FF]/);
+    for (const k of ["awaiting_consent", "active", "handoff", "claimed", "accepted", "in_progress", "human_request", "pricing", "travel"]) expect(stateLabel(k)).toMatch(/[\u0590-\u05FF]/);
+  });
+  it("keeps system messages instead of rejecting the card", () => {
+    const w = parseContactWorkflow({ ok: true, workflow: { ...fixture.workflow, messages: [...fixture.workflow.messages, msg("s1", "system", "הועבר למנהל", "2026-10-01T12:00:00Z")] } }, ID);
+    expect(w.messages.at(-1)).toMatchObject({ id: "s1", direction: "system" });
+  });
+  it("strict consent: text alone or unlinked evidence is not a confirmed yes; decline stays visible", () => {
+    const base = fixture.workflow.consents[0];
+    const ev = base.evidence as any;
+    const v = (evidence: any) => consentView({ ...parseContactWorkflow(fixture, ID).consents[0], evidence });
+    expect(v(ev).fromCustomer).toBe(true);
+    expect(v({ ...ev, linked: false }).fromCustomer).toBe(false);
+    expect(v({ ...ev, ask: { wording: "x" } }).fromCustomer).toBe(false);
+    expect(v({ ...ev, response: { text: "כן בכיף" } }).fromCustomer).toBe(false);
+    expect(v({ ...ev, response: { ...ev.response, provider_message_id: null } }).fromCustomer).toBe(false);
+    const no = v({ ...ev, response: { answer: "no", text: "לא תודה", provider_message_id: "wamid.2" } });
+    expect(no).toMatchObject({ fromCustomer: false, customerAnswer: "no", customerText: "לא תודה" });
+    expect(no.note).toContain("סירב");
   });
 });

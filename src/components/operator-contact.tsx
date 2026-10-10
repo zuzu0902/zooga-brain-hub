@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
@@ -27,15 +27,19 @@ export function OperatorContact({ id }: { id: string }) {
   const wf = useQuery({ queryKey: wfKey, queryFn: () => coreApi.getContactWorkflow(id), enabled: !loading && !!session, refetchInterval: (qq) => (qq.state.error ? false : 30000), retry: (n, e: any) => ![401, 403, 404].includes(e?.status) && !String(e?.message).startsWith("contact_workflow_malformed") && n < 1 });
   const [older, setOlder] = useState<{ messages: WorkflowMessage[]; cursor: string | null } | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  useEffect(() => { setOlder(null); }, [id, session?.user.id]);
+  const scopeKey = `${id}|${session?.user.id ?? ""}`;
+  const scopeRef = useRef(scopeKey);
+  scopeRef.current = scopeKey;
+  useEffect(() => { setOlder(null); setLoadingOlder(false); }, [scopeKey]);
   const messages = useMemo(() => mergeOlderMessages(older?.messages ?? [], wf.data?.messages ?? []), [older, wf.data]);
   const cursor = older ? older.cursor : wf.data?.next_cursor ?? null;
   async function loadOlder() {
     if (!cursor) return;
+    const startedFor = scopeKey;
     setLoadingOlder(true);
-    try { const page = await coreApi.getContactWorkflow(id, cursor); setOlder(prev => ({ messages: mergeOlderMessages(page.messages, prev?.messages ?? []), cursor: page.next_cursor })); }
-    catch { toast.error("לא ניתן לטעון הודעות קודמות כרגע"); }
-    finally { setLoadingOlder(false); }
+    try { const page = await coreApi.getContactWorkflow(id, cursor); if (scopeRef.current !== startedFor) return; setOlder(prev => ({ messages: mergeOlderMessages(page.messages, prev?.messages ?? []), cursor: page.next_cursor })); }
+    catch { if (scopeRef.current === startedFor) toast.error("לא ניתן לטעון הודעות קודמות כרגע"); }
+    finally { if (scopeRef.current === startedFor) setLoadingOlder(false); }
   }
   const refreshAll = () => Promise.all([qc.invalidateQueries({ queryKey: ["core-contact", id] }), qc.invalidateQueries({ queryKey: ["core-contact-workflow", id] })]);
   const wfState = <CoreReadState loading={loading || !session || wf.isPending} error={wf.error} retry={() => wf.refetch()} />;
