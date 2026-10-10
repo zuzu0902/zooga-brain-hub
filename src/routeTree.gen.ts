@@ -9,92 +9,93 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AppRouteImport } from './routes/_app'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
-import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
-import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
-import { Route as AppBroadcastsRouteImport } from './routes/_app.broadcasts'
-import { Route as AppCampaignManagerRouteImport } from './routes/_app.campaign-manager'
-import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
-import { Route as AppCatalogRouteImport } from './routes/_app.catalog'
-import { Route as AppContactsRouteImport } from './routes/_app.contacts'
-import { Route as AppHandoffRouteImport } from './routes/_app.handoff'
-import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
-import { Route as AppInboxRouteImport } from './routes/_app.inbox'
-import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-campaign'
-import { Route as AppManagerAlertsRouteImport } from './routes/_app.manager-alerts'
-import { Route as AppOffersRouteImport } from './routes/_app.offers'
-import { Route as AppOperatorDiagnosticsRouteImport } from './routes/_app.operator-diagnostics'
-import { Route as AppPilotRouteImport } from './routes/_app.pilot'
-import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
-import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AppSystemReadinessRouteImport } from './routes/_app.system-readiness'
-import { Route as AppTamarLiteRouteImport } from './routes/_app.tamar-lite'
-import { Route as AppTasksRouteImport } from './routes/_app.tasks'
 import { Route as AppZeroLossRouteImport } from './routes/_app.zero-loss'
-import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
-import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
-import { Route as AppBroadcastsIdRouteImport } from './routes/_app.broadcasts.$id'
-import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
-import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new'
-import { Route as AppContactsIndexRouteImport } from './routes/_app.contacts.index'
-import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
-import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
+import { Route as AppTasksRouteImport } from './routes/_app.tasks'
+import { Route as AppTamarLiteRouteImport } from './routes/_app.tamar-lite'
+import { Route as AppSystemReadinessRouteImport } from './routes/_app.system-readiness'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppSendOfferRouteImport } from './routes/_app.send-offer'
+import { Route as AppRuntimeTraceRouteImport } from './routes/_app.runtime-trace'
+import { Route as AppPilotRouteImport } from './routes/_app.pilot'
+import { Route as AppOperatorDiagnosticsRouteImport } from './routes/_app.operator-diagnostics'
+import { Route as AppOffersRouteImport } from './routes/_app.offers'
+import { Route as AppManagerAlertsRouteImport } from './routes/_app.manager-alerts'
+import { Route as AppIntakeCampaignRouteImport } from './routes/_app.intake-campaign'
+import { Route as AppInboxRouteImport } from './routes/_app.inbox'
+import { Route as AppImportLeadsRouteImport } from './routes/_app.import-leads'
+import { Route as AppHandoffRouteImport } from './routes/_app.handoff'
+import { Route as AppContactsRouteImport } from './routes/_app.contacts'
+import { Route as AppCatalogRouteImport } from './routes/_app.catalog'
+import { Route as AppCampaignsRouteImport } from './routes/_app.campaigns'
+import { Route as AppCampaignManagerRouteImport } from './routes/_app.campaign-manager'
+import { Route as AppBroadcastsRouteImport } from './routes/_app.broadcasts'
+import { Route as AppAiAssistantRouteImport } from './routes/_app.ai-assistant'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
-import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
-import { Route as AppSettingsTamarRouteImport } from './routes/_app.settings.tamar'
-import { Route as AppSettingsTamarBlocksRouteImport } from './routes/_app.settings.tamar-blocks'
-import { Route as AppSettingsTamarBrainRouteImport } from './routes/_app.settings.tamar-brain'
-import { Route as AppSettingsTamarStudioRouteImport } from './routes/_app.settings.tamar-studio'
-import { Route as AppSettingsWhatsappConnectionsRouteImport } from './routes/_app.settings.whatsapp-connections'
-import { Route as ApiDebugAgentsSummaryRouteImport } from './routes/api/debug/agents-summary'
-import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
-import { Route as ApiDebugIntegrationsStatusRouteImport } from './routes/api/debug/integrations-status'
-import { Route as ApiDebugRecentEventsRouteImport } from './routes/api/debug/recent-events'
-import { Route as ApiDebugSchemaSummaryRouteImport } from './routes/api/debug/schema-summary'
-import { Route as ApiDebugSystemSummaryRouteImport } from './routes/api/debug/system-summary'
-import { Route as ApiDebugTamarConfigRouteImport } from './routes/api/debug/tamar-config'
-import { Route as ApiInternalZoogaCoreExportRouteImport } from './routes/api/internal/zooga-core-export'
-import { Route as ApiIntrospectAgentsSummaryRouteImport } from './routes/api/introspect/agents-summary'
-import { Route as ApiIntrospectBackendMapRouteImport } from './routes/api/introspect/backend-map'
-import { Route as ApiIntrospectCampaignsSummaryRouteImport } from './routes/api/introspect/campaigns-summary'
-import { Route as ApiIntrospectCrmSummaryRouteImport } from './routes/api/introspect/crm-summary'
-import { Route as ApiIntrospectDeploymentSummaryRouteImport } from './routes/api/introspect/deployment-summary'
-import { Route as ApiIntrospectFeatureFlagsRouteImport } from './routes/api/introspect/feature-flags'
-import { Route as ApiIntrospectFrontendMapRouteImport } from './routes/api/introspect/frontend-map'
-import { Route as ApiIntrospectHealthReportRouteImport } from './routes/api/introspect/health-report'
-import { Route as ApiIntrospectIntegrationsStatusRouteImport } from './routes/api/introspect/integrations-status'
-import { Route as ApiIntrospectRecentEventsRouteImport } from './routes/api/introspect/recent-events'
-import { Route as ApiIntrospectSchemaSummaryRouteImport } from './routes/api/introspect/schema-summary'
-import { Route as ApiIntrospectSystemOverviewRouteImport } from './routes/api/introspect/system-overview'
-import { Route as ApiIntrospectTamarConfigRouteImport } from './routes/api/introspect/tamar-config'
-import { Route as ApiIntrospectTamarRoutingRouteImport } from './routes/api/introspect/tamar-routing'
-import { Route as ApiIntrospectUiGapsRouteImport } from './routes/api/introspect/ui-gaps'
-import { Route as ApiPublicZoogaCoreExportRouteImport } from './routes/api/public/zooga-core-export'
+import { Route as AppContactsIndexRouteImport } from './routes/_app.contacts.index'
 import { Route as ApiZoogaGatewayStatusRouteImport } from './routes/api/zooga/gateway-status'
-import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
-import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
-import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
-import { Route as ApiPublicCronWhatsappBroadcastRunnerRouteImport } from './routes/api/public/cron/whatsapp-broadcast-runner'
-import { Route as ApiPublicCronZeroLossReconcileRouteImport } from './routes/api/public/cron/zero-loss-reconcile'
-import { Route as ApiPublicCronZeroLossWorkerRouteImport } from './routes/api/public/cron/zero-loss-worker'
-import { Route as ApiPublicCronZoogaBrainExecutorRouteImport } from './routes/api/public/cron/zooga-brain-executor'
-import { Route as ApiPublicCronZoogaShadowDrainRouteImport } from './routes/api/public/cron/zooga-shadow-drain'
-import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
-import { Route as ApiPublicRuntimeAgentCommandRouteImport } from './routes/api/public/runtime/agent-command'
-import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
-import { Route as ApiPublicRuntimeGatewayRotateCredentialRouteImport } from './routes/api/public/runtime/gateway-rotate-credential'
-import { Route as ApiPublicRuntimeTamarDeliveryAuditRouteImport } from './routes/api/public/runtime/tamar-delivery-audit'
-import { Route as ApiPublicRuntimeTamarGenerateRouteImport } from './routes/api/public/runtime/tamar-generate'
-import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
+import { Route as ApiPublicZoogaCoreExportRouteImport } from './routes/api/public/zooga-core-export'
+import { Route as ApiIntrospectUiGapsRouteImport } from './routes/api/introspect/ui-gaps'
+import { Route as ApiIntrospectTamarRoutingRouteImport } from './routes/api/introspect/tamar-routing'
+import { Route as ApiIntrospectTamarConfigRouteImport } from './routes/api/introspect/tamar-config'
+import { Route as ApiIntrospectSystemOverviewRouteImport } from './routes/api/introspect/system-overview'
+import { Route as ApiIntrospectSchemaSummaryRouteImport } from './routes/api/introspect/schema-summary'
+import { Route as ApiIntrospectRecentEventsRouteImport } from './routes/api/introspect/recent-events'
+import { Route as ApiIntrospectIntegrationsStatusRouteImport } from './routes/api/introspect/integrations-status'
+import { Route as ApiIntrospectHealthReportRouteImport } from './routes/api/introspect/health-report'
+import { Route as ApiIntrospectFrontendMapRouteImport } from './routes/api/introspect/frontend-map'
+import { Route as ApiIntrospectFeatureFlagsRouteImport } from './routes/api/introspect/feature-flags'
+import { Route as ApiIntrospectDeploymentSummaryRouteImport } from './routes/api/introspect/deployment-summary'
+import { Route as ApiIntrospectCrmSummaryRouteImport } from './routes/api/introspect/crm-summary'
+import { Route as ApiIntrospectCampaignsSummaryRouteImport } from './routes/api/introspect/campaigns-summary'
+import { Route as ApiIntrospectBackendMapRouteImport } from './routes/api/introspect/backend-map'
+import { Route as ApiIntrospectAgentsSummaryRouteImport } from './routes/api/introspect/agents-summary'
+import { Route as ApiInternalZoogaCoreExportRouteImport } from './routes/api/internal/zooga-core-export'
+import { Route as ApiDebugTamarConfigRouteImport } from './routes/api/debug/tamar-config'
+import { Route as ApiDebugSystemSummaryRouteImport } from './routes/api/debug/system-summary'
+import { Route as ApiDebugSchemaSummaryRouteImport } from './routes/api/debug/schema-summary'
+import { Route as ApiDebugRecentEventsRouteImport } from './routes/api/debug/recent-events'
+import { Route as ApiDebugIntegrationsStatusRouteImport } from './routes/api/debug/integrations-status'
+import { Route as ApiDebugFrontendMapRouteImport } from './routes/api/debug/frontend-map'
+import { Route as ApiDebugAgentsSummaryRouteImport } from './routes/api/debug/agents-summary'
+import { Route as AppSettingsWhatsappConnectionsRouteImport } from './routes/_app.settings.whatsapp-connections'
+import { Route as AppSettingsTamarStudioRouteImport } from './routes/_app.settings.tamar-studio'
+import { Route as AppSettingsTamarBrainRouteImport } from './routes/_app.settings.tamar-brain'
+import { Route as AppSettingsTamarBlocksRouteImport } from './routes/_app.settings.tamar-blocks'
+import { Route as AppSettingsTamarRouteImport } from './routes/_app.settings.tamar'
+import { Route as AppSettingsApiRouteImport } from './routes/_app.settings.api'
+import { Route as AppOffersIdRouteImport } from './routes/_app.offers.$id'
+import { Route as AppContactsIdRouteImport } from './routes/_app.contacts.$id'
+import { Route as AppCampaignsNewRouteImport } from './routes/_app.campaigns.new'
+import { Route as AppCampaignsIdRouteImport } from './routes/_app.campaigns.$id'
+import { Route as AppBroadcastsIdRouteImport } from './routes/_app.broadcasts.$id'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicWebhookTamarRouteImport } from './routes/api/public/webhook/tamar'
+import { Route as ApiPublicRuntimeTamarTurnRouteImport } from './routes/api/public/runtime/tamar-turn'
+import { Route as ApiPublicRuntimeTamarGenerateRouteImport } from './routes/api/public/runtime/tamar-generate'
+import { Route as ApiPublicRuntimeTamarDeliveryAuditRouteImport } from './routes/api/public/runtime/tamar-delivery-audit'
+import { Route as ApiPublicRuntimeGatewayRotateCredentialRouteImport } from './routes/api/public/runtime/gateway-rotate-credential'
+import { Route as ApiPublicRuntimeConversationDebugRouteImport } from './routes/api/public/runtime/conversation-debug'
+import { Route as ApiPublicRuntimeAgentCommandRouteImport } from './routes/api/public/runtime/agent-command'
+import { Route as ApiPublicIntelligenceExtractRouteImport } from './routes/api/public/intelligence/extract'
+import { Route as ApiPublicCronZoogaShadowDrainRouteImport } from './routes/api/public/cron/zooga-shadow-drain'
+import { Route as ApiPublicCronZoogaBrainExecutorRouteImport } from './routes/api/public/cron/zooga-brain-executor'
+import { Route as ApiPublicCronZeroLossWorkerRouteImport } from './routes/api/public/cron/zero-loss-worker'
+import { Route as ApiPublicCronZeroLossReconcileRouteImport } from './routes/api/public/cron/zero-loss-reconcile'
+import { Route as ApiPublicCronWhatsappBroadcastRunnerRouteImport } from './routes/api/public/cron/whatsapp-broadcast-runner'
+import { Route as ApiPublicCronRetryHandoffsRouteImport } from './routes/api/public/cron/retry-handoffs'
+import { Route as ApiPublicAiAssistantRunRouteImport } from './routes/api/public/ai-assistant/run'
+import { Route as ApiPublicAdminBackfillMemoriesRouteImport } from './routes/api/public/admin/backfill-memories'
 
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -102,126 +103,13 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const McpRoute = McpRouteImport.update({
-  id: '/mcp',
-  path: '/mcp',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Char91DotmcpChar93ListToolsRoute =
-  Char91DotmcpChar93ListToolsRouteImport.update({
-    id: '/.mcp/list-tools',
-    path: '/.mcp/list-tools',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const Char91DotwellKnownChar93OauthProtectedResourceRoute =
-  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
-    id: '/.well-known/oauth-protected-resource',
-    path: '/.well-known/oauth-protected-resource',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAiAssistantRoute = AppAiAssistantRouteImport.update({
-  id: '/ai-assistant',
-  path: '/ai-assistant',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppBroadcastsRoute = AppBroadcastsRouteImport.update({
-  id: '/broadcasts',
-  path: '/broadcasts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCampaignManagerRoute = AppCampaignManagerRouteImport.update({
-  id: '/campaign-manager',
-  path: '/campaign-manager',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCampaignsRoute = AppCampaignsRouteImport.update({
-  id: '/campaigns',
-  path: '/campaigns',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCatalogRoute = AppCatalogRouteImport.update({
-  id: '/catalog',
-  path: '/catalog',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppContactsRoute = AppContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHandoffRoute = AppHandoffRouteImport.update({
-  id: '/handoff',
-  path: '/handoff',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppImportLeadsRoute = AppImportLeadsRouteImport.update({
-  id: '/import-leads',
-  path: '/import-leads',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppInboxRoute = AppInboxRouteImport.update({
-  id: '/inbox',
-  path: '/inbox',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntakeCampaignRoute = AppIntakeCampaignRouteImport.update({
-  id: '/intake-campaign',
-  path: '/intake-campaign',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppManagerAlertsRoute = AppManagerAlertsRouteImport.update({
-  id: '/manager-alerts',
-  path: '/manager-alerts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOffersRoute = AppOffersRouteImport.update({
-  id: '/offers',
-  path: '/offers',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppOperatorDiagnosticsRoute = AppOperatorDiagnosticsRouteImport.update({
-  id: '/operator-diagnostics',
-  path: '/operator-diagnostics',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPilotRoute = AppPilotRouteImport.update({
-  id: '/pilot',
-  path: '/pilot',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRuntimeTraceRoute = AppRuntimeTraceRouteImport.update({
-  id: '/runtime-trace',
-  path: '/runtime-trace',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSendOfferRoute = AppSendOfferRouteImport.update({
-  id: '/send-offer',
-  path: '/send-offer',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSystemReadinessRoute = AppSystemReadinessRouteImport.update({
-  id: '/system-readiness',
-  path: '/system-readiness',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTamarLiteRoute = AppTamarLiteRouteImport.update({
-  id: '/tamar-lite',
-  path: '/tamar-lite',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTasksRoute = AppTasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
   getParentRoute: () => AppRoute,
 } as any)
 const AppZeroLossRoute = AppZeroLossRouteImport.update({
@@ -229,210 +117,131 @@ const AppZeroLossRoute = AppZeroLossRouteImport.update({
   path: '/zero-loss',
   getParentRoute: () => AppRoute,
 } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
-  getParentRoute: () => rootRouteImport,
+const AppTasksRoute = AppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AppRoute,
 } as any)
-const Char91DotmcpChar93InvokeToolToolRoute =
-  Char91DotmcpChar93InvokeToolToolRouteImport.update({
-    id: '/.mcp/invoke-tool/$tool',
-    path: '/.mcp/invoke-tool/$tool',
+const AppTamarLiteRoute = AppTamarLiteRouteImport.update({
+  id: '/tamar-lite',
+  path: '/tamar-lite',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemReadinessRoute = AppSystemReadinessRouteImport.update({
+  id: '/system-readiness',
+  path: '/system-readiness',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSendOfferRoute = AppSendOfferRouteImport.update({
+  id: '/send-offer',
+  path: '/send-offer',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRuntimeTraceRoute = AppRuntimeTraceRouteImport.update({
+  id: '/runtime-trace',
+  path: '/runtime-trace',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPilotRoute = AppPilotRouteImport.update({
+  id: '/pilot',
+  path: '/pilot',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOperatorDiagnosticsRoute = AppOperatorDiagnosticsRouteImport.update({
+  id: '/operator-diagnostics',
+  path: '/operator-diagnostics',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOffersRoute = AppOffersRouteImport.update({
+  id: '/offers',
+  path: '/offers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppManagerAlertsRoute = AppManagerAlertsRouteImport.update({
+  id: '/manager-alerts',
+  path: '/manager-alerts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIntakeCampaignRoute = AppIntakeCampaignRouteImport.update({
+  id: '/intake-campaign',
+  path: '/intake-campaign',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInboxRoute = AppInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppImportLeadsRoute = AppImportLeadsRouteImport.update({
+  id: '/import-leads',
+  path: '/import-leads',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHandoffRoute = AppHandoffRouteImport.update({
+  id: '/handoff',
+  path: '/handoff',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContactsRoute = AppContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCatalogRoute = AppCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCampaignsRoute = AppCampaignsRouteImport.update({
+  id: '/campaigns',
+  path: '/campaigns',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCampaignManagerRoute = AppCampaignManagerRouteImport.update({
+  id: '/campaign-manager',
+  path: '/campaign-manager',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBroadcastsRoute = AppBroadcastsRouteImport.update({
+  id: '/broadcasts',
+  path: '/broadcasts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAiAssistantRoute = AppAiAssistantRouteImport.update({
+  id: '/ai-assistant',
+  path: '/ai-assistant',
+  getParentRoute: () => AppRoute,
+} as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AppBroadcastsIdRoute = AppBroadcastsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppBroadcastsRoute,
-} as any)
-const AppCampaignsIdRoute = AppCampaignsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppCampaignsRoute,
-} as any)
-const AppCampaignsNewRoute = AppCampaignsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => AppCampaignsRoute,
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppContactsIndexRoute = AppContactsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppContactsRoute,
 } as any)
-const AppContactsIdRoute = AppContactsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppContactsRoute,
-} as any)
-const AppOffersIdRoute = AppOffersIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppOffersRoute,
-} as any)
-const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
-  id: '/api',
-  path: '/api',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsTamarRoute = AppSettingsTamarRouteImport.update({
-  id: '/tamar',
-  path: '/tamar',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsTamarBlocksRoute = AppSettingsTamarBlocksRouteImport.update({
-  id: '/tamar-blocks',
-  path: '/tamar-blocks',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsTamarBrainRoute = AppSettingsTamarBrainRouteImport.update({
-  id: '/tamar-brain',
-  path: '/tamar-brain',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsTamarStudioRoute = AppSettingsTamarStudioRouteImport.update({
-  id: '/tamar-studio',
-  path: '/tamar-studio',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsWhatsappConnectionsRoute =
-  AppSettingsWhatsappConnectionsRouteImport.update({
-    id: '/whatsapp-connections',
-    path: '/whatsapp-connections',
-    getParentRoute: () => AppSettingsRoute,
-  } as any)
-const ApiDebugAgentsSummaryRoute = ApiDebugAgentsSummaryRouteImport.update({
-  id: '/api/debug/agents-summary',
-  path: '/api/debug/agents-summary',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDebugFrontendMapRoute = ApiDebugFrontendMapRouteImport.update({
-  id: '/api/debug/frontend-map',
-  path: '/api/debug/frontend-map',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDebugIntegrationsStatusRoute =
-  ApiDebugIntegrationsStatusRouteImport.update({
-    id: '/api/debug/integrations-status',
-    path: '/api/debug/integrations-status',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiDebugRecentEventsRoute = ApiDebugRecentEventsRouteImport.update({
-  id: '/api/debug/recent-events',
-  path: '/api/debug/recent-events',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDebugSchemaSummaryRoute = ApiDebugSchemaSummaryRouteImport.update({
-  id: '/api/debug/schema-summary',
-  path: '/api/debug/schema-summary',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDebugSystemSummaryRoute = ApiDebugSystemSummaryRouteImport.update({
-  id: '/api/debug/system-summary',
-  path: '/api/debug/system-summary',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDebugTamarConfigRoute = ApiDebugTamarConfigRouteImport.update({
-  id: '/api/debug/tamar-config',
-  path: '/api/debug/tamar-config',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiInternalZoogaCoreExportRoute =
-  ApiInternalZoogaCoreExportRouteImport.update({
-    id: '/api/internal/zooga-core-export',
-    path: '/api/internal/zooga-core-export',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectAgentsSummaryRoute =
-  ApiIntrospectAgentsSummaryRouteImport.update({
-    id: '/api/introspect/agents-summary',
-    path: '/api/introspect/agents-summary',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectBackendMapRoute = ApiIntrospectBackendMapRouteImport.update({
-  id: '/api/introspect/backend-map',
-  path: '/api/introspect/backend-map',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiIntrospectCampaignsSummaryRoute =
-  ApiIntrospectCampaignsSummaryRouteImport.update({
-    id: '/api/introspect/campaigns-summary',
-    path: '/api/introspect/campaigns-summary',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectCrmSummaryRoute = ApiIntrospectCrmSummaryRouteImport.update({
-  id: '/api/introspect/crm-summary',
-  path: '/api/introspect/crm-summary',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiIntrospectDeploymentSummaryRoute =
-  ApiIntrospectDeploymentSummaryRouteImport.update({
-    id: '/api/introspect/deployment-summary',
-    path: '/api/introspect/deployment-summary',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectFeatureFlagsRoute =
-  ApiIntrospectFeatureFlagsRouteImport.update({
-    id: '/api/introspect/feature-flags',
-    path: '/api/introspect/feature-flags',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectFrontendMapRoute =
-  ApiIntrospectFrontendMapRouteImport.update({
-    id: '/api/introspect/frontend-map',
-    path: '/api/introspect/frontend-map',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectHealthReportRoute =
-  ApiIntrospectHealthReportRouteImport.update({
-    id: '/api/introspect/health-report',
-    path: '/api/introspect/health-report',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectIntegrationsStatusRoute =
-  ApiIntrospectIntegrationsStatusRouteImport.update({
-    id: '/api/introspect/integrations-status',
-    path: '/api/introspect/integrations-status',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectRecentEventsRoute =
-  ApiIntrospectRecentEventsRouteImport.update({
-    id: '/api/introspect/recent-events',
-    path: '/api/introspect/recent-events',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectSchemaSummaryRoute =
-  ApiIntrospectSchemaSummaryRouteImport.update({
-    id: '/api/introspect/schema-summary',
-    path: '/api/introspect/schema-summary',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectSystemOverviewRoute =
-  ApiIntrospectSystemOverviewRouteImport.update({
-    id: '/api/introspect/system-overview',
-    path: '/api/introspect/system-overview',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectTamarConfigRoute =
-  ApiIntrospectTamarConfigRouteImport.update({
-    id: '/api/introspect/tamar-config',
-    path: '/api/introspect/tamar-config',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectTamarRoutingRoute =
-  ApiIntrospectTamarRoutingRouteImport.update({
-    id: '/api/introspect/tamar-routing',
-    path: '/api/introspect/tamar-routing',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiIntrospectUiGapsRoute = ApiIntrospectUiGapsRouteImport.update({
-  id: '/api/introspect/ui-gaps',
-  path: '/api/introspect/ui-gaps',
+const ApiZoogaGatewayStatusRoute = ApiZoogaGatewayStatusRouteImport.update({
+  id: '/api/zooga/gateway-status',
+  path: '/api/zooga/gateway-status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicZoogaCoreExportRoute =
@@ -441,86 +250,211 @@ const ApiPublicZoogaCoreExportRoute =
     path: '/api/public/zooga-core-export',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiZoogaGatewayStatusRoute = ApiZoogaGatewayStatusRouteImport.update({
-  id: '/api/zooga/gateway-status',
-  path: '/api/zooga/gateway-status',
+const ApiIntrospectUiGapsRoute = ApiIntrospectUiGapsRouteImport.update({
+  id: '/api/introspect/ui-gaps',
+  path: '/api/introspect/ui-gaps',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicAdminBackfillMemoriesRoute =
-  ApiPublicAdminBackfillMemoriesRouteImport.update({
-    id: '/api/public/admin/backfill-memories',
-    path: '/api/public/admin/backfill-memories',
+const ApiIntrospectTamarRoutingRoute =
+  ApiIntrospectTamarRoutingRouteImport.update({
+    id: '/api/introspect/tamar-routing',
+    path: '/api/introspect/tamar-routing',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicAiAssistantRunRoute = ApiPublicAiAssistantRunRouteImport.update({
-  id: '/api/public/ai-assistant/run',
-  path: '/api/public/ai-assistant/run',
+const ApiIntrospectTamarConfigRoute =
+  ApiIntrospectTamarConfigRouteImport.update({
+    id: '/api/introspect/tamar-config',
+    path: '/api/introspect/tamar-config',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectSystemOverviewRoute =
+  ApiIntrospectSystemOverviewRouteImport.update({
+    id: '/api/introspect/system-overview',
+    path: '/api/introspect/system-overview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectSchemaSummaryRoute =
+  ApiIntrospectSchemaSummaryRouteImport.update({
+    id: '/api/introspect/schema-summary',
+    path: '/api/introspect/schema-summary',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectRecentEventsRoute =
+  ApiIntrospectRecentEventsRouteImport.update({
+    id: '/api/introspect/recent-events',
+    path: '/api/introspect/recent-events',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectIntegrationsStatusRoute =
+  ApiIntrospectIntegrationsStatusRouteImport.update({
+    id: '/api/introspect/integrations-status',
+    path: '/api/introspect/integrations-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectHealthReportRoute =
+  ApiIntrospectHealthReportRouteImport.update({
+    id: '/api/introspect/health-report',
+    path: '/api/introspect/health-report',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectFrontendMapRoute =
+  ApiIntrospectFrontendMapRouteImport.update({
+    id: '/api/introspect/frontend-map',
+    path: '/api/introspect/frontend-map',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectFeatureFlagsRoute =
+  ApiIntrospectFeatureFlagsRouteImport.update({
+    id: '/api/introspect/feature-flags',
+    path: '/api/introspect/feature-flags',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectDeploymentSummaryRoute =
+  ApiIntrospectDeploymentSummaryRouteImport.update({
+    id: '/api/introspect/deployment-summary',
+    path: '/api/introspect/deployment-summary',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiIntrospectCrmSummaryRoute = ApiIntrospectCrmSummaryRouteImport.update({
+  id: '/api/introspect/crm-summary',
+  path: '/api/introspect/crm-summary',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicCronRetryHandoffsRoute =
-  ApiPublicCronRetryHandoffsRouteImport.update({
-    id: '/api/public/cron/retry-handoffs',
-    path: '/api/public/cron/retry-handoffs',
+const ApiIntrospectCampaignsSummaryRoute =
+  ApiIntrospectCampaignsSummaryRouteImport.update({
+    id: '/api/introspect/campaigns-summary',
+    path: '/api/introspect/campaigns-summary',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronWhatsappBroadcastRunnerRoute =
-  ApiPublicCronWhatsappBroadcastRunnerRouteImport.update({
-    id: '/api/public/cron/whatsapp-broadcast-runner',
-    path: '/api/public/cron/whatsapp-broadcast-runner',
+const ApiIntrospectBackendMapRoute = ApiIntrospectBackendMapRouteImport.update({
+  id: '/api/introspect/backend-map',
+  path: '/api/introspect/backend-map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIntrospectAgentsSummaryRoute =
+  ApiIntrospectAgentsSummaryRouteImport.update({
+    id: '/api/introspect/agents-summary',
+    path: '/api/introspect/agents-summary',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronZeroLossReconcileRoute =
-  ApiPublicCronZeroLossReconcileRouteImport.update({
-    id: '/api/public/cron/zero-loss-reconcile',
-    path: '/api/public/cron/zero-loss-reconcile',
+const ApiInternalZoogaCoreExportRoute =
+  ApiInternalZoogaCoreExportRouteImport.update({
+    id: '/api/internal/zooga-core-export',
+    path: '/api/internal/zooga-core-export',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronZeroLossWorkerRoute =
-  ApiPublicCronZeroLossWorkerRouteImport.update({
-    id: '/api/public/cron/zero-loss-worker',
-    path: '/api/public/cron/zero-loss-worker',
+const ApiDebugTamarConfigRoute = ApiDebugTamarConfigRouteImport.update({
+  id: '/api/debug/tamar-config',
+  path: '/api/debug/tamar-config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugSystemSummaryRoute = ApiDebugSystemSummaryRouteImport.update({
+  id: '/api/debug/system-summary',
+  path: '/api/debug/system-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugSchemaSummaryRoute = ApiDebugSchemaSummaryRouteImport.update({
+  id: '/api/debug/schema-summary',
+  path: '/api/debug/schema-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugRecentEventsRoute = ApiDebugRecentEventsRouteImport.update({
+  id: '/api/debug/recent-events',
+  path: '/api/debug/recent-events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugIntegrationsStatusRoute =
+  ApiDebugIntegrationsStatusRouteImport.update({
+    id: '/api/debug/integrations-status',
+    path: '/api/debug/integrations-status',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronZoogaBrainExecutorRoute =
-  ApiPublicCronZoogaBrainExecutorRouteImport.update({
-    id: '/api/public/cron/zooga-brain-executor',
-    path: '/api/public/cron/zooga-brain-executor',
+const ApiDebugFrontendMapRoute = ApiDebugFrontendMapRouteImport.update({
+  id: '/api/debug/frontend-map',
+  path: '/api/debug/frontend-map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDebugAgentsSummaryRoute = ApiDebugAgentsSummaryRouteImport.update({
+  id: '/api/debug/agents-summary',
+  path: '/api/debug/agents-summary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppSettingsWhatsappConnectionsRoute =
+  AppSettingsWhatsappConnectionsRouteImport.update({
+    id: '/whatsapp-connections',
+    path: '/whatsapp-connections',
+    getParentRoute: () => AppSettingsRoute,
+  } as any)
+const AppSettingsTamarStudioRoute = AppSettingsTamarStudioRouteImport.update({
+  id: '/tamar-studio',
+  path: '/tamar-studio',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsTamarBrainRoute = AppSettingsTamarBrainRouteImport.update({
+  id: '/tamar-brain',
+  path: '/tamar-brain',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsTamarBlocksRoute = AppSettingsTamarBlocksRouteImport.update({
+  id: '/tamar-blocks',
+  path: '/tamar-blocks',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsTamarRoute = AppSettingsTamarRouteImport.update({
+  id: '/tamar',
+  path: '/tamar',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsApiRoute = AppSettingsApiRouteImport.update({
+  id: '/api',
+  path: '/api',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppOffersIdRoute = AppOffersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppOffersRoute,
+} as any)
+const AppContactsIdRoute = AppContactsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppContactsRoute,
+} as any)
+const AppCampaignsNewRoute = AppCampaignsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppCampaignsRoute,
+} as any)
+const AppCampaignsIdRoute = AppCampaignsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppCampaignsRoute,
+} as any)
+const AppBroadcastsIdRoute = AppBroadcastsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppBroadcastsRoute,
+} as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronZoogaShadowDrainRoute =
-  ApiPublicCronZoogaShadowDrainRouteImport.update({
-    id: '/api/public/cron/zooga-shadow-drain',
-    path: '/api/public/cron/zooga-shadow-drain',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicIntelligenceExtractRoute =
-  ApiPublicIntelligenceExtractRouteImport.update({
-    id: '/api/public/intelligence/extract',
-    path: '/api/public/intelligence/extract',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRuntimeAgentCommandRoute =
-  ApiPublicRuntimeAgentCommandRouteImport.update({
-    id: '/api/public/runtime/agent-command',
-    path: '/api/public/runtime/agent-command',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRuntimeConversationDebugRoute =
-  ApiPublicRuntimeConversationDebugRouteImport.update({
-    id: '/api/public/runtime/conversation-debug',
-    path: '/api/public/runtime/conversation-debug',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRuntimeGatewayRotateCredentialRoute =
-  ApiPublicRuntimeGatewayRotateCredentialRouteImport.update({
-    id: '/api/public/runtime/gateway-rotate-credential',
-    path: '/api/public/runtime/gateway-rotate-credential',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRuntimeTamarDeliveryAuditRoute =
-  ApiPublicRuntimeTamarDeliveryAuditRouteImport.update({
-    id: '/api/public/runtime/tamar-delivery-audit',
-    path: '/api/public/runtime/tamar-delivery-audit',
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
+  id: '/api/public/webhook/tamar',
+  path: '/api/public/webhook/tamar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRuntimeTamarTurnRoute =
+  ApiPublicRuntimeTamarTurnRouteImport.update({
+    id: '/api/public/runtime/tamar-turn',
+    path: '/api/public/runtime/tamar-turn',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicRuntimeTamarGenerateRoute =
@@ -529,17 +463,83 @@ const ApiPublicRuntimeTamarGenerateRoute =
     path: '/api/public/runtime/tamar-generate',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicRuntimeTamarTurnRoute =
-  ApiPublicRuntimeTamarTurnRouteImport.update({
-    id: '/api/public/runtime/tamar-turn',
-    path: '/api/public/runtime/tamar-turn',
+const ApiPublicRuntimeTamarDeliveryAuditRoute =
+  ApiPublicRuntimeTamarDeliveryAuditRouteImport.update({
+    id: '/api/public/runtime/tamar-delivery-audit',
+    path: '/api/public/runtime/tamar-delivery-audit',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicWebhookTamarRoute = ApiPublicWebhookTamarRouteImport.update({
-  id: '/api/public/webhook/tamar',
-  path: '/api/public/webhook/tamar',
+const ApiPublicRuntimeGatewayRotateCredentialRoute =
+  ApiPublicRuntimeGatewayRotateCredentialRouteImport.update({
+    id: '/api/public/runtime/gateway-rotate-credential',
+    path: '/api/public/runtime/gateway-rotate-credential',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicRuntimeConversationDebugRoute =
+  ApiPublicRuntimeConversationDebugRouteImport.update({
+    id: '/api/public/runtime/conversation-debug',
+    path: '/api/public/runtime/conversation-debug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicRuntimeAgentCommandRoute =
+  ApiPublicRuntimeAgentCommandRouteImport.update({
+    id: '/api/public/runtime/agent-command',
+    path: '/api/public/runtime/agent-command',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicIntelligenceExtractRoute =
+  ApiPublicIntelligenceExtractRouteImport.update({
+    id: '/api/public/intelligence/extract',
+    path: '/api/public/intelligence/extract',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronZoogaShadowDrainRoute =
+  ApiPublicCronZoogaShadowDrainRouteImport.update({
+    id: '/api/public/cron/zooga-shadow-drain',
+    path: '/api/public/cron/zooga-shadow-drain',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronZoogaBrainExecutorRoute =
+  ApiPublicCronZoogaBrainExecutorRouteImport.update({
+    id: '/api/public/cron/zooga-brain-executor',
+    path: '/api/public/cron/zooga-brain-executor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronZeroLossWorkerRoute =
+  ApiPublicCronZeroLossWorkerRouteImport.update({
+    id: '/api/public/cron/zero-loss-worker',
+    path: '/api/public/cron/zero-loss-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronZeroLossReconcileRoute =
+  ApiPublicCronZeroLossReconcileRouteImport.update({
+    id: '/api/public/cron/zero-loss-reconcile',
+    path: '/api/public/cron/zero-loss-reconcile',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronWhatsappBroadcastRunnerRoute =
+  ApiPublicCronWhatsappBroadcastRunnerRouteImport.update({
+    id: '/api/public/cron/whatsapp-broadcast-runner',
+    path: '/api/public/cron/whatsapp-broadcast-runner',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCronRetryHandoffsRoute =
+  ApiPublicCronRetryHandoffsRouteImport.update({
+    id: '/api/public/cron/retry-handoffs',
+    path: '/api/public/cron/retry-handoffs',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicAiAssistantRunRoute = ApiPublicAiAssistantRunRouteImport.update({
+  id: '/api/public/ai-assistant/run',
+  path: '/api/public/ai-assistant/run',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAdminBackfillMemoriesRoute =
+  ApiPublicAdminBackfillMemoriesRouteImport.update({
+    id: '/api/public/admin/backfill-memories',
+    path: '/api/public/admin/backfill-memories',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -1100,11 +1100,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteImport
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1114,25 +1114,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mcp': {
-      id: '/mcp'
-      path: '/mcp'
-      fullPath: '/mcp'
-      preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.mcp/list-tools': {
-      id: '/.mcp/list-tools'
-      path: '/.mcp/list-tools'
-      fullPath: '/.mcp/list-tools'
-      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/.well-known/oauth-protected-resource': {
-      id: '/.well-known/oauth-protected-resource'
-      path: '/.well-known/oauth-protected-resource'
-      fullPath: '/.well-known/oauth-protected-resource'
-      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -1142,137 +1128,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/ai-assistant': {
-      id: '/_app/ai-assistant'
-      path: '/ai-assistant'
-      fullPath: '/ai-assistant'
-      preLoaderRoute: typeof AppAiAssistantRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/broadcasts': {
-      id: '/_app/broadcasts'
-      path: '/broadcasts'
-      fullPath: '/broadcasts'
-      preLoaderRoute: typeof AppBroadcastsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/campaign-manager': {
-      id: '/_app/campaign-manager'
-      path: '/campaign-manager'
-      fullPath: '/campaign-manager'
-      preLoaderRoute: typeof AppCampaignManagerRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/campaigns': {
-      id: '/_app/campaigns'
-      path: '/campaigns'
-      fullPath: '/campaigns'
-      preLoaderRoute: typeof AppCampaignsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/catalog': {
-      id: '/_app/catalog'
-      path: '/catalog'
-      fullPath: '/catalog'
-      preLoaderRoute: typeof AppCatalogRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/contacts': {
-      id: '/_app/contacts'
-      path: '/contacts'
-      fullPath: '/contacts'
-      preLoaderRoute: typeof AppContactsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/handoff': {
-      id: '/_app/handoff'
-      path: '/handoff'
-      fullPath: '/handoff'
-      preLoaderRoute: typeof AppHandoffRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/import-leads': {
-      id: '/_app/import-leads'
-      path: '/import-leads'
-      fullPath: '/import-leads'
-      preLoaderRoute: typeof AppImportLeadsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/inbox': {
-      id: '/_app/inbox'
-      path: '/inbox'
-      fullPath: '/inbox'
-      preLoaderRoute: typeof AppInboxRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/intake-campaign': {
-      id: '/_app/intake-campaign'
-      path: '/intake-campaign'
-      fullPath: '/intake-campaign'
-      preLoaderRoute: typeof AppIntakeCampaignRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/manager-alerts': {
-      id: '/_app/manager-alerts'
-      path: '/manager-alerts'
-      fullPath: '/manager-alerts'
-      preLoaderRoute: typeof AppManagerAlertsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/offers': {
-      id: '/_app/offers'
-      path: '/offers'
-      fullPath: '/offers'
-      preLoaderRoute: typeof AppOffersRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/operator-diagnostics': {
-      id: '/_app/operator-diagnostics'
-      path: '/operator-diagnostics'
-      fullPath: '/operator-diagnostics'
-      preLoaderRoute: typeof AppOperatorDiagnosticsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/pilot': {
-      id: '/_app/pilot'
-      path: '/pilot'
-      fullPath: '/pilot'
-      preLoaderRoute: typeof AppPilotRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/runtime-trace': {
-      id: '/_app/runtime-trace'
-      path: '/runtime-trace'
-      fullPath: '/runtime-trace'
-      preLoaderRoute: typeof AppRuntimeTraceRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/send-offer': {
-      id: '/_app/send-offer'
-      path: '/send-offer'
-      fullPath: '/send-offer'
-      preLoaderRoute: typeof AppSendOfferRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/system-readiness': {
-      id: '/_app/system-readiness'
-      path: '/system-readiness'
-      fullPath: '/system-readiness'
-      preLoaderRoute: typeof AppSystemReadinessRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/tamar-lite': {
-      id: '/_app/tamar-lite'
-      path: '/tamar-lite'
-      fullPath: '/tamar-lite'
-      preLoaderRoute: typeof AppTamarLiteRouteImport
+    '/_app/zero-loss': {
+      id: '/_app/zero-loss'
+      path: '/zero-loss'
+      fullPath: '/zero-loss'
+      preLoaderRoute: typeof AppZeroLossRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/tasks': {
@@ -1282,68 +1142,152 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTasksRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/zero-loss': {
-      id: '/_app/zero-loss'
-      path: '/zero-loss'
-      fullPath: '/zero-loss'
-      preLoaderRoute: typeof AppZeroLossRouteImport
+    '/_app/tamar-lite': {
+      id: '/_app/tamar-lite'
+      path: '/tamar-lite'
+      fullPath: '/tamar-lite'
+      preLoaderRoute: typeof AppTamarLiteRouteImport
       parentRoute: typeof AppRoute
     }
-    '/.lovable/oauth/consent': {
-      id: '/.lovable/oauth/consent'
-      path: '/.lovable/oauth/consent'
-      fullPath: '/.lovable/oauth/consent'
-      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+    '/_app/system-readiness': {
+      id: '/_app/system-readiness'
+      path: '/system-readiness'
+      fullPath: '/system-readiness'
+      preLoaderRoute: typeof AppSystemReadinessRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/send-offer': {
+      id: '/_app/send-offer'
+      path: '/send-offer'
+      fullPath: '/send-offer'
+      preLoaderRoute: typeof AppSendOfferRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/runtime-trace': {
+      id: '/_app/runtime-trace'
+      path: '/runtime-trace'
+      fullPath: '/runtime-trace'
+      preLoaderRoute: typeof AppRuntimeTraceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pilot': {
+      id: '/_app/pilot'
+      path: '/pilot'
+      fullPath: '/pilot'
+      preLoaderRoute: typeof AppPilotRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/operator-diagnostics': {
+      id: '/_app/operator-diagnostics'
+      path: '/operator-diagnostics'
+      fullPath: '/operator-diagnostics'
+      preLoaderRoute: typeof AppOperatorDiagnosticsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/offers': {
+      id: '/_app/offers'
+      path: '/offers'
+      fullPath: '/offers'
+      preLoaderRoute: typeof AppOffersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/manager-alerts': {
+      id: '/_app/manager-alerts'
+      path: '/manager-alerts'
+      fullPath: '/manager-alerts'
+      preLoaderRoute: typeof AppManagerAlertsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/intake-campaign': {
+      id: '/_app/intake-campaign'
+      path: '/intake-campaign'
+      fullPath: '/intake-campaign'
+      preLoaderRoute: typeof AppIntakeCampaignRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inbox': {
+      id: '/_app/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof AppInboxRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/import-leads': {
+      id: '/_app/import-leads'
+      path: '/import-leads'
+      fullPath: '/import-leads'
+      preLoaderRoute: typeof AppImportLeadsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/handoff': {
+      id: '/_app/handoff'
+      path: '/handoff'
+      fullPath: '/handoff'
+      preLoaderRoute: typeof AppHandoffRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/contacts': {
+      id: '/_app/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof AppContactsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/catalog': {
+      id: '/_app/catalog'
+      path: '/catalog'
+      fullPath: '/catalog'
+      preLoaderRoute: typeof AppCatalogRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/campaigns': {
+      id: '/_app/campaigns'
+      path: '/campaigns'
+      fullPath: '/campaigns'
+      preLoaderRoute: typeof AppCampaignsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/campaign-manager': {
+      id: '/_app/campaign-manager'
+      path: '/campaign-manager'
+      fullPath: '/campaign-manager'
+      preLoaderRoute: typeof AppCampaignManagerRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/broadcasts': {
+      id: '/_app/broadcasts'
+      path: '/broadcasts'
+      fullPath: '/broadcasts'
+      preLoaderRoute: typeof AppBroadcastsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ai-assistant': {
+      id: '/_app/ai-assistant'
+      path: '/ai-assistant'
+      fullPath: '/ai-assistant'
+      preLoaderRoute: typeof AppAiAssistantRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.mcp/invoke-tool/$tool': {
-      id: '/.mcp/invoke-tool/$tool'
-      path: '/.mcp/invoke-tool/$tool'
-      fullPath: '/.mcp/invoke-tool/$tool'
-      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_app/broadcasts/$id': {
-      id: '/_app/broadcasts/$id'
-      path: '/$id'
-      fullPath: '/broadcasts/$id'
-      preLoaderRoute: typeof AppBroadcastsIdRouteImport
-      parentRoute: typeof AppBroadcastsRoute
-    }
-    '/_app/campaigns/$id': {
-      id: '/_app/campaigns/$id'
-      path: '/$id'
-      fullPath: '/campaigns/$id'
-      preLoaderRoute: typeof AppCampaignsIdRouteImport
-      parentRoute: typeof AppCampaignsRoute
-    }
-    '/_app/campaigns/new': {
-      id: '/_app/campaigns/new'
-      path: '/new'
-      fullPath: '/campaigns/new'
-      preLoaderRoute: typeof AppCampaignsNewRouteImport
-      parentRoute: typeof AppCampaignsRoute
-    }
-    '/_app/contacts/': {
-      id: '/_app/contacts/'
-      path: '/'
-      fullPath: '/contacts/'
-      preLoaderRoute: typeof AppContactsIndexRouteImport
-      parentRoute: typeof AppContactsRoute
-    }
-    '/_app/contacts/$id': {
-      id: '/_app/contacts/$id'
-      path: '/$id'
-      fullPath: '/contacts/$id'
-      preLoaderRoute: typeof AppContactsIdRouteImport
-      parentRoute: typeof AppContactsRoute
-    }
-    '/_app/offers/$id': {
-      id: '/_app/offers/$id'
-      path: '/$id'
-      fullPath: '/offers/$id'
-      preLoaderRoute: typeof AppOffersIdRouteImport
-      parentRoute: typeof AppOffersRoute
     }
     '/_app/settings/': {
       id: '/_app/settings/'
@@ -1352,207 +1296,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppSettingsRoute
     }
-    '/_app/settings/api': {
-      id: '/_app/settings/api'
-      path: '/api'
-      fullPath: '/settings/api'
-      preLoaderRoute: typeof AppSettingsApiRouteImport
-      parentRoute: typeof AppSettingsRoute
+    '/_app/contacts/': {
+      id: '/_app/contacts/'
+      path: '/'
+      fullPath: '/contacts/'
+      preLoaderRoute: typeof AppContactsIndexRouteImport
+      parentRoute: typeof AppContactsRoute
     }
-    '/_app/settings/tamar': {
-      id: '/_app/settings/tamar'
-      path: '/tamar'
-      fullPath: '/settings/tamar'
-      preLoaderRoute: typeof AppSettingsTamarRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/tamar-blocks': {
-      id: '/_app/settings/tamar-blocks'
-      path: '/tamar-blocks'
-      fullPath: '/settings/tamar-blocks'
-      preLoaderRoute: typeof AppSettingsTamarBlocksRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/tamar-brain': {
-      id: '/_app/settings/tamar-brain'
-      path: '/tamar-brain'
-      fullPath: '/settings/tamar-brain'
-      preLoaderRoute: typeof AppSettingsTamarBrainRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/tamar-studio': {
-      id: '/_app/settings/tamar-studio'
-      path: '/tamar-studio'
-      fullPath: '/settings/tamar-studio'
-      preLoaderRoute: typeof AppSettingsTamarStudioRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/whatsapp-connections': {
-      id: '/_app/settings/whatsapp-connections'
-      path: '/whatsapp-connections'
-      fullPath: '/settings/whatsapp-connections'
-      preLoaderRoute: typeof AppSettingsWhatsappConnectionsRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/api/debug/agents-summary': {
-      id: '/api/debug/agents-summary'
-      path: '/api/debug/agents-summary'
-      fullPath: '/api/debug/agents-summary'
-      preLoaderRoute: typeof ApiDebugAgentsSummaryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/debug/frontend-map': {
-      id: '/api/debug/frontend-map'
-      path: '/api/debug/frontend-map'
-      fullPath: '/api/debug/frontend-map'
-      preLoaderRoute: typeof ApiDebugFrontendMapRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/debug/integrations-status': {
-      id: '/api/debug/integrations-status'
-      path: '/api/debug/integrations-status'
-      fullPath: '/api/debug/integrations-status'
-      preLoaderRoute: typeof ApiDebugIntegrationsStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/debug/recent-events': {
-      id: '/api/debug/recent-events'
-      path: '/api/debug/recent-events'
-      fullPath: '/api/debug/recent-events'
-      preLoaderRoute: typeof ApiDebugRecentEventsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/debug/schema-summary': {
-      id: '/api/debug/schema-summary'
-      path: '/api/debug/schema-summary'
-      fullPath: '/api/debug/schema-summary'
-      preLoaderRoute: typeof ApiDebugSchemaSummaryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/debug/system-summary': {
-      id: '/api/debug/system-summary'
-      path: '/api/debug/system-summary'
-      fullPath: '/api/debug/system-summary'
-      preLoaderRoute: typeof ApiDebugSystemSummaryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/debug/tamar-config': {
-      id: '/api/debug/tamar-config'
-      path: '/api/debug/tamar-config'
-      fullPath: '/api/debug/tamar-config'
-      preLoaderRoute: typeof ApiDebugTamarConfigRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/internal/zooga-core-export': {
-      id: '/api/internal/zooga-core-export'
-      path: '/api/internal/zooga-core-export'
-      fullPath: '/api/internal/zooga-core-export'
-      preLoaderRoute: typeof ApiInternalZoogaCoreExportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/agents-summary': {
-      id: '/api/introspect/agents-summary'
-      path: '/api/introspect/agents-summary'
-      fullPath: '/api/introspect/agents-summary'
-      preLoaderRoute: typeof ApiIntrospectAgentsSummaryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/backend-map': {
-      id: '/api/introspect/backend-map'
-      path: '/api/introspect/backend-map'
-      fullPath: '/api/introspect/backend-map'
-      preLoaderRoute: typeof ApiIntrospectBackendMapRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/campaigns-summary': {
-      id: '/api/introspect/campaigns-summary'
-      path: '/api/introspect/campaigns-summary'
-      fullPath: '/api/introspect/campaigns-summary'
-      preLoaderRoute: typeof ApiIntrospectCampaignsSummaryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/crm-summary': {
-      id: '/api/introspect/crm-summary'
-      path: '/api/introspect/crm-summary'
-      fullPath: '/api/introspect/crm-summary'
-      preLoaderRoute: typeof ApiIntrospectCrmSummaryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/deployment-summary': {
-      id: '/api/introspect/deployment-summary'
-      path: '/api/introspect/deployment-summary'
-      fullPath: '/api/introspect/deployment-summary'
-      preLoaderRoute: typeof ApiIntrospectDeploymentSummaryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/feature-flags': {
-      id: '/api/introspect/feature-flags'
-      path: '/api/introspect/feature-flags'
-      fullPath: '/api/introspect/feature-flags'
-      preLoaderRoute: typeof ApiIntrospectFeatureFlagsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/frontend-map': {
-      id: '/api/introspect/frontend-map'
-      path: '/api/introspect/frontend-map'
-      fullPath: '/api/introspect/frontend-map'
-      preLoaderRoute: typeof ApiIntrospectFrontendMapRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/health-report': {
-      id: '/api/introspect/health-report'
-      path: '/api/introspect/health-report'
-      fullPath: '/api/introspect/health-report'
-      preLoaderRoute: typeof ApiIntrospectHealthReportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/integrations-status': {
-      id: '/api/introspect/integrations-status'
-      path: '/api/introspect/integrations-status'
-      fullPath: '/api/introspect/integrations-status'
-      preLoaderRoute: typeof ApiIntrospectIntegrationsStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/recent-events': {
-      id: '/api/introspect/recent-events'
-      path: '/api/introspect/recent-events'
-      fullPath: '/api/introspect/recent-events'
-      preLoaderRoute: typeof ApiIntrospectRecentEventsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/schema-summary': {
-      id: '/api/introspect/schema-summary'
-      path: '/api/introspect/schema-summary'
-      fullPath: '/api/introspect/schema-summary'
-      preLoaderRoute: typeof ApiIntrospectSchemaSummaryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/system-overview': {
-      id: '/api/introspect/system-overview'
-      path: '/api/introspect/system-overview'
-      fullPath: '/api/introspect/system-overview'
-      preLoaderRoute: typeof ApiIntrospectSystemOverviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/tamar-config': {
-      id: '/api/introspect/tamar-config'
-      path: '/api/introspect/tamar-config'
-      fullPath: '/api/introspect/tamar-config'
-      preLoaderRoute: typeof ApiIntrospectTamarConfigRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/tamar-routing': {
-      id: '/api/introspect/tamar-routing'
-      path: '/api/introspect/tamar-routing'
-      fullPath: '/api/introspect/tamar-routing'
-      preLoaderRoute: typeof ApiIntrospectTamarRoutingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/introspect/ui-gaps': {
-      id: '/api/introspect/ui-gaps'
-      path: '/api/introspect/ui-gaps'
-      fullPath: '/api/introspect/ui-gaps'
-      preLoaderRoute: typeof ApiIntrospectUiGapsRouteImport
+    '/api/zooga/gateway-status': {
+      id: '/api/zooga/gateway-status'
+      path: '/api/zooga/gateway-status'
+      fullPath: '/api/zooga/gateway-status'
+      preLoaderRoute: typeof ApiZoogaGatewayStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/zooga-core-export': {
@@ -1562,109 +1317,263 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicZoogaCoreExportRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/zooga/gateway-status': {
-      id: '/api/zooga/gateway-status'
-      path: '/api/zooga/gateway-status'
-      fullPath: '/api/zooga/gateway-status'
-      preLoaderRoute: typeof ApiZoogaGatewayStatusRouteImport
+    '/api/introspect/ui-gaps': {
+      id: '/api/introspect/ui-gaps'
+      path: '/api/introspect/ui-gaps'
+      fullPath: '/api/introspect/ui-gaps'
+      preLoaderRoute: typeof ApiIntrospectUiGapsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/admin/backfill-memories': {
-      id: '/api/public/admin/backfill-memories'
-      path: '/api/public/admin/backfill-memories'
-      fullPath: '/api/public/admin/backfill-memories'
-      preLoaderRoute: typeof ApiPublicAdminBackfillMemoriesRouteImport
+    '/api/introspect/tamar-routing': {
+      id: '/api/introspect/tamar-routing'
+      path: '/api/introspect/tamar-routing'
+      fullPath: '/api/introspect/tamar-routing'
+      preLoaderRoute: typeof ApiIntrospectTamarRoutingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/ai-assistant/run': {
-      id: '/api/public/ai-assistant/run'
-      path: '/api/public/ai-assistant/run'
-      fullPath: '/api/public/ai-assistant/run'
-      preLoaderRoute: typeof ApiPublicAiAssistantRunRouteImport
+    '/api/introspect/tamar-config': {
+      id: '/api/introspect/tamar-config'
+      path: '/api/introspect/tamar-config'
+      fullPath: '/api/introspect/tamar-config'
+      preLoaderRoute: typeof ApiIntrospectTamarConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/retry-handoffs': {
-      id: '/api/public/cron/retry-handoffs'
-      path: '/api/public/cron/retry-handoffs'
-      fullPath: '/api/public/cron/retry-handoffs'
-      preLoaderRoute: typeof ApiPublicCronRetryHandoffsRouteImport
+    '/api/introspect/system-overview': {
+      id: '/api/introspect/system-overview'
+      path: '/api/introspect/system-overview'
+      fullPath: '/api/introspect/system-overview'
+      preLoaderRoute: typeof ApiIntrospectSystemOverviewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/whatsapp-broadcast-runner': {
-      id: '/api/public/cron/whatsapp-broadcast-runner'
-      path: '/api/public/cron/whatsapp-broadcast-runner'
-      fullPath: '/api/public/cron/whatsapp-broadcast-runner'
-      preLoaderRoute: typeof ApiPublicCronWhatsappBroadcastRunnerRouteImport
+    '/api/introspect/schema-summary': {
+      id: '/api/introspect/schema-summary'
+      path: '/api/introspect/schema-summary'
+      fullPath: '/api/introspect/schema-summary'
+      preLoaderRoute: typeof ApiIntrospectSchemaSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/zero-loss-reconcile': {
-      id: '/api/public/cron/zero-loss-reconcile'
-      path: '/api/public/cron/zero-loss-reconcile'
-      fullPath: '/api/public/cron/zero-loss-reconcile'
-      preLoaderRoute: typeof ApiPublicCronZeroLossReconcileRouteImport
+    '/api/introspect/recent-events': {
+      id: '/api/introspect/recent-events'
+      path: '/api/introspect/recent-events'
+      fullPath: '/api/introspect/recent-events'
+      preLoaderRoute: typeof ApiIntrospectRecentEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/zero-loss-worker': {
-      id: '/api/public/cron/zero-loss-worker'
-      path: '/api/public/cron/zero-loss-worker'
-      fullPath: '/api/public/cron/zero-loss-worker'
-      preLoaderRoute: typeof ApiPublicCronZeroLossWorkerRouteImport
+    '/api/introspect/integrations-status': {
+      id: '/api/introspect/integrations-status'
+      path: '/api/introspect/integrations-status'
+      fullPath: '/api/introspect/integrations-status'
+      preLoaderRoute: typeof ApiIntrospectIntegrationsStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/zooga-brain-executor': {
-      id: '/api/public/cron/zooga-brain-executor'
-      path: '/api/public/cron/zooga-brain-executor'
-      fullPath: '/api/public/cron/zooga-brain-executor'
-      preLoaderRoute: typeof ApiPublicCronZoogaBrainExecutorRouteImport
+    '/api/introspect/health-report': {
+      id: '/api/introspect/health-report'
+      path: '/api/introspect/health-report'
+      fullPath: '/api/introspect/health-report'
+      preLoaderRoute: typeof ApiIntrospectHealthReportRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/cron/zooga-shadow-drain': {
-      id: '/api/public/cron/zooga-shadow-drain'
-      path: '/api/public/cron/zooga-shadow-drain'
-      fullPath: '/api/public/cron/zooga-shadow-drain'
-      preLoaderRoute: typeof ApiPublicCronZoogaShadowDrainRouteImport
+    '/api/introspect/frontend-map': {
+      id: '/api/introspect/frontend-map'
+      path: '/api/introspect/frontend-map'
+      fullPath: '/api/introspect/frontend-map'
+      preLoaderRoute: typeof ApiIntrospectFrontendMapRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/intelligence/extract': {
-      id: '/api/public/intelligence/extract'
-      path: '/api/public/intelligence/extract'
-      fullPath: '/api/public/intelligence/extract'
-      preLoaderRoute: typeof ApiPublicIntelligenceExtractRouteImport
+    '/api/introspect/feature-flags': {
+      id: '/api/introspect/feature-flags'
+      path: '/api/introspect/feature-flags'
+      fullPath: '/api/introspect/feature-flags'
+      preLoaderRoute: typeof ApiIntrospectFeatureFlagsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/runtime/agent-command': {
-      id: '/api/public/runtime/agent-command'
-      path: '/api/public/runtime/agent-command'
-      fullPath: '/api/public/runtime/agent-command'
-      preLoaderRoute: typeof ApiPublicRuntimeAgentCommandRouteImport
+    '/api/introspect/deployment-summary': {
+      id: '/api/introspect/deployment-summary'
+      path: '/api/introspect/deployment-summary'
+      fullPath: '/api/introspect/deployment-summary'
+      preLoaderRoute: typeof ApiIntrospectDeploymentSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/runtime/conversation-debug': {
-      id: '/api/public/runtime/conversation-debug'
-      path: '/api/public/runtime/conversation-debug'
-      fullPath: '/api/public/runtime/conversation-debug'
-      preLoaderRoute: typeof ApiPublicRuntimeConversationDebugRouteImport
+    '/api/introspect/crm-summary': {
+      id: '/api/introspect/crm-summary'
+      path: '/api/introspect/crm-summary'
+      fullPath: '/api/introspect/crm-summary'
+      preLoaderRoute: typeof ApiIntrospectCrmSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/runtime/gateway-rotate-credential': {
-      id: '/api/public/runtime/gateway-rotate-credential'
-      path: '/api/public/runtime/gateway-rotate-credential'
-      fullPath: '/api/public/runtime/gateway-rotate-credential'
-      preLoaderRoute: typeof ApiPublicRuntimeGatewayRotateCredentialRouteImport
+    '/api/introspect/campaigns-summary': {
+      id: '/api/introspect/campaigns-summary'
+      path: '/api/introspect/campaigns-summary'
+      fullPath: '/api/introspect/campaigns-summary'
+      preLoaderRoute: typeof ApiIntrospectCampaignsSummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/runtime/tamar-delivery-audit': {
-      id: '/api/public/runtime/tamar-delivery-audit'
-      path: '/api/public/runtime/tamar-delivery-audit'
-      fullPath: '/api/public/runtime/tamar-delivery-audit'
-      preLoaderRoute: typeof ApiPublicRuntimeTamarDeliveryAuditRouteImport
+    '/api/introspect/backend-map': {
+      id: '/api/introspect/backend-map'
+      path: '/api/introspect/backend-map'
+      fullPath: '/api/introspect/backend-map'
+      preLoaderRoute: typeof ApiIntrospectBackendMapRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/runtime/tamar-generate': {
-      id: '/api/public/runtime/tamar-generate'
-      path: '/api/public/runtime/tamar-generate'
-      fullPath: '/api/public/runtime/tamar-generate'
-      preLoaderRoute: typeof ApiPublicRuntimeTamarGenerateRouteImport
+    '/api/introspect/agents-summary': {
+      id: '/api/introspect/agents-summary'
+      path: '/api/introspect/agents-summary'
+      fullPath: '/api/introspect/agents-summary'
+      preLoaderRoute: typeof ApiIntrospectAgentsSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/zooga-core-export': {
+      id: '/api/internal/zooga-core-export'
+      path: '/api/internal/zooga-core-export'
+      fullPath: '/api/internal/zooga-core-export'
+      preLoaderRoute: typeof ApiInternalZoogaCoreExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/tamar-config': {
+      id: '/api/debug/tamar-config'
+      path: '/api/debug/tamar-config'
+      fullPath: '/api/debug/tamar-config'
+      preLoaderRoute: typeof ApiDebugTamarConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/system-summary': {
+      id: '/api/debug/system-summary'
+      path: '/api/debug/system-summary'
+      fullPath: '/api/debug/system-summary'
+      preLoaderRoute: typeof ApiDebugSystemSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/schema-summary': {
+      id: '/api/debug/schema-summary'
+      path: '/api/debug/schema-summary'
+      fullPath: '/api/debug/schema-summary'
+      preLoaderRoute: typeof ApiDebugSchemaSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/recent-events': {
+      id: '/api/debug/recent-events'
+      path: '/api/debug/recent-events'
+      fullPath: '/api/debug/recent-events'
+      preLoaderRoute: typeof ApiDebugRecentEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/integrations-status': {
+      id: '/api/debug/integrations-status'
+      path: '/api/debug/integrations-status'
+      fullPath: '/api/debug/integrations-status'
+      preLoaderRoute: typeof ApiDebugIntegrationsStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/frontend-map': {
+      id: '/api/debug/frontend-map'
+      path: '/api/debug/frontend-map'
+      fullPath: '/api/debug/frontend-map'
+      preLoaderRoute: typeof ApiDebugFrontendMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/debug/agents-summary': {
+      id: '/api/debug/agents-summary'
+      path: '/api/debug/agents-summary'
+      fullPath: '/api/debug/agents-summary'
+      preLoaderRoute: typeof ApiDebugAgentsSummaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/settings/whatsapp-connections': {
+      id: '/_app/settings/whatsapp-connections'
+      path: '/whatsapp-connections'
+      fullPath: '/settings/whatsapp-connections'
+      preLoaderRoute: typeof AppSettingsWhatsappConnectionsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/tamar-studio': {
+      id: '/_app/settings/tamar-studio'
+      path: '/tamar-studio'
+      fullPath: '/settings/tamar-studio'
+      preLoaderRoute: typeof AppSettingsTamarStudioRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/tamar-brain': {
+      id: '/_app/settings/tamar-brain'
+      path: '/tamar-brain'
+      fullPath: '/settings/tamar-brain'
+      preLoaderRoute: typeof AppSettingsTamarBrainRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/tamar-blocks': {
+      id: '/_app/settings/tamar-blocks'
+      path: '/tamar-blocks'
+      fullPath: '/settings/tamar-blocks'
+      preLoaderRoute: typeof AppSettingsTamarBlocksRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/tamar': {
+      id: '/_app/settings/tamar'
+      path: '/tamar'
+      fullPath: '/settings/tamar'
+      preLoaderRoute: typeof AppSettingsTamarRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/api': {
+      id: '/_app/settings/api'
+      path: '/api'
+      fullPath: '/settings/api'
+      preLoaderRoute: typeof AppSettingsApiRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/offers/$id': {
+      id: '/_app/offers/$id'
+      path: '/$id'
+      fullPath: '/offers/$id'
+      preLoaderRoute: typeof AppOffersIdRouteImport
+      parentRoute: typeof AppOffersRoute
+    }
+    '/_app/contacts/$id': {
+      id: '/_app/contacts/$id'
+      path: '/$id'
+      fullPath: '/contacts/$id'
+      preLoaderRoute: typeof AppContactsIdRouteImport
+      parentRoute: typeof AppContactsRoute
+    }
+    '/_app/campaigns/new': {
+      id: '/_app/campaigns/new'
+      path: '/new'
+      fullPath: '/campaigns/new'
+      preLoaderRoute: typeof AppCampaignsNewRouteImport
+      parentRoute: typeof AppCampaignsRoute
+    }
+    '/_app/campaigns/$id': {
+      id: '/_app/campaigns/$id'
+      path: '/$id'
+      fullPath: '/campaigns/$id'
+      preLoaderRoute: typeof AppCampaignsIdRouteImport
+      parentRoute: typeof AppCampaignsRoute
+    }
+    '/_app/broadcasts/$id': {
+      id: '/_app/broadcasts/$id'
+      path: '/$id'
+      fullPath: '/broadcasts/$id'
+      preLoaderRoute: typeof AppBroadcastsIdRouteImport
+      parentRoute: typeof AppBroadcastsRoute
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhook/tamar': {
+      id: '/api/public/webhook/tamar'
+      path: '/api/public/webhook/tamar'
+      fullPath: '/api/public/webhook/tamar'
+      preLoaderRoute: typeof ApiPublicWebhookTamarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/runtime/tamar-turn': {
@@ -1674,11 +1583,102 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRuntimeTamarTurnRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/webhook/tamar': {
-      id: '/api/public/webhook/tamar'
-      path: '/api/public/webhook/tamar'
-      fullPath: '/api/public/webhook/tamar'
-      preLoaderRoute: typeof ApiPublicWebhookTamarRouteImport
+    '/api/public/runtime/tamar-generate': {
+      id: '/api/public/runtime/tamar-generate'
+      path: '/api/public/runtime/tamar-generate'
+      fullPath: '/api/public/runtime/tamar-generate'
+      preLoaderRoute: typeof ApiPublicRuntimeTamarGenerateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runtime/tamar-delivery-audit': {
+      id: '/api/public/runtime/tamar-delivery-audit'
+      path: '/api/public/runtime/tamar-delivery-audit'
+      fullPath: '/api/public/runtime/tamar-delivery-audit'
+      preLoaderRoute: typeof ApiPublicRuntimeTamarDeliveryAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runtime/gateway-rotate-credential': {
+      id: '/api/public/runtime/gateway-rotate-credential'
+      path: '/api/public/runtime/gateway-rotate-credential'
+      fullPath: '/api/public/runtime/gateway-rotate-credential'
+      preLoaderRoute: typeof ApiPublicRuntimeGatewayRotateCredentialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runtime/conversation-debug': {
+      id: '/api/public/runtime/conversation-debug'
+      path: '/api/public/runtime/conversation-debug'
+      fullPath: '/api/public/runtime/conversation-debug'
+      preLoaderRoute: typeof ApiPublicRuntimeConversationDebugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runtime/agent-command': {
+      id: '/api/public/runtime/agent-command'
+      path: '/api/public/runtime/agent-command'
+      fullPath: '/api/public/runtime/agent-command'
+      preLoaderRoute: typeof ApiPublicRuntimeAgentCommandRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/intelligence/extract': {
+      id: '/api/public/intelligence/extract'
+      path: '/api/public/intelligence/extract'
+      fullPath: '/api/public/intelligence/extract'
+      preLoaderRoute: typeof ApiPublicIntelligenceExtractRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/zooga-shadow-drain': {
+      id: '/api/public/cron/zooga-shadow-drain'
+      path: '/api/public/cron/zooga-shadow-drain'
+      fullPath: '/api/public/cron/zooga-shadow-drain'
+      preLoaderRoute: typeof ApiPublicCronZoogaShadowDrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/zooga-brain-executor': {
+      id: '/api/public/cron/zooga-brain-executor'
+      path: '/api/public/cron/zooga-brain-executor'
+      fullPath: '/api/public/cron/zooga-brain-executor'
+      preLoaderRoute: typeof ApiPublicCronZoogaBrainExecutorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/zero-loss-worker': {
+      id: '/api/public/cron/zero-loss-worker'
+      path: '/api/public/cron/zero-loss-worker'
+      fullPath: '/api/public/cron/zero-loss-worker'
+      preLoaderRoute: typeof ApiPublicCronZeroLossWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/zero-loss-reconcile': {
+      id: '/api/public/cron/zero-loss-reconcile'
+      path: '/api/public/cron/zero-loss-reconcile'
+      fullPath: '/api/public/cron/zero-loss-reconcile'
+      preLoaderRoute: typeof ApiPublicCronZeroLossReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/whatsapp-broadcast-runner': {
+      id: '/api/public/cron/whatsapp-broadcast-runner'
+      path: '/api/public/cron/whatsapp-broadcast-runner'
+      fullPath: '/api/public/cron/whatsapp-broadcast-runner'
+      preLoaderRoute: typeof ApiPublicCronWhatsappBroadcastRunnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cron/retry-handoffs': {
+      id: '/api/public/cron/retry-handoffs'
+      path: '/api/public/cron/retry-handoffs'
+      fullPath: '/api/public/cron/retry-handoffs'
+      preLoaderRoute: typeof ApiPublicCronRetryHandoffsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/ai-assistant/run': {
+      id: '/api/public/ai-assistant/run'
+      path: '/api/public/ai-assistant/run'
+      fullPath: '/api/public/ai-assistant/run'
+      preLoaderRoute: typeof ApiPublicAiAssistantRunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/admin/backfill-memories': {
+      id: '/api/public/admin/backfill-memories'
+      path: '/api/public/admin/backfill-memories'
+      fullPath: '/api/public/admin/backfill-memories'
+      preLoaderRoute: typeof ApiPublicAdminBackfillMemoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
