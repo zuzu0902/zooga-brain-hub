@@ -3,8 +3,6 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Pencil, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
-import { useServerFn } from "@tanstack/react-start";
-import { extractEventFromUrl } from "@/lib/catalog-extract.functions";
 import { useAuth } from "@/lib/auth-context";
 import { coreApi, listAll, CoreApiError, type CatalogLifecycle, type CoreCatalogItem } from "@/lib/hostinger-core/client";
 import { operatorHead } from "@/lib/hostinger-core/operator-head";
@@ -83,22 +81,14 @@ function EditDialog({ item, onClose, onSaved }: { item: CoreCatalogItem | null; 
     onSuccess: () => { toast.success(item ? "הפריט עודכן" : "הפריט נוסף"); onSaved(); },
     onError: e => setErrors([errText(e)]),
   });
-  const extractFn = useServerFn(extractEventFromUrl);
   const ex = useMutation({
-    mutationFn: () => extractFn({ data: { url: f.url.trim(), title: f.title.trim() || undefined } }),
+    mutationFn: () => coreApi.learnCatalogFromUrl(f.url.trim()),
     onSuccess: r => {
-      if (!r.ok) { toast.error(r.error); return; }
-      const x = r.fields; let n = 0;
-      const local = (v: string | null) => { if (!v) return ""; const d = new Date(v); return isNaN(d.getTime()) ? "" : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
-      setF(p => {
-        const fill = (cur: string, v: string) => { if (!cur.trim() && v) { n++; return v; } return cur; };
-        return { ...p, title: fill(p.title, x.title ?? ""), category: fill(p.category, x.category ?? ""), description: fill(p.description, x.description ?? ""),
-          event_knowledge: fill(p.event_knowledge, x.event_knowledge ?? ""), event_date: fill(p.event_date, local(x.event_date)), event_end_date: fill(p.event_end_date, local(x.event_end_date)),
-          price: fill(p.price, x.price != null ? String(x.price) : ""), currency: !p.price.trim() && x.currency ? x.currency : p.currency };
-      });
-      setTimeout(() => toast.success(n ? `מולאו ${n} שדות — בדקו לפני שמירה` : "לא נמצאו פרטים חדשים למילוי"), 0);
+      const { form, filled } = applyCatalogSuggestion(f, r.suggestion);
+      setF(form);
+      toast.success(filled ? `מולאו ${filled} שדות ריקים — חובה לבדוק את כל הפרטים לפני שמירה` : "לא נמצאו פרטים חדשים למילוי — בדקו את הטופס לפני שמירה");
     },
-    onError: () => toast.error("הניתוח נכשל, נסו שוב"),
+    onError: e => toast.error(e instanceof CoreApiError ? (e.status === 401 || e.status === 403 ? "אין הרשאה לניתוח הקישור" : e.status === 400 || e.status === 422 ? "Core דחה את הקישור — בדקו שהוא https ציבורי" : e.status === 404 ? "שירות הלמידה עדיין לא זמין ב-Core" : "הניתוח ב-Core נכשל, נסו שוב") : "הניתוח נכשל, נסו שוב"),
   });
   const submit = () => { const r = formToInput(f); setErrors(r.errors); if (r.body) m.mutate(r.body); };
   return <Dialog open onOpenChange={o => !o && onClose()}><DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-auto">
