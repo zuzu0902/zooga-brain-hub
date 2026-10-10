@@ -26,7 +26,7 @@ export type CoreContactPatch = { profile?: Record<string, unknown>; lifecycle?: 
 export type CatalogLifecycle = "draft" | "active" | "archived";
 export type CoreCatalogInput = {
   title?: string; category?: string | null; lifecycle_status?: CatalogLifecycle; url?: string | null;
-  description?: string | null; event_date?: string | null; event_end_date?: string | null;
+  description?: string | null; event_knowledge?: string | null; event_date?: string | null; event_end_date?: string | null;
   price?: number | null; currency?: string | null; sellable?: boolean;
 };
 
@@ -215,7 +215,7 @@ export function normalizeCatalogItem(raw: any): CoreCatalogItem {
     commercial, verified_facts,
   };
   flat.url = firstNonEmpty(com.url, com.offer_url, meta.url, vf.url, vf.public_url, flat.url) ?? null;
-  for (const key of ["event_date", "event_end_date", "sellable", "title", "category", "price", "currency"] as const) {
+  for (const key of ["event_date", "event_end_date", "event_knowledge", "sellable", "title", "category", "price", "currency"] as const) {
     flat[key] = firstNonEmpty(com[key], meta[key], top[key]) ?? flat[key] ?? null;
   }
   if (flat.status == null && r.lifecycle_status != null) flat.status = r.lifecycle_status;

@@ -1,5 +1,10 @@
 # Roadmap
 
+## Focused catalog form update
+- [x] Add factual event_knowledge round trip and card indicator through Core only.
+- [x] Replace currency free text with ISO options, preserving existing other codes.
+- [ ] Verify focused tests and automatic build; no publish or live data writes.
+
 - [x] Implement the approved Tamar canonical conversation policy within scope.
 - [x] Add focused behavior tests for post-consent onboarding, anti-spam, Hebrew cleanliness, and concierge voice.
 - [x] Run affected tests, typecheck, and production build; report results before publishing.
