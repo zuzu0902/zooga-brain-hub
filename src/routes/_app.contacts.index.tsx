@@ -23,6 +23,7 @@ import {
 import { ContactCreateDialog } from "@/components/contact-create-dialog";
 import { useT } from "@/lib/language-context";
 import { useLanguage } from "@/lib/language-context";
+import { contactDisplayName, contactMatchesSearch, compareContactNames } from "@/lib/hostinger-core/contact-search";
 
 export const Route = createFileRoute("/_app/contacts/")({
   head: () => operatorHead("אנשים", "אנשי קשר, פרטי קשר ומצב פעילות במרכז השליטה של זוגה."),
@@ -84,13 +85,7 @@ function ContactsPage() {
       if (activity === "high" && (c.activity_score ?? 0) < 70) return false;
       if (consent === "yes" && !c.consent_marketing) return false;
       if (consent === "no" && c.consent_marketing) return false;
-      if (t) {
-        const hay = [
-          c.full_name, c.phone, c.email, c.city,
-          ...(c.interests || []).map((i: string) => INTEREST_LABELS[i] || i),
-        ].filter(Boolean).join(" ").toLowerCase();
-        if (!hay.includes(t)) return false;
-      }
+      if (t && !contactMatchesSearch(c, t, (c.interests || []).map((i: string) => INTEREST_LABELS[i] || i))) return false;
       return true;
     });
     const ts = (d: any) => (d ? new Date(d).getTime() : 0);
@@ -98,7 +93,7 @@ function ContactsPage() {
     if (sort === "newest") sorted.sort((a, b) => ts(b.created_at) - ts(a.created_at));
     else if (sort === "oldest") sorted.sort((a, b) => ts(a.created_at) - ts(b.created_at));
     else if (sort === "activity") sorted.sort((a, b) => ts(b.last_interaction_at) - ts(a.last_interaction_at));
-    else if (sort === "name") sorted.sort((a, b) => (a.full_name || "").localeCompare(b.full_name || "", "he"));
+    else if (sort === "name") sorted.sort(compareContactNames);
     return sorted;
   }, [contacts, search, status, source, region, interest, temperature, activity, consent, sort]);
 
@@ -205,7 +200,8 @@ function ContactsPage() {
                 <tr><td colSpan={14} className="p-10 text-center text-muted-foreground">{t("אין אנשי קשר התואמים לסינון")}</td></tr>
               )}
               {!loadError && !isLoading && filtered.map((c: any) => {
-                const initials = (c.full_name || c.first_name || "?").trim().slice(0, 1);
+                const displayName = contactDisplayName(c);
+                const initials = (displayName || "?").slice(0, 1);
                 return (
                   <tr
                     key={c.id}
@@ -225,7 +221,7 @@ function ContactsPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="font-medium truncate flex items-center gap-1.5">
-                            {c.full_name || t("ללא שם")}
+                            {displayName || t("ללא שם")}
                             {c.manager_attention_required && (
                               <AlertCircle className="h-3.5 w-3.5 text-destructive" />
                             )}
@@ -282,7 +278,7 @@ function ContactsPage() {
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => { e.stopPropagation(); setToDelete({ id: c.id, name: c.full_name || "" }); }}
+                        onClick={(e) => { e.stopPropagation(); setToDelete({ id: c.id, name: displayName || "" }); }}
                         aria-label={t("מחק")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
