@@ -85,7 +85,9 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
       },
     });
     const body: any = await res.json().catch(() => null);
-    if (!res.ok) throw new CoreApiError(res.status, String(body?.error ?? "request_failed"));
+    // Core reports failures as { ok:false, code }. Keep that code — never collapse it to request_failed.
+    const code = String(body?.code ?? body?.error ?? "request_failed");
+    if (!res.ok || body?.ok === false) throw new CoreApiError(res.status, code);
     return body as T;
   }
 
