@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createCoreClient } from "@/lib/hostinger-core/client";
+import { createCoreClient, normalizeCatalogItem } from "@/lib/hostinger-core/client";
 import { tamarEligibility, matchesFilter, formToInput, emptyForm } from "@/lib/hostinger-core/catalog";
 
 const now = new Date("2026-10-10T00:00:00Z");
