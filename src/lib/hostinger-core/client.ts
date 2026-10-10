@@ -181,16 +181,43 @@ export function normalizeContact(raw: any): CoreContact {
   return flat as CoreContact;
 }
 
-/** Flatten a Core catalog item (commercial + verified_facts; lifecycle_status → status). */
+/** First value that is not null/undefined and not an empty string. */
+function firstNonEmpty(...vals: unknown[]): unknown {
+  for (const v of vals) {
+    if (v === null || v === undefined) continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    return v;
+  }
+  return undefined;
+}
+
+/**
+ * Flatten a Core catalog item (commercial + verified_facts; lifecycle_status → status).
+ *
+ * Legacy-migrated records keep their values primarily in `commercial`
+ * (offer_url, event_date/event_end_date, price/currency) and in
+ * `verified_facts.catalog_meta` (url, sellable, dates), while Core-created
+ * records use `commercial.url` and top-level fields. Canonical flat fields use
+ * safe precedence: commercial → catalog_meta → top-level → verified_facts.
+ * The original nested objects are preserved unchanged.
+ */
 export function normalizeCatalogItem(raw: any): CoreCatalogItem {
   const r = obj(raw);
   const { commercial, verified_facts, ...top } = r;
+  const com = obj(commercial);
+  const vf = obj(verified_facts);
+  const meta = obj(vf.catalog_meta);
   const flat: Record<string, any> = {
-    ...obj(verified_facts),
-    ...obj(commercial),
+    ...vf,
+    ...meta,
+    ...com,
     ...top,
     commercial, verified_facts,
   };
+  flat.url = firstNonEmpty(com.url, com.offer_url, meta.url, vf.url, vf.public_url, flat.url) ?? null;
+  for (const key of ["event_date", "event_end_date", "sellable", "title", "category", "price", "currency"] as const) {
+    flat[key] = firstNonEmpty(com[key], meta[key], top[key]) ?? flat[key] ?? null;
+  }
   if (flat.status == null && r.lifecycle_status != null) flat.status = r.lifecycle_status;
   return flat as CoreCatalogItem;
 }
