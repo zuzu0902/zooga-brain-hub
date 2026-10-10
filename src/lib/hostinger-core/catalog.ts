@@ -1,5 +1,5 @@
 /** Browser-safe catalog helpers: Tamar eligibility, filters, form validation. */
-import type { CoreCatalogInput, CatalogLifecycle } from "./client";
+import type { CoreCatalogInput, CatalogLifecycle, CoreCatalogSuggestion } from "./client";
 
 export type CatalogFilter = "all" | "active" | "draft" | "archived" | "needs_link" | "past_date";
 
@@ -83,4 +83,21 @@ export function formToInput(f: CatalogForm): { errors: string[]; body?: CoreCata
   if (errors.length) return { errors };
   return { errors, body: { title, category: f.category.trim() || null, lifecycle_status: f.lifecycle_status, url: url || null,
     description: f.description.trim() || null, event_knowledge: f.event_knowledge.trim() || null, event_date: start, event_end_date: end, price, currency: currency || null, sellable: f.sellable } };
+}
+
+/** Fill only empty form fields from a Core learn suggestion. Never overwrites operator input. */
+export function applyCatalogSuggestion(f: CatalogForm, s: CoreCatalogSuggestion): { form: CatalogForm; filled: number } {
+  let filled = 0;
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const fill = (cur: string, v: string) => (!cur.trim() && v ? (filled++, v) : cur);
+  const price = typeof s.price === "number" && Number.isFinite(s.price) && s.price >= 0 ? String(s.price) : "";
+  const cur = str(s.currency).toUpperCase();
+  const form: CatalogForm = { ...f,
+    title: fill(f.title, str(s.title)), category: fill(f.category, str(s.category)), description: fill(f.description, str(s.description)),
+    event_knowledge: fill(f.event_knowledge, str(s.event_knowledge)),
+    event_date: fill(f.event_date, toLocal(s.event_date)), event_end_date: fill(f.event_end_date, toLocal(s.event_end_date)),
+    price: fill(f.price, price),
+    currency: !f.price.trim() && price && /^[A-Z]{3}$/.test(cur) ? cur : f.currency,
+  };
+  return { form, filled };
 }

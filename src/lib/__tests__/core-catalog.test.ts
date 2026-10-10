@@ -119,3 +119,30 @@ describe("eligibility & filters", () => {
     expect(formToInput({ ...emptyForm(), title: " x ", price: "10", currency: "usd" }).body).toMatchObject({ title: "x", price: 10, currency: "USD" });
   });
 });
+
+import { applyCatalogSuggestion } from "@/lib/hostinger-core/catalog";
+import { readFileSync } from "node:fs";
+describe("catalog learn from URL (Core only)", () => {
+  it("POSTs exact Core path with session bearer and returns suggestion", async () => {
+    const calls: any[] = [];
+    const c = createCoreClient({ baseUrl: "https://core", getToken: async () => "tok",
+      fetcher: (async (url: string, init: any) => { calls.push({ url, init }); return new Response(JSON.stringify({ source: { url: "https://e.co" }, suggestion: { title: "אירוע" }, model_status: "ok" })); }) as any });
+    const r = await c.learnCatalogFromUrl("https://e.co");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://core/v1/admin/catalog/learn");
+    expect(calls[0].init.method).toBe("POST");
+    expect(calls[0].init.headers.Authorization).toBe("Bearer tok");
+    expect(JSON.parse(calls[0].init.body)).toEqual({ url: "https://e.co" });
+    expect(r).toEqual({ source: { url: "https://e.co" }, suggestion: { title: "אירוע" }, model_status: "ok" });
+  });
+  it("fills only empty fields", () => {
+    const { form, filled } = applyCatalogSuggestion({ ...emptyForm(), title: "שלי" }, { title: "אחר", category: "סדנה", price: 50, currency: "EUR" });
+    expect(form.title).toBe("שלי"); expect(form.category).toBe("סדנה"); expect(form.price).toBe("50"); expect(form.currency).toBe("EUR"); expect(filled).toBe(2);
+  });
+  it("active catalog path has no external fetch, Firecrawl or AI gateway", () => {
+    for (const p of ["src/routes/_app.catalog.tsx", "src/lib/hostinger-core/catalog.ts", "src/lib/hostinger-core/client.ts"]) {
+      const src = readFileSync(p, "utf8");
+      expect(src).not.toMatch(/firecrawl|ai\.gateway|catalog-extract|extractEventFromUrl|useServerFn/i);
+    }
+  });
+});
