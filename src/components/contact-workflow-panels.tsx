@@ -2,10 +2,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { operatorTime } from "@/lib/hostinger-core/control-center";
 import {
-  consentStatusLabel, consentView, fieldLabel, memoryText, stateLabel,
+  AUDIT_SOURCE_LABEL, auditSource, consentStatusLabel, consentView, fieldLabel, memoryText, stateLabel,
   type ContactWorkflow, type WorkflowMessage,
 } from "@/lib/hostinger-core/contact-workflow";
 import { Empty } from "./operator-data";
+import { canResolveHandoff } from "@/lib/hostinger-core/intake-definitions";
 
 export function WorkflowConversation({ messages, hasOlder, loadingOlder, onLoadOlder }: { messages: WorkflowMessage[]; hasOlder: boolean; loadingOlder: boolean; onLoadOlder: () => void }) {
   return <div className="space-y-3 pt-4">
@@ -43,8 +44,9 @@ export function WorkflowIntake({ w }: { w: ContactWorkflow }) {
     <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary" style={{ width: `${pct}%` }} /></div>
     <div className="grid sm:grid-cols-2 gap-4 text-sm">
       <div><h3 className="text-muted-foreground mb-1">ידוע</h3>{w.intake.completed.length ? <div className="flex gap-1 flex-wrap">{w.intake.completed.map(k => <Badge key={k} variant="outline">{fieldLabel(k)}</Badge>)}</div> : <p className="text-muted-foreground">—</p>}</div>
-      <div><h3 className="text-muted-foreground mb-1">חסר</h3>{w.intake.missing.length ? <div className="flex gap-1 flex-wrap">{w.intake.missing.map(k => <Badge key={k} variant="secondary">{fieldLabel(k)}</Badge>)}</div> : <p className="text-muted-foreground">אין שדות חסרים</p>}</div>
+      <div><h3 className="text-muted-foreground mb-1">חסר</h3>{w.intake.missing.length ? <div className="flex gap-1 flex-wrap">{w.intake.missing.map(k => <Badge key={k} variant="secondary">{fieldLabel(k)}{w.intake.required.includes(k) ? " · חובה" : " · אופציונלי"}</Badge>)}</div> : <p className="text-muted-foreground">אין שדות חסרים</p>}</div>
     </div>
+    {w.intake.definitions_source && <p className="text-xs text-muted-foreground">מקור הגדרות השאלות: {w.intake.definitions_source === "core" ? "Core" : w.intake.definitions_source}</p>}
   </section>;
 }
 
@@ -56,8 +58,8 @@ export function WorkflowKnowledge({ w }: { w: ContactWorkflow }) {
     <section className="space-y-2"><h2 className="font-semibold">עובדות שהלקוח מסר</h2>
       {!w.facts.length ? <p className="text-sm text-muted-foreground">לא חולצו עובדות</p> : <ul className="divide-y divide-border">{w.facts.map((f, i) => <li key={i} className="py-2 text-sm"><span className="font-medium">{fieldLabel(f.field_key)}:</span> {f.value_text || "—"}{f.evidence_quote && <p className="text-muted-foreground whitespace-pre-wrap mt-1">ציטוט: „{f.evidence_quote}”</p>}<p className="text-xs text-muted-foreground">מקור: {operatorTime(f.observed_at)}</p></li>)}</ul>}
     </section>
-    <section className="space-y-2"><h2 className="font-semibold">סיכום וניתוח של המודל</h2><p className="text-xs text-muted-foreground">פרשנות שנוצרה אוטומטית — אינה עובדה שהלקוח מסר.</p>
-      {!summaries.length ? <p className="text-sm text-muted-foreground">אין סיכומים</p> : <ul className="divide-y divide-border">{summaries.map((a, i) => <li key={i} className="py-2 text-sm space-y-1">{a.summary && <p className="whitespace-pre-wrap">{a.summary}</p>}{a.intent && <p className="text-muted-foreground">כוונה מזוהה: {stateLabel(a.intent)}</p>}{a.next_question && <p className="text-muted-foreground">שאלה הבאה מתוכננת: {a.next_question}</p>}<p className="text-xs text-muted-foreground">{operatorTime(a.source_updated_at)}</p></li>)}</ul>}
+    <section className="space-y-2"><h2 className="font-semibold">סיכומים וניתוחים</h2><p className="text-xs text-muted-foreground">כל פריט מסומן במקורו. ניתוח מודל הוא פרשנות אוטומטית ואינו עובדה שהלקוח מסר.</p>
+      {!summaries.length ? <p className="text-sm text-muted-foreground">אין סיכומים</p> : <ul className="divide-y divide-border">{summaries.map((a, i) => <li key={i} className="py-2 text-sm space-y-1"><Badge variant={auditSource(a) === "model" ? "secondary" : "outline"} data-source={auditSource(a)}>{AUDIT_SOURCE_LABEL[auditSource(a)]}</Badge>{a.summary && <p className="whitespace-pre-wrap">{a.summary}</p>}{a.intent && <p className="text-muted-foreground">כוונה מזוהה: {stateLabel(a.intent)}</p>}{a.next_question && <p className="text-muted-foreground">שאלה הבאה מתוכננת: {a.next_question}</p>}<p className="text-xs text-muted-foreground">{operatorTime(a.source_updated_at)}</p></li>)}</ul>}
     </section>
     <section className="space-y-2"><h2 className="font-semibold">זיכרון</h2>
       {!w.memories.length ? <p className="text-sm text-muted-foreground">אין פריטי זיכרון</p> : <ul className="divide-y divide-border">{w.memories.map((m, i) => <li key={i} className="py-2 text-sm"><span className="font-medium">{fieldLabel(m.memory_key)}:</span> <span className="whitespace-pre-wrap">{memoryText(m.memory_value)}</span><p className="text-xs text-muted-foreground">{operatorTime(m.source_updated_at)}</p></li>)}</ul>}
@@ -65,9 +67,9 @@ export function WorkflowKnowledge({ w }: { w: ContactWorkflow }) {
   </div>;
 }
 
-export function WorkflowHandoffs({ w }: { w: ContactWorkflow }) {
+export function WorkflowHandoffs({ w, onResolve }: { w: ContactWorkflow; onResolve?: (handoffId: string) => void }) {
   if (!w.handoffs.length) return <Empty text="אין פניות לטיפול מנהל" />;
-  return <ul className="divide-y divide-border pt-2">{w.handoffs.map(h => <li key={h.id} className="py-3 text-sm space-y-1"><div className="flex gap-2 items-center"><Badge variant="outline">{stateLabel(h.state)}</Badge><span className="text-xs text-muted-foreground">{operatorTime(h.created_at)}</span></div>{h.reason && <p className="whitespace-pre-wrap">סיבה: {h.reason}</p>}{h.manager_summary && <p className="text-muted-foreground whitespace-pre-wrap">סיכום מנהל: {h.manager_summary}</p>}</li>)}</ul>;
+  return <ul className="divide-y divide-border pt-2">{w.handoffs.map(h => <li key={h.id} className="py-3 text-sm space-y-1"><div className="flex gap-2 items-center"><Badge variant="outline">{stateLabel(h.state)}</Badge><span className="text-xs text-muted-foreground">{operatorTime(h.created_at)}</span></div>{h.reason && <p className="whitespace-pre-wrap">סיבה: {h.reason}</p>}{h.manager_summary && <p className="text-muted-foreground whitespace-pre-wrap">סיכום מנהל: {h.manager_summary}</p>}{onResolve && canResolveHandoff(h.state) && <Button size="sm" variant="outline" onClick={() => onResolve(h.id)}>תיעוד טיפול והחזרה לתמר</Button>}</li>)}</ul>;
 }
 
 export function WorkflowTasks({ w }: { w: ContactWorkflow }) {

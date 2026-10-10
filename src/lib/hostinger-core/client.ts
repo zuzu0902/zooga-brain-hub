@@ -10,6 +10,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { parseControlCenter } from "./control-center";
 import { parseContactWorkflow, type ContactWorkflow } from "./contact-workflow";
+import { parseIntakeDefinitions, parseIntakeDefinition, sanitizeIntakePatch, buildResolveBody, parseResolveResult, type IntakeDefinition, type HandoffResolveInput } from "./intake-definitions";
 
 // MIGRATION: public Hostinger Core base URL (non-secret).
 export const HOSTINGER_CORE_BASE_URL = "https://zooga-core.72-62-31-90.sslip.io";
@@ -117,6 +118,14 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
     /** Contact-scoped CRM card data. Read-only. `before` loads an earlier message page. */
     getContactWorkflow: async (id: string, before?: string | null): Promise<ContactWorkflow> =>
       parseContactWorkflow(await request<unknown>(`/v1/admin/contacts/${encodeURIComponent(id)}/workflow${qs({ before })}`), id),
+    listIntakeDefinitions: async (): Promise<IntakeDefinition[]> => parseIntakeDefinitions(await request<unknown>("/v1/admin/intake-definitions")),
+    patchIntakeDefinition: async (fieldKey: string, patch: Record<string, unknown>): Promise<IntakeDefinition> => {
+      const r = await request<any>(`/v1/admin/intake-definitions/${encodeURIComponent(fieldKey)}`, { method: "PATCH", body: JSON.stringify(sanitizeIntakePatch(patch)) });
+      return parseIntakeDefinition(r?.definition);
+    },
+    /** Manager-recorded outcome. Core sends no messages; release only happens through this explicit call. */
+    resolveHandoff: async (handoffId: string, input: HandoffResolveInput) =>
+      parseResolveResult(await request<unknown>(`/v1/admin/handoffs/${encodeURIComponent(handoffId)}/resolve`, { method: "POST", body: JSON.stringify(buildResolveBody(input)) })),
     patchContact: async (id: string, patch: CoreContactPatch) =>
       normalizeContact(unwrap<any>(
         await request<any>(`/v1/admin/contacts/${encodeURIComponent(id)}`, {
