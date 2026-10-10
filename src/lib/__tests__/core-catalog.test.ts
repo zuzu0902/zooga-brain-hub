@@ -22,6 +22,58 @@ describe("core catalog client", () => {
   });
 });
 
+describe("normalizeCatalogItem precedence", () => {
+  it("legacy imported record: offer_url + catalog_meta surface as canonical url/date/sellable", () => {
+    const commercial = {
+      offer_url: "https://legacy.co/offer",
+      price: 120,
+      currency: "ILS",
+      event_date: "2027-03-01T00:00:00Z",
+      event_end_date: "2027-03-05T00:00:00Z",
+    };
+    const verified_facts = {
+      catalog_meta: { url: "https://legacy.co/offer", sellable: true, event_date: "2027-03-01T00:00:00Z" },
+    };
+    const item = normalizeCatalogItem({
+      id: "imp1",
+      title: "Legacy item",
+      lifecycle_status: "active",
+      commercial,
+      verified_facts,
+    });
+    expect(item.url).toBe("https://legacy.co/offer");
+    expect(item.event_date).toBe("2027-03-01T00:00:00Z");
+    expect(item.event_end_date).toBe("2027-03-05T00:00:00Z");
+    expect(item.sellable).toBe(true);
+    expect(item.title).toBe("Legacy item");
+    expect(item.price).toBe(120);
+    expect(item.currency).toBe("ILS");
+    expect(item.commercial).toBe(commercial);
+    expect(item.verified_facts).toBe(verified_facts);
+    expect(tamarEligibility(item, now).ready).toBe(true);
+    expect(matchesFilter(item, "active", now)).toBe(true);
+  });
+
+  it("Core-created record with commercial.url still works, commercial wins precedence", () => {
+    const item = normalizeCatalogItem({
+      id: "c1",
+      title: "Core item",
+      lifecycle_status: "active",
+      commercial: {
+        url: "https://core.co/item",
+        offer_url: "https://old.co/offer",
+        sellable: true,
+        event_date: "2027-01-01T00:00:00Z",
+      },
+      verified_facts: { catalog_meta: { url: "https://meta.co/x", sellable: false } },
+    });
+    expect(item.url).toBe("https://core.co/item");
+    expect(item.sellable).toBe(true);
+    expect(item.event_date).toBe("2027-01-01T00:00:00Z");
+    expect(tamarEligibility(item, now).ready).toBe(true);
+  });
+});
+
 describe("eligibility & filters", () => {
   it("ready only when all conditions hold", () => {
     expect(tamarEligibility(ok, now).ready).toBe(true);
