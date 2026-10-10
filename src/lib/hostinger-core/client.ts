@@ -143,8 +143,17 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
     patchCatalogItem: async (id: string, body: CoreCatalogInput) =>
       normalizeCatalogItem(unwrap<any>(
         await request<any>(`/v1/admin/catalog/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }), "item")),
+    /** Core fetches and analyzes the page; the browser never touches the external URL or AI. Suggestion only — nothing is saved. */
+    learnCatalogFromUrl: async (url: string): Promise<CoreCatalogLearnResult> => {
+      const r = await request<any>(`/v1/admin/catalog/learn`, { method: "POST", body: JSON.stringify({ url }) });
+      const s = r?.suggestion && typeof r.suggestion === "object" ? r.suggestion : {};
+      return { source: r?.source ?? null, suggestion: s, model_status: r?.model_status ?? null };
+    },
   };
 }
+
+export type CoreCatalogSuggestion = Partial<{ title: string | null; category: string | null; description: string | null; event_knowledge: string | null; event_date: string | null; event_end_date: string | null; price: number | null; currency: string | null; url: string | null }>;
+export type CoreCatalogLearnResult = { source: unknown; suggestion: CoreCatalogSuggestion; model_status: unknown };
 
 export function normalizePage<T>(body: any, key: string): CorePage<T> {
   const items = Array.isArray(body) ? body : body?.rows ?? body?.items ?? body?.data ?? body?.[key] ?? [];
