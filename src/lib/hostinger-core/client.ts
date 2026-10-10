@@ -23,6 +23,12 @@ export type CorePage<T> = { items: T[]; next_cursor: string | null };
 export type CoreContact = Record<string, any> & { id: string };
 export type CoreCatalogItem = Record<string, any> & { id: string };
 export type CoreContactPatch = { profile?: Record<string, unknown>; lifecycle?: Record<string, unknown> };
+export type CatalogLifecycle = "draft" | "active" | "archived";
+export type CoreCatalogInput = {
+  title?: string; category?: string | null; lifecycle_status?: CatalogLifecycle; url?: string | null;
+  description?: string | null; event_date?: string | null; event_end_date?: string | null;
+  price?: number | null; currency?: string | null; sellable?: boolean;
+};
 
 type TokenGetter = () => Promise<string | null>;
 type Fetcher = typeof fetch;
@@ -131,6 +137,12 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
       )),
     listCatalog: async (p: { limit?: number; cursor?: string | null } = {}) =>
       mapPage(normalizePage<any>(await request<any>(`/v1/admin/catalog${qs(p)}`), "catalog"), normalizeCatalogItem),
+    createCatalogItem: async (body: CoreCatalogInput & { title: string }) =>
+      normalizeCatalogItem(unwrap<any>(
+        await request<any>(`/v1/admin/catalog`, { method: "POST", body: JSON.stringify(body) }), "item")),
+    patchCatalogItem: async (id: string, body: CoreCatalogInput) =>
+      normalizeCatalogItem(unwrap<any>(
+        await request<any>(`/v1/admin/catalog/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }), "item")),
   };
 }
 
