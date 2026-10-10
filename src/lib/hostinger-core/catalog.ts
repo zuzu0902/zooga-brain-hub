@@ -108,7 +108,7 @@ const LEARN_ERROR_MESSAGES: Record<string, string> = {
   unsafe_url: "הקישור אינו מאושר לניתוח — Core חסם אותו",
   page_fetch_failed: "לא ניתן לפתוח את הדף — בדקו שהקישור פעיל וציבורי",
   unsupported_content_type: "סוג תוכן זה אינו נתמך לניתוח — Core קורא דפי HTML בלבד",
-  page_too_large: "הדף גדול מכדי לנתחו — נסו קישor לעמוד קצר יותר",
+  page_too_large: "הדף גדול מכדי לנתחו — נסו קישור לעמוד קצר יותר",
   page_timeout: "ניתוח הדף נמשך יותר מדי זמן — נסו שוב",
   too_many_redirects: "הקישור עובר יותר מדי הפניות — הזינו קישור ישיר לעמוד",
   event_learning_failed: "המידע לא נלמד מהדף — מלאו את הפרטים ידנית",

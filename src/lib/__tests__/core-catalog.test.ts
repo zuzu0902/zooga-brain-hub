@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createCoreClient, normalizeCatalogItem } from "@/lib/hostinger-core/client";
-import { tamarEligibility, matchesFilter, formToInput, emptyForm, formFromItem, catalogCurrencyOptions } from "@/lib/hostinger-core/catalog";
+import { createCoreClient, normalizeCatalogItem, CoreApiError } from "@/lib/hostinger-core/client";
+import { tamarEligibility, matchesFilter, formToInput, emptyForm, formFromItem, catalogCurrencyOptions, catalogLearnErrorText } from "@/lib/hostinger-core/catalog";
 
 const now = new Date("2026-10-10T00:00:00Z");
 const ok = { lifecycle_status: "active", sellable: true, url: "https://x.co/a", event_date: "2026-12-01T00:00:00Z" };
@@ -139,10 +139,46 @@ describe("catalog learn from URL (Core only)", () => {
     const { form, filled } = applyCatalogSuggestion({ ...emptyForm(), title: "שלי" }, { title: "אחר", category: "סדנה", price: 50, currency: "EUR" });
     expect(form.title).toBe("שלי"); expect(form.category).toBe("סדנה"); expect(form.price).toBe("50"); expect(form.currency).toBe("EUR"); expect(filled).toBe(2);
   });
+  it("keeps the Core failure code and shows its Hebrew message", async () => {
+    for (const [code, status] of [["invalid_url", 400], ["unsafe_url", 400], ["page_fetch_failed", 502], ["unsupported_content_type", 415], ["page_too_large", 413], ["page_timeout", 504], ["too_many_redirects", 508], ["event_learning_failed", 500], ["brand_new_code", 400]] as const) {
+      const c = createCoreClient({ baseUrl: "https://core", getToken: async () => "tok",
+        fetcher: (async () => new Response(JSON.stringify({ ok: false, code }), { status })) as any });
+      const err = await c.learnCatalogFromUrl("https://e.co").then(() => null, (e: any) => e);
+      expect(err).toBeInstanceOf(CoreApiError);
+      expect(err.code).toBe(code);
+      expect(err.message).toContain(code);
+      const text = catalogLearnErrorText(err);
+      expect(text).not.toContain(code);
+      expect(text).toMatch(/[\u0590-\u05FF]/);
+      if (code === "brand_new_code") expect(text).toBe("Core דחה את הקישור — בדקו שהוא https ציבורי");
+    }
+  });
+  it("reports a Core learn failure even when the HTTP status is 200", async () => {
+    const c = createCoreClient({ baseUrl: "https://core", getToken: async () => "tok",
+      fetcher: (async () => new Response(JSON.stringify({ ok: false, code: "page_timeout" }))) as any });
+    const err = await c.learnCatalogFromUrl("https://e.co").then(() => null, (e: any) => e);
+    expect(err).toBeInstanceOf(CoreApiError);
+    expect(err.code).toBe("page_timeout");
+    expect(catalogLearnErrorText(err)).toBe("ניתוח הדף נמשך יותר מדי זמן — נסו שוב");
+  });
+  it("maps every documented learn code to Hebrew with a generic fallback", () => {
+    const codes = ["invalid_url", "unsafe_url", "page_fetch_failed", "unsupported_content_type", "page_too_large", "page_timeout", "too_many_redirects", "event_learning_failed"];
+    const seen = new Set<string>();
+    for (const code of codes) {
+      const text = catalogLearnErrorText(new CoreApiError(500, code));
+      expect(text).toMatch(/[\u0590-\u05FF]/);
+      expect(text).not.toBe("הניתוח ב-Core נכשל, נסו שוב");
+      seen.add(text);
+    }
+    expect(seen.size).toBe(codes.length);
+    expect(catalogLearnErrorText(new CoreApiError(500, "mystery"))).toBe("הניתוח ב-Core נכשל, נסו שוב");
+    expect(catalogLearnErrorText(new Error("boom"))).toBe("הניתוח נכשל, נסו שוב");
+  });
   it("active catalog path has no external fetch, Firecrawl or AI gateway", () => {
     for (const p of ["src/routes/_app.catalog.tsx", "src/lib/hostinger-core/catalog.ts", "src/lib/hostinger-core/client.ts"]) {
       const src = readFileSync(p, "utf8");
       expect(src).not.toMatch(/firecrawl|ai\.gateway|catalog-extract|extractEventFromUrl|useServerFn/i);
     }
+    expect(readFileSync("src/routes/_app.catalog.tsx", "utf8")).toMatch(/catalogLearnErrorText/);
   });
 });
