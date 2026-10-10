@@ -2,7 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { extractEventFromUrl } from "@/lib/catalog-extract.functions";
 import { useAuth } from "@/lib/auth-context";
 import { coreApi, listAll, CoreApiError, type CatalogLifecycle, type CoreCatalogItem } from "@/lib/hostinger-core/client";
 import { operatorHead } from "@/lib/hostinger-core/operator-head";
@@ -81,6 +83,23 @@ function EditDialog({ item, onClose, onSaved }: { item: CoreCatalogItem | null; 
     onSuccess: () => { toast.success(item ? "הפריט עודכן" : "הפריט נוסף"); onSaved(); },
     onError: e => setErrors([errText(e)]),
   });
+  const extractFn = useServerFn(extractEventFromUrl);
+  const ex = useMutation({
+    mutationFn: () => extractFn({ data: { url: f.url.trim(), title: f.title.trim() || undefined } }),
+    onSuccess: r => {
+      if (!r.ok) { toast.error(r.error); return; }
+      const x = r.fields; let n = 0;
+      const local = (v: string | null) => { if (!v) return ""; const d = new Date(v); return isNaN(d.getTime()) ? "" : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+      setF(p => {
+        const fill = (cur: string, v: string) => { if (!cur.trim() && v) { n++; return v; } return cur; };
+        return { ...p, title: fill(p.title, x.title ?? ""), category: fill(p.category, x.category ?? ""), description: fill(p.description, x.description ?? ""),
+          event_knowledge: fill(p.event_knowledge, x.event_knowledge ?? ""), event_date: fill(p.event_date, local(x.event_date)), event_end_date: fill(p.event_end_date, local(x.event_end_date)),
+          price: fill(p.price, x.price != null ? String(x.price) : ""), currency: !p.price.trim() && x.currency ? x.currency : p.currency };
+      });
+      setTimeout(() => toast.success(n ? `מולאו ${n} שדות — בדקו לפני שמירה` : "לא נמצאו פרטים חדשים למילוי"), 0);
+    },
+    onError: () => toast.error("הניתוח נכשל, נסו שוב"),
+  });
   const submit = () => { const r = formToInput(f); setErrors(r.errors); if (r.body) m.mutate(r.body); };
   return <Dialog open onOpenChange={o => !o && onClose()}><DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-auto">
     <DialogHeader><DialogTitle>{item ? "עריכת מוצר/אירוע" : "הוספת מוצר/אירוע"}</DialogTitle></DialogHeader>
@@ -88,7 +107,9 @@ function EditDialog({ item, onClose, onSaved }: { item: CoreCatalogItem | null; 
       <div><Label>שם *</Label><Input value={f.title} onChange={e => set("title", e.target.value)} /></div>
       <div className="grid grid-cols-2 gap-3"><div><Label>קטגוריה</Label><Input value={f.category} onChange={e => set("category", e.target.value)} /></div>
         <div><Label>סטטוס</Label><select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={f.lifecycle_status} onChange={e => set("lifecycle_status", e.target.value as CatalogLifecycle)}>{Object.entries(LIFE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div></div>
-      <div><Label>קישור (https)</Label><Input dir="ltr" value={f.url} onChange={e => set("url", e.target.value)} placeholder="https://" /></div>
+      <div><Label>קישור (https)</Label><div className="flex gap-2"><Input dir="ltr" value={f.url} onChange={e => set("url", e.target.value)} placeholder="https://" />
+        <Button type="button" variant="outline" disabled={!f.url.trim().startsWith("https://") || ex.isPending} onClick={() => ex.mutate()}><Sparkles className="h-4 w-4" />{ex.isPending ? "מנתח…" : "מילוי מהקישור"}</Button></div>
+        <p className="text-xs text-muted-foreground mt-1">אופציונלי: ממלא שדות ריקים מתוך הדף בלבד. יש לבדוק לפני שמירה.</p></div>
       <div><Label>תיאור</Label><Textarea rows={3} value={f.description} onChange={e => set("description", e.target.value)} /></div>
       <div><Label htmlFor="catalog-event-knowledge">מידע לתמר על האירוע</Label><Textarea id="catalog-event-knowledge" name="event_knowledge" rows={5} value={f.event_knowledge} onChange={e => set("event_knowledge", e.target.value)} placeholder="מה קורה באירוע, קהל יעד, מיקום ולו״ז, תנאים, ומה מותר או אסור להבטיח — עובדות מאומתות בלבד" /></div>
       <div className="grid grid-cols-2 gap-3"><div><Label>תאריך התחלה</Label><Input type="datetime-local" value={f.event_date} onChange={e => set("event_date", e.target.value)} /></div>
