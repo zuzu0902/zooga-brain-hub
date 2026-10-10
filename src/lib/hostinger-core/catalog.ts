@@ -1,0 +1,75 @@
+/** Browser-safe catalog helpers: Tamar eligibility, filters, form validation. */
+import type { CoreCatalogInput, CatalogLifecycle } from "./client";
+
+export type CatalogFilter = "all" | "active" | "draft" | "archived" | "needs_link" | "past_date";
+
+export function lifecycleOf(item: Record<string, any>): CatalogLifecycle {
+  const s = String(item.lifecycle_status ?? item.status ?? "draft");
+  return s === "active" || s === "archived" ? s : "draft";
+}
+export function isHttpsUrl(v: unknown): boolean {
+  if (typeof v !== "string" || !v.trim()) return false;
+  try { return new URL(v.trim()).protocol === "https:"; } catch { return false; }
+}
+function endOf(item: Record<string, any>): Date | null {
+  const raw = item.event_end_date || item.event_date;
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+}
+export function isPast(item: Record<string, any>, now = new Date()): boolean {
+  const d = endOf(item);
+  return !!d && d.getTime() < now.getTime();
+}
+
+export type Eligibility = { ready: boolean; reasons: string[] };
+export function tamarEligibility(item: Record<string, any>, now = new Date()): Eligibility {
+  const reasons: string[] = [];
+  if (lifecycleOf(item) !== "active") reasons.push("הפריט אינו פעיל");
+  if (item.sellable !== true) reasons.push("לא מסומן כזמין למכירה");
+  if (!isHttpsUrl(item.url)) reasons.push("חסר קישור HTTPS תקין");
+  if (!endOf(item)) reasons.push("חסר תאריך ידוע");
+  else if (isPast(item, now)) reasons.push("התאריך עבר");
+  return { ready: reasons.length === 0, reasons };
+}
+
+export function matchesFilter(item: Record<string, any>, f: CatalogFilter, now = new Date()): boolean {
+  switch (f) {
+    case "all": return true;
+    case "active": case "draft": case "archived": return lifecycleOf(item) === f;
+    case "needs_link": return !isHttpsUrl(item.url);
+    case "past_date": return isPast(item, now);
+  }
+}
+
+export type CatalogForm = {
+  title: string; category: string; lifecycle_status: CatalogLifecycle; url: string; description: string;
+  event_date: string; event_end_date: string; price: string; currency: string; sellable: boolean;
+};
+export function emptyForm(): CatalogForm {
+  return { title: "", category: "", lifecycle_status: "draft", url: "", description: "", event_date: "", event_end_date: "", price: "", currency: "ILS", sellable: false };
+}
+const toLocal = (v: unknown) => { if (!v) return ""; const d = new Date(String(v)); return isNaN(d.getTime()) ? "" : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+export function formFromItem(i: Record<string, any>): CatalogForm {
+  return { title: i.title ?? "", category: i.category ?? "", lifecycle_status: lifecycleOf(i), url: i.url ?? "", description: i.description ?? "",
+    event_date: toLocal(i.event_date), event_end_date: toLocal(i.event_end_date), price: typeof i.price === "number" ? String(i.price) : "", currency: i.currency || "ILS", sellable: i.sellable === true };
+}
+
+/** Validate and convert a form into a Core request body. Returns errors (Hebrew) or body. */
+export function formToInput(f: CatalogForm): { errors: string[]; body?: CoreCatalogInput & { title: string } } {
+  const errors: string[] = [];
+  const title = f.title.trim();
+  if (!title) errors.push("יש להזין שם");
+  const url = f.url.trim();
+  if (url && !isHttpsUrl(url)) errors.push("הקישור חייב להתחיל ב-https://");
+  let price: number | null = null;
+  if (f.price.trim()) { price = Number(f.price); if (!Number.isFinite(price) || price < 0) errors.push("מחיר חייב להיות מספר אי-שלילי"); }
+  const currency = f.currency.trim().toUpperCase();
+  if (currency && !/^[A-Z]{3}$/.test(currency)) errors.push("מטבע חייב להיות קוד בן 3 אותיות");
+  const iso = (v: string) => (v ? new Date(v).toISOString() : null);
+  const start = iso(f.event_date), end = iso(f.event_end_date);
+  if (start && end && end < start) errors.push("תאריך סיום לפני תאריך התחלה");
+  if (errors.length) return { errors };
+  return { errors, body: { title, category: f.category.trim() || null, lifecycle_status: f.lifecycle_status, url: url || null,
+    description: f.description.trim() || null, event_date: start, event_end_date: end, price, currency: currency || null, sellable: f.sellable } };
+}

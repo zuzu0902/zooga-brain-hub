@@ -48,7 +48,7 @@ const PRIMARY_NAV: NavEntry[] = [
     label: "קטלוג ומכירות",
     icon: Megaphone,
     children: [
-      { to: "/catalog", label: "קטלוג", icon: Tag },
+      { to: "/catalog", label: "מוצרים ואירועים", icon: Tag },
       { to: "/campaign-manager", label: "מנהל קמפיינים", icon: Megaphone },
     ],
   },
@@ -71,7 +71,6 @@ const ADVANCED_NAV: NavItem[] = [
   { to: "/pilot", label: "פיילוט תמר", icon: Rocket },
   { to: "/settings/api", label: "API", icon: Settings },
   { to: "/operator-diagnostics", label: "אימות ונתוני מעבר", icon: Wrench },
-  { to: "/offers", label: "הצעות — מערכת קודמת", icon: Tag },
   { to: "/system-readiness", label: "מוכנות מערכת", icon: ShieldCheck },
   { to: "/settings/tamar-studio", label: "Tamar Studio", icon: Sparkles },
 
