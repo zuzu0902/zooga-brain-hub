@@ -50,3 +50,10 @@
 - `src/routes/_app.operator-diagnostics.tsx`
 - `src/routeTree.gen.ts` (automatically regenerated)
 - `AGENTS.md`, `roadmap.md` and project guardrail memories
+
+## Catalog learn error-diagnosis hotfix
+- [x] Preserve Core's `{ ok:false, code }` value in CoreApiError instead of collapsing it to request_failed.
+- [x] Map the eight documented learn failure codes to concise Hebrew messages with a generic fallback.
+- [x] Add focused tests for code preservation and displayed message; run tests, typecheck, build; do not publish.
+- Results: 27 tests passed (15 catalog + 12 client), typecheck clean, automatic build OK. No routes, backend ownership, auth, catalog data, WhatsApp, campaigns or group broadcasts changed. Not published.
+- Changed files: `src/lib/hostinger-core/client.ts`, `src/lib/hostinger-core/catalog.ts`, `src/routes/_app.catalog.tsx`, `src/lib/__tests__/core-catalog.test.ts`.

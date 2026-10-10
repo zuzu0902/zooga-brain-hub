@@ -1,5 +1,5 @@
 /** Browser-safe catalog helpers: Tamar eligibility, filters, form validation. */
-import type { CoreCatalogInput, CatalogLifecycle, CoreCatalogSuggestion } from "./client";
+import { CoreApiError, type CoreCatalogInput, type CatalogLifecycle, type CoreCatalogSuggestion } from "./client";
 
 export type CatalogFilter = "all" | "active" | "draft" | "archived" | "needs_link" | "past_date";
 
@@ -100,4 +100,27 @@ export function applyCatalogSuggestion(f: CatalogForm, s: CoreCatalogSuggestion)
     currency: !f.price.trim() && price && /^[A-Z]{3}$/.test(cur) ? cur : f.currency,
   };
   return { form, filled };
+}
+
+/** Core URL-learning failure codes → concise Hebrew operator feedback. */
+const LEARN_ERROR_MESSAGES: Record<string, string> = {
+  invalid_url: "הקישור אינו כתובת תקינה — הזינו קישור https מלא",
+  unsafe_url: "הקישור אינו מאושר לניתוח — Core חסם אותו",
+  page_fetch_failed: "לא ניתן לפתוח את הדף — בדקו שהקישור פעיל וציבורי",
+  unsupported_content_type: "סוג תוכן זה אינו נתמך לניתוח — Core קורא דפי HTML בלבד",
+  page_too_large: "הדף גדול מכדי לנתחו — נסו קישור לעמוד קצר יותר",
+  page_timeout: "ניתוח הדף נמשך יותר מדי זמן — נסו שוב",
+  too_many_redirects: "הקישור עובר יותר מדי הפניות — הזינו קישור ישיר לעמוד",
+  event_learning_failed: "המידע לא נלמד מהדף — מלאו את הפרטים ידנית",
+};
+
+/** Hebrew message for a Core learn failure; Core's own code wins over the status fallback. */
+export function catalogLearnErrorText(e: unknown): string {
+  if (!(e instanceof CoreApiError)) return "הניתוח נכשל, נסו שוב";
+  const known = LEARN_ERROR_MESSAGES[e.code];
+  if (known) return known;
+  if (e.status === 401 || e.status === 403) return "אין הרשאה לניתוח הקישור";
+  if (e.status === 404) return "שירות הלמידה עדיין לא זמין ב-Core";
+  if (e.status === 400 || e.status === 422) return "Core דחה את הקישור — בדקו שהוא https ציבורי";
+  return "הניתוח ב-Core נכשל, נסו שוב";
 }

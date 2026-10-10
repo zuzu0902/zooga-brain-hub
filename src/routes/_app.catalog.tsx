@@ -6,7 +6,7 @@ import { Plus, Pencil, CheckCircle2, AlertTriangle, Sparkles } from "lucide-reac
 import { useAuth } from "@/lib/auth-context";
 import { coreApi, listAll, CoreApiError, type CatalogLifecycle, type CoreCatalogItem } from "@/lib/hostinger-core/client";
 import { operatorHead } from "@/lib/hostinger-core/operator-head";
-import { tamarEligibility, matchesFilter, lifecycleOf, emptyForm, formFromItem, formToInput, catalogCurrencyOptions, applyCatalogSuggestion, type CatalogFilter, type CatalogForm } from "@/lib/hostinger-core/catalog";
+import { tamarEligibility, matchesFilter, lifecycleOf, emptyForm, formFromItem, formToInput, catalogCurrencyOptions, applyCatalogSuggestion, catalogLearnErrorText, type CatalogFilter, type CatalogForm } from "@/lib/hostinger-core/catalog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +88,7 @@ function EditDialog({ item, onClose, onSaved }: { item: CoreCatalogItem | null; 
       setF(form);
       toast.success(filled ? `מולאו ${filled} שדות ריקים — חובה לבדוק את כל הפרטים לפני שמירה` : "לא נמצאו פרטים חדשים למילוי — בדקו את הטופס לפני שמירה");
     },
-    onError: e => toast.error(e instanceof CoreApiError ? (e.status === 401 || e.status === 403 ? "אין הרשאה לניתוח הקישור" : e.status === 400 || e.status === 422 ? "Core דחה את הקישור — בדקו שהוא https ציבורי" : e.status === 404 ? "שירות הלמידה עדיין לא זמין ב-Core" : "הניתוח ב-Core נכשל, נסו שוב") : "הניתוח נכשל, נסו שוב"),
+    onError: e => toast.error(catalogLearnErrorText(e)),
   });
   const submit = () => { const r = formToInput(f); setErrors(r.errors); if (r.body) m.mutate(r.body); };
   return <Dialog open onOpenChange={o => !o && onClose()}><DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-auto">
