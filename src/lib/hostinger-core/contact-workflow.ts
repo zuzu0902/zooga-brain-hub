@@ -4,7 +4,7 @@ export class ContactWorkflowShapeError extends Error {
   constructor(public reason: string) { super(`contact_workflow_malformed:${reason}`); }
 }
 
-export type WorkflowMessage = { id: string; conversation_id: string | null; direction: "inbound" | "outbound"; text: string; occurred_at: string | null; delivery_state: string | null };
+export type WorkflowMessage = { id: string; conversation_id: string | null; direction: "inbound" | "outbound" | "system"; text: string; occurred_at: string | null; delivery_state: string | null };
 export type WorkflowConsent = { channel: string | null; status: string | null; wording_version: string | null; evidence: Record<string, any>; source_system: string | null; recorded_at: string | null };
 export type WorkflowFact = { field_key: string; value_text: string | null; evidence_quote: string | null; observed_at: string | null };
 export type WorkflowMemory = { memory_key: string; memory_value: unknown; source_updated_at: string | null };
@@ -37,7 +37,7 @@ export function parseContactWorkflow(body: unknown, expectedId: string): Contact
   const intake = o(w.intake);
   const messages = arr(w, "messages").map((m) => {
     const r = o(m);
-    if (!s(r.id) || (r.direction !== "inbound" && r.direction !== "outbound")) throw new ContactWorkflowShapeError("bad_message");
+    if (!s(r.id) || !["inbound", "outbound", "system"].includes(r.direction)) throw new ContactWorkflowShapeError("bad_message");
     return { id: String(r.id), conversation_id: s(r.conversation_id), direction: r.direction, text: typeof o(r.content).text === "string" ? o(r.content).text : "", occurred_at: s(r.occurred_at), delivery_state: s(r.delivery_state) } as WorkflowMessage;
   });
   return {
@@ -60,27 +60,39 @@ export function mergeOlderMessages(older: WorkflowMessage[], current: WorkflowMe
   return out;
 }
 
-export type ConsentView = { label: string; fromCustomer: boolean; note: string; customerText: string | null; askWording: string | null; respondedAt: string | null; askedAt: string | null };
+export type ConsentView = { label: string; fromCustomer: boolean; customerAnswer: "yes" | "no" | "other" | null; note: string; customerText: string | null; askWording: string | null; respondedAt: string | null; askedAt: string | null };
 
 const CONSENT_STATUS: Record<string, string> = { granted: "אישר/ה", declined: "סירב/ה", asked: "נשאל/ה, ממתין לתשובה", unknown: "לא ידוע", opted_out: "הסיר/ה הסכמה", revoked: "בוטלה" };
 export const consentStatusLabel = (v: string | null | undefined) => CONSENT_STATUS[v ?? "unknown"] ?? "לא ידוע";
 
-/** Customer evidence exists only when Core recorded an actual customer response. */
+const YES = new Set(["yes", "כן", "approve", "approved", "accept", "accepted"]);
+const NO = new Set(["no", "לא", "stop", "decline", "declined", "opt_out", "unsubscribe"]);
+
+/**
+ * A confirmed customer "yes" requires full linked evidence: linked=true, the ask wording and
+ * sent time, answer=yes and a provider message id. Declines/stops stay visible but never read as yes.
+ */
 export function consentView(c: WorkflowConsent): ConsentView {
   const ev = o(c.evidence); const resp = o(ev.response); const ask = o(ev.ask);
-  const fromCustomer = !!(s(resp.provider_message_id) || s(resp.text) || s(resp.answer));
-  const note = fromCustomer
-    ? "תשובה שהתקבלה מהלקוח"
-    : c.status === "granted" || c.status === "declined"
-      ? "רישום ידני/מפעיל — אינו אישור מהלקוח"
-      : "אין תשובה מתועדת מהלקוח";
-  return { label: consentStatusLabel(c.status), fromCustomer, note, customerText: s(resp.text) ?? s(resp.answer), askWording: s(ask.wording), respondedAt: s(resp.responded_at), askedAt: s(ask.sent_at) ?? s(ask.asked_at) };
+  const answer = (s(resp.answer) ?? "").toLowerCase();
+  const customerAnswer = !answer ? null : YES.has(answer) ? "yes" : NO.has(answer) ? "no" : "other";
+  const fromCustomer = ev.linked === true && !!s(ask.wording) && !!s(ask.sent_at) && customerAnswer === "yes" && !!s(resp.provider_message_id);
+  const hasResponse = !!(s(resp.provider_message_id) || s(resp.text) || answer);
+  const note = fromCustomer ? "אישור מאומת מהלקוח"
+    : customerAnswer === "no" ? "הלקוח סירב או ביקש להפסיק"
+    : hasResponse ? "תשובה ללא אישור מאומת — אינה אישור מהלקוח"
+    : c.status === "granted" || c.status === "declined" ? "רישום ידני/מפעיל — אינו אישור מהלקוח"
+    : "אין תשובה מתועדת מהלקוח";
+  return { label: consentStatusLabel(c.status), fromCustomer, customerAnswer, note, customerText: s(resp.text) ?? s(resp.answer), askWording: s(ask.wording), respondedAt: s(resp.responded_at), askedAt: s(ask.sent_at) ?? s(ask.asked_at) };
 }
 
 const FIELD_LABELS: Record<string, string> = {
   first_name: "שם פרטי", last_name: "שם משפחה", full_name: "שם מלא", phone: "טלפון", email: "אימייל", city: "עיר", region: "אזור",
   age: "גיל", age_range: "טווח גיל", gender: "מגדר", relationship_status: "סטטוס משפחתי", interests: "תחומי עניין",
   budget: "תקציב", preferred_dates: "תאריכים מועדפים", accessibility: "נגישות", occupation: "עיסוק", children: "ילדים",
+  social_or_relationship_goal: "מטרה חברתית או זוגית", preferred_activity_type: "סוג פעילות מועדף", city_or_region: "עיר או אזור",
+  age_or_birth_date: "גיל או תאריך לידה", source_attribution: "מקור הגעה", budget_sensitivity_or_range: "תקציב או רגישות למחיר",
+  language_style_preference: "סגנון שפה מועדף", conversation_summary: "סיכום שיחה",
   marketing_consent: "הסכמה לדיוור", whatsapp_consent: "הסכמה ל-WhatsApp",
 };
 export const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k.replace(/[_.]+/g, " ").trim();
@@ -88,6 +100,10 @@ export const fieldLabel = (k: string) => FIELD_LABELS[k] ?? k.replace(/[_.]+/g, 
 const STATE_LABELS: Record<string, string> = {
   not_started: "לא התחיל", in_progress: "בתהליך", completed: "הושלם", paused: "מושהה", open: "פתוח", resolved: "טופל", closed: "סגור",
   pending: "ממתין", done: "בוצע", cancelled: "בוטל", delivered: "נמסרה", read: "נקראה", sent: "נשלחה", failed: "נכשלה", queued: "בתור",
+  awaiting_consent: "ממתין להסכמה", active: "פעיל", handoff: "הועבר למנהל", claimed: "נלקח לטיפול", accepted: "התקבל",
+  human_request: "בקשה לנציג", pricing: "שאלת מחיר", travel: "נסיעות וטיולים", event_info: "מידע על אירוע", registration: "הרשמה",
+  payment: "תשלום", complaint: "תלונה", greeting: "פתיחה", consent: "הסכמה", opt_out: "הסרה", intake: "אינטייק", info: "בקשת מידע",
+  recommendation: "המלצה", general: "כללי", smalltalk: "שיחה כללית", other: "אחר",
   high: "גבוהה", medium: "בינונית", normal: "רגילה", low: "נמוכה", urgent: "דחוף",
 };
 export const stateLabel = (v: string | null | undefined) => (v ? STATE_LABELS[v] ?? v.replace(/_/g, " ") : "—");
