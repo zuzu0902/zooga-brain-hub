@@ -9,6 +9,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { parseControlCenter } from "./control-center";
+import { parseContactWorkflow, type ContactWorkflow } from "./contact-workflow";
 
 // MIGRATION: public Hostinger Core base URL (non-secret).
 export const HOSTINGER_CORE_BASE_URL = "https://zooga-core.72-62-31-90.sslip.io";
@@ -113,6 +114,9 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
       mapPage(normalizePage<any>(await request<any>(`/v1/admin/contacts${qs(p)}`), "contacts"), normalizeContact),
     getContact: async (id: string) =>
       normalizeContact(unwrap<any>(await request<any>(`/v1/admin/contacts/${encodeURIComponent(id)}`), "contact")),
+    /** Contact-scoped CRM card data. Read-only. `before` loads an earlier message page. */
+    getContactWorkflow: async (id: string, before?: string | null): Promise<ContactWorkflow> =>
+      parseContactWorkflow(await request<unknown>(`/v1/admin/contacts/${encodeURIComponent(id)}/workflow${qs({ before })}`), id),
     patchContact: async (id: string, patch: CoreContactPatch) =>
       normalizeContact(unwrap<any>(
         await request<any>(`/v1/admin/contacts/${encodeURIComponent(id)}`, {
