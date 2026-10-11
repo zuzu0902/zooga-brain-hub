@@ -10,6 +10,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { parseControlCenter } from "./control-center";
 import { parseContactWorkflow, type ContactWorkflow } from "./contact-workflow";
+import { parseTemplates, parseCampaignList, parseCampaignDetail, parseCampaign, buildDraftBody, type CampaignDraftInput } from "./template-campaigns";
 import { parseIntakeDefinitions, parseIntakeDefinition, sanitizeIntakePatch, buildResolveBody, parseResolveResult, type IntakeDefinition, type HandoffResolveInput } from "./intake-definitions";
 
 // MIGRATION: public Hostinger Core base URL (non-secret).
@@ -118,6 +119,19 @@ export function createCoreClient(opts: { getToken?: TokenGetter; fetcher?: Fetch
     /** Contact-scoped CRM card data. Read-only. `before` loads an earlier message page. */
     getContactWorkflow: async (id: string, before?: string | null): Promise<ContactWorkflow> =>
       parseContactWorkflow(await request<unknown>(`/v1/admin/contacts/${encodeURIComponent(id)}/workflow${qs({ before })}`), id),
+    listTemplates: async () => parseTemplates(await request<unknown>("/v1/admin/templates")),
+    listTemplateCampaigns: async () => parseCampaignList(await request<unknown>("/v1/admin/template-campaigns")),
+    getTemplateCampaign: async (id: string) => parseCampaignDetail(await request<unknown>(`/v1/admin/template-campaigns/${encodeURIComponent(id)}`), id),
+    /** Creates a DRAFT only. Nothing is sent. */
+    createTemplateCampaign: async (input: CampaignDraftInput) => {
+      const r: any = await request<unknown>("/v1/admin/template-campaigns", { method: "POST", body: JSON.stringify(buildDraftBody(input)) });
+      return { campaign: parseCampaign(r?.campaign), duplicate: r?.duplicate === true };
+    },
+    /** Explicit operator launch of an existing draft; Core queues and its worker sends. Repeat calls are idempotent in Core. */
+    launchTemplateCampaign: async (id: string) => {
+      const r: any = await request<unknown>(`/v1/admin/template-campaigns/${encodeURIComponent(id)}/launch`, { method: "POST", body: "{}" });
+      return { campaign: parseCampaign(r?.campaign), queued: Number(r?.queued ?? 0), blocked: Number(r?.blocked ?? 0), duplicate: r?.duplicate === true };
+    },
     listIntakeDefinitions: async (): Promise<IntakeDefinition[]> => parseIntakeDefinitions(await request<unknown>("/v1/admin/intake-definitions")),
     patchIntakeDefinition: async (fieldKey: string, patch: Record<string, unknown>): Promise<IntakeDefinition> => {
       const r = await request<any>(`/v1/admin/intake-definitions/${encodeURIComponent(fieldKey)}`, { method: "PATCH", body: JSON.stringify(sanitizeIntakePatch(patch)) });
