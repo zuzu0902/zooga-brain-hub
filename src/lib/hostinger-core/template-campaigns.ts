@@ -80,6 +80,8 @@ export function draftBlockers(i: Omit<CampaignDraftInput, "idempotency_key">): s
   if (!i.recipients.length) b.push("יש לבחור לפחות נמען אחד");
   if (i.recipients.length > MAX_RECIPIENTS) b.push(`מקסימום ${MAX_RECIPIENTS} נמענים`);
   if (i.recipients.some(r => !normalizeIlMobile(r.phone))) b.push("יש נמען עם מספר לא תקין");
+  const unnamed = i.recipients.filter(r => !r.name.trim()).length;
+  if (unnamed) b.push(`${unnamed} נמענים ללא שם — הוסיפו שם בשורה (טלפון, שם), בקובץ, או בכרטיס איש הקשר`);
   if (!i.permission_confirmed) b.push("יש לאשר שקיים בסיס הרשאה לפנייה");
   const len = i.consent_basis.trim().length;
   if (len < 10 || len > 1000) b.push("יש לתאר את מקור ההרשאה (10–1000 תווים)");
@@ -95,20 +97,25 @@ export function buildDraftBody(i: CampaignDraftInput) {
 
 /** Preview: {{1}} becomes the recipient name (or an example name); other variables stay visible. */
 export function renderTemplatePreview(body: string, name: string): string {
-  return body.replace(/\{\{\s*1\s*\}\}/g, name.trim() || "דנה");
+  const v = name.trim() || "דנה";
+  return body.replace(/\{\{\s*1\s*\}\}/g, () => v);
 }
 
 export const giftLaunchBlocked = (templateName: string, giftReady: boolean) => templateName === GIFT_TEMPLATE && !giftReady;
 export const canLaunch = (c: TemplateCampaign, giftReady: boolean) => c.status === "draft" && !giftLaunchBlocked(c.template_name, giftReady);
 /** Poll only while Core still has unsent recipients. */
 export const isPending = (c: TemplateCampaign) => c.status === "queued" && c.pending_count > 0;
+export const unnamedCount = (rs: { name: string }[]) => rs.filter(r => !r.name.trim()).length;
 
 const DELIVERY: Record<string, string> = {
   pending: "ממתין", queued: "בתור", accepted: "התקבל אצל ספק (טרם נמסר)", sent: "נשלח לספק", delivered: "נמסר", read: "נקרא",
   failed: "נכשל", suppressed: "הושמט (הסרה/טיפול אנושי/שיחה סגורה)", blocked: "נחסם", cancelled: "בוטל", skipped: "דולג",
 };
 export const deliveryLabel = (v: string | null) => (v ? DELIVERY[v] ?? v : "—");
-const RESPONSE: Record<string, string> = { none: "לא הגיב", replied: "הגיב", yes: "השיב כן", no: "השיב לא", opted_out: "ביקש הסרה" };
+const RESPONSE: Record<string, string> = {
+  none: "לא הגיב", replied: "הגיב", accepted: "השיב בחיוב לפנייה", deferred: "ביקש לדחות למועד אחר", declined: "סירב",
+  suppressed_optout: "לא נשלח — הלקוח ביקש הסרה בעבר", suppressed_human_or_closed: "לא נשלח — השיחה בטיפול אנושי או סגורה",
+};
 export const responseLabel = (v: string | null) => (v ? RESPONSE[v] ?? v : "—");
 const STATUS: Record<string, string> = { draft: "טיוטה", queued: "בשליחה", cancelled: "בוטל", completed: "הושלם" };
 export const campaignStatusLabel = (v: string) => STATUS[v] ?? v;
@@ -117,7 +124,8 @@ export const CAMPAIGN_ERROR_TEXT: Record<string, string> = {
   invalid_campaign: "נתוני הקמפיין אינם תקינים",
   campaign_permission_required: "חובה לאשר ולתאר את בסיס ההרשאה לפנייה",
   invalid_recipient_count: `מספר הנמענים חייב להיות בין 1 ל-${MAX_RECIPIENTS}`,
-  invalid_recipient: "אחד המספרים אינו נייד ישראלי תקין",
+  invalid_recipient: "אחד הנמענים אינו תקין — מספר נייד ישראלי ושם חובה לכל נמען",
+  template_changed_recreate: "התבנית השתנתה — צרו טיוטה חדשה לאחר בדיקת הנוסח",
   template_not_approved: "התבנית אינה מאושרת ב-Meta כרגע",
   campaign_not_found: "הקמפיין לא נמצא",
   campaign_not_draft: "הקמפיין כבר שוגר או בוטל",
