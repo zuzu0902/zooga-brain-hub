@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -25,7 +25,7 @@ import {
 } from "@/lib/campaign-send.functions";
 import { useT, useLanguage } from "@/lib/language-context";
 
-import { QuickCampaign } from "@/components/quick-campaign";
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 
@@ -61,7 +61,10 @@ function IntakeCampaignPage() {
         <h1 className="text-3xl font-bold">קמפיין אינטייק</h1>
         <p className="text-muted-foreground mt-1">הדביקו מספרים, בחרו תבנית ושגרו.</p>
       </header>
-      <QuickCampaign />
+      <Card className="p-5 space-y-2 max-w-3xl">
+        <p className="text-sm">שליחה אישית בתבנית מאושרת עוברת עכשיו דרך מנהל הקמפיינים (Core) — מנוע שליחה אחד.</p>
+        <Link to="/campaign-manager" className="text-primary text-sm font-medium">מעבר למנהל הקמפיינים</Link>
+      </Card>
       <Collapsible>
         <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ChevronDown className="h-4 w-4" /> מתקדם
