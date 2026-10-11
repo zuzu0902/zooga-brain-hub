@@ -81,5 +81,6 @@ describe("workflow intake + audit source", () => {
     expect(auditSource({ record_kind: "manager_outcome", mode: null })).toBe("manager");
     expect(auditSource({ record_kind: "turn", mode: "historical_repair" })).toBe("historical");
     expect(auditSource({ record_kind: "turn", mode: null })).toBe("model");
+    expect(auditSource({ record_kind: "turn", mode: "campaign_gift" })).toBe("gift");
   });
 });
