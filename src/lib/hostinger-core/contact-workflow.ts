@@ -117,11 +117,12 @@ export function memoryText(v: unknown): string {
   return Object.entries(o(v)).filter(([, x]) => x != null && x !== "").map(([k, x]) => `${fieldLabel(k)}: ${memoryText(x)}`).join(" · ") || "—";
 }
 
-export type AuditSource = "manager" | "historical" | "model";
+export type AuditSource = "manager" | "historical" | "gift" | "model";
 /** Manager outcomes and historical repairs are not model analysis. */
 export function auditSource(a: { record_kind: string | null; mode: string | null }): AuditSource {
   if (a.record_kind === "manager_outcome") return "manager";
   if (a.mode === "historical_repair") return "historical";
+  if (a.mode === "campaign_gift") return "gift";
   return "model";
 }
-export const AUDIT_SOURCE_LABEL: Record<AuditSource, string> = { manager: "סיכום מנהל", historical: "סקירה היסטורית", model: "ניתוח מודל" };
+export const AUDIT_SOURCE_LABEL: Record<AuditSource, string> = { manager: "סיכום מנהל", historical: "סקירה היסטורית", gift: "מסירת מתנת הדנ״א", model: "ניתוח מודל" };
