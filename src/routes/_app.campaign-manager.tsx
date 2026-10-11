@@ -16,6 +16,7 @@ import { coreApi, CoreApiError, listAll } from "@/lib/hostinger-core/client";
 import { operatorHead } from "@/lib/hostinger-core/operator-head";
 import { contactDisplayName, contactMatchesSearch } from "@/lib/hostinger-core/contact-search";
 import { maskPhone } from "@/lib/phone-bulk";
+import { parseRows } from "@/lib/campaign-audience";
 import { CoreReadState } from "@/components/operator-data";
 import {
   buildRecipients, draftBlockers, renderTemplatePreview, giftLaunchBlocked, canLaunch, isPending,
@@ -64,6 +65,8 @@ function CampaignManagerPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [pasted, setPasted] = useState("");
+  const [fileRows, setFileRows] = useState<{ phone: string; name: string }[]>([]);
+  const [fileName, setFileName] = useState("");
   const [permission, setPermission] = useState(false);
   const [basis, setBasis] = useState("");
   const [idemKey, setIdemKey] = useState(newKey);
@@ -76,18 +79,36 @@ function CampaignManagerPage() {
   const template = templatesQ.data?.templates.find(t => t.name === templateName) ?? null;
   const built = useMemo(() => buildRecipients([
     ...Object.entries(selected).map(([phone, nm]) => ({ phone, name: nm })),
+    ...fileRows,
     ...parsePastedEntries(pasted),
-  ]), [selected, pasted]);
+  ]), [selected, pasted, fileRows]);
   const blockers = draftBlockers({ name, template_name: templateName, permission_confirmed: permission, consent_basis: basis, recipients: built.recipients });
 
   const contacts = useMemo(() => (contactsQ.data ?? []).filter((c: any) => normalizeIlMobile(c.phone) && contactMatchesSearch(c, search)).slice(0, 200), [contactsQ.data, search]);
+
+  async function onFile(f: File | undefined) {
+    if (!f) return;
+    setFileName(f.name); setError(null);
+    try {
+      let rows: unknown[][];
+      if (/\.xlsx?$/i.test(f.name)) {
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false }) as unknown[][];
+      } else {
+        const Papa = (await import("papaparse")).default;
+        rows = Papa.parse<string[]>(await f.text(), { skipEmptyLines: true }).data;
+      }
+      setFileRows(parseRows(rows).valid);
+    } catch { setFileRows([]); setError("לא ניתן לקרוא את הקובץ. ודאו שזה CSV או XLSX תקין."); }
+  }
 
   async function createDraft() {
     setBusy(true); setError(null);
     try {
       const r = await coreApi.createTemplateCampaign({ name, template_name: templateName, idempotency_key: idemKey, permission_confirmed: permission, consent_basis: basis, recipients: built.recipients });
       toast.success(r.duplicate ? "הטיוטה כבר קיימת — לא נוצרה כפולה" : "הטיוטה נוצרה. לא נשלח דבר עד לחיצה על \"שלח\".");
-      setIdemKey(newKey()); setSelected({}); setPasted(""); setName(""); setPermission(false); setBasis("");
+      setIdemKey(newKey()); setSelected({}); setPasted(""); setFileRows([]); setFileName(""); setName(""); setPermission(false); setBasis("");
       setOpenId(r.campaign.id);
       await qc.invalidateQueries({ queryKey: ["core-template-campaigns"] });
     } catch (e) { setError(campaignErrorText(e)); }
@@ -145,6 +166,7 @@ function CampaignManagerPage() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="cm-paste">מספרים נוספים (שורה לכל נמען: טלפון, שם)</Label>
+          <div className="flex items-center gap-2 text-sm"><Label htmlFor="cm-file" className="cursor-pointer text-primary">העלאת CSV / XLSX</Label><input id="cm-file" type="file" accept=".csv,.xlsx,.xls" className="sr-only" onChange={e => onFile(e.target.files?.[0])} />{fileName && <span className="text-muted-foreground text-xs">{fileName} · {fileRows.length} שורות</span>}</div>
           <Textarea id="cm-paste" dir="ltr" rows={10} value={pasted} onChange={e => setPasted(e.target.value)} placeholder={"0541234567, דנה\n+972521112222, יוסי"} className="font-mono text-sm" />
         </div>
       </div>

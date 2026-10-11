@@ -71,4 +71,27 @@ describe("template campaign contracts", () => {
     expect(ui).not.toMatch(/useServerFn|gateway-campaign|supabase|createOutboundCampaign/);
     expect(readFileSync("src/routes/_app.intake-campaign.tsx", "utf8")).not.toMatch(/<QuickCampaign/);
   });
+  it("requires a name for every recipient and replaces {{1}} literally", () => {
+    const b = draftBlockers({ ...draft, recipients: [{ phone: "972512277533", name: "" }] });
+    expect(b.some(x => x.includes("ללא שם"))).toBe(true);
+    expect(renderTemplatePreview("היי {{1}}", "$& $1 $$")).toBe("היי $& $1 $$");
+    expect(CAMPAIGN_ERROR_TEXT.invalid_recipient).toContain("שם");
+    expect(CAMPAIGN_ERROR_TEXT.template_changed_recreate).toBe("התבנית השתנתה — צרו טיוטה חדשה לאחר בדיקת הנוסח");
+  });
+  it("labels response states without implying gift fulfillment", async () => {
+    const { responseLabel } = await import("@/lib/hostinger-core/template-campaigns");
+    for (const k of ["accepted", "deferred", "declined", "suppressed_optout", "suppressed_human_or_closed"]) {
+      expect(responseLabel(k)).toMatch(/[\u0590-\u05FF]/);
+      expect(responseLabel(k)).not.toMatch(/מתנה|קוד|קישור/);
+    }
+  });
+  it("detail carries counts so polling stops when done", async () => {
+    const d = await mk({ ok: true, campaign: camp({ status: "queued", pending_count: 0, sent_count: 1 }), recipients: [] }).getTemplateCampaign("c1");
+    expect(isPending(d.campaign)).toBe(false);
+  });
+  it("intake-campaign mounts no legacy sender; manager supports file upload", () => {
+    const ic = readFileSync("src/routes/_app.intake-campaign.tsx", "utf8");
+    expect(ic).not.toMatch(/useServerFn|campaign-send|gateway-campaign|QuickCampaign|supabase/);
+    expect(readFileSync("src/routes/_app.campaign-manager.tsx", "utf8")).toMatch(/parseRows/);
+  });
 });
