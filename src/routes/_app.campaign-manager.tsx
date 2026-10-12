@@ -67,6 +67,7 @@ function CampaignManagerPage() {
   const [pasted, setPasted] = useState("");
   const [fileRows, setFileRows] = useState<{ phone: string; name: string }[]>([]);
   const [fileName, setFileName] = useState("");
+  const [defaultName, setDefaultName] = useState("");
   const [permission, setPermission] = useState(false);
   const [basis, setBasis] = useState("");
   const [idemKey, setIdemKey] = useState(newKey);
@@ -77,11 +78,15 @@ function CampaignManagerPage() {
 
   const giftReady = templatesQ.data?.gift_ready === true;
   const template = templatesQ.data?.templates.find(t => t.name === templateName) ?? null;
-  const built = useMemo(() => buildRecipients([
-    ...Object.entries(selected).map(([phone, nm]) => ({ phone, name: nm })),
-    ...fileRows,
-    ...parsePastedEntries(pasted),
-  ]), [selected, pasted, fileRows]);
+  const built = useMemo(() => {
+    const r = buildRecipients([
+      ...Object.entries(selected).map(([phone, nm]) => ({ phone, name: nm })),
+      ...fileRows,
+      ...parsePastedEntries(pasted),
+    ]);
+    const fb = defaultName.trim().slice(0, 80);
+    return fb ? { ...r, recipients: r.recipients.map(x => (x.name.trim() ? x : { ...x, name: fb })) } : r;
+  }, [selected, pasted, fileRows, defaultName]);
   const blockers = draftBlockers({ name, template_name: templateName, permission_confirmed: permission, consent_basis: basis, recipients: built.recipients });
 
   const contacts = useMemo(() => (contactsQ.data ?? []).filter((c: any) => normalizeIlMobile(c.phone) && contactMatchesSearch(c, search)).slice(0, 200), [contactsQ.data, search]);
@@ -169,6 +174,11 @@ function CampaignManagerPage() {
           <div className="flex items-center gap-2 text-sm"><Label htmlFor="cm-file" className="cursor-pointer text-primary">העלאת CSV / XLSX</Label><input id="cm-file" type="file" accept=".csv,.xlsx,.xls" className="sr-only" onChange={e => onFile(e.target.files?.[0])} />{fileName && <span className="text-muted-foreground text-xs">{fileName} · {fileRows.length} שורות</span>}</div>
           <Textarea id="cm-paste" dir="ltr" rows={10} value={pasted} onChange={e => setPasted(e.target.value)} placeholder={"0541234567, דנה\n+972521112222, יוסי"} className="font-mono text-sm" />
         </div>
+      </div>
+      <div className="space-y-1 max-w-sm">
+        <Label htmlFor="cm-default-name">שם ברירת מחדל לנמענים בלי שם</Label>
+        <Input id="cm-default-name" value={defaultName} onChange={e => setDefaultName(e.target.value)} maxLength={80} placeholder="לדוגמה: חבר/ה" />
+        <p className="text-xs text-muted-foreground">ישובץ בהודעה רק אצל מי שאין לו שם.</p>
       </div>
       <p className="text-sm text-muted-foreground">{built.recipients.length} נמענים תקינים · {built.invalid} לא תקינים · {built.duplicates} כפולים הוסרו{built.recipients.length > MAX_RECIPIENTS && <span className="text-destructive"> · מקסימום {MAX_RECIPIENTS}</span>}</p>
 
