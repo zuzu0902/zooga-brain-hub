@@ -81,7 +81,7 @@ export function draftBlockers(i: Omit<CampaignDraftInput, "idempotency_key">): s
   if (i.recipients.length > MAX_RECIPIENTS) b.push(`מקסימום ${MAX_RECIPIENTS} נמענים`);
   if (i.recipients.some(r => !normalizeIlMobile(r.phone))) b.push("יש נמען עם מספר לא תקין");
   const unnamed = i.recipients.filter(r => !r.name.trim()).length;
-  if (unnamed) b.push(`${unnamed} נמענים ללא שם — הוסיפו שם בשורה (טלפון, שם), בקובץ, או בכרטיס איש הקשר`);
+  if (unnamed) b.push(`${unnamed} נמענים ללא שם — מלאו "שם ברירת מחדל", או הוסיפו שם בשורה (טלפון, שם), בקובץ או בכרטיס איש הקשר`);
   if (!i.permission_confirmed) b.push("יש לאשר שקיים בסיס הרשאה לפנייה");
   const len = i.consent_basis.trim().length;
   if (len < 10 || len > 1000) b.push("יש לתאר את מקור ההרשאה (10–1000 תווים)");
