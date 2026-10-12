@@ -95,3 +95,10 @@ describe("template campaign contracts", () => {
     expect(readFileSync("src/routes/_app.campaign-manager.tsx", "utf8")).toMatch(/parseRows/);
   });
 });
+
+import { launchInvalidationKeys as lik } from "../hostinger-core/template-campaigns";
+describe("launch invalidation", () => {
+  it("refreshes campaigns, detail, CRM contacts and control center", () => {
+    expect(lik("c1")).toEqual([["core-template-campaigns"], ["core-template-campaign", "c1"], ["core-contacts"], ["core-control-center"]]);
+  });
+});

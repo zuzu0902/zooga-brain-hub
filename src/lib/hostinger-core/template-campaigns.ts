@@ -131,3 +131,8 @@ export const CAMPAIGN_ERROR_TEXT: Record<string, string> = {
   campaign_not_draft: "הקמפיין כבר שוגר או בוטל",
   gift_fulfillment_unconfigured: "שליחת תבנית המתנה חסומה עד שיוגדרו מנפיק וקישור אמיתיים למתנה",
 };
+
+/** Query key prefixes refreshed after a successful explicit launch (Core may create CRM contacts). */
+export const launchInvalidationKeys = (campaignId: string): readonly (readonly unknown[])[] => [
+  ["core-template-campaigns"], ["core-template-campaign", campaignId], ["core-contacts"], ["core-control-center"],
+];

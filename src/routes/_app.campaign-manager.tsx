@@ -20,7 +20,7 @@ import { parseRows } from "@/lib/campaign-audience";
 import { CoreReadState } from "@/components/operator-data";
 import {
   buildRecipients, draftBlockers, renderTemplatePreview, giftLaunchBlocked, canLaunch, isPending,
-  deliveryLabel, responseLabel, campaignStatusLabel, normalizeIlMobile, CAMPAIGN_ERROR_TEXT, GIFT_TEMPLATE, MAX_RECIPIENTS,
+  deliveryLabel, responseLabel, launchInvalidationKeys, campaignStatusLabel, normalizeIlMobile, CAMPAIGN_ERROR_TEXT, GIFT_TEMPLATE, MAX_RECIPIENTS,
   type TemplateCampaign,
 } from "@/lib/hostinger-core/template-campaigns";
 
@@ -126,7 +126,7 @@ function CampaignManagerPage() {
     try {
       const r = await coreApi.launchTemplateCampaign(c.id);
       toast.success(r.duplicate ? "הקמפיין כבר שוגר — לא נשלח שוב" : `נכנס לתור: ${r.queued} · הושמטו: ${r.blocked}`);
-      await Promise.all([qc.invalidateQueries({ queryKey: ["core-template-campaigns"] }), qc.invalidateQueries({ queryKey: ["core-template-campaign", c.id] })]);
+      await Promise.all(launchInvalidationKeys(c.id).map(queryKey => qc.invalidateQueries({ queryKey: [...queryKey] })));
     } catch (e) { toast.error(campaignErrorText(e)); }
     finally { setLaunching(prev => { const n = new Set(prev); n.delete(c.id); return n; }); }
   }
