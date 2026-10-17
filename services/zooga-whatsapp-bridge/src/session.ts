@@ -254,6 +254,16 @@ export class WhatsAppSessionManager {
     return { message_id: res?.key?.id ?? null, timestamp: Number(res?.messageTimestamp ?? 0) || null };
   }
 
+  async sendGroupVideo(
+    chatId: string,
+    buffer: Buffer,
+    caption: string,
+  ): Promise<{ message_id: string | null; timestamp: number | null }> {
+    if (this.state !== "connected" || !this.sock) throw new Error("not_connected");
+    const res = await this.sock.sendMessage(chatId, { video: buffer, caption, mimetype: "video/mp4" });
+    return { message_id: res?.key?.id ?? null, timestamp: Number(res?.messageTimestamp ?? 0) || null };
+  }
+
   get isConnected(): boolean {
     return this.state === "connected";
   }

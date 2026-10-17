@@ -3,7 +3,9 @@
  * Batch scope: images only (documented in README). Nothing is written to disk.
  */
 
-export const ALLOWED_MEDIA_MIME = ["image/jpeg", "image/png", "image/webp"] as const;
+export const ALLOWED_MEDIA_MIME = ["image/jpeg", "image/png", "image/webp", "video/mp4"] as const;
+
+export const VIDEO_MIME = "video/mp4";
 
 export type MediaFetchResult =
   | { ok: true; buffer: Buffer; mimeType: string }

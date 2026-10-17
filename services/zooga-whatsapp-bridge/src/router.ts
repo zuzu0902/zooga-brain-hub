@@ -142,7 +142,10 @@ async function sendGroup(req: RouteRequest, deps: RouterDeps): Promise<BridgeRes
         deps.fetchImpl ?? fetch,
       );
       if (!media.ok) return fail(media.status, media.code);
-      result = await deps.session.sendGroupImage(input.chat_id, media.buffer, input.text);
+      result =
+        media.mimeType === VIDEO_MIME
+          ? await deps.session.sendGroupVideo(input.chat_id, media.buffer, input.text)
+          : await deps.session.sendGroupImage(input.chat_id, media.buffer, input.text);
     } else {
       result = await deps.session.sendGroupText(input.chat_id, input.text);
     }
