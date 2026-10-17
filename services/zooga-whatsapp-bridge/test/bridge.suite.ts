@@ -333,4 +333,15 @@ describe("media limits", () => {
       new Response(new Uint8Array(10), { headers: { "content-type": "image/png" } })) as unknown as typeof fetch;
     expect(await fetchMedia("https://x/a.png", limits, ok)).toMatchObject({ ok: true, mimeType: "image/png" });
   });
+
+  it("accepts mp4 video and rejects other video types", async () => {
+    const limits = { maxBytes: 100, timeoutMs: 1000 };
+    const mp4 = (async () =>
+      new Response(new Uint8Array(10), { headers: { "content-type": "video/mp4" } })) as unknown as typeof fetch;
+    expect(await fetchMedia("https://x/a.mp4", limits, mp4)).toMatchObject({ ok: true, mimeType: "video/mp4" });
+
+    const webm = (async () =>
+      new Response(new Uint8Array(10), { headers: { "content-type": "video/webm" } })) as unknown as typeof fetch;
+    expect(await fetchMedia("https://x/a.webm", limits, webm)).toMatchObject({ code: "media_mime_not_allowed" });
+  });
 });
