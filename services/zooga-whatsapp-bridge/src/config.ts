@@ -58,7 +58,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     qrTtlMs: num(env["QR_TTL_MS"], 60_000),
     idempotencyTtlMs: num(env["IDEMPOTENCY_TTL_MS"], 7 * 24 * 60 * 60 * 1000),
     maxTextLength: num(env["MAX_TEXT_LENGTH"], 4000),
-    maxMediaBytes: num(env["MAX_MEDIA_BYTES"], 10 * 1024 * 1024),
+    maxMediaBytes: num(env["MAX_MEDIA_BYTES"], 50 * 1024 * 1024),
     mediaTimeoutMs: num(env["MEDIA_TIMEOUT_MS"], 15_000),
   };
 }

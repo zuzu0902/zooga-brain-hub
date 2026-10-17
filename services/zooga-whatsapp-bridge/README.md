@@ -106,10 +106,10 @@ Transient disconnects reconnect with bounded exponential backoff (2s → 60s, ma
 
 ### Media
 
-**Images only in this batch** (`image/jpeg`, `image/png`, `image/webp`), fetched
-server-side over https with a timeout and a ~10 MB cap, never written to disk.
-Video/PDF are intentionally not implemented yet. Text sending has no media
-dependency.
+**Images and MP4 video** (`image/jpeg`, `image/png`, `image/webp`, `video/mp4`),
+fetched server-side over https with a timeout and a ~50 MB cap, never written
+to disk. PDF and other types are intentionally not implemented. Text sending
+has no media dependency.
 
 ## Logging
 

@@ -13,7 +13,7 @@ import {
 } from "./config.js";
 import { IdempotencyLedger } from "./idempotency.js";
 import { log } from "./logger.js";
-import { fetchMedia } from "./media.js";
+import { fetchMedia, VIDEO_MIME } from "./media.js";
 import { SendRateLimiter, jitterMs } from "./rate-limit.js";
 import { validateSendGroup } from "./validate.js";
 import type { WhatsAppSessionManager } from "./session.js";
@@ -142,7 +142,10 @@ async function sendGroup(req: RouteRequest, deps: RouterDeps): Promise<BridgeRes
         deps.fetchImpl ?? fetch,
       );
       if (!media.ok) return fail(media.status, media.code);
-      result = await deps.session.sendGroupImage(input.chat_id, media.buffer, input.text);
+      result =
+        media.mimeType === VIDEO_MIME
+          ? await deps.session.sendGroupVideo(input.chat_id, media.buffer, input.text)
+          : await deps.session.sendGroupImage(input.chat_id, media.buffer, input.text);
     } else {
       result = await deps.session.sendGroupText(input.chat_id, input.text);
     }

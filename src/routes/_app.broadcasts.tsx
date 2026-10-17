@@ -157,12 +157,15 @@ function BroadcastsPage() {
   });
 
   const uploadMedia = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast.error("ניתן להעלות קובץ תמונה בלבד");
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type === "video/mp4";
+    if (!isImage && !isVideo) {
+      toast.error("ניתן להעלות תמונה או סרטון MP4 בלבד");
       return;
     }
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("הקובץ גדול מדי (עד 15MB)");
+    const maxBytes = isVideo ? 50 * 1024 * 1024 : 15 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast.error(isVideo ? "הסרטון גדול מדי (עד 50MB)" : "הקובץ גדול מדי (עד 15MB)");
       return;
     }
     setUploading(true);
@@ -475,7 +478,7 @@ function BroadcastsPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,video/mp4"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -484,21 +487,31 @@ function BroadcastsPage() {
                   }}
                 />
                 {uploading ? (
-                  <span className="text-muted-foreground">מעלה תמונה…</span>
+                  <span className="text-muted-foreground">מעלה מדיה…</span>
                 ) : (
                   <span className="text-muted-foreground">
-                    גררו לכאן תמונה/באנר או לחצו לבחירת קובץ (עד 15MB)
+                    גררו לכאן תמונה/באנר או סרטון MP4, או לחצו לבחירת קובץ (תמונה עד 15MB, סרטון עד 50MB)
                   </span>
                 )}
               </div>
               {!!mediaUrl && (
                 <div className="flex items-center gap-3 rounded-md border border-border p-2">
-                  <img
-                    src={mediaUrl}
-                    alt="תצוגה מקדימה של מדיית ההפצה"
-                    loading="lazy"
-                    className="h-16 w-16 rounded object-cover"
-                  />
+                  {/\.mp4(\?|#|$)/i.test(mediaUrl) ? (
+                    <video
+                      src={mediaUrl}
+                      className="h-16 w-16 rounded object-cover"
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  ) : (
+                    <img
+                      src={mediaUrl}
+                      alt="תצוגה מקדימה של מדיית ההפצה"
+                      loading="lazy"
+                      className="h-16 w-16 rounded object-cover"
+                    />
+                  )}
                   <span className="flex-1 truncate text-xs text-muted-foreground" dir="ltr">
                     {mediaUrl}
                   </span>
