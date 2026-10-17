@@ -496,12 +496,22 @@ function BroadcastsPage() {
               </div>
               {!!mediaUrl && (
                 <div className="flex items-center gap-3 rounded-md border border-border p-2">
-                  <img
-                    src={mediaUrl}
-                    alt="תצוגה מקדימה של מדיית ההפצה"
-                    loading="lazy"
-                    className="h-16 w-16 rounded object-cover"
-                  />
+                  {/\.mp4(\?|#|$)/i.test(mediaUrl) ? (
+                    <video
+                      src={mediaUrl}
+                      className="h-16 w-16 rounded object-cover"
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                  ) : (
+                    <img
+                      src={mediaUrl}
+                      alt="תצוגה מקדימה של מדיית ההפצה"
+                      loading="lazy"
+                      className="h-16 w-16 rounded object-cover"
+                    />
+                  )}
                   <span className="flex-1 truncate text-xs text-muted-foreground" dir="ltr">
                     {mediaUrl}
                   </span>
