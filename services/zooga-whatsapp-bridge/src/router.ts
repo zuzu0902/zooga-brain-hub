@@ -13,7 +13,7 @@ import {
 } from "./config.js";
 import { IdempotencyLedger } from "./idempotency.js";
 import { log } from "./logger.js";
-import { fetchMedia } from "./media.js";
+import { fetchMedia, VIDEO_MIME } from "./media.js";
 import { SendRateLimiter, jitterMs } from "./rate-limit.js";
 import { validateSendGroup } from "./validate.js";
 import type { WhatsAppSessionManager } from "./session.js";
